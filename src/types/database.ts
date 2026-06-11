@@ -67,35 +67,88 @@ export type Database = {
         }
         Relationships: []
       }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          person_id: string
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          person_id: string
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          person_id?: string
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       people: {
         Row: {
           auth_user_id: string | null
+          birthday: string | null
           created_at: string
           email: string | null
           first_name: string
           id: string
           last_name: string
+          notes: string | null
+          phone: string | null
+          photo_url: string | null
           role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["person_status"]
           updated_at: string
         }
         Insert: {
           auth_user_id?: string | null
+          birthday?: string | null
           created_at?: string
           email?: string | null
           first_name: string
           id?: string
           last_name: string
+          notes?: string | null
+          phone?: string | null
+          photo_url?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["person_status"]
           updated_at?: string
         }
         Update: {
           auth_user_id?: string | null
+          birthday?: string | null
           created_at?: string
           email?: string | null
           first_name?: string
           id?: string
           last_name?: string
+          notes?: string | null
+          phone?: string | null
+          photo_url?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["person_status"]
           updated_at?: string
         }
         Relationships: []
@@ -105,14 +158,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_person_id: { Args: never; Returns: string }
       current_person_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
       is_admin: { Args: never; Returns: boolean }
+      is_admin_or_leader: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "leader" | "member"
+      person_status: "active" | "inactive"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -244,6 +300,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "leader", "member"],
+      person_status: ["active", "inactive"],
     },
   },
 } as const
