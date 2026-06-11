@@ -3,11 +3,12 @@
 Solo developer, vibe-coded with Claude Code. Each phase ends with a **usable release**
 deployed to the live Life Sanctuary Church instance. Tick boxes as work completes.
 **Phase 1 closed** — production acceptance tests passed (real CSV import, phone
-invite flow). Current phase: **Phase 2 — code complete & verified on the local
-stack** (migration 0003 written and validated, all deliverables built, RLS
-verified at the API level with a member token). To deploy: `npx supabase db push`
-(migration 0003) **first**, then merge/push to `main` for Vercel. Phase 3 next,
-after confirmation.
+invite flow). Current phase: **Phase 2 — deployed to production** (migration
+0003 applied to the linked project, Phase 2 bundle live on https://lscroster.xyz,
+RLS verified at the API level with a member token on the local stack). Remaining
+before closing Phase 2: the production acceptance test — plan a real LSC Sunday
+start-to-finish, reorder by drag, print the run sheet. Phase 3 next, after
+confirmation.
 
 ---
 
