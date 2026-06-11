@@ -2,7 +2,7 @@
 
 Solo developer, vibe-coded with Claude Code. Each phase ends with a **usable release**
 deployed to the live Life Sanctuary Church instance. Tick boxes as work completes.
-Current phase: **Phase 0**.
+Current phase: **Phase 1** (Phase 0 complete & deployed).
 
 ---
 
@@ -15,13 +15,13 @@ Vercel, Supabase migrations) before writing features.
 - [x] GitHub repo `lscroster` with MIT licence, README stub, `.gitignore`, `.env.example`
 - [x] Vite + React + TS (strict) scaffold; Tailwind + shadcn/ui installed; base theme (light/dark)
 - [x] App shell: responsive sidebar/topbar layout, route placeholders for People / Services / My Schedule / Settings
-- [ ] Supabase project (Sydney region) created and linked _(local stack runs via `supabase start` ✓; hosted project needs Manoj's account)_
+- [x] Supabase project (Sydney region) created and linked; local stack runs via `supabase start`
 - [x] Migration 0001: `church_settings` (single row: name, logo_url, timezone, email_from_name), `people` (with `role app_role`, nullable `auth_user_id`), `updated_at` trigger, RLS on both
-- [ ] Supabase Auth configured: email+password, public signups **disabled** _(done in `config.toml` for local; hosted project needs the dashboard toggle)_
+- [x] Supabase Auth configured: email+password, public signups **disabled**
 - [x] Sign-in page, session handling, protected routes, sign-out
 - [x] First-run setup wizard: if `church_settings` empty → create church + first admin (bootstrap path for new instances)
-- [ ] `send-email` Edge Function wrapping Resend + one test template; secrets set _(function + template done & verified locally; deploy + secrets need the hosted project)_
-- [ ] GitHub Actions: lint, typecheck, build on PR; Vercel connected to `main` _(workflow live on GitHub ✓; Vercel connection needs Manoj's account)_
+- [x] `send-email` Edge Function wrapping Resend + one test template; secrets set
+- [x] GitHub Actions: lint, typecheck, build on PR; Vercel connected to `main`
 - [x] `npm run db:types` generating `src/types/database.ts`
 
 ### Acceptance criteria
