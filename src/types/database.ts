@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -153,9 +153,319 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key_override: string | null
+          kind: Database["public"]["Enums"]["plan_item_kind"]
+          length_seconds: number
+          plan_id: string
+          song_id: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key_override?: string | null
+          kind?: Database["public"]["Enums"]["plan_item_kind"]
+          length_seconds?: number
+          plan_id: string
+          song_id?: string | null
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key_override?: string | null
+          kind?: Database["public"]["Enums"]["plan_item_kind"]
+          length_seconds?: number
+          plan_id?: string
+          song_id?: string | null
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_items_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_items_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_template_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key_override: string | null
+          kind: Database["public"]["Enums"]["plan_item_kind"]
+          length_seconds: number
+          song_id: string | null
+          sort_order: number
+          template_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key_override?: string | null
+          kind?: Database["public"]["Enums"]["plan_item_kind"]
+          length_seconds?: number
+          song_id?: string | null
+          sort_order?: number
+          template_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key_override?: string | null
+          kind?: Database["public"]["Enums"]["plan_item_kind"]
+          length_seconds?: number
+          song_id?: string | null
+          sort_order?: number
+          template_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_template_items_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "plan_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_templates: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          service_type_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          service_type_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          service_type_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_templates_service_type_id_fkey"
+            columns: ["service_type_id"]
+            isOneToOne: false
+            referencedRelation: "service_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plans: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+          service_type_id: string
+          status: Database["public"]["Enums"]["plan_status"]
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          notes?: string | null
+          service_type_id: string
+          status?: Database["public"]["Enums"]["plan_status"]
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          service_type_id?: string
+          status?: Database["public"]["Enums"]["plan_status"]
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plans_service_type_id_fkey"
+            columns: ["service_type_id"]
+            isOneToOne: false
+            referencedRelation: "service_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_types: {
+        Row: {
+          created_at: string
+          default_start_time: string | null
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_start_time?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_start_time?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      song_attachments: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          song_id: string
+          storage_path: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          song_id: string
+          storage_path: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          song_id?: string
+          storage_path?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "song_attachments_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      songs: {
+        Row: {
+          author: string | null
+          bpm: number | null
+          ccli_number: string | null
+          created_at: string
+          default_key: string | null
+          id: string
+          lyrics: string | null
+          status: Database["public"]["Enums"]["song_status"]
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author?: string | null
+          bpm?: number | null
+          ccli_number?: string | null
+          created_at?: string
+          default_key?: string | null
+          id?: string
+          lyrics?: string | null
+          status?: Database["public"]["Enums"]["song_status"]
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author?: string | null
+          bpm?: number | null
+          ccli_number?: string | null
+          created_at?: string
+          default_key?: string | null
+          id?: string
+          lyrics?: string | null
+          status?: Database["public"]["Enums"]["song_status"]
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      song_usage: {
+        Row: {
+          last_used: string | null
+          next_scheduled: string | null
+          song_id: string | null
+          use_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_items_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       current_person_id: { Args: never; Returns: string }
@@ -169,6 +479,9 @@ export type Database = {
     Enums: {
       app_role: "admin" | "leader" | "member"
       person_status: "active" | "inactive"
+      plan_item_kind: "header" | "song" | "item"
+      plan_status: "draft" | "published"
+      song_status: "active" | "archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -301,6 +614,9 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "leader", "member"],
       person_status: ["active", "inactive"],
+      plan_item_kind: ["header", "song", "item"],
+      plan_status: ["draft", "published"],
+      song_status: ["active", "archived"],
     },
   },
 } as const
