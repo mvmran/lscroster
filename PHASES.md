@@ -15,14 +15,14 @@ Vercel, Supabase migrations) before writing features.
 - [x] GitHub repo `lscroster` with MIT licence, README stub, `.gitignore`, `.env.example`
 - [x] Vite + React + TS (strict) scaffold; Tailwind + shadcn/ui installed; base theme (light/dark)
 - [x] App shell: responsive sidebar/topbar layout, route placeholders for People / Services / My Schedule / Settings
-- [ ] Supabase project (Sydney region) created and linked; local stack runs via `supabase start`
-- [ ] Migration 0001: `church_settings` (single row: name, logo_url, timezone, email_from_name), `people` (with `role app_role`, nullable `auth_user_id`), `updated_at` trigger, RLS on both
-- [ ] Supabase Auth configured: email+password, public signups **disabled**
-- [ ] Sign-in page, session handling, protected routes, sign-out
-- [ ] First-run setup wizard: if `church_settings` empty → create church + first admin (bootstrap path for new instances)
-- [ ] `send-email` Edge Function wrapping Resend + one test template; secrets set
-- [ ] GitHub Actions: lint, typecheck, build on PR; Vercel connected to `main`
-- [ ] `npm run db:types` generating `src/types/database.ts`
+- [ ] Supabase project (Sydney region) created and linked _(local stack runs via `supabase start` ✓; hosted project needs Manoj's account)_
+- [x] Migration 0001: `church_settings` (single row: name, logo_url, timezone, email_from_name), `people` (with `role app_role`, nullable `auth_user_id`), `updated_at` trigger, RLS on both
+- [ ] Supabase Auth configured: email+password, public signups **disabled** _(done in `config.toml` for local; hosted project needs the dashboard toggle)_
+- [x] Sign-in page, session handling, protected routes, sign-out
+- [x] First-run setup wizard: if `church_settings` empty → create church + first admin (bootstrap path for new instances)
+- [ ] `send-email` Edge Function wrapping Resend + one test template; secrets set _(function + template done & verified locally; deploy + secrets need the hosted project)_
+- [ ] GitHub Actions: lint, typecheck, build on PR; Vercel connected to `main` _(workflow live on GitHub ✓; Vercel connection needs Manoj's account)_
+- [x] `npm run db:types` generating `src/types/database.ts`
 
 ### Acceptance criteria
 - Fresh clone + SETUP steps → working instance in under 30 minutes (note actual time; this is the distribution benchmark).
