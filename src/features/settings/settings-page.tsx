@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { Loader2, Mail, Users as UsersIcon } from 'lucide-react'
+import { CalendarDays, Loader2, Mail, Users as UsersIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -89,6 +89,27 @@ function TestEmailCard() {
   )
 }
 
+function ServiceTypesLinkCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Service types</CardTitle>
+        <CardDescription>
+          The recurring gatherings you plan services for, e.g. “Sunday 10am”.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button asChild variant="outline">
+          <Link to="/settings/service-types">
+            <CalendarDays className="size-4" />
+            Manage service types
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
 function UsersLinkCard() {
   return (
     <Card>
@@ -119,6 +140,7 @@ export function SettingsPage() {
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">Settings</h1>
       <ChurchSettingsCard />
+      {isAdmin && <ServiceTypesLinkCard />}
       {isAdmin && <UsersLinkCard />}
       {canSendEmail && <TestEmailCard />}
     </div>

@@ -2,11 +2,11 @@
 
 Solo developer, vibe-coded with Claude Code. Each phase ends with a **usable release**
 deployed to the live Life Sanctuary Church instance. Tick boxes as work completes.
-Current phase: **Phase 1 — code complete & deployed to production** (migration
-0002 pushed, all Edge Functions live, custom domain https://lscroster.xyz with
-Resend + APP_URL configured). Remaining before closing Phase 1: the two
-production acceptance tests — import the real LSC congregation CSV, and time
-an invited person going email → signed-in on a phone (<2 min). Phase 2 next,
+**Phase 1 closed** — production acceptance tests passed (real CSV import, phone
+invite flow). Current phase: **Phase 2 — code complete & verified on the local
+stack** (migration 0003 written and validated, all deliverables built, RLS
+verified at the API level with a member token). To deploy: `npx supabase db push`
+(migration 0003) **first**, then merge/push to `main` for Vercel. Phase 3 next,
 after confirmation.
 
 ---
@@ -76,15 +76,15 @@ drag-and-drop order of service, and a song library.
 - `plan_templates` + `plan_template_items`
 
 ### Deliverables
-- [ ] Service types CRUD (Settings)
-- [ ] Plans index: upcoming/past per service type, create plan for a date, duplicate a previous plan
-- [ ] Plan page: order of service with dnd-kit reordering; add header/song/item; per-item length; running clock with computed start times from service start
-- [ ] Song library: CRUD, search by title/author/CCLI, tags, default key; per-plan key override
-- [ ] Song attachments: upload/download via Storage (private bucket, signed URLs)
-- [ ] "Last scheduled" shown on songs (avoid repeating songs week to week)
-- [ ] Plan templates: save plan as template, create plan from template
-- [ ] Draft vs published: members only see published plans
-- [ ] Print-friendly run sheet view (clean CSS print stylesheet)
+- [x] Service types CRUD (Settings)
+- [x] Plans index: upcoming/past per service type, create plan for a date, duplicate a previous plan
+- [x] Plan page: order of service with dnd-kit reordering; add header/song/item; per-item length; running clock with computed start times from service start
+- [x] Song library: CRUD, search by title/author/CCLI, tags, default key; per-plan key override
+- [x] Song attachments: upload/download via Storage (private bucket, signed URLs)
+- [x] "Last scheduled" shown on songs (avoid repeating songs week to week)
+- [x] Plan templates: save plan as template, create plan from template
+- [x] Draft vs published: members only see published plans
+- [x] Print-friendly run sheet view (clean CSS print stylesheet)
 
 ### Acceptance criteria
 - A full LSC Sunday service can be planned start-to-finish, reordered by drag, and printed as a run sheet.
