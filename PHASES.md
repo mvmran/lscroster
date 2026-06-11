@@ -2,7 +2,12 @@
 
 Solo developer, vibe-coded with Claude Code. Each phase ends with a **usable release**
 deployed to the live Life Sanctuary Church instance. Tick boxes as work completes.
-Current phase: **Phase 1** (Phase 0 complete & deployed).
+Current phase: **Phase 1 — code complete & deployed to production** (migration
+0002 pushed, all Edge Functions live, custom domain https://lscroster.xyz with
+Resend + APP_URL configured). Remaining before closing Phase 1: the two
+production acceptance tests — import the real LSC congregation CSV, and time
+an invited person going email → signed-in on a phone (<2 min). Phase 2 next,
+after confirmation.
 
 ---
 
