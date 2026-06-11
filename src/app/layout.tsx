@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { CalendarCheck, CalendarDays, Church, LogOut, Menu, Settings, Users } from 'lucide-react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { CalendarCheck, CalendarDays, Church, CircleUser, LogOut, Menu, Settings, Users } from 'lucide-react'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -104,6 +104,14 @@ function UserMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {person && (
+          <DropdownMenuItem asChild>
+            <Link to={`/people/${person.id}`}>
+              <CircleUser className="size-4" />
+              My profile
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={signOut}>
           <LogOut className="size-4" />
           Sign out

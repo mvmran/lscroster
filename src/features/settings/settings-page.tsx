@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
-import { Loader2, Mail } from 'lucide-react'
+import { Loader2, Mail, Users as UsersIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -88,14 +89,37 @@ function TestEmailCard() {
   )
 }
 
+function UsersLinkCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Users &amp; roles</CardTitle>
+        <CardDescription>
+          Change who is an admin, leader or member, and deactivate people.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button asChild variant="outline">
+          <Link to="/settings/users">
+            <UsersIcon className="size-4" />
+            Manage users
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function SettingsPage() {
   const { data: person } = useCurrentPerson()
-  const canSendEmail = person?.role === 'admin' || person?.role === 'leader'
+  const isAdmin = person?.role === 'admin'
+  const canSendEmail = isAdmin || person?.role === 'leader'
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">Settings</h1>
       <ChurchSettingsCard />
+      {isAdmin && <UsersLinkCard />}
       {canSendEmail && <TestEmailCard />}
     </div>
   )
