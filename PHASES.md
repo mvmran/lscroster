@@ -40,15 +40,15 @@ Vercel, Supabase migrations) before writing features.
 - `invitations`: person_id, token, expires_at, accepted_at
 
 ### Deliverables
-- [ ] People list: search, filter by status/role/team, sort; fast on 200+ records; mobile-friendly cards
-- [ ] Person profile page: details, photo upload (Supabase Storage, private bucket, signed URLs), edit
-- [ ] Create person (no login required — a person is just a record until invited)
-- [ ] Invite flow: admin sends invitation email → person sets password → `auth_user_id` linked; resend/revoke invitations
-- [ ] CSV import with column mapping, preview and duplicate detection (match on email)
-- [ ] Roles & permissions enforced end-to-end: RLS policies + UI gating for admin/leader/member
-- [ ] Members can edit their own contact details and photo
-- [ ] Settings → Users page: change roles, deactivate people
-- [ ] Soft-archive (status `inactive`) instead of delete; hard delete admin-only with confirmation
+- [x] People list: search, filter by status/role/team, sort; fast on 200+ records; mobile-friendly cards _(team filter arrives with teams in Phase 3)_
+- [x] Person profile page: details, photo upload (Supabase Storage, private bucket, signed URLs), edit
+- [x] Create person (no login required — a person is just a record until invited)
+- [x] Invite flow: admin sends invitation email → person sets password → `auth_user_id` linked; resend/revoke invitations
+- [x] CSV import with column mapping, preview and duplicate detection (match on email)
+- [x] Roles & permissions enforced end-to-end: RLS policies + UI gating for admin/leader/member
+- [x] Members can edit their own contact details and photo
+- [x] Settings → Users page: change roles, deactivate people
+- [x] Soft-archive (status `inactive`) instead of delete; hard delete admin-only with confirmation
 
 ### Acceptance criteria
 - Real LSC congregation imported via CSV.
