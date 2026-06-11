@@ -1,11 +1,12 @@
-// Sends outbound email via Resend. All app email goes through this function;
+// Sends outbound email via Resend. All app email goes through Edge Functions;
 // the Resend API key never reaches the browser. Requires an authenticated
 // caller with the admin or leader role.
 
-import { createClient } from 'npm:@supabase/supabase-js@2'
 import { z } from 'npm:zod@4'
+import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { testEmail } from '../_shared/email-templates/test-email.ts'
+import { sendEmail } from '../_shared/resend.ts'
 
 const sendEmailSchema = z.object({
   to: z.email(),
@@ -21,39 +22,10 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405)
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader) {
-    return jsonResponse({ error: 'Missing authorization header' }, 401)
-  }
-
-  // Identify the caller from their JWT, then check their role.
-  const userClient = createClient(
-    supabaseUrl,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    {
-      global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false },
-    },
-  )
-  const {
-    data: { user },
-  } = await userClient.auth.getUser()
-  if (!user) {
-    return jsonResponse({ error: 'Not authenticated' }, 401)
-  }
-
-  const admin = createClient(
-    supabaseUrl,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    { auth: { persistSession: false } },
-  )
-  const { data: person } = await admin
-    .from('people')
-    .select('role, first_name')
-    .eq('auth_user_id', user.id)
-    .maybeSingle()
-  if (!person || !['admin', 'leader'].includes(person.role)) {
+  const admin = serviceClient()
+  const caller = await getCallerPerson(req, admin)
+  if (!caller) return jsonResponse({ error: 'Not authenticated' }, 401)
+  if (!['admin', 'leader'].includes(caller.role)) {
     return jsonResponse({ error: 'Not allowed to send email' }, 403)
   }
 
@@ -78,37 +50,28 @@ Deno.serve(async (req) => {
     case 'test': {
       ;({ subject, html } = testEmail({
         churchName,
-        recipientName: person.first_name,
+        recipientName: caller.first_name,
       }))
       break
     }
   }
 
-  const emailFrom = Deno.env.get('EMAIL_FROM')
-  const resendApiKey = Deno.env.get('RESEND_API_KEY')
-  if (!emailFrom || !resendApiKey) {
+  const result = await sendEmail({
+    to,
+    subject,
+    html,
+    fromName: church?.email_from_name ?? churchName,
+  })
+  if (!result.sent) {
     return jsonResponse(
-      { error: 'Email is not configured (RESEND_API_KEY / EMAIL_FROM secrets missing)' },
-      500,
+      {
+        error:
+          result.reason === 'not_configured'
+            ? 'Email is not configured (RESEND_API_KEY / EMAIL_FROM secrets missing)'
+            : 'Email provider rejected the request',
+      },
+      result.reason === 'not_configured' ? 500 : 502,
     )
   }
-  const fromName = church?.email_from_name ?? churchName
-  const from = `${fromName} <${emailFrom}>`
-
-  const resendResponse = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ from, to, subject, html }),
-  })
-  if (!resendResponse.ok) {
-    const detail = await resendResponse.text()
-    console.error('Resend error:', resendResponse.status, detail)
-    return jsonResponse({ error: 'Email provider rejected the request' }, 502)
-  }
-
-  const { id } = (await resendResponse.json()) as { id: string }
-  return jsonResponse({ ok: true, id })
+  return jsonResponse({ ok: true, id: result.id })
 })

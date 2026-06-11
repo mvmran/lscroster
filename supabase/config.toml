@@ -396,6 +396,16 @@ verify_jwt = false
 [functions.send-email]
 verify_jwt = true
 
+[functions.invite]
+verify_jwt = true
+
+[functions.delete-person]
+verify_jwt = true
+
+# Invitation links are opened by people who don't have an account yet.
+[functions.accept-invitation]
+verify_jwt = false
+
 [analytics]
 # Disabled: not needed locally, and on Windows it requires exposing the
 # Docker daemon over TCP.
