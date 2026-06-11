@@ -12,9 +12,9 @@ Current phase: **Phase 0**.
 Vercel, Supabase migrations) before writing features.
 
 ### Deliverables
-- [ ] GitHub repo `lscroster` with MIT licence, README stub, `.gitignore`, `.env.example`
-- [ ] Vite + React + TS (strict) scaffold; Tailwind + shadcn/ui installed; base theme (light/dark)
-- [ ] App shell: responsive sidebar/topbar layout, route placeholders for People / Services / My Schedule / Settings
+- [x] GitHub repo `lscroster` with MIT licence, README stub, `.gitignore`, `.env.example`
+- [x] Vite + React + TS (strict) scaffold; Tailwind + shadcn/ui installed; base theme (light/dark)
+- [x] App shell: responsive sidebar/topbar layout, route placeholders for People / Services / My Schedule / Settings
 - [ ] Supabase project (Sydney region) created and linked; local stack runs via `supabase start`
 - [ ] Migration 0001: `church_settings` (single row: name, logo_url, timezone, email_from_name), `people` (with `role app_role`, nullable `auth_user_id`), `updated_at` trigger, RLS on both
 - [ ] Supabase Auth configured: email+password, public signups **disabled**
