@@ -34,6 +34,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      blockout_dates: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          person_id: string
+          reason: string | null
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          person_id: string
+          reason?: string | null
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          person_id?: string
+          reason?: string | null
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blockout_dates_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       church_settings: {
         Row: {
           created_at: string
@@ -41,6 +79,8 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          reminder_days_before: number
+          request_nudge_days: number
           singleton: boolean
           timezone: string
           updated_at: string
@@ -51,6 +91,8 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          reminder_days_before?: number
+          request_nudge_days?: number
           singleton?: boolean
           timezone?: string
           updated_at?: string
@@ -61,11 +103,67 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          reminder_days_before?: number
+          request_nudge_days?: number
           singleton?: boolean
           timezone?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      email_log: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          person_id: string | null
+          plan_id: string | null
+          status: string
+          subject: string | null
+          template: string
+          to_email: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          person_id?: string | null
+          plan_id?: string | null
+          status?: string
+          subject?: string | null
+          template: string
+          to_email: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          person_id?: string | null
+          plan_id?: string | null
+          status?: string
+          subject?: string | null
+          template?: string
+          to_email?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_log_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_log_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invitations: {
         Row: {
@@ -152,6 +250,86 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      plan_assignments: {
+        Row: {
+          created_at: string
+          decline_reason: string | null
+          id: string
+          notified_at: string | null
+          nudged_at: string | null
+          person_id: string
+          plan_id: string
+          position_id: string
+          reminded_at: string | null
+          responded_at: string | null
+          status: Database["public"]["Enums"]["assignment_status"]
+          team_id: string
+          token_hash: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decline_reason?: string | null
+          id?: string
+          notified_at?: string | null
+          nudged_at?: string | null
+          person_id: string
+          plan_id: string
+          position_id: string
+          reminded_at?: string | null
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["assignment_status"]
+          team_id: string
+          token_hash?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decline_reason?: string | null
+          id?: string
+          notified_at?: string | null
+          nudged_at?: string | null
+          person_id?: string
+          plan_id?: string
+          position_id?: string
+          reminded_at?: string | null
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["assignment_status"]
+          team_id?: string
+          token_hash?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_assignments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_assignments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_assignments_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_assignments_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       plan_items: {
         Row: {
@@ -343,6 +521,41 @@ export type Database = {
           },
         ]
       }
+      positions: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "positions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_types: {
         Row: {
           created_at: string
@@ -447,6 +660,90 @@ export type Database = {
         }
         Relationships: []
       }
+      team_members: {
+        Row: {
+          created_at: string
+          default_position_id: string | null
+          id: string
+          person_id: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_position_id?: string | null
+          id?: string
+          person_id: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_position_id?: string | null
+          id?: string
+          person_id?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_default_position_id_fkey"
+            columns: ["default_position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          service_type_id: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          service_type_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          service_type_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_service_type_id_fkey"
+            columns: ["service_type_id"]
+            isOneToOne: false
+            referencedRelation: "service_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       song_usage: {
@@ -475,9 +772,14 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_leader: { Args: never; Returns: boolean }
+      is_assigned_to_plan: {
+        Args: { target_plan_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "leader" | "member"
+      assignment_status: "pending" | "confirmed" | "declined"
       person_status: "active" | "inactive"
       plan_item_kind: "header" | "song" | "item"
       plan_status: "draft" | "published"
@@ -613,6 +915,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "leader", "member"],
+      assignment_status: ["pending", "confirmed", "declined"],
       person_status: ["active", "inactive"],
       plan_item_kind: ["header", "song", "item"],
       plan_status: ["draft", "published"],
