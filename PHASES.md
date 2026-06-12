@@ -12,6 +12,7 @@ would need vendor-chunk tuning, deferred fonts and a pre-rendered shell —
 worth a dedicated pass if it matters on real phones. Remaining to close
 Phase 4: the worship pastor rosters a month in one sitting via the matrix
 view, plus a call on whether to chase the Lighthouse performance target.
+Phase 5 (distribution) next, after confirmation.
 
 ---
 

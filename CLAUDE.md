@@ -43,22 +43,29 @@ Church-specific configuration (name, logo, timezone, email sender) lives in a si
 
 ```
 /src
-  /app            # router, providers, layout shell
+  /app            # router (lazy routes + Suspense), providers, layout shell
   /components/ui  # shadcn components (generated — don't hand-edit heavily)
   /components     # shared app components
   /features
     /auth         # sign-in, invite acceptance, setup wizard
+    /dashboard    # home page: this week, my requests, my upcoming dates
     /people       # People module
-    /services     # service types, plans, order of service, songs
-    /scheduling   # teams, positions, assignments, blockouts, my-schedule
-    /settings     # church settings, users & roles
+    /services     # service types, plans, order of service, songs, print/PDF
+    /scheduling   # teams, positions, assignments, blockouts, matrix,
+                  # my-schedule, public /respond/:token page
+    /settings     # church settings, users & roles, email log
   /lib            # supabase client, helpers, constants
   /types          # generated DB types + shared types
 /supabase
   /migrations     # ALL schema changes live here (timestamped SQL)
-  /functions      # Edge Functions (send-email, respond-to-request, reminders)
+  /functions      # setup, invite, accept-invitation, delete-person,
+                  # send-email, send-requests, respond-to-request, reminders
+                  # (_shared/: resend, auth, email-log, scheduling, templates)
 /docs             # SETUP.md, UPGRADE.md, screenshots
 ```
+
+Storage buckets (all private, served via signed URLs): `photos`,
+`song-attachments`, `plan-attachments`.
 
 ## Database conventions
 
@@ -66,40 +73,55 @@ Church-specific configuration (name, logo, timezone, email sender) lives in a si
 - **Every table has RLS enabled.** No exceptions. Policies are role-based.
 - Roles (enum `app_role`): `admin` (everything), `leader` (manage plans/teams/songs for their teams), `member` (view plans they're on, respond to requests, manage own profile & blockouts).
 - `people` is the canonical person record and may exist **without** a login. `people.auth_user_id` (nullable) links to `auth.users` once the person accepts an email invitation. Role lives on `people.role`.
-- Schema changes happen **only** via migration files (`supabase migration new ...`). Never edit schema in the Supabase dashboard. Migrations must be re-runnable on a fresh database (this is the distribution upgrade path).
-- After schema changes, regenerate types: `npm run db:types`.
+- Schema changes happen **only** via migration files (`npx supabase migration new ...`). Never edit schema in the Supabase dashboard. Migrations must be re-runnable on a fresh database (this is the distribution upgrade path).
+- After schema changes, regenerate types (see Commands; use the local stack during development).
+- Plan visibility: members see **published** plans, plus any plan they're scheduled onto (even drafts) via the `is_assigned_to_plan()` security-definer helper — it must be security definer to avoid RLS policy recursion between `plans` and `plan_assignments`. `plan_items`, `plan_times` and `plan_attachments` follow the same rule.
+- Members can update only their own `plan_assignments` row, and only the response columns (`status` to confirmed/declined, `responded_at`, `decline_reason`) — enforced by the `protect_assignment_columns` trigger, mirroring `protect_people_columns`.
 
 ## Auth & email
 
 - Supabase Auth, email + password, **invite-only** (public signups disabled). Admin invites a person → invitation email (Resend) → person sets password → account linked to their `people` row.
-- All outbound email goes through the `send-email` Edge Function (wraps Resend). HTML templates live in `supabase/functions/_shared/email-templates/`.
-- Scheduling requests are answerable **without logging in**: emails contain signed single-purpose token links handled by the `respond-to-request` Edge Function (Accept / Decline).
-- Reminders run on `pg_cron` → Edge Function.
+- All outbound email goes through the shared Resend helper in `supabase/functions/_shared/resend.ts`; every send attempt is logged to `email_log` (admin-viewable at Settings → Email log). HTML templates live in `supabase/functions/_shared/email-templates/`.
+- Scheduling requests are answerable **without logging in**: emails link to `APP_URL/respond/<token>` (raw token only ever in the email; sha-256 hash in `plan_assignments.token_hash`), and that public page calls the `respond-to-request` Edge Function (verify_jwt off — the token is the credential). Answers can be changed until the service date passes.
+- Reminders: an hourly `pg_cron` job (`lscroster-reminders`, created in migration 0004) calls the `reminders` Edge Function via `pg_net`, reading the function URL and a shared secret from **Vault** (`reminders_function_url`, `reminders_cron_secret`); the function checks the `x-cron-secret` header against its `CRON_SECRET` env and only sends during the 9am hour in the church timezone. It nudges unanswered requests after `church_settings.request_nudge_days` and reminds confirmed people `reminder_days_before` days out, idempotently via `nudged_at`/`reminded_at`.
 
 ## Environment variables
 
 | Where | Variable |
 |---|---|
 | Vercel / `.env.local` | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` |
-| Supabase Edge Function secrets | `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL` |
+| Supabase Edge Function secrets | `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`, `CRON_SECRET` |
+| Supabase Vault (read by the pg_cron job) | `reminders_function_url`, `reminders_cron_secret` (same value as `CRON_SECRET`) |
 
 Never commit secrets. `.env*` is gitignored; keep `.env.example` current whenever a variable is added.
+Vault secrets can be created from the CLI: `npx supabase db query --linked "select vault.create_secret('<value>', '<name>')"`.
 
 ## Commands
 
+The Supabase CLI is an npm devDependency — always `npx supabase …`.
+
 ```
-npm run dev          # local dev server
-npm run build        # production build (must pass before any push)
-npm run lint         # eslint
-npm run typecheck    # tsc --noEmit
-npm run db:types     # supabase gen types typescript --linked > src/types/database.ts
-supabase start       # local Supabase stack (Docker)
-supabase db reset    # rebuild local DB from migrations + seed
-supabase db push     # apply migrations to the linked (production) project
+npm run dev                      # local dev server (5173)
+npm run build                    # production build (must pass before any push)
+npm run lint                     # eslint
+npm run typecheck                # tsc --noEmit
+npm run db:types                 # types from the LINKED (production) project
+npx supabase start               # local Supabase stack (Docker Desktop must be up)
+npx supabase db reset --local    # rebuild local DB from migrations
+npx supabase db push --yes       # apply migrations to the linked (production) project
+npx supabase functions deploy <name>
+npx supabase functions serve --env-file .env.functions.local   # run functions locally
+npx supabase db query --linked "<sql>"   # run SQL on production (vault, cron checks)
 ```
 
-Deployment = merge to `main`; Vercel deploys automatically. Edge Functions deploy via
-`supabase functions deploy <name>`.
+During development, generate types from the **local** stack instead of production:
+`npx supabase gen types typescript --local > src/types/database.ts` — run it via
+bash/npm, not PowerShell (PowerShell `>` writes UTF-16 and corrupts the file).
+
+Deployment = merge to `main`; Vercel deploys automatically.
+**Deploy order matters:** `db push` migrations (and `functions deploy`) **before**
+`git push` — Vercel ships the new bundle immediately and it must not hit a
+production database that lacks its tables.
 
 ## Working rules for Claude Code
 
@@ -112,6 +134,7 @@ Deployment = merge to `main`; Vercel deploys automatically. Edge Functions deplo
 7. Conventional commits (`feat:`, `fix:`, `chore:`, `db:`); small commits; `build` + `typecheck` must pass before pushing.
 8. Anything that would break an existing church instance on upgrade (renamed columns, changed email links) needs a migration path and a note in `CHANGELOG.md`.
 9. UI language: modern, clean, fast. Sunday-morning-proof: big touch targets, obvious states, minimal clicks for the common tasks (view this week's plan, respond to a request).
+10. Verify on the local stack before deploying: `npx supabase db reset --local`, seed test users (local auth admin API + `docker exec supabase_db_lscroster psql`), drive the UI in a browser, and probe RLS at the API level with a member JWT — hidden buttons are not security.
 
 ## Glossary (Planning Center terminology we mirror)
 
