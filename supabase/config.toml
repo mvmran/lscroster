@@ -406,6 +406,18 @@ verify_jwt = true
 [functions.accept-invitation]
 verify_jwt = false
 
+[functions.send-requests]
+verify_jwt = true
+
+# Scheduling response links are opened without logging in; the signed token
+# in the body is the credential.
+[functions.respond-to-request]
+verify_jwt = false
+
+# Invoked by pg_cron; secured by the x-cron-secret header (CRON_SECRET env).
+[functions.reminders]
+verify_jwt = false
+
 [analytics]
 # Disabled: not needed locally, and on Windows it requires exposing the
 # Docker daemon over TCP.
