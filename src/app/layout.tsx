@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarCheck, CalendarDays, Church, CircleUser, LogOut, Menu, Music, Settings, Users } from 'lucide-react'
+import { CalendarCheck, CalendarDays, Church, CircleUser, LogOut, Menu, Music, Settings, Users, UsersRound } from 'lucide-react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -29,6 +29,7 @@ const navItems = [
   { to: '/people', label: 'People', icon: Users },
   { to: '/services', label: 'Services', icon: CalendarDays },
   { to: '/songs', label: 'Songs', icon: Music },
+  { to: '/teams', label: 'Teams', icon: UsersRound },
   { to: '/my-schedule', label: 'My Schedule', icon: CalendarCheck },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]

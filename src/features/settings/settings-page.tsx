@@ -48,7 +48,7 @@ function ChurchSettingsCard() {
   )
 }
 
-function TestEmailCard() {
+function TestEmailCard({ isAdmin }: { isAdmin: boolean }) {
   const { session } = useAuth()
   const email = session?.user.email
 
@@ -71,7 +71,7 @@ function TestEmailCard() {
           Edge Function and Resend. Use this to verify email is configured.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-wrap gap-2">
         <Button
           onClick={() => sendTest.mutate()}
           disabled={sendTest.isPending || !email}
@@ -84,6 +84,11 @@ function TestEmailCard() {
           )}
           Send test email
         </Button>
+        {isAdmin && (
+          <Button asChild variant="ghost">
+            <Link to="/settings/email-log">View email log</Link>
+          </Button>
+        )}
       </CardContent>
     </Card>
   )
@@ -142,7 +147,7 @@ export function SettingsPage() {
       <ChurchSettingsCard />
       {isAdmin && <ServiceTypesLinkCard />}
       {isAdmin && <UsersLinkCard />}
-      {canSendEmail && <TestEmailCard />}
+      {canSendEmail && <TestEmailCard isAdmin={isAdmin} />}
     </div>
   )
 }

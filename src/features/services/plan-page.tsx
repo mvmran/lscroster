@@ -67,6 +67,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { SchedulingPanel } from '@/features/scheduling/scheduling-panel'
 import { PlanItemDialog, type PlanItemDialogState } from '@/features/services/plan-item-dialog'
 import {
   computeItemTimes,
@@ -712,6 +713,8 @@ export function PlanPage() {
           </Button>
         </div>
       )}
+
+      <SchedulingPanel plan={plan} canManage={canManage} />
 
       <NotesCard key={plan.notes ?? ''} plan={plan} canManage={canManage} />
 

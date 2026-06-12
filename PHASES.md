@@ -2,13 +2,13 @@
 
 Solo developer, vibe-coded with Claude Code. Each phase ends with a **usable release**
 deployed to the live Life Sanctuary Church instance. Tick boxes as work completes.
-**Phase 1 closed** — production acceptance tests passed (real CSV import, phone
-invite flow). Current phase: **Phase 2 — deployed to production** (migration
-0003 applied to the linked project, Phase 2 bundle live on https://lscroster.xyz,
-RLS verified at the API level with a member token on the local stack). Remaining
-before closing Phase 2: the production acceptance test — plan a real LSC Sunday
-start-to-finish, reorder by drag, print the run sheet. Phase 3 next, after
-confirmation.
+**Phases 0–2 closed.** Current phase: **Phase 3 — scheduling, rostering &
+email: code complete, verified on the local stack, deployed to production.**
+One manual step enables reminder emails: create the two Vault secrets for the
+pg_cron job (SQL in the migration 0004 comments) in the Supabase dashboard.
+Remaining to close Phase 3: the real-user acceptance test — leader schedules a
+team, members accept/decline from their phones without logging in — then run
+the app in parallel with the old process for 2–4 weeks.
 
 ---
 
@@ -107,15 +107,15 @@ blockouts, and email accept/decline.
 - `blockout_dates`: person_id, start_date, end_date, reason (optional)
 
 ### Deliverables
-- [ ] Teams & positions CRUD; manage team membership from team page and from person profile
-- [ ] Scheduling panel on the plan page: schedule people into positions; warn on blockout conflicts and double-booking the same person on the same date
-- [ ] Blockouts: members add their own; leaders see them when scheduling; calendar-style picker
-- [ ] Scheduling request emails (Resend): plan details + **Accept / Decline** buttons using signed single-use token links — no login required
-- [ ] `respond-to-request` Edge Function: validates token, updates status, shows a friendly confirmation page; decline asks for an optional reason
-- [ ] In-app responses too: **My Schedule** page listing pending requests and upcoming confirmed dates
-- [ ] Status visible at a glance on the plan (pending/confirmed/declined colour coding); one-click "find replacement" re-request flow
-- [ ] Reminder emails via pg_cron → Edge Function: nudge unanswered requests (e.g. after 3 days) and remind confirmed people a configurable number of days before the service
-- [ ] Email log table for troubleshooting delivery
+- [x] Teams & positions CRUD; manage team membership from team page and from person profile
+- [x] Scheduling panel on the plan page: schedule people into positions; warn on blockout conflicts and double-booking the same person on the same date
+- [x] Blockouts: members add their own; leaders see them when scheduling; calendar-style picker
+- [x] Scheduling request emails (Resend): plan details + **Accept / Decline** buttons using signed single-use token links — no login required
+- [x] `respond-to-request` Edge Function: validates token, updates status, shows a friendly confirmation page; decline asks for an optional reason
+- [x] In-app responses too: **My Schedule** page listing pending requests and upcoming confirmed dates
+- [x] Status visible at a glance on the plan (pending/confirmed/declined colour coding); one-click "find replacement" re-request flow
+- [x] Reminder emails via pg_cron → Edge Function: nudge unanswered requests (e.g. after 3 days) and remind confirmed people a configurable number of days before the service
+- [x] Email log table for troubleshooting delivery
 
 ### Acceptance criteria
 - End-to-end on real users: leader schedules a team → members get emails → accept/decline from a phone without logging in → plan updates live.

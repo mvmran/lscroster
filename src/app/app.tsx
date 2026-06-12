@@ -10,12 +10,16 @@ import { ImportPage } from '@/features/people/import-page'
 import { PeoplePage } from '@/features/people/people-page'
 import { PersonPage } from '@/features/people/person-page'
 import { MySchedulePage } from '@/features/scheduling/my-schedule-page'
+import { RespondPage } from '@/features/scheduling/respond-page'
+import { TeamPage } from '@/features/scheduling/team-page'
+import { TeamsPage } from '@/features/scheduling/teams-page'
 import { PlanPage } from '@/features/services/plan-page'
 import { PlanPrintPage } from '@/features/services/plan-print-page'
 import { ServicesPage } from '@/features/services/services-page'
 import { ServiceTypesPage } from '@/features/services/service-types-page'
 import { SongPage } from '@/features/services/song-page'
 import { SongsPage } from '@/features/services/songs-page'
+import { EmailLogPage } from '@/features/settings/email-log-page'
 import { SettingsPage } from '@/features/settings/settings-page'
 import { UsersPage } from '@/features/settings/users-page'
 
@@ -27,6 +31,8 @@ export function App() {
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/setup" element={<SetupPage />} />
           <Route path="/invite/:token" element={<AcceptInvitePage />} />
+          {/* Scheduling responses are answerable without logging in. */}
+          <Route path="/respond/:token" element={<RespondPage />} />
           <Route element={<RequireAuth />}>
             {/* Print view: authenticated but outside the app shell. */}
             <Route path="/services/plans/:id/print" element={<PlanPrintPage />} />
@@ -38,6 +44,8 @@ export function App() {
               <Route path="/services/plans/:id" element={<PlanPage />} />
               <Route path="/songs" element={<SongsPage />} />
               <Route path="/songs/:id" element={<SongPage />} />
+              <Route path="/teams" element={<TeamsPage />} />
+              <Route path="/teams/:id" element={<TeamPage />} />
               <Route path="/my-schedule" element={<MySchedulePage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route element={<RequireAdmin />}>
@@ -45,6 +53,7 @@ export function App() {
                 <Route path="/people/import" element={<ImportPage />} />
                 <Route path="/settings/users" element={<UsersPage />} />
                 <Route path="/settings/service-types" element={<ServiceTypesPage />} />
+                <Route path="/settings/email-log" element={<EmailLogPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/people" replace />} />
             </Route>
