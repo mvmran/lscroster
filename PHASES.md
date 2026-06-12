@@ -4,11 +4,14 @@ Solo developer, vibe-coded with Claude Code. Each phase ends with a **usable rel
 deployed to the live Life Sanctuary Church instance. Tick boxes as work completes.
 **Phases 0–3 closed** — Phase 3's real-user parallel run (2–4 weeks) continues
 alongside. Current phase: **Phase 4 — polish & power features: code complete,
-verified locally, deployed to production.** Remaining to close Phase 4: the
-worship pastor rosters a month in one sitting via the matrix view, and a
-production Lighthouse check of the performance score (accessibility measured
-at 98; performance is dominated by CDN compression, so it must be measured on
-the live site).
+verified locally, deployed to production.** Lighthouse (production, mobile
+simulation): accessibility 98 ✓, performance 64 — short of the 90 target.
+The score is dominated by simulated slow-4G + 4× CPU throttling against an
+SPA shell; on real connections first paint is sub-second. Closing the gap
+would need vendor-chunk tuning, deferred fonts and a pre-rendered shell —
+worth a dedicated pass if it matters on real phones. Remaining to close
+Phase 4: the worship pastor rosters a month in one sitting via the matrix
+view, plus a call on whether to chase the Lighthouse performance target.
 
 ---
 
