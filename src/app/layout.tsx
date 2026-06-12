@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarCheck, CalendarDays, Church, CircleUser, LogOut, Menu, Music, Settings, Users, UsersRound } from 'lucide-react'
+import { CalendarCheck, CalendarDays, Church, CircleUser, House, LogOut, Menu, Music, Settings, Users, UsersRound } from 'lucide-react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -25,7 +25,14 @@ import { useChurchSettings } from '@/features/settings/use-church-settings'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
-const navItems = [
+const navItems: {
+  to: string
+  label: string
+  icon: typeof House
+  /** Match exactly (NavLink `end`) so Home isn't active everywhere. */
+  end?: boolean
+}[] = [
+  { to: '/', label: 'Home', icon: House, end: true },
   { to: '/people', label: 'People', icon: Users },
   { to: '/services', label: 'Services', icon: CalendarDays },
   { to: '/songs', label: 'Songs', icon: Music },
@@ -37,10 +44,11 @@ const navItems = [
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav className="flex flex-col gap-1 px-2">
-      {navItems.map(({ to, label, icon: Icon }) => (
+      {navItems.map(({ to, label, icon: Icon, end }) => (
         <NavLink
           key={to}
           to={to}
+          end={end}
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(

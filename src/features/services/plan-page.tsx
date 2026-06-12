@@ -51,6 +51,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -68,6 +69,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { SchedulingPanel } from '@/features/scheduling/scheduling-panel'
+import { PlanAttachmentsCard, PlanTimesCard } from '@/features/services/plan-extras-cards'
 import { PlanItemDialog, type PlanItemDialogState } from '@/features/services/plan-item-dialog'
 import {
   computeItemTimes,
@@ -245,6 +247,7 @@ function EditDetailsDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit plan details</DialogTitle>
+          <DialogDescription>Change the date or title of this plan.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
@@ -316,6 +319,9 @@ function DuplicateDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Duplicate plan</DialogTitle>
+          <DialogDescription>
+            Copies the whole order of service into a new draft plan.
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2">
           <Label htmlFor="dup-date">Date for the copy</Label>
@@ -326,9 +332,6 @@ function DuplicateDialog({
             onChange={(e) => setDate(e.target.value)}
             className="w-44"
           />
-          <p className="text-muted-foreground text-xs">
-            Copies the whole order of service into a new draft plan.
-          </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -379,6 +382,9 @@ function SaveTemplateDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Save as template</DialogTitle>
+          <DialogDescription>
+            New plans can start from this template in the "New plan" dialog.
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2">
           <Label htmlFor="tpl-name">Template name</Label>
@@ -388,9 +394,6 @@ function SaveTemplateDialog({
             onChange={(e) => setName(e.target.value)}
             autoFocus
           />
-          <p className="text-muted-foreground text-xs">
-            New plans can start from this template in the “New plan” dialog.
-          </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -715,6 +718,9 @@ export function PlanPage() {
       )}
 
       <SchedulingPanel plan={plan} canManage={canManage} />
+
+      <PlanTimesCard planId={plan.id} canManage={canManage} />
+      <PlanAttachmentsCard planId={plan.id} canManage={canManage} />
 
       <NotesCard key={plan.notes ?? ''} plan={plan} canManage={canManage} />
 

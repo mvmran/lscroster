@@ -13,6 +13,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -103,6 +104,9 @@ export function PersonTeamsCard({
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Add to team</DialogTitle>
+            <DialogDescription>
+              Pick which team this person should join.
+            </DialogDescription>
           </DialogHeader>
           <ul className="flex flex-col">
             {availableTeams.map((team) => (

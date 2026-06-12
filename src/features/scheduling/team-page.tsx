@@ -460,6 +460,9 @@ export function TeamPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit team</DialogTitle>
+            <DialogDescription>
+              Rename the team or change which service type it serves.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">

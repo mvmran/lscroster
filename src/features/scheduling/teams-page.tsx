@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -60,6 +61,9 @@ function NewTeamDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New team</DialogTitle>
+          <DialogDescription>
+            A team groups the positions people get scheduled into.
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, Plus, Settings2 } from 'lucide-react'
+import { CalendarDays, Grid3x3, Plus, Settings2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { FullPageError } from '@/components/full-page-error'
 import { Badge } from '@/components/ui/badge'
@@ -93,6 +93,12 @@ export function ServicesPage() {
                 </Link>
               </Button>
             )}
+            <Button variant="outline" asChild>
+              <Link to="/services/matrix">
+                <Grid3x3 className="size-4" />
+                <span className="hidden sm:inline">Matrix</span>
+              </Link>
+            </Button>
             <Button onClick={() => setNewPlanOpen(true)} disabled={noServiceTypes}>
               <Plus className="size-4" />
               New plan

@@ -2,13 +2,13 @@
 
 Solo developer, vibe-coded with Claude Code. Each phase ends with a **usable release**
 deployed to the live Life Sanctuary Church instance. Tick boxes as work completes.
-**Phases 0–2 closed.** Current phase: **Phase 3 — scheduling, rostering &
-email: code complete, verified on the local stack, deployed to production.**
-One manual step enables reminder emails: create the two Vault secrets for the
-pg_cron job (SQL in the migration 0004 comments) in the Supabase dashboard.
-Remaining to close Phase 3: the real-user acceptance test — leader schedules a
-team, members accept/decline from their phones without logging in — then run
-the app in parallel with the old process for 2–4 weeks.
+**Phases 0–3 closed** — Phase 3's real-user parallel run (2–4 weeks) continues
+alongside. Current phase: **Phase 4 — polish & power features: code complete,
+verified locally, deployed to production.** Remaining to close Phase 4: the
+worship pastor rosters a month in one sitting via the matrix view, and a
+production Lighthouse check of the performance score (accessibility measured
+at 98; performance is dominated by CDN compression, so it must be measured on
+the live site).
 
 ---
 
@@ -130,16 +130,16 @@ blockouts, and email accept/decline.
 **Goal:** quality-of-life features that make it feel like a mature product.
 
 ### Deliverables
-- [ ] Matrix view: weeks × positions grid across upcoming plans, with inline scheduling
-- [ ] Recurring plan creation (e.g. generate next 8 Sundays from a template)
-- [ ] Multiple times per plan (rehearsal + service times) shown in emails and My Schedule
-- [ ] Plan attachments (files on plans, not just songs)
-- [ ] Dashboard/home: this week's plan, my pending requests, my upcoming dates
-- [ ] PDF export of run sheet
-- [ ] Song usage reports (frequency, last played, by service type)
-- [ ] Performance pass: route code-splitting, query caching review, image sizes; instant-feel navigation
-- [ ] Mobile UX pass on the top flows; PWA manifest + icons (installable; positions the codebase for the future native apps)
-- [ ] Accessibility pass (keyboard, focus states, contrast)
+- [x] Matrix view: weeks × positions grid across upcoming plans, with inline scheduling
+- [x] Recurring plan creation (e.g. generate next 8 Sundays from a template)
+- [x] Multiple times per plan (rehearsal + service times) shown in emails and My Schedule
+- [x] Plan attachments (files on plans, not just songs)
+- [x] Dashboard/home: this week's plan, my pending requests, my upcoming dates
+- [x] PDF export of run sheet
+- [x] Song usage reports (frequency, last played, by service type)
+- [x] Performance pass: route code-splitting, query caching review, image sizes; instant-feel navigation _(initial bundle 1,085 kB → 381 kB; pages lazy-load; jsPDF only loads on demand)_
+- [x] Mobile UX pass on the top flows; PWA manifest + icons (installable; positions the codebase for the future native apps)
+- [x] Accessibility pass (keyboard, focus states, contrast) _(dialog descriptions added; Lighthouse accessibility 98)_
 
 ### Acceptance criteria
 - Worship pastor can roster a month in one sitting via the matrix view.

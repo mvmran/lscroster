@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { addDays, format, parseISO } from 'date-fns'
 import { Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -49,6 +50,7 @@ export function NewPlanDialog({
   const [date, setDate] = useState(todayISODate())
   const [title, setTitle] = useState('')
   const [source, setSource] = useState('blank')
+  const [repeat, setRepeat] = useState('1')
 
   const effectiveTypeId = serviceTypeId || serviceTypes?.[0]?.id || ''
 
@@ -68,15 +70,21 @@ export function NewPlanDialog({
   async function create() {
     if (!effectiveTypeId || !date) return
     const [kind, id] = source.split(':') as ['template' | 'plan', string] | ['blank', undefined]
+    const count = parseInt(repeat, 10)
     try {
-      const plan = await createPlan.mutateAsync({
-        service_type_id: effectiveTypeId,
-        date,
-        title: title.trim() || null,
-        source: kind !== 'blank' && id ? { kind, id } : undefined,
-      })
+      let firstPlanId: string | null = null
+      for (let week = 0; week < count; week++) {
+        const plan = await createPlan.mutateAsync({
+          service_type_id: effectiveTypeId,
+          date: format(addDays(parseISO(date), week * 7), 'yyyy-MM-dd'),
+          title: title.trim() || null,
+          source: kind !== 'blank' && id ? { kind, id } : undefined,
+        })
+        firstPlanId ??= plan.id
+      }
+      if (count > 1) toast.success(`Created ${count} weekly plans`)
       onOpenChange(false)
-      navigate(`/services/plans/${plan.id}`)
+      navigate(`/services/plans/${firstPlanId}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not create plan')
     }
@@ -133,6 +141,21 @@ export function NewPlanDialog({
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Easter Sunday"
             />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="np-repeat">Repeat</Label>
+            <Select value={repeat} onValueChange={setRepeat}>
+              <SelectTrigger id="np-repeat" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Just this date</SelectItem>
+                <SelectItem value="4">Weekly · next 4 weeks</SelectItem>
+                <SelectItem value="8">Weekly · next 8 weeks</SelectItem>
+                <SelectItem value="13">Weekly · next 13 weeks</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {(typeTemplates.length > 0 || recentPlans.length > 0) && (

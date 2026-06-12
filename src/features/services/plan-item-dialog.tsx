@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -203,6 +204,11 @@ export function PlanItemDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{heading}</DialogTitle>
+          <DialogDescription>
+            {kind === 'header'
+              ? 'Headers split the order of service into sections.'
+              : 'Appears as a row in the order of service.'}
+          </DialogDescription>
         </DialogHeader>
         {state && (
           <ItemForm

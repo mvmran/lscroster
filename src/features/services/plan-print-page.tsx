@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft, FileDown, Loader2, Printer } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { FullPageError } from '@/components/full-page-error'
 import { FullPageLoader } from '@/components/full-page-loader'
@@ -11,11 +11,111 @@ import {
   formatLength,
   formatPlanDate,
   formatTotalLength,
+  type PlanItem,
+  type TimedPlanItem,
 } from '@/features/services/service-utils'
+import type { PlanWithType } from '@/features/services/use-plans'
 import { usePlanItems } from '@/features/services/use-plan-items'
 import { usePlan } from '@/features/services/use-plans'
 import { useSongs } from '@/features/services/use-songs'
 import { useChurchSettings } from '@/features/settings/use-church-settings'
+
+/** Client-side PDF of the run sheet; jsPDF is loaded only when clicked. */
+function DownloadPdfButton({
+  plan,
+  timed,
+  songKey,
+  churchName,
+  summary,
+}: {
+  plan: PlanWithType
+  timed: TimedPlanItem<PlanItem>[]
+  songKey: (item: PlanItem) => string | null
+  churchName: string
+  summary: string
+}) {
+  const [generating, setGenerating] = useState(false)
+
+  async function download() {
+    setGenerating(true)
+    try {
+      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+      ])
+      const doc = new jsPDF()
+
+      doc.setFontSize(10)
+      doc.setTextColor(120)
+      doc.text(churchName, 14, 14)
+      doc.setFontSize(16)
+      doc.setTextColor(20)
+      doc.text(`${plan.service_types.name} — ${formatPlanDate(plan.date)}`, 14, 22)
+      doc.setFontSize(10)
+      doc.setTextColor(120)
+      if (summary) doc.text(summary, 14, 28)
+
+      autoTable(doc, {
+        startY: 33,
+        head: [['Time', 'Item', 'Key', 'Length']],
+        body: timed.map(({ item, startsAt, offsetSeconds }) => [
+          startsAt
+            ? formatClock(startsAt)
+            : `+${Math.floor(offsetSeconds / 60)}:${(offsetSeconds % 60)
+                .toString()
+                .padStart(2, '0')}`,
+          item.description ? `${item.title}\n${item.description}` : item.title,
+          songKey(item) ?? '',
+          item.kind === 'header' ? '' : formatLength(item.length_seconds),
+        ]),
+        styles: { fontSize: 10, cellPadding: 2 },
+        headStyles: { fillColor: [24, 24, 27] },
+        columnStyles: {
+          0: { cellWidth: 20 },
+          2: { cellWidth: 16, halign: 'right' },
+          3: { cellWidth: 20, halign: 'right' },
+        },
+        didParseCell: (data) => {
+          if (
+            data.section === 'body' &&
+            timed[data.row.index]?.item.kind === 'header'
+          ) {
+            data.cell.styles.fontStyle = 'bold'
+            data.cell.styles.fillColor = [240, 240, 242]
+          }
+        },
+      })
+
+      if (plan.notes) {
+        const y =
+          (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable
+            ?.finalY ?? 40
+        doc.setFontSize(10)
+        doc.setTextColor(20)
+        doc.text('Notes', 14, y + 10)
+        doc.setTextColor(80)
+        doc.text(doc.splitTextToSize(plan.notes, 180), 14, y + 16)
+      }
+
+      doc.save(`run-sheet-${plan.date}.pdf`)
+    } catch (error) {
+      console.error('PDF generation failed:', error)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  return (
+    <Button variant="outline" onClick={download} disabled={generating}>
+      {generating ? (
+        <Loader2 className="size-4 animate-spin" />
+      ) : (
+        <FileDown className="size-4" />
+      )}
+      PDF
+    </Button>
+  )
+}
 
 /**
  * Clean run sheet for printing. Rendered outside the app shell; the on-screen
@@ -70,10 +170,31 @@ export function PlanPrintPage() {
             Back to plan
           </Link>
         </Button>
-        <Button onClick={() => window.print()}>
-          <Printer className="size-4" />
-          Print
-        </Button>
+        <div className="flex gap-2">
+          <DownloadPdfButton
+            plan={plan}
+            timed={timed}
+            songKey={(item) =>
+              item.kind === 'song'
+                ? (item.key_override ??
+                  (item.song_id ? (songById.get(item.song_id)?.default_key ?? null) : null))
+                : null
+            }
+            churchName={settings?.name ?? ''}
+            summary={[
+              plan.title,
+              startLabel ? `Starts ${startLabel}` : null,
+              formatTotalLength(totalSeconds),
+              endsAt && hasClock ? `ends ${formatClock(endsAt)}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          />
+          <Button onClick={() => window.print()}>
+            <Printer className="size-4" />
+            Print
+          </Button>
+        </div>
       </div>
 
       <header className="mb-4 border-b pb-3">

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Loader2, Music, Plus, Search } from 'lucide-react'
+import { ChartColumn, Loader2, Music, Plus, Search } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FullPageError } from '@/components/full-page-error'
@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -71,6 +72,9 @@ function NewSongDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New song</DialogTitle>
+          <DialogDescription>
+            Adds it to the library — attach charts from the song's page after.
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
@@ -163,12 +167,20 @@ export function SongsPage() {
             </span>
           )}
         </h1>
-        {canManage && (
-          <Button onClick={() => setNewSongOpen(true)}>
-            <Plus className="size-4" />
-            Add song
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/songs/reports">
+              <ChartColumn className="size-4" />
+              <span className="hidden sm:inline">Usage</span>
+            </Link>
           </Button>
-        )}
+          {canManage && (
+            <Button onClick={() => setNewSongOpen(true)}>
+              <Plus className="size-4" />
+              Add song
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row">

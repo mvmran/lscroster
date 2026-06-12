@@ -57,14 +57,14 @@ import { useBlockouts } from '@/features/scheduling/use-blockouts'
 import { useAllPositions, useAllTeamMembers, useTeams } from '@/features/scheduling/use-teams'
 import type { PlanWithType } from '@/features/services/use-plans'
 
-interface PickerTarget {
+export interface PickerTarget {
   team: Team
   position: Position
   /** When replacing a declined assignment. */
   replaceAssignmentId?: string
 }
 
-function AssignPersonDialog({
+export function AssignPersonDialog({
   plan,
   target,
   onClose,

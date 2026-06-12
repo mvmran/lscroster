@@ -9,7 +9,10 @@ export type AssignmentWithPerson = Tables<'plan_assignments'> & {
 }
 
 export type MyAssignment = Tables<'plan_assignments'> & {
-  plans: Tables<'plans'> & { service_types: Tables<'service_types'> }
+  plans: Tables<'plans'> & {
+    service_types: Tables<'service_types'>
+    plan_times: Tables<'plan_times'>[]
+  }
   teams: Tables<'teams'>
   positions: Tables<'positions'>
 }
@@ -62,7 +65,7 @@ export function useMyAssignments(personId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('plan_assignments')
-        .select('*, plans(*, service_types(*)), teams(*), positions(*)')
+        .select('*, plans(*, service_types(*), plan_times(*)), teams(*), positions(*)')
         .eq('person_id', personId!)
       if (error) throw new Error(error.message)
       // plans should always be visible for own assignments (RLS grants it),
@@ -82,6 +85,7 @@ function useInvalidateAssignments() {
     }
     queryClient.invalidateQueries({ queryKey: assignmentKeys.mine })
     queryClient.invalidateQueries({ queryKey: ['assignments-on-date'] })
+    queryClient.invalidateQueries({ queryKey: ['assignments-matrix'] })
   }
 }
 

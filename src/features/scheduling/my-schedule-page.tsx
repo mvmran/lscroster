@@ -22,6 +22,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -52,22 +53,29 @@ import {
 } from '@/features/services/service-utils'
 
 function AssignmentSummary({ assignment }: { assignment: MyAssignment }) {
-  const time = formatStartTime(assignment.plans.service_types.default_start_time)
+  // The plan's own labelled times (rehearsal + service) win over the
+  // service type's default start time.
+  const planTimes = [...assignment.plans.plan_times].sort((a, b) =>
+    a.start_time.localeCompare(b.start_time),
+  )
+  const time =
+    planTimes.length > 0
+      ? planTimes
+          .map((t) => `${t.label} ${formatStartTime(t.start_time) ?? ''}`.trim())
+          .join(' · ')
+      : formatStartTime(assignment.plans.service_types.default_start_time)
   return (
     <div className="min-w-0 flex-1">
-      <p className="font-medium">
-        {formatPlanDate(assignment.plans.date)}
-        {time ? ` · ${time}` : ''}
-      </p>
+      <p className="font-medium">{formatPlanDate(assignment.plans.date)}</p>
       <p className="text-muted-foreground truncate text-sm">
-        {assignment.positions.name} · {assignment.teams.name} ·{' '}
-        {assignment.plans.service_types.name}
+        {time ? `${time} · ` : ''}
+        {assignment.positions.name} · {assignment.teams.name}
       </p>
     </div>
   )
 }
 
-function DeclineDialog({
+export function DeclineDialog({
   assignment,
   onClose,
 }: {
@@ -96,6 +104,9 @@ function DeclineDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Decline this request?</DialogTitle>
+          <DialogDescription>
+            Your leader will see your response straight away.
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2">
           <Label htmlFor="decline-reason">Reason (optional)</Label>
