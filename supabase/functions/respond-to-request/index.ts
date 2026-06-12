@@ -10,6 +10,7 @@ import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import {
   formatPlanDateLong,
   formatStartTime,
+  planTimesLine,
   sha256Hex,
   todayInTimezone,
 } from '../_shared/scheduling.ts'
@@ -40,7 +41,7 @@ Deno.serve(async (req) => {
        people(first_name),
        positions(name),
        teams(name),
-       plans(date, title, status, service_types(name, default_start_time))`,
+       plans(id, date, title, status, service_types(name, default_start_time))`,
     )
     .eq('token_hash', await sha256Hex(token))
     .maybeSingle()
@@ -81,8 +82,10 @@ Deno.serve(async (req) => {
     churchName: church?.name ?? 'LSCRoster',
     firstName: assignment.people.first_name,
     planDateLong: formatPlanDateLong(assignment.plans.date),
-    startTime: formatStartTime(
-      assignment.plans.service_types.default_start_time,
+    startTime: await planTimesLine(
+      admin,
+      assignment.plans.id,
+      formatStartTime(assignment.plans.service_types.default_start_time),
     ),
     serviceTypeName: assignment.plans.service_types.name,
     planTitle: assignment.plans.title,

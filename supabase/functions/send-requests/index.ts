@@ -12,6 +12,7 @@ import {
   appUrl,
   formatPlanDateLong,
   formatStartTime,
+  planTimesLine,
   randomToken,
   sha256Hex,
 } from '../_shared/scheduling.ts'
@@ -90,7 +91,11 @@ Deno.serve(async (req) => {
   const fromName = church?.email_from_name ?? churchName
 
   const planDateLong = formatPlanDateLong(plan.date)
-  const startTime = formatStartTime(plan.service_types.default_start_time)
+  const startTime = await planTimesLine(
+    admin,
+    planId,
+    formatStartTime(plan.service_types.default_start_time),
+  )
 
   let sent = 0
   const skipped: { name: string; reason: string }[] = []

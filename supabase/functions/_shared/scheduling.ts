@@ -1,6 +1,28 @@
 // Shared helpers for the scheduling email flow: response tokens (raw token in
 // the email, sha-256 hash in the database) and church-timezone date handling.
 
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
+
+/**
+ * The times line for emails: the plan's labelled times when set
+ * ("Rehearsal 8:30am · Service 10:00am"), else the service type default.
+ */
+export async function planTimesLine(
+  admin: SupabaseClient,
+  planId: string,
+  fallback: string | null,
+): Promise<string | null> {
+  const { data } = await admin
+    .from('plan_times')
+    .select('label, start_time')
+    .eq('plan_id', planId)
+    .order('start_time')
+  if (!data || data.length === 0) return fallback
+  return data
+    .map((t) => `${t.label} ${formatStartTime(t.start_time) ?? ''}`.trim())
+    .join(' · ')
+}
+
 export async function sha256Hex(input: string): Promise<string> {
   const digest = await crypto.subtle.digest(
     'SHA-256',
