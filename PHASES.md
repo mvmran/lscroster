@@ -106,7 +106,7 @@ blockouts, and email accept/decline.
 ### Data model
 - `teams`: name, service_type_id (nullable = all), sort_order
 - `positions`: team_id, name, sort_order
-- `team_members`: team_id, person_id, default_position_id (nullable)
+- `team_members`: team_id, person_id, is_leader; fillable positions via `team_member_positions`
 - `plan_assignments`: plan_id, person_id, team_id, position_id, status (`pending|confirmed|declined`), token, responded_at, notified_at
 - `blockout_dates`: person_id, start_date, end_date, reason (optional)
 

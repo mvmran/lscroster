@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import {
   ArrowLeft,
+  ChevronDown,
   Loader2,
   Pencil,
   Plus,
+  Star,
   Trash2,
   UserPlus,
   UsersRound,
@@ -22,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -38,6 +41,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -61,6 +71,7 @@ import {
   useUpdateTeam,
 } from '@/features/scheduling/use-teams'
 import { useServiceTypes } from '@/features/services/use-service-types'
+import { cn } from '@/lib/utils'
 
 function PositionsCard({
   teamId,
@@ -204,7 +215,8 @@ function MembersCard({
   const { data: members, isPending } = useTeamMembers(teamId)
   const { data: positions } = usePositions(teamId)
   const { data: people } = usePeople()
-  const { add, setDefaultPosition, remove } = useMembershipMutations()
+  const { add, addPosition, removePosition, setLeader, remove } =
+    useMembershipMutations()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
 
@@ -221,8 +233,8 @@ function MembersCard({
       <CardHeader>
         <CardTitle>Members</CardTitle>
         <CardDescription>
-          People who can be scheduled onto this team, with their usual
-          position.
+          People who can be scheduled onto this team, the positions they can
+          fill, and who leads it (★).
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
@@ -230,64 +242,115 @@ function MembersCard({
           <Skeleton className="h-10 w-full" />
         ) : (
           <ul className="flex flex-col gap-1">
-            {(members ?? []).map((member) => (
-              <li
-                key={member.id}
-                className="hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-1.5"
-              >
-                <Link
-                  to={`/people/${member.person_id}`}
-                  className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+            {(members ?? []).map((member) => {
+              const selectedIds = new Set(
+                member.team_member_positions.map((tp) => tp.position_id),
+              )
+              const selectedNames = (positions ?? [])
+                .filter((p) => selectedIds.has(p.id))
+                .map((p) => p.name)
+              return (
+                <li
+                  key={member.id}
+                  className="hover:bg-accent/40 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md px-2 py-1.5"
                 >
-                  {fullName(member.people)}
-                </Link>
-                {canManage ? (
-                  <>
-                    <Select
-                      value={member.default_position_id ?? 'none'}
-                      onValueChange={(v) =>
-                        setDefaultPosition.mutate(
-                          { id: member.id, positionId: v === 'none' ? null : v },
-                          { onError: (e) => toast.error(e.message) },
-                        )
-                      }
-                    >
-                      <SelectTrigger
-                        className="h-8 w-40"
-                        aria-label={`Default position for ${fullName(member.people)}`}
+                  <Link
+                    to={`/people/${member.person_id}`}
+                    className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+                  >
+                    {fullName(member.people)}
+                  </Link>
+                  {canManage ? (
+                    <>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 max-w-44 justify-between gap-1 font-normal"
+                            aria-label={`Positions for ${fullName(member.people)}`}
+                          >
+                            <span className="truncate">
+                              {selectedNames.length > 0
+                                ? selectedNames.join(', ')
+                                : 'Positions'}
+                            </span>
+                            <ChevronDown className="size-4 shrink-0 opacity-60" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {(positions ?? []).length === 0 ? (
+                            <DropdownMenuItem disabled>
+                              Add a position first
+                            </DropdownMenuItem>
+                          ) : (
+                            (positions ?? []).map((p) => (
+                              <DropdownMenuCheckboxItem
+                                key={p.id}
+                                checked={selectedIds.has(p.id)}
+                                onSelect={(e) => e.preventDefault()}
+                                onCheckedChange={(checked) =>
+                                  (checked ? addPosition : removePosition).mutate(
+                                    { member, positionId: p.id },
+                                    { onError: (e) => toast.error(e.message) },
+                                  )
+                                }
+                              >
+                                {p.name}
+                              </DropdownMenuCheckboxItem>
+                            ))
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        aria-pressed={member.is_leader}
+                        aria-label={
+                          member.is_leader
+                            ? `Remove ${fullName(member.people)} as team leader`
+                            : `Make ${fullName(member.people)} a team leader`
+                        }
+                        onClick={() =>
+                          setLeader.mutate(
+                            { member, isLeader: !member.is_leader },
+                            { onError: (e) => toast.error(e.message) },
+                          )
+                        }
                       >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No default</SelectItem>
-                        {(positions ?? []).map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      onClick={() =>
-                        remove.mutate(member, { onError: (e) => toast.error(e.message) })
-                      }
-                      aria-label={`Remove ${fullName(member.people)}`}
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  </>
-                ) : (
-                  member.default_position_id && (
-                    <span className="text-muted-foreground text-sm">
-                      {positions?.find((p) => p.id === member.default_position_id)?.name}
-                    </span>
-                  )
-                )}
-              </li>
-            ))}
+                        <Star
+                          className={cn(
+                            'size-4',
+                            member.is_leader && 'fill-amber-400 text-amber-500',
+                          )}
+                        />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        onClick={() =>
+                          remove.mutate(member, { onError: (e) => toast.error(e.message) })
+                        }
+                        aria-label={`Remove ${fullName(member.people)}`}
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      {member.is_leader && <Badge variant="secondary">Leader</Badge>}
+                      {selectedNames.length > 0 && (
+                        <span className="text-muted-foreground text-sm">
+                          {selectedNames.join(', ')}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </li>
+              )
+            })}
             {(members ?? []).length === 0 && (
               <p className="text-muted-foreground px-2 py-1 text-sm">No members yet.</p>
             )}

@@ -733,39 +733,71 @@ export type Database = {
         }
         Relationships: []
       }
+      team_member_positions: {
+        Row: {
+          created_at: string
+          id: string
+          position_id: string
+          team_member_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          position_id: string
+          team_member_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          position_id?: string
+          team_member_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_member_positions_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_member_positions_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           created_at: string
-          default_position_id: string | null
           id: string
+          is_leader: boolean
           person_id: string
           team_id: string
           updated_at: string
         }
         Insert: {
           created_at?: string
-          default_position_id?: string | null
           id?: string
+          is_leader?: boolean
           person_id: string
           team_id: string
           updated_at?: string
         }
         Update: {
           created_at?: string
-          default_position_id?: string | null
           id?: string
+          is_leader?: boolean
           person_id?: string
           team_id?: string
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "team_members_default_position_id_fkey"
-            columns: ["default_position_id"]
-            isOneToOne: false
-            referencedRelation: "positions"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "team_members_person_id_fkey"
             columns: ["person_id"]

@@ -33,11 +33,11 @@ const navItems: {
   end?: boolean
 }[] = [
   { to: '/', label: 'Home', icon: House, end: true },
+  { to: '/my-schedule', label: 'My Schedule', icon: CalendarCheck },
   { to: '/people', label: 'People', icon: Users },
+  { to: '/teams', label: 'Teams', icon: UsersRound },
   { to: '/services', label: 'Services', icon: CalendarDays },
   { to: '/songs', label: 'Songs', icon: Music },
-  { to: '/teams', label: 'Teams', icon: UsersRound },
-  { to: '/my-schedule', label: 'My Schedule', icon: CalendarCheck },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 

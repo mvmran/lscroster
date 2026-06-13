@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { UserPlus, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -58,7 +59,7 @@ export function PersonTeamsCard({
             {(memberships ?? []).map((membership) => (
               <li
                 key={membership.id}
-                className="hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-1.5"
+                className="hover:bg-accent/40 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md px-2 py-1.5"
               >
                 <Link
                   to={`/teams/${membership.team_id}`}
@@ -66,9 +67,13 @@ export function PersonTeamsCard({
                 >
                   {membership.teams.name}
                 </Link>
-                {membership.positions && (
+                {membership.is_leader && <Badge variant="secondary">Leader</Badge>}
+                {membership.team_member_positions.length > 0 && (
                   <span className="text-muted-foreground text-sm">
-                    {membership.positions.name}
+                    {membership.team_member_positions
+                      .map((tp) => tp.positions.name)
+                      .sort((a, b) => a.localeCompare(b))
+                      .join(', ')}
                   </span>
                 )}
                 {canManage && (

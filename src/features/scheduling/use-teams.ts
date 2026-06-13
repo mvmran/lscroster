@@ -11,6 +11,16 @@ export type TeamMemberWithPerson = Tables<'team_members'> & {
   people: Tables<'people'>
 }
 
+/** One position a member can fill, with the position row embedded. */
+export type MembershipPosition = {
+  position_id: string
+  positions: Tables<'positions'>
+}
+
+export type TeamMemberWithPositions = TeamMemberWithPerson & {
+  team_member_positions: MembershipPosition[]
+}
+
 export const teamKeys = {
   all: ['teams'] as const,
   detail: (id: string) => ['teams', id] as const,
@@ -107,10 +117,10 @@ export function useTeamMembers(teamId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('team_members')
-        .select('*, people(*)')
+        .select('*, people(*), team_member_positions(position_id, positions(*))')
         .eq('team_id', teamId!)
       if (error) throw new Error(error.message)
-      return (data as TeamMemberWithPerson[]).sort((a, b) =>
+      return (data as TeamMemberWithPositions[]).sort((a, b) =>
         `${a.people.first_name} ${a.people.last_name}`.localeCompare(
           `${b.people.first_name} ${b.people.last_name}`,
         ),
@@ -121,7 +131,7 @@ export function useTeamMembers(teamId: string | undefined) {
 
 export type MembershipWithTeam = Tables<'team_members'> & {
   teams: Tables<'teams'>
-  positions: Tables<'positions'> | null
+  team_member_positions: MembershipPosition[]
 }
 
 /** A person's team memberships (person profile card). */
@@ -132,7 +142,7 @@ export function useMembershipsOf(personId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('team_members')
-        .select('*, teams(*), positions(*)')
+        .select('*, teams(*), team_member_positions(position_id, positions(*))')
         .eq('person_id', personId!)
       if (error) throw new Error(error.message)
       return data as MembershipWithTeam[]
@@ -259,18 +269,52 @@ export function useMembershipMutations() {
     },
     onSuccess: (m) => invalidate(m.team_id, m.person_id),
   })
-  const setDefaultPosition = useMutation({
+  const addPosition = useMutation({
     mutationFn: async ({
-      id,
+      member,
       positionId,
     }: {
-      id: string
-      positionId: string | null
+      member: Tables<'team_members'>
+      positionId: string
+    }) => {
+      const { error } = await supabase
+        .from('team_member_positions')
+        .insert({ team_member_id: member.id, position_id: positionId })
+      if (error) throw new Error(error.message)
+      return member
+    },
+    onSuccess: (m) => invalidate(m.team_id, m.person_id),
+  })
+  const removePosition = useMutation({
+    mutationFn: async ({
+      member,
+      positionId,
+    }: {
+      member: Tables<'team_members'>
+      positionId: string
+    }) => {
+      const { error } = await supabase
+        .from('team_member_positions')
+        .delete()
+        .eq('team_member_id', member.id)
+        .eq('position_id', positionId)
+      if (error) throw new Error(error.message)
+      return member
+    },
+    onSuccess: (m) => invalidate(m.team_id, m.person_id),
+  })
+  const setLeader = useMutation({
+    mutationFn: async ({
+      member,
+      isLeader,
+    }: {
+      member: Tables<'team_members'>
+      isLeader: boolean
     }) => {
       const { data, error } = await supabase
         .from('team_members')
-        .update({ default_position_id: positionId })
-        .eq('id', id)
+        .update({ is_leader: isLeader })
+        .eq('id', member.id)
         .select()
         .single()
       if (error) throw new Error(error.message)
@@ -289,5 +333,5 @@ export function useMembershipMutations() {
     },
     onSuccess: (m) => invalidate(m.team_id, m.person_id),
   })
-  return { add, setDefaultPosition, remove }
+  return { add, addPosition, removePosition, setLeader, remove }
 }
