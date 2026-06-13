@@ -60,6 +60,50 @@ export function formatStartTime(time: string | null) {
   return format(parseISO(`2000-01-01T${time}`), 'h:mmaaa')
 }
 
+export type ServiceFrequency = Enums<'service_frequency'>
+
+export const FREQUENCY_OPTIONS: ServiceFrequency[] = [
+  'daily',
+  'weekly',
+  'biweekly',
+  'monthly',
+  'quarterly',
+  'yearly',
+]
+
+export const FREQUENCY_LABELS: Record<ServiceFrequency, string> = {
+  daily: 'Daily',
+  weekly: 'Weekly',
+  biweekly: 'Biweekly',
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  yearly: 'Yearly',
+}
+
+/** 0 = Sunday .. 6 = Saturday (matches service_types.days_of_week). */
+export const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** "Sun, Wed, Sat" from day numbers, in week order. */
+export function formatDaysOfWeek(days: number[]): string {
+  return [...days]
+    .filter((d) => d >= 0 && d <= 6)
+    .sort((a, b) => a - b)
+    .map((d) => DAY_LABELS[d])
+    .join(', ')
+}
+
+/** One-line schedule summary for the service types list. */
+export function serviceTypeSummary(st: ServiceType): string {
+  const parts: string[] = []
+  if (st.frequency) parts.push(FREQUENCY_LABELS[st.frequency])
+  if (st.days_of_week.length > 0) parts.push(formatDaysOfWeek(st.days_of_week))
+  const start = formatStartTime(st.default_start_time)
+  const end = formatStartTime(st.end_time)
+  if (start && end) parts.push(`${start}–${end}`)
+  else if (start) parts.push(start)
+  return parts.length > 0 ? parts.join(' · ') : 'No schedule set'
+}
+
 export interface TimedPlanItem<T> {
   item: T
   /** Seconds after the service start at which this item begins. */

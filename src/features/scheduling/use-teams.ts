@@ -303,25 +303,6 @@ export function useMembershipMutations() {
     },
     onSuccess: (m) => invalidate(m.team_id, m.person_id),
   })
-  const setLeader = useMutation({
-    mutationFn: async ({
-      member,
-      isLeader,
-    }: {
-      member: Tables<'team_members'>
-      isLeader: boolean
-    }) => {
-      const { data, error } = await supabase
-        .from('team_members')
-        .update({ is_leader: isLeader })
-        .eq('id', member.id)
-        .select()
-        .single()
-      if (error) throw new Error(error.message)
-      return data
-    },
-    onSuccess: (m) => invalidate(m.team_id, m.person_id),
-  })
   const remove = useMutation({
     mutationFn: async (member: Tables<'team_members'>) => {
       const { error } = await supabase
@@ -333,5 +314,5 @@ export function useMembershipMutations() {
     },
     onSuccess: (m) => invalidate(m.team_id, m.person_id),
   })
-  return { add, addPosition, removePosition, setLeader, remove }
+  return { add, addPosition, removePosition, remove }
 }

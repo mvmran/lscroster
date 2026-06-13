@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { UserPlus, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -67,7 +66,6 @@ export function PersonTeamsCard({
                 >
                   {membership.teams.name}
                 </Link>
-                {membership.is_leader && <Badge variant="secondary">Leader</Badge>}
                 {membership.team_member_positions.length > 0 && (
                   <span className="text-muted-foreground text-sm">
                     {membership.team_member_positions

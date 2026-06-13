@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowDown, ArrowUp, CalendarDays, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarDays, Check, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -16,21 +16,40 @@ import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatStartTime, type ServiceType } from '@/features/services/service-utils'
+import { useTeams } from '@/features/scheduling/use-teams'
+import {
+  DAY_LABELS,
+  FREQUENCY_LABELS,
+  FREQUENCY_OPTIONS,
+  serviceTypeSummary,
+  type ServiceFrequency,
+  type ServiceType,
+} from '@/features/services/service-utils'
 import {
   useCreateServiceType,
   useDeleteServiceType,
   useReorderServiceType,
   useServiceTypes,
+  useServiceTypeTeamIds,
+  useSetServiceTypeTeams,
   useUpdateServiceType,
 } from '@/features/services/use-service-types'
+import { cn } from '@/lib/utils'
 
 function ServiceTypeDialog({
   serviceType,
@@ -43,20 +62,55 @@ function ServiceTypeDialog({
 }) {
   const create = useCreateServiceType()
   const update = useUpdateServiceType()
+  const setTeams = useSetServiceTypeTeams()
+  const { data: teams } = useTeams()
+  const teamIdsQuery = useServiceTypeTeamIds(serviceType?.id)
+
   const [name, setName] = useState('')
   const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
+  const [frequency, setFrequency] = useState<ServiceFrequency | ''>('')
+  const [days, setDays] = useState<number[]>([])
+  const [teamIds, setTeamIds] = useState<string[]>([])
 
-  // Reset the fields each time the dialog opens for a different target.
+  // Seed the fields each time the dialog opens for a different target
+  // (set-state-during-render, mirroring the app's other dialogs).
   const [seededFor, setSeededFor] = useState<string | null>(null)
   const target = serviceType?.id ?? 'new'
   if (open && seededFor !== target) {
     setSeededFor(target)
     setName(serviceType?.name ?? '')
     setStartTime(serviceType?.default_start_time?.slice(0, 5) ?? '')
+    setEndTime(serviceType?.end_time?.slice(0, 5) ?? '')
+    setFrequency(serviceType?.frequency ?? '')
+    setDays(serviceType?.days_of_week ?? [])
+    setTeamIds([])
   }
   if (!open && seededFor !== null) setSeededFor(null)
 
-  const pending = create.isPending || update.isPending
+  // Required teams arrive asynchronously; seed them once loaded for the target.
+  const [teamsSeededFor, setTeamsSeededFor] = useState<string | null>(null)
+  if (open && serviceType && teamIdsQuery.data && teamsSeededFor !== serviceType.id) {
+    setTeamsSeededFor(serviceType.id)
+    setTeamIds(teamIdsQuery.data)
+  }
+  if (!open && teamsSeededFor !== null) setTeamsSeededFor(null)
+
+  const pending = create.isPending || update.isPending || setTeams.isPending
+
+  function toggleDay(day: number) {
+    setDays((prev) =>
+      prev.includes(day)
+        ? prev.filter((d) => d !== day)
+        : [...prev, day].sort((a, b) => a - b),
+    )
+  }
+
+  function toggleTeam(id: string) {
+    setTeamIds((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+    )
+  }
 
   async function save() {
     const trimmed = name.trim()
@@ -64,13 +118,15 @@ function ServiceTypeDialog({
     const values = {
       name: trimmed,
       default_start_time: startTime ? `${startTime}:00` : null,
+      end_time: endTime ? `${endTime}:00` : null,
+      frequency: frequency || null,
+      days_of_week: days,
     }
     try {
-      if (serviceType) {
-        await update.mutateAsync({ id: serviceType.id, values })
-      } else {
-        await create.mutateAsync(values)
-      }
+      const saved = serviceType
+        ? await update.mutateAsync({ id: serviceType.id, values })
+        : await create.mutateAsync(values)
+      await setTeams.mutateAsync({ serviceTypeId: saved.id, teamIds })
       onOpenChange(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not save')
@@ -79,13 +135,16 @@ function ServiceTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="flex max-h-[88svh] flex-col sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {serviceType ? 'Edit service type' : 'New service type'}
           </DialogTitle>
+          <DialogDescription>
+            Describe when this gathering runs and which teams it needs.
+          </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 overflow-y-auto pr-1">
           <div className="flex flex-col gap-2">
             <Label htmlFor="st-name">Name</Label>
             <Input
@@ -96,18 +155,116 @@ function ServiceTypeDialog({
               autoFocus
             />
           </div>
+
           <div className="flex flex-col gap-2">
-            <Label htmlFor="st-time">Default start time</Label>
-            <Input
-              id="st-time"
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="w-40"
-            />
+            <Label htmlFor="st-frequency">Frequency</Label>
+            <Select
+              value={frequency || 'none'}
+              onValueChange={(v) =>
+                setFrequency(v === 'none' ? '' : (v as ServiceFrequency))
+              }
+            >
+              <SelectTrigger id="st-frequency" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Not set</SelectItem>
+                {FREQUENCY_OPTIONS.map((f) => (
+                  <SelectItem key={f} value={f}>
+                    {FREQUENCY_LABELS[f]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Day of week</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {DAY_LABELS.map((label, index) => {
+                const on = days.includes(index)
+                return (
+                  <Button
+                    key={label}
+                    type="button"
+                    size="sm"
+                    variant={on ? 'default' : 'outline'}
+                    className="h-8 w-12"
+                    aria-pressed={on}
+                    onClick={() => toggleDay(index)}
+                  >
+                    {label}
+                  </Button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="st-start">Start time</Label>
+                <Input
+                  id="st-start"
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-36"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="st-end">End time</Label>
+                <Input
+                  id="st-end"
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="w-36"
+                />
+              </div>
+            </div>
             <p className="text-muted-foreground text-xs">
-              Used to compute the running clock on the order of service.
+              Start time drives the running clock on the order of service.
             </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Teams required</Label>
+            <div className="max-h-72 min-h-[12rem] overflow-y-auto rounded-md border">
+              {!teams || teams.length === 0 ? (
+                <p className="text-muted-foreground p-3 text-sm">
+                  No teams yet. Create teams first, then add them here.
+                </p>
+              ) : (
+                <ul className="divide-y">
+                  {teams.map((team) => {
+                    const on = teamIds.includes(team.id)
+                    return (
+                      <li key={team.id}>
+                        <button
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => toggleTeam(team.id)}
+                          className="hover:bg-accent flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm"
+                        >
+                          <span
+                            className={cn(
+                              'flex size-4 shrink-0 items-center justify-center rounded border',
+                              on
+                                ? 'bg-primary border-primary text-primary-foreground'
+                                : 'border-input',
+                            )}
+                          >
+                            {on && <Check className="size-3" />}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">{team.name}</span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
         <DialogFooter>
@@ -192,8 +349,8 @@ export function ServiceTypesPage() {
               <CardContent className="flex items-center gap-2 px-4">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{st.name}</p>
-                  <p className="text-muted-foreground text-sm">
-                    {formatStartTime(st.default_start_time) ?? 'No default start time'}
+                  <p className="text-muted-foreground truncate text-sm">
+                    {serviceTypeSummary(st)}
                   </p>
                 </div>
                 <Button

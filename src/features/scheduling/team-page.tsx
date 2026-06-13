@@ -5,7 +5,6 @@ import {
   Loader2,
   Pencil,
   Plus,
-  Star,
   Trash2,
   UserPlus,
   UsersRound,
@@ -24,7 +23,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -71,7 +69,6 @@ import {
   useUpdateTeam,
 } from '@/features/scheduling/use-teams'
 import { useServiceTypes } from '@/features/services/use-service-types'
-import { cn } from '@/lib/utils'
 
 function PositionsCard({
   teamId,
@@ -215,8 +212,7 @@ function MembersCard({
   const { data: members, isPending } = useTeamMembers(teamId)
   const { data: positions } = usePositions(teamId)
   const { data: people } = usePeople()
-  const { add, addPosition, removePosition, setLeader, remove } =
-    useMembershipMutations()
+  const { add, addPosition, removePosition, remove } = useMembershipMutations()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
 
@@ -233,8 +229,8 @@ function MembersCard({
       <CardHeader>
         <CardTitle>Members</CardTitle>
         <CardDescription>
-          People who can be scheduled onto this team, the positions they can
-          fill, and who leads it (★).
+          People who can be scheduled onto this team, and the positions they
+          can fill.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
@@ -306,30 +302,6 @@ function MembersCard({
                         variant="ghost"
                         size="icon"
                         className="size-8"
-                        aria-pressed={member.is_leader}
-                        aria-label={
-                          member.is_leader
-                            ? `Remove ${fullName(member.people)} as team leader`
-                            : `Make ${fullName(member.people)} a team leader`
-                        }
-                        onClick={() =>
-                          setLeader.mutate(
-                            { member, isLeader: !member.is_leader },
-                            { onError: (e) => toast.error(e.message) },
-                          )
-                        }
-                      >
-                        <Star
-                          className={cn(
-                            'size-4',
-                            member.is_leader && 'fill-amber-400 text-amber-500',
-                          )}
-                        />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8"
                         onClick={() =>
                           remove.mutate(member, { onError: (e) => toast.error(e.message) })
                         }
@@ -339,14 +311,11 @@ function MembersCard({
                       </Button>
                     </>
                   ) : (
-                    <>
-                      {member.is_leader && <Badge variant="secondary">Leader</Badge>}
-                      {selectedNames.length > 0 && (
-                        <span className="text-muted-foreground text-sm">
-                          {selectedNames.join(', ')}
-                        </span>
-                      )}
-                    </>
+                    selectedNames.length > 0 && (
+                      <span className="text-muted-foreground text-sm">
+                        {selectedNames.join(', ')}
+                      </span>
+                    )
                   )}
                 </li>
               )

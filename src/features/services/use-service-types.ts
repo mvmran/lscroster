@@ -97,3 +97,53 @@ export function useDeleteServiceType() {
     onSuccess: invalidate,
   })
 }
+
+const serviceTypeTeamsKey = (serviceTypeId: string) =>
+  ['service-type-teams', serviceTypeId] as const
+
+/** Team ids required by a service type (for the edit dialog). */
+export function useServiceTypeTeamIds(serviceTypeId: string | undefined) {
+  return useQuery({
+    queryKey: serviceTypeTeamsKey(serviceTypeId ?? ''),
+    enabled: !!serviceTypeId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('service_type_teams')
+        .select('team_id')
+        .eq('service_type_id', serviceTypeId!)
+      if (error) throw new Error(error.message)
+      return data.map((r) => r.team_id)
+    },
+  })
+}
+
+/** Replace the set of teams required by a service type. */
+export function useSetServiceTypeTeams() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      serviceTypeId,
+      teamIds,
+    }: {
+      serviceTypeId: string
+      teamIds: string[]
+    }) => {
+      const { error: deleteError } = await supabase
+        .from('service_type_teams')
+        .delete()
+        .eq('service_type_id', serviceTypeId)
+      if (deleteError) throw new Error(deleteError.message)
+      if (teamIds.length > 0) {
+        const { error: insertError } = await supabase
+          .from('service_type_teams')
+          .insert(
+            teamIds.map((team_id) => ({ service_type_id: serviceTypeId, team_id })),
+          )
+        if (insertError) throw new Error(insertError.message)
+      }
+      return serviceTypeId
+    },
+    onSuccess: (serviceTypeId) =>
+      queryClient.invalidateQueries({ queryKey: serviceTypeTeamsKey(serviceTypeId) }),
+  })
+}

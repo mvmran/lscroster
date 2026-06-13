@@ -629,10 +629,52 @@ export type Database = {
           },
         ]
       }
+      service_type_teams: {
+        Row: {
+          created_at: string
+          id: string
+          service_type_id: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          service_type_id: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          service_type_id?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_type_teams_service_type_id_fkey"
+            columns: ["service_type_id"]
+            isOneToOne: false
+            referencedRelation: "service_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_type_teams_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_types: {
         Row: {
           created_at: string
+          days_of_week: number[]
           default_start_time: string | null
+          end_time: string | null
+          frequency: Database["public"]["Enums"]["service_frequency"] | null
           id: string
           name: string
           sort_order: number
@@ -640,7 +682,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          days_of_week?: number[]
           default_start_time?: string | null
+          end_time?: string | null
+          frequency?: Database["public"]["Enums"]["service_frequency"] | null
           id?: string
           name: string
           sort_order?: number
@@ -648,7 +693,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          days_of_week?: number[]
           default_start_time?: string | null
+          end_time?: string | null
+          frequency?: Database["public"]["Enums"]["service_frequency"] | null
           id?: string
           name?: string
           sort_order?: number
@@ -776,7 +824,6 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          is_leader: boolean
           person_id: string
           team_id: string
           updated_at: string
@@ -784,7 +831,6 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          is_leader?: boolean
           person_id: string
           team_id: string
           updated_at?: string
@@ -792,7 +838,6 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          is_leader?: boolean
           person_id?: string
           team_id?: string
           updated_at?: string
@@ -888,6 +933,13 @@ export type Database = {
       person_status: "active" | "inactive"
       plan_item_kind: "header" | "song" | "item"
       plan_status: "draft" | "published"
+      service_frequency:
+        | "daily"
+        | "weekly"
+        | "biweekly"
+        | "monthly"
+        | "quarterly"
+        | "yearly"
       song_status: "active" | "archived"
     }
     CompositeTypes: {
@@ -1024,6 +1076,14 @@ export const Constants = {
       person_status: ["active", "inactive"],
       plan_item_kind: ["header", "song", "item"],
       plan_status: ["draft", "published"],
+      service_frequency: [
+        "daily",
+        "weekly",
+        "biweekly",
+        "monthly",
+        "quarterly",
+        "yearly",
+      ],
       song_status: ["active", "archived"],
     },
   },
