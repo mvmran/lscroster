@@ -2,17 +2,55 @@
 
 Solo developer, vibe-coded with Claude Code. Each phase ends with a **usable release**
 deployed to the live Life Sanctuary Church instance. Tick boxes as work completes.
-**Phases 0–3 closed** — Phase 3's real-user parallel run (2–4 weeks) continues
-alongside. Current phase: **Phase 4 — polish & power features: code complete,
-verified locally, deployed to production.** Lighthouse (production, mobile
-simulation): accessibility 98 ✓, performance 64 — short of the 90 target.
-The score is dominated by simulated slow-4G + 4× CPU throttling against an
-SPA shell; on real connections first paint is sub-second. Closing the gap
-would need vendor-chunk tuning, deferred fonts and a pre-rendered shell —
-worth a dedicated pass if it matters on real phones. Remaining to close
-Phase 4: the worship pastor rosters a month in one sitting via the matrix
-view, plus a call on whether to chase the Lighthouse performance target.
-Phase 5 (distribution) next, after confirmation.
+**Phases 0–4 are deployed to production.** Phase 3's real-user parallel run
+continues alongside. Two Phase-4 acceptance items remain open: (a) the worship
+pastor rosters a month in one sitting via the matrix view on prod, and (b) a
+call on whether to chase the Lighthouse performance target (production mobile:
+accessibility 98 ✓, performance 64). The perf gap is dominated by simulated
+slow-4G + 4× CPU throttling against an SPA shell — on real connections first
+paint is sub-second; closing it would need vendor-chunk tuning, deferred fonts
+and a pre-rendered shell. Don't chase without Manoj's call.
+
+Since launch, work is **issue-driven** against the GitHub backlog
+(`mvmran/lscroster`) — see "Post-Phase-4 enhancements" below. **Phase 5
+(distribution) has not started; needs Manoj's confirmation.**
+
+---
+
+## Post-Phase-4 enhancements (GitHub issues)
+
+Tracked as issues in `mvmran/lscroster` and shipped one at a time
+(implement → verify locally → confirm → `supabase db push` then `git push`
+→ auto-close). Newest commits sit on top of the Phase-4 work.
+
+**Done & deployed:**
+- **#1** — a team member can fill multiple positions (`team_member_positions`
+  join table; multi-select on the team page).
+- **#5** — left nav order: Home, My Schedule, People, Teams, Services, Songs,
+  Settings.
+- **#8** — pastel pink→blue gradient chrome in light mode (white content area;
+  dark mode unchanged).
+- **#11** — service types gained frequency, days of week, start/end time and
+  required teams (`service_frequency` enum, `days_of_week` + `end_time` columns,
+  `service_type_teams` join).
+- **#12** — the scheduling picker highlights members set up for the position
+  being filled ("Set up for this position" group); anyone is still selectable.
+- **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
+  Do **not** reintroduce per-team leaders before resolving #6.
+
+**Open backlog (not started):**
+- **#3** — investigate scheduling preferences on people.
+- **#4** — investigate more detail on the Teams screen.
+- **#6** — define what "Team Leader" should actually do (gates whether #2 returns).
+- **#7** — review keyboard shortcuts throughout the app.
+- **#9** — add a rehearsal workflow.
+- **#13** — assign multiple service types to a team (today `teams.service_type_id`
+  is a single nullable FK; this would need a join table like the others).
+
+**Schema since Phase 4:** migrations 0006–0008 in `supabase/migrations/`
+(`team_member_positions`; drop `team_members.is_leader`; service-type
+scheduling fields + `service_type_teams`). Regenerate `src/types/database.ts`
+from the local stack after pulling.
 
 ---
 
