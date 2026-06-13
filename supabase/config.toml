@@ -409,6 +409,12 @@ verify_jwt = false
 [functions.send-requests]
 verify_jwt = true
 
+[functions.cancel-assignment]
+verify_jwt = true
+
+[functions.send-plan-notification]
+verify_jwt = true
+
 # Scheduling response links are opened without logging in; the signed token
 # in the body is the credential.
 [functions.respond-to-request]

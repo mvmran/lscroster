@@ -1,5 +1,8 @@
 // Scheduling emails: the initial request (Accept/Decline), the nudge for
-// unanswered requests, and the reminder for confirmed people.
+// unanswered requests, the reminder for confirmed people, and the cancellation
+// notice when a confirmed person is removed from a plan.
+
+import { esc, footer, wrapper } from './layout.ts'
 
 interface SchedulingDetails {
   churchName: string
@@ -19,36 +22,14 @@ interface RequestEmailParams extends SchedulingDetails {
   isNudge: boolean
 }
 
-const wrapper = (inner: string) => `<!doctype html>
-<html>
-  <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:32px 16px;">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:12px;padding:32px;">
-            ${inner}
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`
-
 const detailsBlock = (d: SchedulingDetails) => `
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;border-radius:8px;margin:20px 0;">
     <tr><td style="padding:16px 20px;">
-      <div style="font-size:16px;font-weight:700;color:#18181b;">${d.planDateLong}${d.startTime ? ` · ${d.startTime}` : ''}</div>
-      <div style="font-size:14px;color:#3f3f46;padding-top:4px;">${d.serviceTypeName}${d.planTitle ? ` — ${d.planTitle}` : ''}</div>
-      <div style="font-size:14px;color:#3f3f46;padding-top:8px;"><strong>${d.positionName}</strong> · ${d.teamName}</div>
+      <div style="font-size:16px;font-weight:700;color:#18181b;">${esc(d.planDateLong)}${d.startTime ? ` · ${esc(d.startTime)}` : ''}</div>
+      <div style="font-size:14px;color:#3f3f46;padding-top:4px;">${esc(d.serviceTypeName)}${d.planTitle ? ` — ${esc(d.planTitle)}` : ''}</div>
+      <div style="font-size:14px;color:#3f3f46;padding-top:8px;"><strong>${esc(d.positionName)}</strong> · ${esc(d.teamName)}</div>
     </td></tr>
   </table>`
-
-const footer = (churchName: string) => `
-  <tr>
-    <td style="padding-top:24px;font-size:12px;color:#a1a1aa;">
-      Sent by LSCRoster on behalf of ${churchName}.
-    </td>
-  </tr>`
 
 export function schedulingRequestEmail(
   p: RequestEmailParams,
@@ -57,19 +38,19 @@ export function schedulingRequestEmail(
     ? `Reminder: can you serve on ${p.planDateLong}?`
     : `Can you serve on ${p.planDateLong}?`
   const intro = p.isNudge
-    ? `Just checking in — ${p.churchName} is still waiting to hear if you can serve:`
-    : `${p.churchName} would like to schedule you to serve:`
+    ? `Just checking in — ${esc(p.churchName)} is still waiting to hear if you can serve:`
+    : `${esc(p.churchName)} would like to schedule you to serve:`
   return {
     subject,
     html: wrapper(`
       <tr>
         <td style="font-size:20px;font-weight:700;color:#18181b;padding-bottom:16px;">
-          ${p.churchName}
+          ${esc(p.churchName)}
         </td>
       </tr>
       <tr>
         <td style="font-size:15px;line-height:1.6;color:#3f3f46;">
-          Hi ${p.recipientName},
+          Hi ${esc(p.recipientName)},
           <br /><br />
           ${intro}
           ${detailsBlock(p)}
@@ -111,12 +92,12 @@ export function schedulingReminderEmail(
     html: wrapper(`
       <tr>
         <td style="font-size:20px;font-weight:700;color:#18181b;padding-bottom:16px;">
-          ${p.churchName}
+          ${esc(p.churchName)}
         </td>
       </tr>
       <tr>
         <td style="font-size:15px;line-height:1.6;color:#3f3f46;">
-          Hi ${p.recipientName},
+          Hi ${esc(p.recipientName)},
           <br /><br />
           A quick reminder that you're confirmed to serve:
           ${detailsBlock(p)}
@@ -129,6 +110,32 @@ export function schedulingReminderEmail(
              style="display:inline-block;background-color:#18181b;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:12px 28px;border-radius:8px;">
             View my schedule
           </a>
+        </td>
+      </tr>
+      ${footer(p.churchName)}`),
+  }
+}
+
+/** Sent when a leader removes a confirmed person from a plan (issue #16). */
+export function schedulingCancellationEmail(
+  p: SchedulingDetails,
+): { subject: string; html: string } {
+  return {
+    subject: `Schedule change: you're no longer needed on ${p.planDateLong}`,
+    html: wrapper(`
+      <tr>
+        <td style="font-size:20px;font-weight:700;color:#18181b;padding-bottom:16px;">
+          ${esc(p.churchName)}
+        </td>
+      </tr>
+      <tr>
+        <td style="font-size:15px;line-height:1.6;color:#3f3f46;">
+          Hi ${esc(p.recipientName)},
+          <br /><br />
+          Plans have changed and you're no longer scheduled to serve at this
+          service. You don't need to do anything.
+          ${detailsBlock(p)}
+          Thank you — we'll be in touch about future opportunities to serve.
         </td>
       </tr>
       ${footer(p.churchName)}`),

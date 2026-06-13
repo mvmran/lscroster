@@ -61,6 +61,37 @@ export function formatStartTime(time: string | null): string | null {
   return `${hour12}:${m.toString().padStart(2, '0')}${suffix}`
 }
 
+/** Seconds since midnight for an 'HH:MM:SS' time, or null. */
+function timeToSeconds(time: string | null): number | null {
+  if (!time) return null
+  const [h, m, s] = time.split(':').map(Number)
+  return h * 3600 + m * 60 + (s || 0)
+}
+
+/** Formats a wall-clock time `offsetSeconds` after an 'HH:MM:SS' base. */
+export function clockFromBase(
+  base: string | null,
+  offsetSeconds: number,
+): string | null {
+  const start = timeToSeconds(base)
+  if (start === null) return null
+  const total = ((start + offsetSeconds) % 86400 + 86400) % 86400
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  return formatStartTime(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`)
+}
+
+/** Total length as '1h 45m' / '45m', or null when zero. */
+export function formatDurationSeconds(seconds: number): string | null {
+  if (seconds <= 0) return null
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const parts: string[] = []
+  if (h > 0) parts.push(`${h}h`)
+  if (m > 0 || h === 0) parts.push(`${m}m`)
+  return parts.join(' ')
+}
+
 /** Today's calendar date ('yyyy-mm-dd') in the church's timezone. */
 export function todayInTimezone(timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', {

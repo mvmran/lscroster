@@ -42,6 +42,24 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   service types (preserving the old `null` default). The team editor and the
   service-type "required teams" picker are now two views of one table. The
   join's write policy widened from admin-only to admin-or-leader.
+- **#14** — the scheduling double-booking warning now fires only when the two
+  services' times overlap, not merely the same day. The same-day query carries
+  each plan's service-type start/end time and a `timesOverlap` helper compares
+  them (a service with no end time is a point — two such services only clash on
+  an exact start match; same-plan slots always clash).
+- **#15** — a per-person "Send email" action on a plan (re)sends the request
+  email to one person. `send-requests` no longer restricts an explicit
+  assignment id to pending, so a confirmed person can be re-sent the request.
+- **#16** — removing a **confirmed** person reads "Remove and Notify" and fires
+  a cancellation email via the new `cancel-assignment` Edge Function (which
+  deletes server-side); removing a non-confirmed person stays a plain client
+  "Remove".
+- **#17** — publishing a plan emails everyone scheduled on it (non-declined,
+  one email per person) a full summary via the new `send-plan-notification`
+  Edge Function: service/date/time/duration, all plan times, church name +
+  address, teams & members grouped, order of service, and songs with key & BPM.
+  Added a nullable `church_settings.address` column and an editable Church card
+  in Settings (admin only, matching the admin-only RLS).
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 
@@ -52,11 +70,12 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
 - **#7** — review keyboard shortcuts throughout the app.
 - **#9** — add a rehearsal workflow.
 
-**Schema since Phase 4:** migrations 0006–0009 in `supabase/migrations/`
+**Schema since Phase 4:** migrations 0006–0010 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
 scheduling fields + `service_type_teams`; backfill+drop `teams.service_type_id`
-onto that join). Regenerate `src/types/database.ts` from the local stack after
-pulling.
+onto that join; add `church_settings.address`). New Edge Functions:
+`cancel-assignment`, `send-plan-notification`. Regenerate
+`src/types/database.ts` from the local stack after pulling.
 
 ---
 

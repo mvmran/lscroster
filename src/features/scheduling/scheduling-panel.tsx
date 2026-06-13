@@ -3,9 +3,9 @@ import {
   AlertTriangle,
   CalendarX,
   Loader2,
+  Mail,
   MoreHorizontal,
   Plus,
-  RefreshCw,
   Send,
   Trash2,
   UserPlus,
@@ -41,11 +41,13 @@ import {
   ASSIGNMENT_STATUS_CLASSES,
   ASSIGNMENT_STATUS_LABELS,
   isBlockedOut,
+  timesOverlap,
   type Position,
   type Team,
 } from '@/features/scheduling/scheduling-utils'
 import {
   useAssignmentsOnDate,
+  useCancelAssignment,
   useCreateAssignment,
   useDeleteAssignment,
   usePlanAssignments,
@@ -134,11 +136,22 @@ export function AssignPersonDialog({
     if (isBlockedOut(blockouts ?? [], personId, plan.date)) {
       warnings.push({ icon: CalendarX, label: 'Blocked out' })
     }
+    // Only warn when the other service's time actually overlaps this one
+    // (issue #14): being on two services the same day at different times is OK.
+    const planStart = plan.service_types.default_start_time
+    const planEnd = plan.service_types.end_time
     const elsewhere = (onDate ?? []).filter(
       (a) =>
         a.person_id === personId &&
         a.status !== 'declined' &&
-        a.id !== target?.replaceAssignmentId,
+        a.id !== target?.replaceAssignmentId &&
+        (a.plan_id === plan.id ||
+          timesOverlap(
+            planStart,
+            planEnd,
+            a.plans?.service_types?.default_start_time ?? null,
+            a.plans?.service_types?.end_time ?? null,
+          )),
     )
     if (elsewhere.length > 0) {
       warnings.push({
@@ -274,6 +287,7 @@ export function SchedulingPanel({
   const { data: assignments, isPending: assignmentsPending } = usePlanAssignments(plan.id)
   const { data: blockouts } = useBlockouts()
   const deleteAssignment = useDeleteAssignment(plan.id)
+  const cancelAssignment = useCancelAssignment(plan.id)
   const sendRequests = useSendRequests(plan.id)
   const [picker, setPicker] = useState<PickerTarget | null>(null)
 
@@ -308,14 +322,29 @@ export function SchedulingPanel({
     })
   }
 
-  function resend(assignmentId: string) {
+  // Issue #15 — (re)send the request email to one person from their menu.
+  function sendOne(assignmentId: string) {
     sendRequests.mutate([assignmentId], {
       onSuccess: (result) => {
-        if (result.sent > 0) toast.success('Request re-sent')
+        if (result.sent > 0) toast.success('Email sent')
         for (const skip of result.skipped) {
           toast.warning(`${skip.name}: ${skip.reason}`)
         }
+        if (result.sent === 0 && result.skipped.length === 0) {
+          toast.info('Nothing to send')
+        }
       },
+      onError: (e) => toast.error(e.message),
+    })
+  }
+
+  // Issue #16 — remove a confirmed person and email them a cancellation.
+  function removeAndNotify(assignmentId: string) {
+    cancelAssignment.mutate(assignmentId, {
+      onSuccess: (result) =>
+        toast.success(
+          result.notified ? 'Removed · cancellation email sent' : 'Removed',
+        ),
       onError: (e) => toast.error(e.message),
     })
   }
@@ -470,26 +499,36 @@ export function SchedulingPanel({
                                           Find replacement
                                         </DropdownMenuItem>
                                       )}
-                                      {assignment.status === 'pending' &&
-                                        assignment.notified_at && (
+                                      {assignment.status !== 'declined' &&
+                                        assignment.people.email && (
                                           <DropdownMenuItem
-                                            onClick={() => resend(assignment.id)}
+                                            onClick={() => sendOne(assignment.id)}
                                           >
-                                            <RefreshCw className="size-4" />
-                                            Resend request
+                                            <Mail className="size-4" />
+                                            Send email
                                           </DropdownMenuItem>
                                         )}
-                                      <DropdownMenuItem
-                                        variant="destructive"
-                                        onClick={() =>
-                                          deleteAssignment.mutate(assignment.id, {
-                                            onError: (e) => toast.error(e.message),
-                                          })
-                                        }
-                                      >
-                                        <Trash2 className="size-4" />
-                                        Remove
-                                      </DropdownMenuItem>
+                                      {assignment.status === 'confirmed' ? (
+                                        <DropdownMenuItem
+                                          variant="destructive"
+                                          onClick={() => removeAndNotify(assignment.id)}
+                                        >
+                                          <Trash2 className="size-4" />
+                                          Remove and Notify
+                                        </DropdownMenuItem>
+                                      ) : (
+                                        <DropdownMenuItem
+                                          variant="destructive"
+                                          onClick={() =>
+                                            deleteAssignment.mutate(assignment.id, {
+                                              onError: (e) => toast.error(e.message),
+                                            })
+                                          }
+                                        >
+                                          <Trash2 className="size-4" />
+                                          Remove
+                                        </DropdownMenuItem>
+                                      )}
                                     </DropdownMenuContent>
                                   </DropdownMenu>
                                 )}

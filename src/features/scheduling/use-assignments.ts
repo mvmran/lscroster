@@ -17,6 +17,22 @@ export type MyAssignment = Tables<'plan_assignments'> & {
   positions: Tables<'positions'>
 }
 
+/** Minimal shape for the same-day clash check (issue #14). */
+export interface AssignmentOnDate {
+  id: string
+  person_id: string
+  plan_id: string
+  status: AssignmentStatus
+  plans: {
+    date: string
+    service_types: {
+      default_start_time: string | null
+      end_time: string | null
+    } | null
+  } | null
+  teams: { name: string } | null
+}
+
 export const assignmentKeys = {
   plan: (planId: string) => ['assignments', planId] as const,
   mine: ['my-assignments'] as const,
@@ -40,7 +56,8 @@ export function usePlanAssignments(planId: string | undefined) {
 
 /**
  * Everyone scheduled anywhere on a given date — powers the double-booking
- * warning when scheduling.
+ * warning when scheduling. Carries each plan's service-type start/end time so
+ * the warning can fire only when the services actually overlap (issue #14).
  */
 export function useAssignmentsOnDate(date: string | undefined) {
   return useQuery({
@@ -49,10 +66,12 @@ export function useAssignmentsOnDate(date: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('plan_assignments')
-        .select('id, person_id, plan_id, status, plans!inner(date), teams(name)')
+        .select(
+          'id, person_id, plan_id, status, plans!inner(date, service_types(default_start_time, end_time)), teams(name)',
+        )
         .eq('plans.date', date!)
       if (error) throw new Error(error.message)
-      return data
+      return data as unknown as AssignmentOnDate[]
     },
   })
 }
@@ -204,5 +223,37 @@ export function useSendRequests(planId: string) {
         ...(assignmentIds ? { assignmentIds } : {}),
       }),
     onSuccess: () => invalidate(planId),
+  })
+}
+
+/**
+ * Remove an assignment, emailing a cancellation notice when the person had
+ * confirmed (issue #16). Routed through the cancel-assignment Edge Function so
+ * the email goes out server-side; the delete happens there too.
+ */
+export function useCancelAssignment(planId: string) {
+  const invalidate = useInvalidateAssignments()
+  return useMutation({
+    mutationFn: (assignmentId: string) =>
+      invokeFunction<{ ok: boolean; notified: boolean }>('cancel-assignment', {
+        assignmentId,
+      }),
+    onSuccess: () => invalidate(planId),
+  })
+}
+
+export interface PlanNotificationResult {
+  ok: boolean
+  sent: number
+  skipped: { name: string; reason: string }[]
+}
+
+/** Email the full plan summary to everyone scheduled on it (issue #17). */
+export function useSendPlanNotification(planId: string) {
+  return useMutation({
+    mutationFn: () =>
+      invokeFunction<PlanNotificationResult>('send-plan-notification', {
+        planId,
+      }),
   })
 }

@@ -68,6 +68,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { useSendPlanNotification } from '@/features/scheduling/use-assignments'
 import { SchedulingPanel } from '@/features/scheduling/scheduling-panel'
 import { PlanAttachmentsCard, PlanTimesCard } from '@/features/services/plan-extras-cards'
 import { PlanItemDialog, type PlanItemDialogState } from '@/features/services/plan-item-dialog'
@@ -466,6 +467,7 @@ export function PlanPage() {
   const deleteItem = useDeletePlanItem(id ?? '')
   const updatePlan = useUpdatePlan()
   const deletePlan = useDeletePlan()
+  const sendNotification = useSendPlanNotification(id ?? '')
 
   const [itemDialog, setItemDialog] = useState<PlanItemDialogState>(null)
   const [songPickerOpen, setSongPickerOpen] = useState(false)
@@ -536,8 +538,31 @@ export function PlanPage() {
     updatePlan.mutate(
       { id: plan!.id, values: { status: next } },
       {
-        onSuccess: () =>
-          toast.success(next === 'published' ? 'Plan published' : 'Plan moved back to draft'),
+        onSuccess: () => {
+          if (next !== 'published') {
+            toast.success('Plan moved back to draft')
+            return
+          }
+          // Issue #17 — notify everyone scheduled when the plan goes live.
+          toast.success('Plan published')
+          sendNotification.mutate(undefined, {
+            onSuccess: (res) => {
+              if (res.sent > 0) {
+                toast.success(
+                  `Notified ${res.sent} ${res.sent === 1 ? 'person' : 'people'}`,
+                )
+              }
+              for (const skip of res.skipped) {
+                toast.warning(`${skip.name}: ${skip.reason}`)
+              }
+              if (res.sent === 0 && res.skipped.length === 0) {
+                toast.info('No one scheduled to notify')
+              }
+            },
+            onError: (e) =>
+              toast.error(`Published, but notifications failed: ${e.message}`),
+          })
+        },
         onError: (e) => toast.error(e.message),
       },
     )
@@ -583,8 +608,11 @@ export function PlanPage() {
                   variant={plan.status === 'published' ? 'outline' : 'default'}
                   size="sm"
                   onClick={togglePublish}
-                  disabled={updatePlan.isPending}
+                  disabled={updatePlan.isPending || sendNotification.isPending}
                 >
+                  {sendNotification.isPending && (
+                    <Loader2 className="size-4 animate-spin" />
+                  )}
                   {plan.status === 'published' ? 'Unpublish' : 'Publish'}
                 </Button>
                 <DropdownMenu>

@@ -31,3 +31,27 @@ export function isBlockedOut(
     (b) => b.person_id === personId && b.start_date <= date && b.end_date >= date,
   )
 }
+
+/**
+ * Do two services on the same day clash in time? (issue #14)
+ *
+ * Times are 'HH:MM:SS' strings, so lexicographic compare is chronological.
+ * A service with no end time is treated as a point in time, so two such
+ * services only clash when they start at exactly the same time — being on two
+ * services the same day at different times is fine. When a start time is
+ * unknown we can't rule out a clash, so we warn (conservative).
+ */
+export function timesOverlap(
+  aStart: string | null,
+  aEnd: string | null,
+  bStart: string | null,
+  bEnd: string | null,
+): boolean {
+  if (!aStart || !bStart) return true
+  const ae = aEnd ?? aStart
+  const be = bEnd ?? bStart
+  const aIsPoint = ae <= aStart
+  const bIsPoint = be <= bStart
+  if (aIsPoint && bIsPoint) return aStart === bStart
+  return aStart < be && bStart < ae
+}

@@ -70,10 +70,12 @@ Deno.serve(async (req) => {
       'id, status, notified_at, people(id, first_name, last_name, email, status), positions(name), teams(name)',
     )
     .eq('plan_id', planId)
-    .eq('status', 'pending')
+  // For an explicit "send email" on one person (issue #15) we don't restrict to
+  // pending — a confirmed person can be re-sent the request so they can change
+  // their answer. The bulk path still only sends to un-notified pending rows.
   query = assignmentIds
     ? query.in('id', assignmentIds)
-    : query.is('notified_at', null)
+    : query.eq('status', 'pending').is('notified_at', null)
   const { data: assignments, error: assignmentsError } = await query
   if (assignmentsError) {
     console.error('Assignment fetch failed:', assignmentsError)

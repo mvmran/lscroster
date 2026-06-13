@@ -12,6 +12,14 @@ All notable changes to LSCRoster are recorded here. The format follows
 - Service types now capture **frequency**, the **days of the week** they run,
   a **start and end time**, and the **teams they require** — all from the
   add/edit service type screen ([#11]).
+- A leader can **send the request email to one person** from their actions
+  menu on a plan, including someone who has already confirmed ([#15]).
+- Publishing a plan now **emails everyone scheduled on it** a full summary —
+  service type, date, time and duration, every labelled time (rehearsal etc.),
+  the church name and address, who's serving grouped by team, the order of
+  service, and the songs with their key and BPM ([#17]).
+- Admins can edit the **church name and address** from Settings → Church; the
+  address is shown on plan-publish emails ([#17]).
 
 ### Removed
 - The per-team **team-leader designation** added for [#2] has been removed
@@ -30,6 +38,13 @@ All notable changes to LSCRoster are recorded here. The format follows
 - The scheduling person picker now highlights members already set up for the
   position being filled, under a "Set up for this position" group, while still
   allowing anyone to be selected ([#12]).
+- The double-booking warning when scheduling now fires **only when the two
+  services' times actually overlap**, not merely fall on the same day, so a
+  person on two services at different times the same day is no longer flagged
+  ([#14]).
+- Removing a **confirmed** person from a plan now reads **"Remove and Notify"**
+  and emails them a cancellation notice; removing someone who hasn't confirmed
+  stays a plain "Remove" with no email ([#16]).
 
 ### Migration / upgrade notes
 - Migration `20260613052530_teams_multi_position_and_leaders` adds the
@@ -49,6 +64,9 @@ All notable changes to LSCRoster are recorded here. The format follows
   `service_type_teams` widens from admin-only to admin-or-leader so leaders can
   scope their own teams. The upgrade is automatic via `supabase db push`; no
   manual data steps are required and no emails or links change.
+- Migration `20260614090000_church_address` (#17) adds a nullable
+  `church_settings.address` column. It applies automatically via
+  `supabase db push`; no manual steps, and no emails or links change.
 
 [#1]: https://github.com/mvmran/lscroster/issues/1
 [#2]: https://github.com/mvmran/lscroster/issues/2
@@ -58,3 +76,7 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#11]: https://github.com/mvmran/lscroster/issues/11
 [#12]: https://github.com/mvmran/lscroster/issues/12
 [#13]: https://github.com/mvmran/lscroster/issues/13
+[#14]: https://github.com/mvmran/lscroster/issues/14
+[#15]: https://github.com/mvmran/lscroster/issues/15
+[#16]: https://github.com/mvmran/lscroster/issues/16
+[#17]: https://github.com/mvmran/lscroster/issues/17
