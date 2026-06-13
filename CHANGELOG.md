@@ -22,6 +22,9 @@ All notable changes to LSCRoster are recorded here. The format follows
   Songs, Settings ([#5]).
 - Light mode now uses a pastel pink→blue gradient for the top bar and the
   side menu, with a white content area; dark mode is unchanged ([#8]).
+- The scheduling person picker now highlights members already set up for the
+  position being filled, under a "Set up for this position" group, while still
+  allowing anyone to be selected ([#12]).
 
 ### Migration / upgrade notes
 - Migration `20260613052530_teams_multi_position_and_leaders` adds the
@@ -41,3 +44,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#8]: https://github.com/mvmran/lscroster/issues/8
 [#10]: https://github.com/mvmran/lscroster/issues/10
 [#11]: https://github.com/mvmran/lscroster/issues/11
+[#12]: https://github.com/mvmran/lscroster/issues/12

@@ -21,6 +21,11 @@ export type TeamMemberWithPositions = TeamMemberWithPerson & {
   team_member_positions: MembershipPosition[]
 }
 
+/** Membership plus just the ids of the positions the member can fill. */
+export type TeamMemberWithPositionIds = TeamMemberWithPerson & {
+  team_member_positions: { position_id: string }[]
+}
+
 export const teamKeys = {
   all: ['teams'] as const,
   detail: (id: string) => ['teams', id] as const,
@@ -102,9 +107,9 @@ export function useAllTeamMembers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('team_members')
-        .select('*, people(*)')
+        .select('*, people(*), team_member_positions(position_id)')
       if (error) throw new Error(error.message)
-      return data as TeamMemberWithPerson[]
+      return data as TeamMemberWithPositionIds[]
     },
     staleTime: 60 * 1000,
   })

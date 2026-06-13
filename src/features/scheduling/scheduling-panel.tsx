@@ -7,6 +7,7 @@ import {
   Plus,
   RefreshCw,
   Send,
+  Star,
   Trash2,
   UserPlus,
 } from 'lucide-react'
@@ -85,8 +86,8 @@ export function AssignPersonDialog({
 
   const pending = createAssignment.isPending || replaceAssignment.isPending
 
-  const { members, others } = useMemo(() => {
-    if (!target) return { members: [], others: [] }
+  const { preferred, members, others } = useMemo(() => {
+    if (!target) return { preferred: [], members: [], others: [] }
     const term = search.trim().toLowerCase()
     const assignedHere = new Set(
       assignments
@@ -102,14 +103,24 @@ export function AssignPersonDialog({
       !assignedHere.has(p.id) &&
       (term === '' || fullName(p).toLowerCase().includes(term))
 
-    const memberIds = new Set(
-      (teamMembers ?? [])
-        .filter((m) => m.team_id === target.team.id)
+    const teamMemberships = (teamMembers ?? []).filter(
+      (m) => m.team_id === target.team.id,
+    )
+    const memberIds = new Set(teamMemberships.map((m) => m.person_id))
+    // Members explicitly set up for this position in Teams (issue #12).
+    const preferredIds = new Set(
+      teamMemberships
+        .filter((m) =>
+          m.team_member_positions.some(
+            (tp) => tp.position_id === target.position.id,
+          ),
+        )
         .map((m) => m.person_id),
     )
     const all = (people ?? []).filter(matches)
     return {
-      members: all.filter((p) => memberIds.has(p.id)),
+      preferred: all.filter((p) => preferredIds.has(p.id)),
+      members: all.filter((p) => memberIds.has(p.id) && !preferredIds.has(p.id)),
       others: all.filter((p) => !memberIds.has(p.id)),
     }
   }, [target, people, teamMembers, assignments, search])
@@ -158,7 +169,13 @@ export function AssignPersonDialog({
     }
   }
 
-  function PersonRow({ person }: { person: Person }) {
+  function PersonRow({
+    person,
+    highlight,
+  }: {
+    person: Person
+    highlight?: boolean
+  }) {
     const warnings = warningsFor(person.id)
     return (
       <button
@@ -167,6 +184,12 @@ export function AssignPersonDialog({
         onClick={() => pick(person)}
         className="hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-2 text-left disabled:opacity-50"
       >
+        {highlight && (
+          <Star
+            className="size-3.5 shrink-0 fill-amber-400 text-amber-500"
+            aria-hidden="true"
+          />
+        )}
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {fullName(person)}
         </span>
@@ -202,10 +225,24 @@ export function AssignPersonDialog({
           autoFocus
         />
         <div className="-mx-2 flex-1 overflow-y-auto px-2">
-          {members.length > 0 && (
+          {preferred.length > 0 && (
             <>
               <p className="text-muted-foreground px-2 pt-2 pb-1 text-xs font-semibold tracking-wide uppercase">
-                Team members
+                Set up for this position
+              </p>
+              {preferred.map((p) => (
+                <PersonRow key={p.id} person={p} highlight />
+              ))}
+            </>
+          )}
+          {members.length > 0 && (
+            <>
+              <p
+                className={`text-muted-foreground px-2 pb-1 text-xs font-semibold tracking-wide uppercase ${
+                  preferred.length > 0 ? 'pt-3' : 'pt-2'
+                }`}
+              >
+                {preferred.length > 0 ? 'Other team members' : 'Team members'}
               </p>
               {members.map((p) => (
                 <PersonRow key={p.id} person={p} />
@@ -222,7 +259,7 @@ export function AssignPersonDialog({
               ))}
             </>
           )}
-          {members.length === 0 && others.length === 0 && (
+          {preferred.length === 0 && members.length === 0 && others.length === 0 && (
             <p className="text-muted-foreground py-6 text-center text-sm">
               No matching people.
             </p>
