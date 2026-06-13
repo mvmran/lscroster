@@ -73,14 +73,19 @@
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
+    /* Issue #8: pastel pink→blue gradient chrome in light mode (sidebar menu
+       + top bar); the main content area stays white via --background above. */
+    --sidebar: oklch(0.94 0.035 305);
+    --sidebar-foreground: oklch(0.33 0.04 310);
     --sidebar-primary: oklch(0.205 0 0);
     --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar-accent: oklch(0.9 0.055 320);
+    --sidebar-accent-foreground: oklch(0.3 0.05 320);
+    --sidebar-border: oklch(0.86 0.04 315);
+    --sidebar-ring: oklch(0.7 0.06 320);
+    /* Pink→blue gradient stops for the chrome (light mode only). */
+    --chrome-from: oklch(0.92 0.052 350);
+    --chrome-to: oklch(0.92 0.052 260);
 }
 
 .dark {

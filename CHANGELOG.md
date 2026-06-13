@@ -17,6 +17,8 @@ All notable changes to LSCRoster are recorded here. The format follows
 ### Changed
 - Left navigation order is now Home, My Schedule, People, Teams, Services,
   Songs, Settings ([#5]).
+- Light mode now uses a pastel pink→blue gradient for the top bar and the
+  side menu, with a white content area; dark mode is unchanged ([#8]).
 
 ### Migration / upgrade notes
 - Migration `20260613052530_teams_multi_position_and_leaders` adds the
@@ -28,3 +30,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#1]: https://github.com/mvmran/lscroster/issues/1
 [#2]: https://github.com/mvmran/lscroster/issues/2
 [#5]: https://github.com/mvmran/lscroster/issues/5
+[#8]: https://github.com/mvmran/lscroster/issues/8

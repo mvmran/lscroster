@@ -137,14 +137,14 @@ export function AppLayout() {
   return (
     <div className="min-h-svh">
       {/* Desktop sidebar */}
-      <aside className="bg-sidebar border-sidebar-border fixed inset-y-0 left-0 z-30 hidden w-60 flex-col gap-6 border-r py-5 md:flex">
+      <aside className="bg-sidebar border-sidebar-border bg-gradient-to-b from-[var(--chrome-from)] to-[var(--chrome-to)] dark:bg-none fixed inset-y-0 left-0 z-30 hidden w-60 flex-col gap-6 border-r py-5 md:flex">
         <Brand />
         <NavLinks />
       </aside>
 
       <div className="flex min-h-svh flex-col md:pl-60">
         {/* Topbar */}
-        <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-20 flex h-14 items-center gap-2 border-b px-4 backdrop-blur">
+        <header className="bg-gradient-to-r from-[var(--chrome-from)] to-[var(--chrome-to)] dark:bg-none dark:bg-background/95 dark:supports-[backdrop-filter]:bg-background/60 sticky top-0 z-20 flex h-14 items-center gap-2 border-b px-4 backdrop-blur">
           <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
             <SheetTrigger asChild>
               <Button
@@ -156,7 +156,7 @@ export function AppLayout() {
                 <Menu className="size-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="bg-sidebar w-64 p-0">
+            <SheetContent side="left" className="bg-sidebar bg-gradient-to-b from-[var(--chrome-from)] to-[var(--chrome-to)] dark:bg-none w-64 p-0">
               <SheetHeader className="px-2 pt-5 pb-0">
                 <SheetTitle asChild>
                   <Brand />
