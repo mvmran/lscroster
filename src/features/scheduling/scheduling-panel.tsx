@@ -7,7 +7,6 @@ import {
   Plus,
   RefreshCw,
   Send,
-  Star,
   Trash2,
   UserPlus,
 } from 'lucide-react'
@@ -169,13 +168,7 @@ export function AssignPersonDialog({
     }
   }
 
-  function PersonRow({
-    person,
-    highlight,
-  }: {
-    person: Person
-    highlight?: boolean
-  }) {
+  function PersonRow({ person }: { person: Person }) {
     const warnings = warningsFor(person.id)
     return (
       <button
@@ -184,12 +177,6 @@ export function AssignPersonDialog({
         onClick={() => pick(person)}
         className="hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-2 text-left disabled:opacity-50"
       >
-        {highlight && (
-          <Star
-            className="size-3.5 shrink-0 fill-amber-400 text-amber-500"
-            aria-hidden="true"
-          />
-        )}
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {fullName(person)}
         </span>
@@ -231,7 +218,7 @@ export function AssignPersonDialog({
                 Set up for this position
               </p>
               {preferred.map((p) => (
-                <PersonRow key={p.id} person={p} highlight />
+                <PersonRow key={p.id} person={p} />
               ))}
             </>
           )}
