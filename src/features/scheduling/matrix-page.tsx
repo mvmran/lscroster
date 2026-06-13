@@ -39,7 +39,7 @@ import {
   type AssignmentWithPerson,
 } from '@/features/scheduling/use-assignments'
 import { useBlockouts } from '@/features/scheduling/use-blockouts'
-import { useAllPositions, useTeams } from '@/features/scheduling/use-teams'
+import { teamServesType, useAllPositions, useTeams } from '@/features/scheduling/use-teams'
 import { supabase } from '@/lib/supabase'
 import { splitUpcomingPast, usePlans, type PlanWithType } from '@/features/services/use-plans'
 
@@ -316,10 +316,7 @@ export function MatrixPage() {
                           assignments={(assignmentsByPlan[plan.id] ?? []).filter(
                             (a) => a.position_id === position.id,
                           )}
-                          teamServesPlan={
-                            !team.service_type_id ||
-                            team.service_type_id === plan.service_type_id
-                          }
+                          teamServesPlan={teamServesType(team, plan.service_type_id)}
                           onAdd={() => setPicker({ plan, team, position })}
                           onReplace={(assignmentId) =>
                             setPicker({

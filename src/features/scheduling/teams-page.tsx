@@ -16,16 +16,15 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
-import { useCreateTeam, useTeams } from '@/features/scheduling/use-teams'
+import { ServiceTypePicker } from '@/features/scheduling/service-type-picker'
+import {
+  useCreateTeam,
+  useSetTeamServiceTypes,
+  useTeams,
+  type TeamWithCounts,
+} from '@/features/scheduling/use-teams'
 import { useServiceTypes } from '@/features/services/use-service-types'
 
 function NewTeamDialog({
@@ -36,21 +35,28 @@ function NewTeamDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const createTeam = useCreateTeam()
+  const setServiceTypes = useSetTeamServiceTypes()
   const { data: serviceTypes } = useServiceTypes()
   const [name, setName] = useState('')
-  const [serviceTypeId, setServiceTypeId] = useState('all')
+  const [serviceTypeIds, setServiceTypeIds] = useState<string[]>([])
+
+  const pending = createTeam.isPending || setServiceTypes.isPending
+
+  function toggleType(id: string) {
+    setServiceTypeIds((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+    )
+  }
 
   async function create() {
     const trimmed = name.trim()
     if (!trimmed) return
     try {
-      await createTeam.mutateAsync({
-        name: trimmed,
-        service_type_id: serviceTypeId === 'all' ? null : serviceTypeId,
-      })
+      const team = await createTeam.mutateAsync({ name: trimmed })
+      await setServiceTypes.mutateAsync({ teamId: team.id, serviceTypeIds })
       onOpenChange(false)
       setName('')
-      setServiceTypeId('all')
+      setServiceTypeIds([])
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not create team')
     }
@@ -77,22 +83,15 @@ function NewTeamDialog({
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="nt-type">Service type</Label>
-            <Select value={serviceTypeId} onValueChange={setServiceTypeId}>
-              <SelectTrigger id="nt-type" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All service types</SelectItem>
-                {(serviceTypes ?? []).map((st) => (
-                  <SelectItem key={st.id} value={st.id}>
-                    {st.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Service types</Label>
+            <ServiceTypePicker
+              serviceTypes={serviceTypes}
+              selectedIds={serviceTypeIds}
+              onToggle={toggleType}
+            />
             <p className="text-muted-foreground text-xs">
-              Teams tied to a service type only appear on that type's plans.
+              Pick the service types this team serves. Leave all unticked and the
+              team appears on every service type's plans.
             </p>
           </div>
         </div>
@@ -100,8 +99,8 @@ function NewTeamDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={create} disabled={createTeam.isPending || !name.trim()}>
-            {createTeam.isPending && <Loader2 className="size-4 animate-spin" />}
+          <Button onClick={create} disabled={pending || !name.trim()}>
+            {pending && <Loader2 className="size-4 animate-spin" />}
             Create team
           </Button>
         </DialogFooter>
@@ -117,8 +116,14 @@ export function TeamsPage() {
   const [newTeamOpen, setNewTeamOpen] = useState(false)
 
   const canManage = me?.role === 'admin' || me?.role === 'leader'
-  const typeName = (id: string | null) =>
-    id ? (serviceTypes?.find((st) => st.id === id)?.name ?? '') : 'All services'
+  const typeLabel = (team: TeamWithCounts) => {
+    if (team.service_type_teams.length === 0) return 'All services'
+    const names = team.service_type_teams
+      .map((st) => serviceTypes?.find((s) => s.id === st.service_type_id)?.name)
+      .filter((n): n is string => !!n)
+      .sort((a, b) => a.localeCompare(b))
+    return names.join(', ') || 'All services'
+  }
 
   if (isError) return <FullPageError message={error.message} />
 
@@ -158,7 +163,7 @@ export function TeamsPage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{team.name}</p>
                     <p className="text-muted-foreground truncate text-sm">
-                      {typeName(team.service_type_id)} ·{' '}
+                      {typeLabel(team)} ·{' '}
                       {team.team_members[0]?.count ?? 0} member
                       {(team.team_members[0]?.count ?? 0) === 1 ? '' : 's'}
                     </p>

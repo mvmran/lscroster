@@ -35,6 +35,13 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   `service_type_teams` join).
 - **#12** — the scheduling picker highlights members set up for the position
   being filled ("Set up for this position" group); anyone is still selectable.
+- **#13** — a team can serve **multiple** service types. Rather than a new join
+  table, this reuses the `service_type_teams` join from #11 (the same
+  teams↔service-types relationship): the single nullable `teams.service_type_id`
+  FK was backfilled into the join and dropped. A team with no rows serves all
+  service types (preserving the old `null` default). The team editor and the
+  service-type "required teams" picker are now two views of one table. The
+  join's write policy widened from admin-only to admin-or-leader.
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 
@@ -44,13 +51,12 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
 - **#6** — define what "Team Leader" should actually do (gates whether #2 returns).
 - **#7** — review keyboard shortcuts throughout the app.
 - **#9** — add a rehearsal workflow.
-- **#13** — assign multiple service types to a team (today `teams.service_type_id`
-  is a single nullable FK; this would need a join table like the others).
 
-**Schema since Phase 4:** migrations 0006–0008 in `supabase/migrations/`
+**Schema since Phase 4:** migrations 0006–0009 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
-scheduling fields + `service_type_teams`). Regenerate `src/types/database.ts`
-from the local stack after pulling.
+scheduling fields + `service_type_teams`; backfill+drop `teams.service_type_id`
+onto that join). Regenerate `src/types/database.ts` from the local stack after
+pulling.
 
 ---
 

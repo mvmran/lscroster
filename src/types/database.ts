@@ -864,7 +864,6 @@ export type Database = {
           created_at: string
           id: string
           name: string
-          service_type_id: string | null
           sort_order: number
           updated_at: string
         }
@@ -872,7 +871,6 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
-          service_type_id?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -880,19 +878,10 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
-          service_type_id?: string | null
           sort_order?: number
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "teams_service_type_id_fkey"
-            columns: ["service_type_id"]
-            isOneToOne: false
-            referencedRelation: "service_types"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {

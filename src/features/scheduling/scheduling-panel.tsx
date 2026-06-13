@@ -54,7 +54,12 @@ import {
   type AssignmentWithPerson,
 } from '@/features/scheduling/use-assignments'
 import { useBlockouts } from '@/features/scheduling/use-blockouts'
-import { useAllPositions, useAllTeamMembers, useTeams } from '@/features/scheduling/use-teams'
+import {
+  teamServesType,
+  useAllPositions,
+  useAllTeamMembers,
+  useTeams,
+} from '@/features/scheduling/use-teams'
 import type { PlanWithType } from '@/features/services/use-plans'
 
 export interface PickerTarget {
@@ -273,10 +278,7 @@ export function SchedulingPanel({
   const [picker, setPicker] = useState<PickerTarget | null>(null)
 
   const planTeams = useMemo(
-    () =>
-      (teams ?? []).filter(
-        (t) => !t.service_type_id || t.service_type_id === plan.service_type_id,
-      ),
+    () => (teams ?? []).filter((t) => teamServesType(t, plan.service_type_id)),
     [teams, plan.service_type_id],
   )
 

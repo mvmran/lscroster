@@ -143,7 +143,10 @@ export function useSetServiceTypeTeams() {
       }
       return serviceTypeId
     },
-    onSuccess: (serviceTypeId) =>
-      queryClient.invalidateQueries({ queryKey: serviceTypeTeamsKey(serviceTypeId) }),
+    onSuccess: (serviceTypeId) => {
+      queryClient.invalidateQueries({ queryKey: serviceTypeTeamsKey(serviceTypeId) })
+      // Team displays (Teams list, team page) read the same join table.
+      queryClient.invalidateQueries({ queryKey: ['teams'] })
+    },
   })
 }

@@ -48,22 +48,17 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { fullName } from '@/features/people/person-utils'
 import { usePeople } from '@/features/people/use-people'
+import { ServiceTypePicker } from '@/features/scheduling/service-type-picker'
 import {
   useDeleteTeam,
   useMembershipMutations,
   usePositionMutations,
   usePositions,
+  useSetTeamServiceTypes,
   useTeam,
   useTeamMembers,
   useUpdateTeam,
@@ -390,14 +385,16 @@ export function TeamPage() {
   const { data: team, isPending, isError, error } = useTeam(id)
   const { data: serviceTypes } = useServiceTypes()
   const updateTeam = useUpdateTeam()
+  const setTeamServiceTypes = useSetTeamServiceTypes()
   const deleteTeam = useDeleteTeam()
 
   const [editOpen, setEditOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [name, setName] = useState('')
-  const [serviceTypeId, setServiceTypeId] = useState('all')
+  const [serviceTypeIds, setServiceTypeIds] = useState<string[]>([])
 
   const canManage = me?.role === 'admin' || me?.role === 'leader'
+  const savingEdit = updateTeam.isPending || setTeamServiceTypes.isPending
 
   if (isError) return <FullPageError message={error.message} />
   if (isPending) {
@@ -420,13 +417,18 @@ export function TeamPage() {
     )
   }
 
-  const typeName = team.service_type_id
-    ? (serviceTypes?.find((st) => st.id === team.service_type_id)?.name ?? '')
-    : 'All services'
+  const typeNames = team.service_type_teams
+    .map((st) => serviceTypes?.find((s) => s.id === st.service_type_id)?.name)
+    .filter((n): n is string => !!n)
+    .sort((a, b) => a.localeCompare(b))
+  const typeName =
+    team.service_type_teams.length === 0
+      ? 'All services'
+      : typeNames.join(', ') || 'All services'
 
   function openEdit() {
     setName(team!.name)
-    setServiceTypeId(team!.service_type_id ?? 'all')
+    setServiceTypeIds(team!.service_type_teams.map((st) => st.service_type_id))
     setEditOpen(true)
   }
 
@@ -435,15 +437,19 @@ export function TeamPage() {
     try {
       await updateTeam.mutateAsync({
         id: team!.id,
-        values: {
-          name: name.trim(),
-          service_type_id: serviceTypeId === 'all' ? null : serviceTypeId,
-        },
+        values: { name: name.trim() },
       })
+      await setTeamServiceTypes.mutateAsync({ teamId: team!.id, serviceTypeIds })
       setEditOpen(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not save')
     }
+  }
+
+  function toggleType(id: string) {
+    setServiceTypeIds((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+    )
   }
 
   async function confirmDeleteTeam() {
@@ -493,7 +499,7 @@ export function TeamPage() {
           <DialogHeader>
             <DialogTitle>Edit team</DialogTitle>
             <DialogDescription>
-              Rename the team or change which service type it serves.
+              Rename the team or change which service types it serves.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4">
@@ -502,28 +508,24 @@ export function TeamPage() {
               <Input id="et-name" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="et-type">Service type</Label>
-              <Select value={serviceTypeId} onValueChange={setServiceTypeId}>
-                <SelectTrigger id="et-type" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All service types</SelectItem>
-                  {(serviceTypes ?? []).map((st) => (
-                    <SelectItem key={st.id} value={st.id}>
-                      {st.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Service types</Label>
+              <ServiceTypePicker
+                serviceTypes={serviceTypes}
+                selectedIds={serviceTypeIds}
+                onToggle={toggleType}
+              />
+              <p className="text-muted-foreground text-xs">
+                Leave all unticked and the team appears on every service type's
+                plans.
+              </p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={saveEdit} disabled={updateTeam.isPending || !name.trim()}>
-              {updateTeam.isPending && <Loader2 className="size-4 animate-spin" />}
+            <Button onClick={saveEdit} disabled={savingEdit || !name.trim()}>
+              {savingEdit && <Loader2 className="size-4 animate-spin" />}
               Save
             </Button>
           </DialogFooter>

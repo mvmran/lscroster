@@ -5,6 +5,26 @@ import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 export type TeamWithCounts = Tables<'teams'> & {
   positions: { count: number }[]
   team_members: { count: number }[]
+  service_type_teams: { service_type_id: string }[]
+}
+
+/** A team plus the ids of the service types it serves. */
+export type TeamWithServiceTypes = Tables<'teams'> & {
+  service_type_teams: { service_type_id: string }[]
+}
+
+/**
+ * A team with no service-type links serves every service type — this preserves
+ * the old `teams.service_type_id is null` = "all service types" default.
+ */
+export function teamServesType(
+  team: { service_type_teams: { service_type_id: string }[] },
+  serviceTypeId: string,
+): boolean {
+  return (
+    team.service_type_teams.length === 0 ||
+    team.service_type_teams.some((st) => st.service_type_id === serviceTypeId)
+  )
 }
 
 export type TeamMemberWithPerson = Tables<'team_members'> & {
@@ -40,7 +60,9 @@ export function useTeams() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('teams')
-        .select('*, positions(count), team_members(count)')
+        .select(
+          '*, positions(count), team_members(count), service_type_teams(service_type_id)',
+        )
         .order('sort_order')
         .order('name')
       if (error) throw new Error(error.message)
@@ -57,11 +79,11 @@ export function useTeam(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('teams')
-        .select('*')
+        .select('*, service_type_teams(service_type_id)')
         .eq('id', id!)
         .maybeSingle()
       if (error) throw new Error(error.message)
-      return data
+      return data as TeamWithServiceTypes | null
     },
   })
 }
@@ -198,6 +220,44 @@ export function useUpdateTeam() {
     onSuccess: (team) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.all })
       queryClient.invalidateQueries({ queryKey: teamKeys.detail(team.id) })
+    },
+  })
+}
+
+/** Replace the set of service types a team serves (empty = all). */
+export function useSetTeamServiceTypes() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      teamId,
+      serviceTypeIds,
+    }: {
+      teamId: string
+      serviceTypeIds: string[]
+    }) => {
+      const { error: deleteError } = await supabase
+        .from('service_type_teams')
+        .delete()
+        .eq('team_id', teamId)
+      if (deleteError) throw new Error(deleteError.message)
+      if (serviceTypeIds.length > 0) {
+        const { error: insertError } = await supabase
+          .from('service_type_teams')
+          .insert(
+            serviceTypeIds.map((service_type_id) => ({
+              service_type_id,
+              team_id: teamId,
+            })),
+          )
+        if (insertError) throw new Error(insertError.message)
+      }
+      return teamId
+    },
+    onSuccess: (teamId) => {
+      queryClient.invalidateQueries({ queryKey: teamKeys.all })
+      queryClient.invalidateQueries({ queryKey: teamKeys.detail(teamId) })
+      // The service-type "required teams" picker reads the same join table.
+      queryClient.invalidateQueries({ queryKey: ['service-type-teams'] })
     },
   })
 }

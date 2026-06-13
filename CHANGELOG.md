@@ -18,6 +18,11 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#10]). Assigning multiple positions to a member (#1) is unaffected.
 
 ### Changed
+- A team can now serve **multiple service types** instead of just one. The
+  team add/edit screen uses a service-type multi-select; leaving it empty means
+  the team appears on every service type's plans (the old default). This reuses
+  the same `service_type_teams` join as a service type's "required teams", so
+  the two screens are now two views of one relationship ([#13]).
 - Left navigation order is now Home, My Schedule, People, Teams, Services,
   Songs, Settings ([#5]).
 - Light mode now uses a pastel pink→blue gradient for the top bar and the
@@ -37,6 +42,13 @@ All notable changes to LSCRoster are recorded here. The format follows
   `20260613105308_service_type_scheduling_details` adds `frequency`,
   `days_of_week` and `end_time` to `service_types` plus a `service_type_teams`
   join table. Both apply automatically via `supabase db push`.
+- Migration `20260613142456_team_multi_service_types` (#13) **backfills each
+  team's existing `service_type_id` into the `service_type_teams` join, then
+  drops the `teams.service_type_id` column.** Teams that served "all service
+  types" (null) get no join rows and continue to serve all. The write policy on
+  `service_type_teams` widens from admin-only to admin-or-leader so leaders can
+  scope their own teams. The upgrade is automatic via `supabase db push`; no
+  manual data steps are required and no emails or links change.
 
 [#1]: https://github.com/mvmran/lscroster/issues/1
 [#2]: https://github.com/mvmran/lscroster/issues/2
@@ -45,3 +57,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#10]: https://github.com/mvmran/lscroster/issues/10
 [#11]: https://github.com/mvmran/lscroster/issues/11
 [#12]: https://github.com/mvmran/lscroster/issues/12
+[#13]: https://github.com/mvmran/lscroster/issues/13
