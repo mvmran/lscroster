@@ -66,6 +66,15 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   `sendEmailBatch()`; `send-requests`, `send-plan-notification` and `reminders`
   prepare their emails (token mint / idempotency stamp) then send in one batch,
   preserving per-email `email_log` rows. Code-only, no schema change.
+- **#21** — the **matrix view** now matches #16: removing a **confirmed**
+  person from a cell reads "Remove and Notify" and sends a cancellation email
+  via the existing `cancel-assignment` Edge Function; others stay a plain
+  delete. Frontend-only.
+- **#22** — **"search the web" links on songs**: the song detail page has
+  Lyrics (Google), Chords (Ultimate Guitar) and Listen (YouTube) buttons, and
+  the New Song dialog has a lyrics-search link, each opening a pre-filled search
+  in a new tab via a shared `songSearchLinks()` helper. UI-only — no results
+  pulled in, no lyrics stored, no schema change.
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 
