@@ -45,6 +45,11 @@ All notable changes to LSCRoster are recorded here. The format follows
 - Removing a **confirmed** person from a plan now reads **"Remove and Notify"**
   and emails them a cancellation notice; removing someone who hasn't confirmed
   stays a plain "Remove" with no email ([#16]).
+- Bulk email sends (scheduling requests, plan-publish notifications, reminders
+  and nudges) now go out through Resend's **Batch API** — up to 100 emails per
+  request instead of one call each — and every Resend call is **rate-limited to
+  stay under 2 requests/second**, so rostering a large team no longer trips
+  Resend's throttle ([#18]).
 
 ### Migration / upgrade notes
 - Migration `20260613052530_teams_multi_position_and_leaders` adds the
@@ -67,6 +72,10 @@ All notable changes to LSCRoster are recorded here. The format follows
 - Migration `20260614090000_church_address` (#17) adds a nullable
   `church_settings.address` column. It applies automatically via
   `supabase db push`; no manual steps, and no emails or links change.
+- The Resend Batch API change (#18) is **code-only — no schema change**. It
+  ships by redeploying the `send-requests`, `send-plan-notification` and
+  `reminders` Edge Functions (which share `_shared/resend.ts`); email content
+  and links are unchanged.
 
 [#1]: https://github.com/mvmran/lscroster/issues/1
 [#2]: https://github.com/mvmran/lscroster/issues/2
@@ -80,3 +89,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#15]: https://github.com/mvmran/lscroster/issues/15
 [#16]: https://github.com/mvmran/lscroster/issues/16
 [#17]: https://github.com/mvmran/lscroster/issues/17
+[#18]: https://github.com/mvmran/lscroster/issues/18

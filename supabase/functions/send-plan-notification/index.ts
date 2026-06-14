@@ -7,7 +7,7 @@ import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { logEmail } from '../_shared/email-log.ts'
 import { planNotificationEmail } from '../_shared/email-templates/plan-notification.ts'
-import { sendEmail } from '../_shared/resend.ts'
+import { sendEmailBatch } from '../_shared/resend.ts'
 import {
   appUrl,
   clockFromBase,
@@ -187,10 +187,10 @@ Deno.serve(async (req) => {
   }
 
   const planDateLong = formatPlanDateLong(plan.date)
-  let sent = 0
-  const skipped: { name: string; reason: string }[] = []
 
-  for (const [personId, recipient] of recipients) {
+  // Render one email per recipient, then send them all in one Batch API call
+  // (issue #18).
+  const outbound = [...recipients].map(([personId, recipient]) => {
     const { subject, html } = planNotificationEmail({
       churchName,
       churchAddress: church?.address ?? null,
@@ -207,27 +207,47 @@ Deno.serve(async (req) => {
       songs,
       appUrl: appUrl(),
     })
-    const result = await sendEmail({ to: recipient.email, subject, html, fromName })
-    await logEmail(admin, {
-      to: recipient.email,
-      template: 'plan-notification',
-      subject,
-      result,
-      personId,
-      planId,
-    })
+    return { personId, recipient, subject, html }
+  })
+
+  const results = await sendEmailBatch(
+    outbound.map((o) => ({
+      to: o.recipient.email,
+      subject: o.subject,
+      html: o.html,
+      fromName,
+    })),
+  )
+
+  await Promise.all(
+    outbound.map((o, idx) =>
+      logEmail(admin, {
+        to: o.recipient.email,
+        template: 'plan-notification',
+        subject: o.subject,
+        result: results[idx],
+        personId: o.personId,
+        planId,
+      }),
+    ),
+  )
+
+  let sent = 0
+  const skipped: { name: string; reason: string }[] = []
+  outbound.forEach((o, idx) => {
+    const result = results[idx]
     if (result.sent) {
       sent++
     } else {
       skipped.push({
-        name: recipient.firstName,
+        name: o.recipient.firstName,
         reason:
           result.reason === 'not_configured'
             ? 'email not configured'
             : 'email provider error',
       })
     }
-  }
+  })
 
   return jsonResponse({ ok: true, sent, skipped })
 })

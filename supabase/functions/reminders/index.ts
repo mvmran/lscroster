@@ -13,7 +13,7 @@ import {
   schedulingReminderEmail,
   schedulingRequestEmail,
 } from '../_shared/email-templates/scheduling.ts'
-import { sendEmail } from '../_shared/resend.ts'
+import { sendEmailBatch } from '../_shared/resend.ts'
 import {
   addDaysISO,
   appUrl,
@@ -95,7 +95,19 @@ Deno.serve(async (req) => {
     .is('nudged_at', null)
     .gte('plans.date', today)
 
-  let nudged = 0
+  // Each pass prepares its emails (minting tokens / stamping idempotency
+  // columns) first, then sends them in one Batch API call (issue #18). The DB
+  // writes don't count against the Resend rate limit.
+  interface OutboundReminder {
+    to: string
+    subject: string
+    html: string
+    personId: string
+    planId: string
+    template: string
+  }
+
+  const nudgeOutbound: OutboundReminder[] = []
   for (const row of (nudgeRows ?? []) as unknown as ReminderRow[]) {
     const person = row.people
     if (!person.email || person.status !== 'active') continue
@@ -129,17 +141,37 @@ Deno.serve(async (req) => {
       respondUrl: `${appUrl()}/respond/${token}`,
       isNudge: true,
     })
-    const result = await sendEmail({ to: person.email, subject, html, fromName })
-    await logEmail(admin, {
+    nudgeOutbound.push({
       to: person.email,
-      template: 'scheduling-nudge',
       subject,
-      result,
+      html,
       personId: person.id,
       planId: row.plans.id,
+      template: 'scheduling-nudge',
     })
-    if (result.sent) nudged++
   }
+
+  const nudgeResults = await sendEmailBatch(
+    nudgeOutbound.map((o) => ({
+      to: o.to,
+      subject: o.subject,
+      html: o.html,
+      fromName,
+    })),
+  )
+  await Promise.all(
+    nudgeOutbound.map((o, idx) =>
+      logEmail(admin, {
+        to: o.to,
+        template: o.template,
+        subject: o.subject,
+        result: nudgeResults[idx],
+        personId: o.personId,
+        planId: o.planId,
+      }),
+    ),
+  )
+  const nudged = nudgeResults.filter((r) => r.sent).length
 
   // -- reminders: confirmed, service within reminder_days_before -------------
   const { data: reminderRows } = await admin
@@ -150,7 +182,7 @@ Deno.serve(async (req) => {
     .gte('plans.date', today)
     .lte('plans.date', addDaysISO(today, church.reminder_days_before))
 
-  let reminded = 0
+  const reminderOutbound: OutboundReminder[] = []
   for (const row of (reminderRows ?? []) as unknown as ReminderRow[]) {
     const person = row.people
     if (!person.email || person.status !== 'active') continue
@@ -179,17 +211,37 @@ Deno.serve(async (req) => {
       positionName: row.positions.name,
       appUrl: appUrl(),
     })
-    const result = await sendEmail({ to: person.email, subject, html, fromName })
-    await logEmail(admin, {
+    reminderOutbound.push({
       to: person.email,
-      template: 'scheduling-reminder',
       subject,
-      result,
+      html,
       personId: person.id,
       planId: row.plans.id,
+      template: 'scheduling-reminder',
     })
-    if (result.sent) reminded++
   }
+
+  const reminderResults = await sendEmailBatch(
+    reminderOutbound.map((o) => ({
+      to: o.to,
+      subject: o.subject,
+      html: o.html,
+      fromName,
+    })),
+  )
+  await Promise.all(
+    reminderOutbound.map((o, idx) =>
+      logEmail(admin, {
+        to: o.to,
+        template: o.template,
+        subject: o.subject,
+        result: reminderResults[idx],
+        personId: o.personId,
+        planId: o.planId,
+      }),
+    ),
+  )
+  const reminded = reminderResults.filter((r) => r.sent).length
 
   return jsonResponse({ ok: true, nudged, reminded })
 })

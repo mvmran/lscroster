@@ -7,7 +7,7 @@ import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { logEmail } from '../_shared/email-log.ts'
 import { schedulingRequestEmail } from '../_shared/email-templates/scheduling.ts'
-import { sendEmail } from '../_shared/resend.ts'
+import { sendEmailBatch } from '../_shared/resend.ts'
 import {
   appUrl,
   formatPlanDateLong,
@@ -99,8 +99,19 @@ Deno.serve(async (req) => {
     formatStartTime(plan.service_types.default_start_time),
   )
 
-  let sent = 0
   const skipped: { name: string; reason: string }[] = []
+
+  // Prepare each email (minting + storing its response token) first, then send
+  // them all in one Batch API call (issue #18). Token minting is a DB write, so
+  // it doesn't count against the Resend rate limit.
+  interface Outbound {
+    name: string
+    to: string
+    subject: string
+    html: string
+    personId: string
+  }
+  const outbound: Outbound[] = []
 
   for (const assignment of assignments as unknown as AssignmentRow[]) {
     const person = assignment.people
@@ -140,32 +151,52 @@ Deno.serve(async (req) => {
       respondUrl: `${appUrl()}/respond/${token}`,
       isNudge: assignment.notified_at !== null,
     })
-    const result = await sendEmail({
+    outbound.push({
+      name: fullName,
       to: person.email,
       subject,
       html,
-      fromName,
-    })
-    await logEmail(admin, {
-      to: person.email,
-      template: 'scheduling-request',
-      subject,
-      result,
       personId: person.id,
-      planId,
     })
+  }
+
+  const results = await sendEmailBatch(
+    outbound.map((o) => ({
+      to: o.to,
+      subject: o.subject,
+      html: o.html,
+      fromName,
+    })),
+  )
+
+  await Promise.all(
+    outbound.map((o, idx) =>
+      logEmail(admin, {
+        to: o.to,
+        template: 'scheduling-request',
+        subject: o.subject,
+        result: results[idx],
+        personId: o.personId,
+        planId,
+      }),
+    ),
+  )
+
+  let sent = 0
+  outbound.forEach((o, idx) => {
+    const result = results[idx]
     if (result.sent) {
       sent++
     } else {
       skipped.push({
-        name: fullName,
+        name: o.name,
         reason:
           result.reason === 'not_configured'
             ? 'email not configured'
             : 'email provider error',
       })
     }
-  }
+  })
 
   return jsonResponse({ ok: true, sent, skipped })
 })
