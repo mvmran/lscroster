@@ -5,9 +5,12 @@ import {
   ArrowLeft,
   Download,
   FileMusic,
+  Guitar,
   Loader2,
   Music,
   Paperclip,
+  Play,
+  Search,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -42,6 +45,7 @@ import {
   formatPlanDate,
   formatPlanDateShort,
   parseTagsInput,
+  songSearchLinks,
   type Song,
 } from '@/features/services/service-utils'
 import {
@@ -437,6 +441,38 @@ export function SongPage() {
               {song.status === 'archived' && <Badge variant="outline">Archived</Badge>}
             </div>
             {song.author && <p className="text-muted-foreground text-sm">{song.author}</p>}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={songSearchLinks(song.title, song.author).lyrics}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Search className="size-4" />
+                  Lyrics
+                </a>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={songSearchLinks(song.title, song.author).chords}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Guitar className="size-4" />
+                  Chords
+                </a>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={songSearchLinks(song.title, song.author).listen}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Play className="size-4" />
+                  Listen
+                </a>
+              </Button>
+            </div>
           </div>
           {canManage && (
             <div className="flex gap-2">

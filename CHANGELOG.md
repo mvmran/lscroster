@@ -20,6 +20,11 @@ All notable changes to LSCRoster are recorded here. The format follows
   service, and the songs with their key and BPM ([#17]).
 - Admins can edit the **church name and address** from Settings → Church; the
   address is shown on plan-publish emails ([#17]).
+- **"Search the web" links on songs** — the song detail page has quick
+  **Lyrics** (Google), **Chords** (Ultimate Guitar) and **Listen** (YouTube)
+  buttons, and the New Song dialog has a lyrics-search link, each opening a
+  pre-filled search in a new tab. No results are pulled into the app and no
+  lyrics are stored ([#22]).
 
 ### Removed
 - The per-team **team-leader designation** added for [#2] has been removed
@@ -93,3 +98,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#17]: https://github.com/mvmran/lscroster/issues/17
 [#18]: https://github.com/mvmran/lscroster/issues/18
 [#21]: https://github.com/mvmran/lscroster/issues/21
+[#22]: https://github.com/mvmran/lscroster/issues/22

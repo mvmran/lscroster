@@ -162,6 +162,21 @@ export function formatLastScheduled(date: string | null) {
   return formatPlanDateShort(date)
 }
 
+/**
+ * Pre-filled web-search links for a song (issue #22). Each opens a search in a
+ * new tab — we never pull results into the app. The query is built from data
+ * already on the page (title + author); no new data, no scraping, no API.
+ */
+export function songSearchLinks(title: string, author?: string | null) {
+  const base = `${title} ${author ?? ''}`.trim()
+  const q = encodeURIComponent(base)
+  return {
+    lyrics: `https://www.google.com/search?q=${encodeURIComponent(`${base} lyrics`)}`,
+    chords: `https://www.ultimate-guitar.com/search.php?search_type=title&value=${q}`,
+    listen: `https://www.youtube.com/results?search_query=${q}`,
+  }
+}
+
 /** Comma-separated tag input -> clean string[]. */
 export function parseTagsInput(input: string): string[] {
   return [...new Set(

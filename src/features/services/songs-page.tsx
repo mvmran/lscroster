@@ -33,7 +33,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
-import { formatPlanDateShort, type Song } from '@/features/services/service-utils'
+import {
+  formatPlanDateShort,
+  songSearchLinks,
+  type Song,
+} from '@/features/services/service-utils'
 import { useCreateSong, useSongs, useSongUsage } from '@/features/services/use-songs'
 
 function NewSongDialog({
@@ -90,6 +94,23 @@ function NewSongDialog({
             <Label htmlFor="ns-author">Author / artist</Label>
             <Input id="ns-author" value={author} onChange={(e) => setAuthor(e.target.value)} />
           </div>
+          {title.trim() && (
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto justify-start self-start p-0"
+              asChild
+            >
+              <a
+                href={songSearchLinks(title, author).lyrics}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Search className="size-3.5" />
+                Search the web for lyrics
+              </a>
+            </Button>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="ns-key">Default key</Label>
