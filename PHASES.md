@@ -60,6 +60,12 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   address, teams & members grouped, order of service, and songs with key & BPM.
   Added a nullable `church_settings.address` column and an editable Church card
   in Settings (admin only, matching the admin-only RLS).
+- **#18** — bulk email sends use Resend's **Batch API** (≤100 emails/request)
+  and every Resend call is **rate-limited to under 2 requests/second**. The
+  shared `_shared/resend.ts` gained `rateLimit()` (applied to all sends) and
+  `sendEmailBatch()`; `send-requests`, `send-plan-notification` and `reminders`
+  prepare their emails (token mint / idempotency stamp) then send in one batch,
+  preserving per-email `email_log` rows. Code-only, no schema change.
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 
