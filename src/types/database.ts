@@ -707,6 +707,53 @@ export type Database = {
         }
         Relationships: []
       }
+      song_arrangements: {
+        Row: {
+          bpm: number | null
+          created_at: string
+          id: string
+          is_default: boolean
+          meter: string | null
+          name: string
+          song_id: string
+          song_key: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          bpm?: number | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          meter?: string | null
+          name?: string
+          song_id: string
+          song_key?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          bpm?: number | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          meter?: string | null
+          name?: string
+          song_id?: string
+          song_key?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "song_arrangements_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       song_attachments: {
         Row: {
           created_at: string
@@ -745,10 +792,8 @@ export type Database = {
       songs: {
         Row: {
           author: string | null
-          bpm: number | null
           ccli_number: string | null
           created_at: string
-          default_key: string | null
           id: string
           lyrics: string | null
           status: Database["public"]["Enums"]["song_status"]
@@ -758,10 +803,8 @@ export type Database = {
         }
         Insert: {
           author?: string | null
-          bpm?: number | null
           ccli_number?: string | null
           created_at?: string
-          default_key?: string | null
           id?: string
           lyrics?: string | null
           status?: Database["public"]["Enums"]["song_status"]
@@ -771,10 +814,8 @@ export type Database = {
         }
         Update: {
           author?: string | null
-          bpm?: number | null
           ccli_number?: string | null
           created_at?: string
-          default_key?: string | null
           id?: string
           lyrics?: string | null
           status?: Database["public"]["Enums"]["song_status"]

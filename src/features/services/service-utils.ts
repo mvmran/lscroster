@@ -4,7 +4,16 @@ import type { Enums, Tables } from '@/types/database'
 export type Plan = Tables<'plans'>
 export type PlanItem = Tables<'plan_items'>
 export type ServiceType = Tables<'service_types'>
-export type Song = Tables<'songs'>
+export type SongArrangement = Tables<'song_arrangements'>
+/**
+ * A library song with its Default arrangement's key/BPM flattened on (issue #24
+ * moved key/BPM onto arrangements). Keeping these here lets the songs list,
+ * picker and plan readers keep using `song.default_key` / `song.bpm` unchanged.
+ */
+export type Song = Tables<'songs'> & {
+  default_key: string | null
+  bpm: number | null
+}
 export type PlanItemKind = Enums<'plan_item_kind'>
 
 export const PLAN_ITEM_KIND_LABELS: Record<PlanItemKind, string> = {

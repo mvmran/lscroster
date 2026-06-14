@@ -54,7 +54,7 @@ export function SongPickerDialog({
 
   const pending = createItem.isPending || createSong.isPending
 
-  async function addSong(song: Song) {
+  async function addSong(song: { id: string; title: string }) {
     try {
       await createItem.mutateAsync({
         kind: 'song',

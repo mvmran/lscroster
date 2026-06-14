@@ -10,6 +10,7 @@ import {
   Music,
   Paperclip,
   Play,
+  Plus,
   Search,
   Trash2,
   Upload,
@@ -39,6 +40,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import {
@@ -47,6 +49,7 @@ import {
   parseTagsInput,
   songSearchLinks,
   type Song,
+  type SongArrangement,
 } from '@/features/services/service-utils'
 import {
   useDeleteSongAttachment,
@@ -55,10 +58,14 @@ import {
   useUploadSongAttachment,
 } from '@/features/services/use-song-attachments'
 import {
+  useArrangements,
+  useCreateArrangement,
+  useDeleteArrangement,
   useDeleteSong,
   useSong,
   useSongHistory,
   useSongUsage,
+  useUpdateArrangement,
   useUpdateSong,
 } from '@/features/services/use-songs'
 
@@ -68,35 +75,26 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
   const updateSong = useUpdateSong()
   const [title, setTitle] = useState(song.title)
   const [author, setAuthor] = useState(song.author ?? '')
-  const [defaultKey, setDefaultKey] = useState(song.default_key ?? '')
   const [ccli, setCcli] = useState(song.ccli_number ?? '')
-  const [bpm, setBpm] = useState(song.bpm?.toString() ?? '')
   const [tags, setTags] = useState(song.tags.join(', '))
   const [lyrics, setLyrics] = useState(song.lyrics ?? '')
-
-  const bpmValue = bpm.trim() === '' ? null : Number(bpm)
-  const bpmInvalid = bpmValue !== null && (!Number.isInteger(bpmValue) || bpmValue <= 0)
 
   const dirty =
     title !== song.title ||
     author !== (song.author ?? '') ||
-    defaultKey !== (song.default_key ?? '') ||
     ccli !== (song.ccli_number ?? '') ||
-    bpm !== (song.bpm?.toString() ?? '') ||
     tags !== song.tags.join(', ') ||
     lyrics !== (song.lyrics ?? '')
 
   async function save() {
-    if (!title.trim() || bpmInvalid) return
+    if (!title.trim()) return
     try {
       await updateSong.mutateAsync({
         id: song.id,
         values: {
           title: title.trim(),
           author: author.trim() || null,
-          default_key: defaultKey.trim() || null,
           ccli_number: ccli.trim() || null,
-          bpm: bpmValue,
           tags: parseTagsInput(tags),
           lyrics: lyrics.trim() || null,
         },
@@ -114,20 +112,12 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
           <CardTitle>Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-            <div>
-              <dt className="text-muted-foreground">Key</dt>
-              <dd className="font-medium">{song.default_key ?? '—'}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">BPM</dt>
-              <dd className="font-medium">{song.bpm ?? '—'}</dd>
-            </div>
+          <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
             <div>
               <dt className="text-muted-foreground">CCLI</dt>
               <dd className="font-medium">{song.ccli_number ?? '—'}</dd>
             </div>
-            <div>
+            <div className="col-span-2">
               <dt className="text-muted-foreground">Tags</dt>
               <dd className="font-medium">{song.tags.join(', ') || '—'}</dd>
             </div>
@@ -152,31 +142,10 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
           <Label htmlFor="sd-title">Title</Label>
           <Input id="sd-title" value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="sd-author">Author / artist</Label>
-          <Input id="sd-author" value={author} onChange={(e) => setAuthor(e.target.value)} />
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="sd-key">Default key</Label>
-            <Input
-              id="sd-key"
-              value={defaultKey}
-              onChange={(e) => setDefaultKey(e.target.value)}
-              placeholder="e.g. G"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="sd-bpm">BPM</Label>
-            <Input
-              id="sd-bpm"
-              value={bpm}
-              onChange={(e) => setBpm(e.target.value)}
-              inputMode="numeric"
-            />
-            {bpmInvalid && (
-              <p className="text-destructive text-sm">Whole number above 0</p>
-            )}
+            <Label htmlFor="sd-author">Author / artist</Label>
+            <Input id="sd-author" value={author} onChange={(e) => setAuthor(e.target.value)} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="sd-ccli">CCLI number</Label>
@@ -204,11 +173,220 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
         </div>
         {dirty && (
           <div className="flex justify-end">
-            <Button onClick={save} disabled={updateSong.isPending || !title.trim() || bpmInvalid}>
+            <Button onClick={save} disabled={updateSong.isPending || !title.trim()}>
               {updateSong.isPending && <Loader2 className="size-4 animate-spin" />}
               Save changes
             </Button>
           </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function ArrangementForm({
+  arrangement,
+  canManage,
+}: {
+  arrangement: SongArrangement
+  canManage: boolean
+}) {
+  const update = useUpdateArrangement(arrangement.song_id)
+  const remove = useDeleteArrangement(arrangement.song_id)
+  const [name, setName] = useState(arrangement.name)
+  const [songKey, setSongKey] = useState(arrangement.song_key ?? '')
+  const [bpm, setBpm] = useState(arrangement.bpm?.toString() ?? '')
+  const [meter, setMeter] = useState(arrangement.meter ?? '')
+
+  const bpmValue = bpm.trim() === '' ? null : Number(bpm)
+  const bpmInvalid = bpmValue !== null && (!Number.isInteger(bpmValue) || bpmValue <= 0)
+
+  const dirty =
+    name.trim() !== arrangement.name ||
+    songKey !== (arrangement.song_key ?? '') ||
+    bpm !== (arrangement.bpm?.toString() ?? '') ||
+    meter !== (arrangement.meter ?? '')
+
+  if (!canManage) {
+    return (
+      <dl className="grid grid-cols-3 gap-4 text-sm">
+        <div>
+          <dt className="text-muted-foreground">Key</dt>
+          <dd className="font-medium">{arrangement.song_key ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">BPM</dt>
+          <dd className="font-medium">{arrangement.bpm ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Meter</dt>
+          <dd className="font-medium">{arrangement.meter ?? '—'}</dd>
+        </div>
+      </dl>
+    )
+  }
+
+  function save() {
+    if (bpmInvalid || !name.trim()) return
+    update.mutate(
+      {
+        id: arrangement.id,
+        values: {
+          name: name.trim(),
+          song_key: songKey.trim() || null,
+          bpm: bpmValue,
+          meter: meter.trim() || null,
+        },
+      },
+      {
+        onSuccess: () => toast.success('Arrangement saved'),
+        onError: (e) => toast.error(e.message),
+      },
+    )
+  }
+
+  function onDelete() {
+    remove.mutate(arrangement.id, {
+      onSuccess: () => toast.success('Arrangement removed'),
+      onError: (e) => toast.error(e.message),
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {!arrangement.is_default && (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`arr-name-${arrangement.id}`}>Arrangement name</Label>
+          <Input
+            id={`arr-name-${arrangement.id}`}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`arr-key-${arrangement.id}`}>Key</Label>
+          <Input
+            id={`arr-key-${arrangement.id}`}
+            value={songKey}
+            onChange={(e) => setSongKey(e.target.value)}
+            placeholder="e.g. G"
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`arr-bpm-${arrangement.id}`}>BPM</Label>
+          <Input
+            id={`arr-bpm-${arrangement.id}`}
+            value={bpm}
+            onChange={(e) => setBpm(e.target.value)}
+            inputMode="numeric"
+          />
+          {bpmInvalid && <p className="text-destructive text-sm">Whole number above 0</p>}
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`arr-meter-${arrangement.id}`}>Meter</Label>
+          <Input
+            id={`arr-meter-${arrangement.id}`}
+            value={meter}
+            onChange={(e) => setMeter(e.target.value)}
+            placeholder="e.g. 4/4"
+          />
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        {arrangement.is_default ? (
+          <span />
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onDelete}
+            disabled={remove.isPending}
+          >
+            <Trash2 className="size-4" />
+            Delete arrangement
+          </Button>
+        )}
+        {dirty && (
+          <Button
+            size="sm"
+            onClick={save}
+            disabled={update.isPending || bpmInvalid || !name.trim()}
+          >
+            {update.isPending && <Loader2 className="size-4 animate-spin" />}
+            Save changes
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ArrangementsCard({ songId, canManage }: { songId: string; canManage: boolean }) {
+  const { data: arrangements, isPending } = useArrangements(songId)
+  const create = useCreateArrangement(songId)
+  const [active, setActive] = useState<string | undefined>(undefined)
+
+  const activeId = active ?? arrangements?.[0]?.id
+
+  function addArrangement() {
+    const count = arrangements?.length ?? 1
+    create.mutate(
+      { name: `Arrangement ${count}`, is_default: false, sort_order: count },
+      {
+        onSuccess: (created) => {
+          setActive(created.id)
+          toast.success('Arrangement added')
+        },
+        onError: (e) => toast.error(e.message),
+      },
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Arrangements</CardTitle>
+        <CardDescription>
+          Key, BPM and meter per arrangement. Every song has a Default.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isPending || !arrangements ? (
+          <Skeleton className="h-24 w-full" />
+        ) : (
+          <Tabs value={activeId} onValueChange={setActive} className="gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <TabsList>
+                {arrangements.map((a) => (
+                  <TabsTrigger key={a.id} value={a.id}>
+                    {a.name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {canManage && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addArrangement}
+                  disabled={create.isPending}
+                >
+                  {create.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Plus className="size-4" />
+                  )}
+                  Add arrangement
+                </Button>
+              )}
+            </div>
+            {arrangements.map((a) => (
+              <TabsContent key={a.id} value={a.id}>
+                <ArrangementForm key={a.updated_at} arrangement={a} canManage={canManage} />
+              </TabsContent>
+            ))}
+          </Tabs>
         )}
       </CardContent>
     </Card>
@@ -499,6 +677,7 @@ export function SongPage() {
       </div>
 
       <DetailsCard key={song.updated_at} song={song} canManage={canManage} />
+      <ArrangementsCard songId={song.id} canManage={canManage} />
       <AttachmentsCard songId={song.id} canManage={canManage} />
       <UsageCard songId={song.id} />
 

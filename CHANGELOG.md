@@ -25,6 +25,13 @@ All notable changes to LSCRoster are recorded here. The format follows
   buttons, and the New Song dialog has a lyrics-search link, each opening a
   pre-filled search in a new tab. No results are pulled into the app and no
   lyrics are stored ([#22]).
+- **Song arrangements** — a song can now hold multiple **arrangements** in a
+  tabbed section on its page, each with its own **Key**, **BPM** and a new
+  **Meter** field. Every song has a **Default** arrangement (created
+  automatically, can't be deleted); leaders can add, rename and remove the
+  others. **CCLI** now sits beside the author at the song level, outside the
+  arrangements. Plans and plan-publish emails use the Default arrangement's
+  key/BPM (a per-plan key override still wins) ([#24]).
 
 ### Removed
 - The per-team **team-leader designation** added for [#2] has been removed
@@ -83,6 +90,14 @@ All notable changes to LSCRoster are recorded here. The format follows
   ships by redeploying the `send-requests`, `send-plan-notification` and
   `reminders` Edge Functions (which share `_shared/resend.ts`); email content
   and links are unchanged.
+- Migration `20260615090000_song_arrangements` (#24) adds the
+  `song_arrangements` table and **backfills one "Default" arrangement per
+  existing song from its current `default_key`/`bpm`, then drops those two
+  columns from `songs`** (CCLI stays). A trigger auto-creates the Default
+  arrangement for every new song, and the Default can't be deleted. The upgrade
+  is automatic via `supabase db push`; no manual data steps and no links change.
+  **Redeploy the `send-plan-notification` Edge Function** with this migration —
+  it now reads key/BPM from the Default arrangement.
 
 [#1]: https://github.com/mvmran/lscroster/issues/1
 [#2]: https://github.com/mvmran/lscroster/issues/2
@@ -99,3 +114,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#18]: https://github.com/mvmran/lscroster/issues/18
 [#21]: https://github.com/mvmran/lscroster/issues/21
 [#22]: https://github.com/mvmran/lscroster/issues/22
+[#24]: https://github.com/mvmran/lscroster/issues/24

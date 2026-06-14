@@ -51,7 +51,6 @@ function NewSongDialog({
   const navigate = useNavigate()
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
-  const [defaultKey, setDefaultKey] = useState('')
   const [ccli, setCcli] = useState('')
 
   async function create() {
@@ -61,7 +60,6 @@ function NewSongDialog({
       const song = await createSong.mutateAsync({
         title: trimmed,
         author: author.trim() || null,
-        default_key: defaultKey.trim() || null,
         ccli_number: ccli.trim() || null,
       })
       onOpenChange(false)
@@ -111,20 +109,9 @@ function NewSongDialog({
               </a>
             </Button>
           )}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="ns-key">Default key</Label>
-              <Input
-                id="ns-key"
-                value={defaultKey}
-                onChange={(e) => setDefaultKey(e.target.value)}
-                placeholder="e.g. G"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="ns-ccli">CCLI number</Label>
-              <Input id="ns-ccli" value={ccli} onChange={(e) => setCcli(e.target.value)} />
-            </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="ns-ccli">CCLI number</Label>
+            <Input id="ns-ccli" value={ccli} onChange={(e) => setCcli(e.target.value)} />
           </div>
         </div>
         <DialogFooter>

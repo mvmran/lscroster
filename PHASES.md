@@ -75,6 +75,15 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   the New Song dialog has a lyrics-search link, each opening a pre-filled search
   in a new tab via a shared `songSearchLinks()` helper. UI-only — no results
   pulled in, no lyrics stored, no schema change.
+- **#24** — **song arrangements**: a song holds multiple arrangements in a
+  tabbed section, each with its own Key, BPM and a new Meter field. Every song
+  has a Default arrangement (auto-created by a trigger, can't be deleted); CCLI
+  moved to song level beside the author. New `song_arrangements` table
+  (migration 0011) backfilled a Default per song from the old
+  `songs.default_key`/`bpm`, which were then dropped. `useSongs`/`useSong`
+  flatten the Default's key/BPM back onto the song so plan/list/picker readers
+  are unchanged; `send-plan-notification` reads key/BPM from the Default
+  arrangement.
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 
@@ -85,10 +94,11 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
 - **#7** — review keyboard shortcuts throughout the app.
 - **#9** — add a rehearsal workflow.
 
-**Schema since Phase 4:** migrations 0006–0010 in `supabase/migrations/`
+**Schema since Phase 4:** migrations 0006–0011 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
 scheduling fields + `service_type_teams`; backfill+drop `teams.service_type_id`
-onto that join; add `church_settings.address`). New Edge Functions:
+onto that join; add `church_settings.address`; add `song_arrangements` +
+backfill Default per song + drop `songs.default_key`/`bpm`). New Edge Functions:
 `cancel-assignment`, `send-plan-notification`. Regenerate
 `src/types/database.ts` from the local stack after pulling.
 
@@ -154,7 +164,8 @@ drag-and-drop order of service, and a song library.
 - `service_types`: name, default_start_time, sort_order
 - `plans`: service_type_id, date, title (optional), status (`draft|published`), notes
 - `plan_items`: plan_id, sort_order, kind (`header|song|item`), title, song_id (nullable), key_override, length_seconds, description
-- `songs`: title, author, ccli_number, default_key, bpm (optional), tags[], lyrics/chord text (optional), status
+- `songs`: title, author, ccli_number, tags[], lyrics/chord text (optional), status (key/bpm moved to `song_arrangements` in #24)
+- `song_arrangements`: song_id, name, song_key, bpm, meter, is_default, sort_order (#24)
 - `song_attachments`: song_id, storage_path, label (chart, mp3, etc.)
 - `plan_templates` + `plan_template_items`
 

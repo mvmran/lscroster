@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import type { Song, SongArrangement } from '@/features/services/service-utils'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
 export type SongUsage = Tables<'song_usage'>
@@ -9,6 +10,20 @@ export const songKeys = {
   detail: (id: string) => ['songs', id] as const,
   usage: ['song-usage'] as const,
   history: (id: string) => ['song-history', id] as const,
+  arrangements: (songId: string) => ['song-arrangements', songId] as const,
+}
+
+const SONG_SELECT = '*, song_arrangements(song_key, bpm, is_default)'
+
+type SongWithArrangements = Tables<'songs'> & {
+  song_arrangements: Pick<SongArrangement, 'song_key' | 'bpm' | 'is_default'>[]
+}
+
+/** Flatten the embedded Default arrangement's key/BPM onto the song row (#24). */
+function flattenSong(row: SongWithArrangements): Song {
+  const { song_arrangements, ...song } = row
+  const def = song_arrangements.find((a) => a.is_default)
+  return { ...song, default_key: def?.song_key ?? null, bpm: def?.bpm ?? null }
 }
 
 export function useSongs() {
@@ -17,11 +32,11 @@ export function useSongs() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('songs')
-        .select('*')
+        .select(SONG_SELECT)
         .order('title')
         .limit(2000)
       if (error) throw new Error(error.message)
-      return data
+      return (data as unknown as SongWithArrangements[]).map(flattenSong)
     },
     staleTime: 60 * 1000,
   })
@@ -34,11 +49,30 @@ export function useSong(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('songs')
-        .select('*')
+        .select(SONG_SELECT)
         .eq('id', id!)
         .maybeSingle()
       if (error) throw new Error(error.message)
-      return data
+      return data ? flattenSong(data as unknown as SongWithArrangements) : null
+    },
+  })
+}
+
+/** Every arrangement for a song, Default first (issue #24). */
+export function useArrangements(songId: string | undefined) {
+  return useQuery({
+    queryKey: songKeys.arrangements(songId ?? ''),
+    enabled: !!songId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('song_arrangements')
+        .select('*')
+        .eq('song_id', songId!)
+        .order('is_default', { ascending: false })
+        .order('sort_order', { ascending: true })
+        .order('name', { ascending: true })
+      if (error) throw new Error(error.message)
+      return data as SongArrangement[]
     },
   })
 }
@@ -145,5 +179,85 @@ export function useDeleteSong() {
       if (error) throw new Error(error.message)
     },
     onSuccess: () => invalidate(),
+  })
+}
+
+/**
+ * Arrangement writes change a song's flattened default key/BPM, so they also
+ * refresh the songs list and the song detail (issue #24).
+ */
+function useInvalidateArrangements() {
+  const queryClient = useQueryClient()
+  return (songId: string) => {
+    queryClient.invalidateQueries({ queryKey: songKeys.arrangements(songId) })
+    queryClient.invalidateQueries({ queryKey: songKeys.all })
+    queryClient.invalidateQueries({ queryKey: songKeys.detail(songId) })
+  }
+}
+
+export function useCreateArrangement(songId: string) {
+  const invalidate = useInvalidateArrangements()
+  return useMutation({
+    mutationFn: async (
+      values: Omit<TablesInsert<'song_arrangements'>, 'song_id'>,
+    ) => {
+      const { data, error } = await supabase
+        .from('song_arrangements')
+        .insert({ ...values, song_id: songId })
+        .select()
+        .single()
+      if (error) {
+        throw new Error(
+          error.code === '23505'
+            ? 'An arrangement with that name already exists'
+            : error.message,
+        )
+      }
+      return data as SongArrangement
+    },
+    onSuccess: () => invalidate(songId),
+  })
+}
+
+export function useUpdateArrangement(songId: string) {
+  const invalidate = useInvalidateArrangements()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      values,
+    }: {
+      id: string
+      values: TablesUpdate<'song_arrangements'>
+    }) => {
+      const { data, error } = await supabase
+        .from('song_arrangements')
+        .update(values)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) {
+        throw new Error(
+          error.code === '23505'
+            ? 'An arrangement with that name already exists'
+            : error.message,
+        )
+      }
+      return data as SongArrangement
+    },
+    onSuccess: () => invalidate(songId),
+  })
+}
+
+export function useDeleteArrangement(songId: string) {
+  const invalidate = useInvalidateArrangements()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('song_arrangements')
+        .delete()
+        .eq('id', id)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => invalidate(songId),
   })
 }
