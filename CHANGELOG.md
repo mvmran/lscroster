@@ -44,7 +44,9 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#14]).
 - Removing a **confirmed** person from a plan now reads **"Remove and Notify"**
   and emails them a cancellation notice; removing someone who hasn't confirmed
-  stays a plain "Remove" with no email ([#16]).
+  stays a plain "Remove" with no email ([#16]). This now also applies to the
+  **matrix view** — removing a confirmed person from a cell sends the same
+  cancellation email ([#21]).
 - Bulk email sends (scheduling requests, plan-publish notifications, reminders
   and nudges) now go out through Resend's **Batch API** — up to 100 emails per
   request instead of one call each — and every Resend call is **rate-limited to
@@ -90,3 +92,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#16]: https://github.com/mvmran/lscroster/issues/16
 [#17]: https://github.com/mvmran/lscroster/issues/17
 [#18]: https://github.com/mvmran/lscroster/issues/18
+[#21]: https://github.com/mvmran/lscroster/issues/21

@@ -34,6 +34,7 @@ import {
   isBlockedOut,
 } from '@/features/scheduling/scheduling-utils'
 import {
+  useCancelAssignment,
   useDeleteAssignment,
   useSendRequests,
   type AssignmentWithPerson,
@@ -80,6 +81,19 @@ function MatrixCell({
 }) {
   const { data: blockouts } = useBlockouts()
   const deleteAssignment = useDeleteAssignment(plan.id)
+  const cancelAssignment = useCancelAssignment(plan.id)
+
+  // Mirror the plan page (issue #16/#21): removing a confirmed person notifies
+  // them with a cancellation email; removing anyone else is a silent delete.
+  function removeAndNotify(assignmentId: string) {
+    cancelAssignment.mutate(assignmentId, {
+      onSuccess: (result) =>
+        toast.success(
+          result.notified ? 'Removed · cancellation email sent' : 'Removed',
+        ),
+      onError: (e) => toast.error(e.message),
+    })
+  }
 
   if (!teamServesPlan) {
     return <td className="text-muted-foreground/40 border-l p-2 text-center">—</td>
@@ -118,17 +132,27 @@ function MatrixCell({
                     Find replacement
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() =>
-                    deleteAssignment.mutate(assignment.id, {
-                      onError: (e) => toast.error(e.message),
-                    })
-                  }
-                >
-                  <X className="size-4" />
-                  Remove
-                </DropdownMenuItem>
+                {assignment.status === 'confirmed' ? (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => removeAndNotify(assignment.id)}
+                  >
+                    <X className="size-4" />
+                    Remove and Notify
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() =>
+                      deleteAssignment.mutate(assignment.id, {
+                        onError: (e) => toast.error(e.message),
+                      })
+                    }
+                  >
+                    <X className="size-4" />
+                    Remove
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )
