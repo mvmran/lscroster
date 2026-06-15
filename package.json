@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
     "db:types": "supabase gen types typescript --linked > src/types/database.ts"
   },
   "dependencies": {
@@ -57,6 +58,7 @@
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vitest": "^3.2.6"
   }
 }

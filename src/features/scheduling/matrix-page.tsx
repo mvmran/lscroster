@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
-import { ArrowLeft, CalendarX, Loader2, Plus, Send, X } from 'lucide-react'
+import { AlertCircle, AlertTriangle, ArrowLeft, Loader2, Plus, Send, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FullPageError } from '@/components/full-page-error'
@@ -31,7 +31,6 @@ import {
 import {
   ASSIGNMENT_STATUS_CLASSES,
   ASSIGNMENT_STATUS_LABELS,
-  isBlockedOut,
 } from '@/features/scheduling/scheduling-utils'
 import {
   useCancelAssignment,
@@ -39,7 +38,13 @@ import {
   useSendRequests,
   type AssignmentWithPerson,
 } from '@/features/scheduling/use-assignments'
-import { useBlockouts } from '@/features/scheduling/use-blockouts'
+import {
+  buildPlanValidation,
+  resultsByPerson,
+  resultsByPosition,
+  useSchedulingRulesData,
+} from '@/features/scheduling/use-service-state'
+import { worstSeverity, type RuleResult } from '@/features/scheduling/validate-service'
 import { teamServesType, useAllPositions, useTeams } from '@/features/scheduling/use-teams'
 import { supabase } from '@/lib/supabase'
 import { splitUpcomingPast, usePlans, type PlanWithType } from '@/features/services/use-plans'
@@ -70,16 +75,21 @@ function MatrixCell({
   plan,
   assignments,
   teamServesPlan,
+  positionResults,
+  personResultsById,
   onAdd,
   onReplace,
 }: {
   plan: PlanWithType
   assignments: AssignmentWithPerson[]
   teamServesPlan: boolean
+  /** Coverage results for this position in this plan (issue #34). */
+  positionResults: RuleResult[]
+  /** person_id → that person's validation results in this plan. */
+  personResultsById: Map<string, RuleResult[]>
   onAdd: () => void
   onReplace: (assignmentId: string) => void
 }) {
-  const { data: blockouts } = useBlockouts()
   const deleteAssignment = useDeleteAssignment(plan.id)
   const cancelAssignment = useCancelAssignment(plan.id)
 
@@ -99,19 +109,35 @@ function MatrixCell({
     return <td className="text-muted-foreground/40 border-l p-2 text-center">—</td>
   }
 
+  const understaffed = positionResults.some((r) => r.code === 'MANDATORY_UNFILLED')
+
   return (
     <td className="border-l p-1.5 align-top">
       <div className="flex min-w-32 flex-col gap-1">
         {assignments.map((assignment) => {
-          const blocked = isBlockedOut(blockouts ?? [], assignment.person_id, plan.date)
+          const results =
+            assignment.status === 'declined'
+              ? []
+              : personResultsById.get(assignment.person_id) ?? []
+          const severity = worstSeverity(results)
+          const SeverityIcon = severity === 'error' ? AlertTriangle : AlertCircle
           return (
             <DropdownMenu key={assignment.id}>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
+                  title={results.map((r) => r.message).join('\n') || undefined}
                   className={`flex items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-medium ${ASSIGNMENT_STATUS_CLASSES[assignment.status]}`}
                 >
-                  {blocked && <CalendarX className="size-3 shrink-0" />}
+                  {severity && (
+                    <SeverityIcon
+                      className={`size-3 shrink-0 ${
+                        severity === 'error'
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-amber-600 dark:text-amber-400'
+                      }`}
+                    />
+                  )}
                   <span className="truncate">
                     {assignment.people.first_name}{' '}
                     {assignment.people.last_name.charAt(0)}.
@@ -160,8 +186,13 @@ function MatrixCell({
         <button
           type="button"
           onClick={onAdd}
-          className="text-muted-foreground/60 hover:bg-accent hover:text-foreground flex items-center justify-center rounded-md border border-dashed px-2 py-1 text-xs"
-          aria-label="Schedule someone"
+          title={understaffed ? positionResults.map((r) => r.message).join('\n') : undefined}
+          className={
+            understaffed
+              ? 'flex items-center justify-center rounded-md border border-dashed border-red-500/60 px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40'
+              : 'text-muted-foreground/60 hover:bg-accent hover:text-foreground flex items-center justify-center rounded-md border border-dashed px-2 py-1 text-xs'
+          }
+          aria-label={understaffed ? 'Understaffed — schedule someone' : 'Schedule someone'}
         >
           <Plus className="size-3.5" />
         </button>
@@ -223,6 +254,23 @@ export function MatrixPage() {
   const planIds = useMemo(() => matrixPlans.map((p) => p.id), [matrixPlans])
   const assignmentsQuery = useMatrixAssignments(planIds)
   const assignmentsByPlan = assignmentsQuery.data ?? {}
+
+  // Live scheduling-rules validation per plan (issue #34). One shared data load;
+  // validate each visible plan against its column of assignments.
+  const rules = useSchedulingRulesData()
+  const validationByPlan = useMemo(() => {
+    const map = new Map<
+      string,
+      { byPosition: Map<string, RuleResult[]>; byPerson: Map<string, RuleResult[]> }
+    >()
+    if (rules.isPending) return map
+    for (const plan of matrixPlans) {
+      const { all } = buildPlanValidation(plan, assignmentsByPlan[plan.id] ?? [], rules.data)
+      map.set(plan.id, { byPosition: resultsByPosition(all), byPerson: resultsByPerson(all) })
+    }
+    return map
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matrixPlans, assignmentsQuery.data, rules.isPending, rules.data])
 
   const serviceTypes = useMemo(() => {
     const seen = new Map<string, string>()
@@ -333,25 +381,34 @@ export function MatrixPage() {
                       <td className="bg-card sticky left-0 z-10 p-2 align-top font-medium">
                         {position.name}
                       </td>
-                      {matrixPlans.map((plan) => (
-                        <MatrixCell
-                          key={plan.id}
-                          plan={plan}
-                          assignments={(assignmentsByPlan[plan.id] ?? []).filter(
-                            (a) => a.position_id === position.id,
-                          )}
-                          teamServesPlan={teamServesType(team, plan.service_type_id)}
-                          onAdd={() => setPicker({ plan, team, position })}
-                          onReplace={(assignmentId) =>
-                            setPicker({
-                              plan,
-                              team,
-                              position,
-                              replaceAssignmentId: assignmentId,
-                            })
-                          }
-                        />
-                      ))}
+                      {matrixPlans.map((plan) => {
+                        const planValidation = validationByPlan.get(plan.id)
+                        return (
+                          <MatrixCell
+                            key={plan.id}
+                            plan={plan}
+                            assignments={(assignmentsByPlan[plan.id] ?? []).filter(
+                              (a) => a.position_id === position.id,
+                            )}
+                            teamServesPlan={teamServesType(team, plan.service_type_id)}
+                            positionResults={
+                              planValidation?.byPosition.get(position.id) ?? []
+                            }
+                            personResultsById={
+                              planValidation?.byPerson ?? new Map()
+                            }
+                            onAdd={() => setPicker({ plan, team, position })}
+                            onReplace={(assignmentId) =>
+                              setPicker({
+                                plan,
+                                team,
+                                position,
+                                replaceAssignmentId: assignmentId,
+                              })
+                            }
+                          />
+                        )
+                      })}
                     </tr>
                   )),
                 ]

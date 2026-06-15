@@ -105,6 +105,8 @@ function useInvalidateAssignments() {
     queryClient.invalidateQueries({ queryKey: assignmentKeys.mine })
     queryClient.invalidateQueries({ queryKey: ['assignments-on-date'] })
     queryClient.invalidateQueries({ queryKey: ['assignments-matrix'] })
+    // The validator's workload/cadence history (issue #34).
+    queryClient.invalidateQueries({ queryKey: ['rostered-dates'] })
   }
 }
 

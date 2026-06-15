@@ -1,0 +1,371 @@
+import { describe, expect, it } from 'vitest'
+import {
+  checkAvailability,
+  checkCadence,
+  checkCoverage,
+  checkEligibility,
+  checkInactive,
+  checkMultiPosition,
+  checkPairings,
+  checkSupervision,
+  checkTeamExclusions,
+  consecutiveRun,
+  isLastWeekdayOfMonth,
+  isUnavailableOn,
+  matchesRecurring,
+  validateService,
+  weekOfMonth,
+  type ServiceState,
+  type ValidationAssignment,
+  type ValidationPerson,
+  type ValidationPosition,
+} from './validate-service'
+
+// 2026-06-15 is a Monday, so 2026-07-05 is the 1st Sunday of July; 2026-07-26
+// is the last Sunday of July.
+const SUNDAY = '2026-07-05'
+const SVC_TYPE = 'svc-sunday'
+
+function person(overrides: Partial<ValidationPerson> & { id: string }): ValidationPerson {
+  return {
+    name: overrides.id,
+    status: 'active',
+    minGapDays: 0,
+    maxPerMonth: null,
+    targetPerMonth: null,
+    maxConsecutive: null,
+    eligibility: {},
+    blockouts: [],
+    recurringUnavailability: [],
+    history: [],
+    ...overrides,
+  }
+}
+
+function position(overrides: Partial<ValidationPosition> & { id: string }): ValidationPosition {
+  return {
+    name: overrides.id,
+    teamId: 'team-1',
+    teamName: 'Team 1',
+    minCount: 0,
+    maxCount: null,
+    requiresLevel: null,
+    ...overrides,
+  }
+}
+
+function assign(
+  personId: string,
+  positionId: string,
+  overrides: Partial<ValidationAssignment> = {},
+): ValidationAssignment {
+  return { personId, positionId, teamId: 'team-1', status: 'pending', ...overrides }
+}
+
+function state(overrides: Partial<ServiceState> = {}): ServiceState {
+  return {
+    service: { id: 'plan-1', date: SUNDAY, serviceTypeId: SVC_TYPE },
+    positions: [],
+    assignments: [],
+    people: [],
+    pairings: [],
+    teamExclusions: [],
+    ...overrides,
+  }
+}
+
+describe('date helpers', () => {
+  it('computes the week of the month', () => {
+    expect(weekOfMonth(new Date(2026, 6, 5))).toBe(1)
+    expect(weekOfMonth(new Date(2026, 6, 26))).toBe(4)
+  })
+
+  it('detects the last weekday of the month', () => {
+    expect(isLastWeekdayOfMonth(new Date(2026, 6, 26))).toBe(true) // last Sun of July
+    expect(isLastWeekdayOfMonth(new Date(2026, 6, 5))).toBe(false)
+  })
+
+  it('matches recurring rules', () => {
+    const date = new Date(2026, 6, 5) // 1st Sunday
+    expect(matchesRecurring({ weekOfMonth: null, weekday: 0 }, date)).toBe(true)
+    expect(matchesRecurring({ weekOfMonth: 1, weekday: 0 }, date)).toBe(true)
+    expect(matchesRecurring({ weekOfMonth: 2, weekday: 0 }, date)).toBe(false)
+    expect(matchesRecurring({ weekOfMonth: -1, weekday: 0 }, date)).toBe(false)
+    expect(matchesRecurring({ weekOfMonth: 1, weekday: 1 }, date)).toBe(false)
+  })
+
+  it('combines blockouts and recurring rules', () => {
+    const p = person({
+      id: 'a',
+      blockouts: [{ start: '2026-07-01', end: '2026-07-10' }],
+    })
+    expect(isUnavailableOn(p, SUNDAY)).toBe(true)
+    expect(isUnavailableOn(p, '2026-07-20')).toBe(false)
+    const r = person({ id: 'b', recurringUnavailability: [{ weekOfMonth: 1, weekday: 0 }] })
+    expect(isUnavailableOn(r, SUNDAY)).toBe(true)
+  })
+})
+
+describe('checkEligibility', () => {
+  it('flags an assignee not set up for the position', () => {
+    const s = state({
+      positions: [position({ id: 'pos-1', name: 'Drums' })],
+      assignments: [assign('a', 'pos-1')],
+      people: [person({ id: 'a', name: 'Ann' })],
+    })
+    const results = checkEligibility(s)
+    expect(results).toHaveLength(1)
+    expect(results[0].code).toBe('NOT_ELIGIBLE')
+  })
+
+  it('passes an eligible assignee', () => {
+    const s = state({
+      positions: [position({ id: 'pos-1' })],
+      assignments: [assign('a', 'pos-1')],
+      people: [person({ id: 'a', eligibility: { 'pos-1': 'qualified' } })],
+    })
+    expect(checkEligibility(s)).toHaveLength(0)
+  })
+})
+
+describe('checkAvailability', () => {
+  it('flags a blocked-out assignee but ignores declined ones', () => {
+    const s = state({
+      positions: [position({ id: 'pos-1' })],
+      assignments: [assign('a', 'pos-1'), assign('b', 'pos-1', { status: 'declined' })],
+      people: [
+        person({ id: 'a', name: 'Ann', blockouts: [{ start: SUNDAY, end: SUNDAY }] }),
+        person({ id: 'b', name: 'Bob', blockouts: [{ start: SUNDAY, end: SUNDAY }] }),
+      ],
+    })
+    const results = checkAvailability(s)
+    expect(results).toHaveLength(1)
+    expect(results[0].personIds).toEqual(['a'])
+    expect(results[0].code).toBe('UNAVAILABLE_SCHEDULED')
+  })
+})
+
+describe('checkInactive', () => {
+  it('flags a person on a break', () => {
+    const s = state({
+      assignments: [assign('a', 'pos-1')],
+      people: [person({ id: 'a', name: 'Ann', status: 'break' })],
+    })
+    const results = checkInactive(s)
+    expect(results).toHaveLength(1)
+    expect(results[0].code).toBe('INACTIVE_SCHEDULED')
+  })
+})
+
+describe('checkMultiPosition', () => {
+  it('flags a person in two positions but not two people in one', () => {
+    const s = state({
+      positions: [position({ id: 'pos-1' }), position({ id: 'pos-2' })],
+      assignments: [assign('a', 'pos-1'), assign('a', 'pos-2'), assign('b', 'pos-1')],
+      people: [person({ id: 'a', name: 'Ann' }), person({ id: 'b', name: 'Bob' })],
+    })
+    const results = checkMultiPosition(s)
+    expect(results).toHaveLength(1)
+    expect(results[0].personIds).toEqual(['a'])
+  })
+})
+
+describe('checkTeamExclusions', () => {
+  it('flags a person serving in two mutually-exclusive teams', () => {
+    const s = state({
+      positions: [
+        position({ id: 'pos-1', teamId: 'band', teamName: 'Band' }),
+        position({ id: 'pos-2', teamId: 'ushers', teamName: 'Ushers' }),
+      ],
+      assignments: [
+        assign('a', 'pos-1', { teamId: 'band' }),
+        assign('a', 'pos-2', { teamId: 'ushers' }),
+      ],
+      people: [person({ id: 'a', name: 'Ann' })],
+      teamExclusions: [['band', 'ushers']],
+    })
+    const results = checkTeamExclusions(s)
+    expect(results).toHaveLength(1)
+    expect(results[0].code).toBe('TEAM_EXCLUSION')
+  })
+})
+
+describe('checkPairings', () => {
+  const base = {
+    positions: [position({ id: 'pos-1' }), position({ id: 'pos-2' })],
+    assignments: [assign('a', 'pos-1'), assign('b', 'pos-2')],
+    people: [person({ id: 'a', name: 'Ann' }), person({ id: 'b', name: 'Bob' })],
+  }
+
+  it('errors on a hard avoid pair both present', () => {
+    const results = checkPairings(
+      state({ ...base, pairings: [{ personA: 'a', personB: 'b', kind: 'avoid', strength: 'hard' }] }),
+    )
+    expect(results[0].code).toBe('AVOID_PAIR_TOGETHER')
+    expect(results[0].severity).toBe('error')
+  })
+
+  it('warns on a soft avoid pair', () => {
+    const results = checkPairings(
+      state({ ...base, pairings: [{ personA: 'a', personB: 'b', kind: 'avoid', strength: 'soft' }] }),
+    )
+    expect(results[0].code).toBe('SOFT_AVOID_TOGETHER')
+    expect(results[0].severity).toBe('warning')
+  })
+
+  it('ignores prefer/together pairings and one-sided presence', () => {
+    expect(
+      checkPairings(
+        state({ ...base, pairings: [{ personA: 'a', personB: 'b', kind: 'prefer', strength: 'soft' }] }),
+      ),
+    ).toHaveLength(0)
+    expect(
+      checkPairings(
+        state({
+          positions: base.positions,
+          assignments: [assign('a', 'pos-1')],
+          people: base.people,
+          pairings: [{ personA: 'a', personB: 'b', kind: 'avoid', strength: 'hard' }],
+        }),
+      ),
+    ).toHaveLength(0)
+  })
+})
+
+describe('checkCoverage', () => {
+  it('flags an unfilled mandatory position', () => {
+    const s = state({ positions: [position({ id: 'pos-1', minCount: 2 })], assignments: [assign('a', 'pos-1')], people: [person({ id: 'a' })] })
+    const results = checkCoverage(s)
+    expect(results.map((r) => r.code)).toContain('MANDATORY_UNFILLED')
+  })
+
+  it('counts a trainee toward min_count', () => {
+    const s = state({
+      positions: [position({ id: 'pos-1', minCount: 1 })],
+      assignments: [assign('a', 'pos-1')],
+      people: [person({ id: 'a', eligibility: { 'pos-1': 'trainee' } })],
+    })
+    expect(checkCoverage(s).some((r) => r.code === 'MANDATORY_UNFILLED')).toBe(false)
+  })
+
+  it('requires a qualified person when the position needs the level', () => {
+    const onlyTrainee = state({
+      positions: [position({ id: 'pos-1', minCount: 1, requiresLevel: 'qualified' })],
+      assignments: [assign('a', 'pos-1')],
+      people: [person({ id: 'a', eligibility: { 'pos-1': 'trainee' } })],
+    })
+    expect(checkCoverage(onlyTrainee).some((r) => r.code === 'NO_REQUIRED_LEVEL')).toBe(true)
+
+    const withQualified = state({
+      positions: [position({ id: 'pos-1', minCount: 1, requiresLevel: 'qualified' })],
+      assignments: [assign('a', 'pos-1'), assign('b', 'pos-1')],
+      people: [
+        person({ id: 'a', eligibility: { 'pos-1': 'trainee' } }),
+        person({ id: 'b', eligibility: { 'pos-1': 'qualified' } }),
+      ],
+    })
+    expect(checkCoverage(withQualified).some((r) => r.code === 'NO_REQUIRED_LEVEL')).toBe(false)
+  })
+})
+
+describe('checkSupervision', () => {
+  it('warns when a team is all trainees, not when a qualified is present', () => {
+    const allTrainees = state({
+      positions: [position({ id: 'pos-1' }), position({ id: 'pos-2' })],
+      assignments: [assign('a', 'pos-1'), assign('b', 'pos-2')],
+      people: [
+        person({ id: 'a', eligibility: { 'pos-1': 'trainee' } }),
+        person({ id: 'b', eligibility: { 'pos-2': 'trainee' } }),
+      ],
+    })
+    expect(checkSupervision(allTrainees).some((r) => r.code === 'TRAINEE_UNSUPERVISED')).toBe(true)
+
+    const supervised = state({
+      positions: [position({ id: 'pos-1' }), position({ id: 'pos-2' })],
+      assignments: [assign('a', 'pos-1'), assign('b', 'pos-2')],
+      people: [
+        person({ id: 'a', eligibility: { 'pos-1': 'trainee' } }),
+        person({ id: 'b', eligibility: { 'pos-2': 'qualified' } }),
+      ],
+    })
+    expect(checkSupervision(supervised)).toHaveLength(0)
+  })
+})
+
+describe('checkCadence', () => {
+  it('warns when scheduled inside the minimum gap', () => {
+    const s = state({
+      assignments: [assign('a', 'pos-1')],
+      people: [
+        person({ id: 'a', minGapDays: 14, history: [{ date: '2026-06-28', serviceTypeId: SVC_TYPE }] }),
+      ],
+    })
+    expect(checkCadence(s).some((r) => r.code === 'OVER_CADENCE')).toBe(true)
+  })
+
+  it('warns over the monthly cap and under the monthly target', () => {
+    const over = state({
+      assignments: [assign('a', 'pos-1')],
+      people: [
+        person({
+          id: 'a',
+          maxPerMonth: 1,
+          history: [{ date: '2026-07-19', serviceTypeId: SVC_TYPE }],
+        }),
+      ],
+    })
+    expect(checkCadence(over).some((r) => r.code === 'OVER_CADENCE')).toBe(true)
+
+    const under = state({
+      assignments: [assign('a', 'pos-1')],
+      people: [person({ id: 'a', targetPerMonth: 3 })],
+    })
+    expect(checkCadence(under).some((r) => r.code === 'UNDER_TARGET')).toBe(true)
+  })
+
+  it('warns when exceeding consecutive services', () => {
+    const s = state({
+      assignments: [assign('a', 'pos-1')],
+      people: [
+        person({
+          id: 'a',
+          maxConsecutive: 2,
+          history: [
+            { date: '2026-06-21', serviceTypeId: SVC_TYPE },
+            { date: '2026-06-28', serviceTypeId: SVC_TYPE },
+          ],
+        }),
+      ],
+    })
+    expect(checkCadence(s).some((r) => r.code === 'MAX_CONSECUTIVE')).toBe(true)
+  })
+
+  it('computes a consecutive run by weekly adjacency', () => {
+    expect(consecutiveRun(SUNDAY, ['2026-06-28', '2026-06-21'])).toBe(3)
+    expect(consecutiveRun(SUNDAY, ['2026-06-07'])).toBe(1) // gap > 8 days
+  })
+})
+
+describe('validateService', () => {
+  it('splits errors from warnings and ignores declined assignments', () => {
+    const s = state({
+      positions: [position({ id: 'pos-1', minCount: 1, requiresLevel: 'qualified' })],
+      assignments: [
+        assign('a', 'pos-1', { status: 'declined' }), // ignored entirely
+        assign('b', 'pos-1'),
+      ],
+      people: [
+        person({ id: 'a', name: 'Ann' }),
+        // Bob is eligible-but-trainee and on a break: one error (inactive),
+        // one error (no qualified level), and an unsupervised-team warning.
+        person({ id: 'b', name: 'Bob', status: 'break', eligibility: { 'pos-1': 'trainee' } }),
+      ],
+    })
+    const { errors, warnings } = validateService(s)
+    const codes = errors.map((e) => e.code)
+    expect(codes).toContain('INACTIVE_SCHEDULED')
+    expect(codes).toContain('NO_REQUIRED_LEVEL')
+    expect(codes).not.toContain('MANDATORY_UNFILLED') // trainee fills the slot
+    expect(warnings.map((w) => w.code)).toContain('TRAINEE_UNSUPERVISED')
+  })
+})

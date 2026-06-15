@@ -771,6 +771,54 @@ export type Database = {
           },
         ]
       }
+      publish_overrides: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          overridden_by: string | null
+          plan_id: string
+          reason: string | null
+          rule_code: string
+          severity: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          overridden_by?: string | null
+          plan_id: string
+          reason?: string | null
+          rule_code: string
+          severity: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          overridden_by?: string | null
+          plan_id?: string
+          reason?: string | null
+          rule_code?: string
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publish_overrides_overridden_by_fkey"
+            columns: ["overridden_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publish_overrides_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_type_teams: {
         Row: {
           created_at: string

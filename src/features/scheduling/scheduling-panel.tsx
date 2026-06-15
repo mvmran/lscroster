@@ -64,6 +64,12 @@ import {
   useAllTeamMembers,
   useTeams,
 } from '@/features/scheduling/use-teams'
+import {
+  resultsByPerson,
+  resultsByPosition,
+  usePlanValidation,
+} from '@/features/scheduling/use-service-state'
+import { RuleBadges } from '@/features/scheduling/validation-badges'
 import type { PlanWithType } from '@/features/services/use-plans'
 
 export interface PickerTarget {
@@ -314,11 +320,15 @@ export function SchedulingPanel({
   const { data: teams, isPending: teamsPending } = useTeams()
   const { data: positions } = useAllPositions()
   const { data: assignments, isPending: assignmentsPending } = usePlanAssignments(plan.id)
-  const { data: blockouts } = useBlockouts()
   const deleteAssignment = useDeleteAssignment(plan.id)
   const cancelAssignment = useCancelAssignment(plan.id)
   const sendRequests = useSendRequests(plan.id)
   const [picker, setPicker] = useState<PickerTarget | null>(null)
+
+  // Live scheduling-rules validation (issue #34) — badges update on every edit.
+  const validation = usePlanValidation(plan)
+  const byPosition = useMemo(() => resultsByPosition(validation.all), [validation])
+  const byPerson = useMemo(() => resultsByPerson(validation.all), [validation])
 
   const planTeams = useMemo(
     () =>
@@ -442,13 +452,20 @@ export function SchedulingPanel({
                     const slotAssignments = (assignments ?? []).filter(
                       (a) => a.position_id === position.id,
                     )
+                    const posResults = byPosition.get(position.id) ?? []
+                    const understaffed = posResults.some(
+                      (r) => r.code === 'MANDATORY_UNFILLED',
+                    )
                     return (
                       <div
                         key={position.id}
                         className="flex flex-col gap-1 rounded-md border px-3 py-2"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium">{position.name}</span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-sm font-medium">{position.name}</span>
+                            <RuleBadges results={posResults} />
+                          </div>
                           {canManage && (
                             <Button
                               variant="ghost"
@@ -462,23 +479,28 @@ export function SchedulingPanel({
                           )}
                         </div>
                         {slotAssignments.length === 0 ? (
-                          <p className="text-muted-foreground text-sm">
+                          <p
+                            className={
+                              understaffed
+                                ? 'text-sm font-medium text-red-700 dark:text-red-400'
+                                : 'text-muted-foreground text-sm'
+                            }
+                          >
                             {canManage ? 'Nobody scheduled yet.' : '—'}
                           </p>
                         ) : (
                           slotAssignments.map((assignment) => {
-                            const blocked = isBlockedOut(
-                              blockouts ?? [],
-                              assignment.person_id,
-                              plan.date,
-                            )
+                            const personResults =
+                              assignment.status === 'declined'
+                                ? []
+                                : byPerson.get(assignment.person_id) ?? []
                             return (
                               <div
                                 key={assignment.id}
                                 className="flex items-center gap-2"
                               >
                                 <div className="min-w-0 flex-1">
-                                  <span className="truncate text-sm">
+                                  <span className="block truncate text-sm">
                                     {fullName(assignment.people)}
                                   </span>
                                   {assignment.status === 'declined' &&
@@ -487,16 +509,12 @@ export function SchedulingPanel({
                                         “{assignment.decline_reason}”
                                       </p>
                                     )}
+                                  {personResults.length > 0 && (
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      <RuleBadges results={personResults} />
+                                    </div>
+                                  )}
                                 </div>
-                                {blocked && (
-                                  <Badge
-                                    variant="outline"
-                                    className="border-amber-500/50 text-amber-700 dark:text-amber-400"
-                                  >
-                                    <CalendarX className="size-3" />
-                                    Blocked out
-                                  </Badge>
-                                )}
                                 {assignment.status === 'pending' &&
                                   !assignment.notified_at && (
                                     <Badge variant="outline">Not sent</Badge>
