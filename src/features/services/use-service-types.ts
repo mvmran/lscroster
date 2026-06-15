@@ -101,7 +101,7 @@ export function useDeleteServiceType() {
 const serviceTypeTeamsKey = (serviceTypeId: string) =>
   ['service-type-teams', serviceTypeId] as const
 
-/** Team ids required by a service type (for the edit dialog). */
+/** Team ids required by a service type, in display order (for the edit dialog). */
 export function useServiceTypeTeamIds(serviceTypeId: string | undefined) {
   return useQuery({
     queryKey: serviceTypeTeamsKey(serviceTypeId ?? ''),
@@ -109,8 +109,9 @@ export function useServiceTypeTeamIds(serviceTypeId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('service_type_teams')
-        .select('team_id')
+        .select('team_id, sort_order')
         .eq('service_type_id', serviceTypeId!)
+        .order('sort_order')
       if (error) throw new Error(error.message)
       return data.map((r) => r.team_id)
     },
@@ -137,7 +138,11 @@ export function useSetServiceTypeTeams() {
         const { error: insertError } = await supabase
           .from('service_type_teams')
           .insert(
-            teamIds.map((team_id) => ({ service_type_id: serviceTypeId, team_id })),
+            teamIds.map((team_id, sort_order) => ({
+              service_type_id: serviceTypeId,
+              team_id,
+              sort_order,
+            })),
           )
         if (insertError) throw new Error(insertError.message)
       }

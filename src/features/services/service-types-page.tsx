@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowDown, ArrowUp, CalendarDays, Check, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarDays, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -49,7 +49,6 @@ import {
   useSetServiceTypeTeams,
   useUpdateServiceType,
 } from '@/features/services/use-service-types'
-import { cn } from '@/lib/utils'
 
 function ServiceTypeDialog({
   serviceType,
@@ -111,6 +110,19 @@ function ServiceTypeDialog({
       prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
     )
   }
+
+  // Reorder the required teams (issue #31) — order is persisted on save.
+  function moveTeam(index: number, direction: -1 | 1) {
+    setTeamIds((prev) => {
+      const next = [...prev]
+      const target = index + direction
+      if (target < 0 || target >= next.length) return prev
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return next
+    })
+  }
+
+  const availableTeams = (teams ?? []).filter((t) => !teamIds.includes(t.id))
 
   async function save() {
     const trimmed = name.trim()
@@ -230,41 +242,93 @@ function ServiceTypeDialog({
 
           <div className="flex flex-col gap-2">
             <Label>Teams required</Label>
-            <div className="max-h-72 min-h-[12rem] overflow-y-auto rounded-md border">
-              {!teams || teams.length === 0 ? (
-                <p className="text-muted-foreground p-3 text-sm">
-                  No teams yet. Create teams first, then add them here.
-                </p>
-              ) : (
-                <ul className="divide-y">
-                  {teams.map((team) => {
-                    const on = teamIds.includes(team.id)
-                    return (
-                      <li key={team.id}>
-                        <button
-                          type="button"
-                          aria-pressed={on}
-                          onClick={() => toggleTeam(team.id)}
-                          className="hover:bg-accent flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm"
+            {!teams || teams.length === 0 ? (
+              <p className="text-muted-foreground rounded-md border p-3 text-sm">
+                No teams yet. Create teams first, then add them here.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {teamIds.length > 0 ? (
+                  <ul className="divide-y rounded-md border">
+                    {teamIds.map((id, index) => {
+                      const team = teams.find((t) => t.id === id)
+                      if (!team) return null
+                      return (
+                        <li
+                          key={id}
+                          className="flex items-center gap-1 px-2 py-1.5 text-sm"
                         >
-                          <span
-                            className={cn(
-                              'flex size-4 shrink-0 items-center justify-center rounded border',
-                              on
-                                ? 'bg-primary border-primary text-primary-foreground'
-                                : 'border-input',
-                            )}
-                          >
-                            {on && <Check className="size-3" />}
+                          <span className="text-muted-foreground w-5 shrink-0 text-center text-xs tabular-nums">
+                            {index + 1}
                           </span>
                           <span className="min-w-0 flex-1 truncate">{team.name}</span>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            disabled={index === 0}
+                            onClick={() => moveTeam(index, -1)}
+                            aria-label={`Move ${team.name} up`}
+                          >
+                            <ArrowUp className="size-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            disabled={index === teamIds.length - 1}
+                            onClick={() => moveTeam(index, 1)}
+                            aria-label={`Move ${team.name} down`}
+                          >
+                            <ArrowDown className="size-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            onClick={() => toggleTeam(id)}
+                            aria-label={`Remove ${team.name}`}
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground rounded-md border border-dashed p-3 text-sm">
+                    No teams added yet. A service type with none shows every
+                    team's plans.
+                  </p>
+                )}
+                {availableTeams.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-muted-foreground text-xs">Add a team</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {availableTeams.map((team) => (
+                        <Button
+                          key={team.id}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => toggleTeam(team.id)}
+                        >
+                          <Plus className="size-3.5" />
+                          {team.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <p className="text-muted-foreground text-xs">
+              Teams appear on a plan in this order.
+            </p>
           </div>
         </div>
         <DialogFooter>

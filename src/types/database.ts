@@ -254,6 +254,133 @@ export type Database = {
         }
         Relationships: []
       }
+      person_pairings: {
+        Row: {
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["pairing_kind"]
+          person_a: string
+          person_b: string
+          reason: string | null
+          strength: Database["public"]["Enums"]["pairing_strength"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["pairing_kind"]
+          person_a: string
+          person_b: string
+          reason?: string | null
+          strength?: Database["public"]["Enums"]["pairing_strength"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["pairing_kind"]
+          person_a?: string
+          person_b?: string
+          reason?: string | null
+          strength?: Database["public"]["Enums"]["pairing_strength"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_pairings_person_a_fkey"
+            columns: ["person_a"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_pairings_person_b_fkey"
+            columns: ["person_b"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      person_recurring_unavailability: {
+        Row: {
+          created_at: string
+          id: string
+          person_id: string
+          reason: string | null
+          updated_at: string
+          week_of_month: number | null
+          weekday: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          person_id: string
+          reason?: string | null
+          updated_at?: string
+          week_of_month?: number | null
+          weekday: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          person_id?: string
+          reason?: string | null
+          updated_at?: string
+          week_of_month?: number | null
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_recurring_unavailability_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      person_scheduling_prefs: {
+        Row: {
+          created_at: string
+          max_consecutive: number | null
+          max_per_month: number | null
+          min_gap_days: number
+          person_id: string
+          status: Database["public"]["Enums"]["scheduling_status"]
+          target_per_month: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          max_consecutive?: number | null
+          max_per_month?: number | null
+          min_gap_days?: number
+          person_id: string
+          status?: Database["public"]["Enums"]["scheduling_status"]
+          target_per_month?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          max_consecutive?: number | null
+          max_per_month?: number | null
+          min_gap_days?: number
+          person_id?: string
+          status?: Database["public"]["Enums"]["scheduling_status"]
+          target_per_month?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_scheduling_prefs_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_assignments: {
         Row: {
           created_at: string
@@ -600,24 +727,36 @@ export type Database = {
       positions: {
         Row: {
           created_at: string
+          fill_priority: number
           id: string
+          max_count: number | null
+          min_count: number
           name: string
+          requires_level: string | null
           sort_order: number
           team_id: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          fill_priority?: number
           id?: string
+          max_count?: number | null
+          min_count?: number
           name: string
+          requires_level?: string | null
           sort_order?: number
           team_id: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          fill_priority?: number
           id?: string
+          max_count?: number | null
+          min_count?: number
           name?: string
+          requires_level?: string | null
           sort_order?: number
           team_id?: string
           updated_at?: string
@@ -637,6 +776,7 @@ export type Database = {
           created_at: string
           id: string
           service_type_id: string
+          sort_order: number
           team_id: string
           updated_at: string
         }
@@ -644,6 +784,7 @@ export type Database = {
           created_at?: string
           id?: string
           service_type_id: string
+          sort_order?: number
           team_id: string
           updated_at?: string
         }
@@ -651,6 +792,7 @@ export type Database = {
           created_at?: string
           id?: string
           service_type_id?: string
+          sort_order?: number
           team_id?: string
           updated_at?: string
         }
@@ -825,6 +967,39 @@ export type Database = {
         }
         Relationships: []
       }
+      team_exclusions: {
+        Row: {
+          created_at: string
+          team_a: string
+          team_b: string
+        }
+        Insert: {
+          created_at?: string
+          team_a: string
+          team_b: string
+        }
+        Update: {
+          created_at?: string
+          team_a?: string
+          team_b?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_exclusions_team_a_fkey"
+            columns: ["team_a"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_exclusions_team_b_fkey"
+            columns: ["team_b"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_member_positions: {
         Row: {
           created_at: string
@@ -966,10 +1141,13 @@ export type Database = {
     Enums: {
       app_role: "admin" | "leader" | "member"
       assignment_status: "pending" | "confirmed" | "declined"
+      pairing_kind: "prefer" | "avoid" | "together"
+      pairing_strength: "hard" | "soft"
       person_status: "active" | "inactive"
       plan_item_kind: "header" | "song" | "item"
       plan_status: "draft" | "published"
       proficiency_level: "trainee" | "qualified"
+      scheduling_status: "active" | "break" | "pending"
       service_frequency:
         | "daily"
         | "weekly"
@@ -1110,10 +1288,13 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "leader", "member"],
       assignment_status: ["pending", "confirmed", "declined"],
+      pairing_kind: ["prefer", "avoid", "together"],
+      pairing_strength: ["hard", "soft"],
       person_status: ["active", "inactive"],
       plan_item_kind: ["header", "song", "item"],
       plan_status: ["draft", "published"],
       proficiency_level: ["trainee", "qualified"],
+      scheduling_status: ["active", "break", "pending"],
       service_frequency: [
         "daily",
         "weekly",
