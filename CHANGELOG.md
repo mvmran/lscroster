@@ -6,6 +6,14 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Replace with ranked suggestions & decline re-suggest** — every scheduled
+  person now has a **Replace…** action that lists the best available substitutes
+  for that spot (top one flagged **Suggested**), each with a short reason and how
+  many times they're already serving this month, so you can swap with the
+  roster's balance in view. When someone **declines** a request, **Find
+  replacement** opens the same ranked list (showing their decline reason), so the
+  next-best person is one click away ([#36], [#37]; part of [#32]). The
+  accept/decline-by-email loop itself is unchanged.
 - **Auto-scheduler ("Suggest roster")** — the plan's People panel can now
   auto-fill its required spots from the scheduling rules. A deterministic engine
   fills scarce/specialist positions first, only picks people who pass every hard
@@ -194,3 +202,5 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#32]: https://github.com/mvmran/lscroster/issues/32
 [#34]: https://github.com/mvmran/lscroster/issues/34
 [#35]: https://github.com/mvmran/lscroster/issues/35
+[#36]: https://github.com/mvmran/lscroster/issues/36
+[#37]: https://github.com/mvmran/lscroster/issues/37

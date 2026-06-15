@@ -145,7 +145,19 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   and shared). UI: a **"Suggest roster"** button + preview dialog
   (`auto-schedule-dialog.tsx`) on the plan People panel; Apply writes the
   suggestions as `pending` assignments that flow through P2's badges + gate. No
-  new schema. **P4 (explainability) and P5 (confirm/decline email) remain.**
+  new schema.
+- **#36 — #32 phase 4 of 5: explainability.** Pure `rankCandidates(state,
+  positionId, {exclude})` (3 more engine tests) returns the rule-passing
+  substitutes for a slot — score, "why", level, and count-this-month workload —
+  evaluated with the replaced person removed. UI: a **Replace…** action on every
+  assignment opens a ranked `ReplaceDialog` (`replace-dialog.tsx`), top flagged
+  "Suggested", with per-candidate workload so balance is visible while editing.
+- **#37 — #32 phase 5 of 5: decline → re-suggest (epic complete).** A declined
+  assignment's **Find replacement** now opens the engine-ranked `ReplaceDialog`
+  (decline reason shown, best substitute flagged "Suggested"); picking inserts a
+  `pending` request. The accept/decline-by-email loop itself is the existing
+  Phase-3 flow (`send-requests`/`respond-to-request`/`/respond/:token`) — P5 only
+  feeds declines into the engine's suggestions. **#32 epic done; no new schema.**
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 
