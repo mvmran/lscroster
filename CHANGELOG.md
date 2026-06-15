@@ -6,6 +6,14 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Scheduling-rules validation & publish gate** — a plan now checks its roster
+  against the scheduling rules live as you schedule people: red error / amber
+  warning badges appear on positions and people in the **People** panel and the
+  **Matrix** (understaffed positions show a red `+`). Publishing a plan with
+  issues opens a **two-tier gate** listing the errors and warnings; errors need
+  a typed reason to override, and every override is recorded for audit. No
+  auto-scheduler yet — this is the shared validator the engine will reuse
+  ([#34], part of [#32]).
 - **Scheduling rules** (foundation for auto-scheduling) — per-person
   **preferences** (how often they serve, max/target per month, max in a row,
   scheduling status), **recurring unavailability** (e.g. every 1st Sunday,
@@ -175,3 +183,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#30]: https://github.com/mvmran/lscroster/issues/30
 [#31]: https://github.com/mvmran/lscroster/issues/31
 [#32]: https://github.com/mvmran/lscroster/issues/32
+[#34]: https://github.com/mvmran/lscroster/issues/34
