@@ -13,6 +13,26 @@ export const ASSIGNMENT_STATUS_LABELS: Record<AssignmentStatus, string> = {
   declined: 'Declined',
 }
 
+/** How well a person can fill a position (issue #30). */
+export type Proficiency = Enums<'proficiency_level'>
+
+export const PROFICIENCY_LABELS: Record<Proficiency, string> = {
+  qualified: 'Qualified',
+  trainee: 'Trainee',
+}
+
+/** The other level — proficiency is a two-state toggle for now. */
+export function otherProficiency(p: Proficiency): Proficiency {
+  return p === 'trainee' ? 'qualified' : 'trainee'
+}
+
+/** Badge classes for a proficiency — trainees stand out so leaders notice. */
+export const PROFICIENCY_BADGE_CLASSES: Record<Proficiency, string> = {
+  qualified: '',
+  trainee:
+    'border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200',
+}
+
 /** Badge classes per status — the at-a-glance colour coding on plans. */
 export const ASSIGNMENT_STATUS_CLASSES: Record<AssignmentStatus, string> = {
   pending:

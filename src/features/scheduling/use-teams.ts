@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import type { Proficiency } from '@/features/scheduling/scheduling-utils'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
 export type TeamWithCounts = Tables<'teams'> & {
@@ -31,9 +32,10 @@ export type TeamMemberWithPerson = Tables<'team_members'> & {
   people: Tables<'people'>
 }
 
-/** One position a member can fill, with the position row embedded. */
+/** One position a member can fill, with its level and the position row embedded. */
 export type MembershipPosition = {
   position_id: string
+  proficiency: Proficiency
   positions: Tables<'positions'>
 }
 
@@ -41,9 +43,9 @@ export type TeamMemberWithPositions = TeamMemberWithPerson & {
   team_member_positions: MembershipPosition[]
 }
 
-/** Membership plus just the ids of the positions the member can fill. */
+/** Membership plus the ids + levels of the positions the member can fill. */
 export type TeamMemberWithPositionIds = TeamMemberWithPerson & {
-  team_member_positions: { position_id: string }[]
+  team_member_positions: { position_id: string; proficiency: Proficiency }[]
 }
 
 export const teamKeys = {
@@ -129,7 +131,7 @@ export function useAllTeamMembers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('team_members')
-        .select('*, people(*), team_member_positions(position_id)')
+        .select('*, people(*), team_member_positions(position_id, proficiency)')
       if (error) throw new Error(error.message)
       return data as TeamMemberWithPositionIds[]
     },
@@ -144,7 +146,7 @@ export function useTeamMembers(teamId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('team_members')
-        .select('*, people(*), team_member_positions(position_id, positions(*))')
+        .select('*, people(*), team_member_positions(position_id, proficiency, positions(*))')
         .eq('team_id', teamId!)
       if (error) throw new Error(error.message)
       return (data as TeamMemberWithPositions[]).sort((a, b) =>
@@ -169,7 +171,7 @@ export function useMembershipsOf(personId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('team_members')
-        .select('*, teams(*), team_member_positions(position_id, positions(*))')
+        .select('*, teams(*), team_member_positions(position_id, proficiency, positions(*))')
         .eq('person_id', personId!)
       if (error) throw new Error(error.message)
       return data as MembershipWithTeam[]
@@ -368,6 +370,27 @@ export function useMembershipMutations() {
     },
     onSuccess: (m) => invalidate(m.team_id, m.person_id),
   })
+  // Change how well a member fills a position: trainee ⇄ qualified (issue #30).
+  const setProficiency = useMutation({
+    mutationFn: async ({
+      member,
+      positionId,
+      proficiency,
+    }: {
+      member: Tables<'team_members'>
+      positionId: string
+      proficiency: Proficiency
+    }) => {
+      const { error } = await supabase
+        .from('team_member_positions')
+        .update({ proficiency })
+        .eq('team_member_id', member.id)
+        .eq('position_id', positionId)
+      if (error) throw new Error(error.message)
+      return member
+    },
+    onSuccess: (m) => invalidate(m.team_id, m.person_id),
+  })
   const remove = useMutation({
     mutationFn: async (member: Tables<'team_members'>) => {
       const { error } = await supabase
@@ -379,5 +402,5 @@ export function useMembershipMutations() {
     },
     onSuccess: (m) => invalidate(m.team_id, m.person_id),
   })
-  return { add, addPosition, removePosition, remove }
+  return { add, addPosition, removePosition, setProficiency, remove }
 }

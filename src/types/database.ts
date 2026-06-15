@@ -830,6 +830,7 @@ export type Database = {
           created_at: string
           id: string
           position_id: string
+          proficiency: Database["public"]["Enums"]["proficiency_level"]
           team_member_id: string
           updated_at: string
         }
@@ -837,6 +838,7 @@ export type Database = {
           created_at?: string
           id?: string
           position_id: string
+          proficiency?: Database["public"]["Enums"]["proficiency_level"]
           team_member_id: string
           updated_at?: string
         }
@@ -844,6 +846,7 @@ export type Database = {
           created_at?: string
           id?: string
           position_id?: string
+          proficiency?: Database["public"]["Enums"]["proficiency_level"]
           team_member_id?: string
           updated_at?: string
         }
@@ -966,6 +969,7 @@ export type Database = {
       person_status: "active" | "inactive"
       plan_item_kind: "header" | "song" | "item"
       plan_status: "draft" | "published"
+      proficiency_level: "trainee" | "qualified"
       service_frequency:
         | "daily"
         | "weekly"
@@ -1109,6 +1113,7 @@ export const Constants = {
       person_status: ["active", "inactive"],
       plan_item_kind: ["header", "song", "item"],
       plan_status: ["draft", "published"],
+      proficiency_level: ["trainee", "qualified"],
       service_frequency: [
         "daily",
         "weekly",

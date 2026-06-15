@@ -6,6 +6,13 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Skills & eligibility** — each position a team member can fill now carries a
+  **proficiency level** (Qualified or Trainee). On the team page, tap a member's
+  position pill to toggle the level, and each position shows an "eligible people"
+  summary with a trainee count; levels also show (and can be toggled) on the
+  person's profile. The scheduling picker flags trainees among the people set up
+  for a position. This is the data foundation for future auto-scheduling
+  ([#30]).
 - Team members can be assigned **multiple positions** on a team instead of a
   single default ([#1]). Positions are picked from a dropdown on the team page
   and shown on the person's profile.
@@ -74,6 +81,11 @@ All notable changes to LSCRoster are recorded here. The format follows
   stay under 2 requests/second**, so rostering a large team no longer trips
   Resend's throttle ([#18]).
 
+### Fixed
+- Plan-publish emails now include each song's **Meter** (from its Default
+  arrangement) alongside the key and BPM; previously the meter was omitted
+  ([#29]).
+
 ### Migration / upgrade notes
 - Migration `20260613052530_teams_multi_position_and_leaders` adds the
   `team_member_positions` table. It **migrates each member's existing
@@ -107,6 +119,14 @@ All notable changes to LSCRoster are recorded here. The format follows
   is automatic via `supabase db push`; no manual data steps and no links change.
   **Redeploy the `send-plan-notification` Edge Function** with this migration —
   it now reads key/BPM from the Default arrangement.
+- The Meter-in-publish-email fix (#29) is **code-only — no schema change**; it
+  ships by redeploying the `send-plan-notification` Edge Function.
+- Migration `20260615100000_position_proficiency` (#30) adds a
+  `proficiency_level` enum (`trainee`, `qualified`) and a `proficiency` column on
+  `team_member_positions`, defaulting existing rows to `qualified`. It applies
+  automatically via `supabase db push`; no manual data steps, no new RLS (the
+  column inherits the table's existing admin/leader-write policy), and no emails
+  or links change.
 
 [#1]: https://github.com/mvmran/lscroster/issues/1
 [#2]: https://github.com/mvmran/lscroster/issues/2
@@ -126,3 +146,5 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#24]: https://github.com/mvmran/lscroster/issues/24
 [#25]: https://github.com/mvmran/lscroster/issues/25
 [#26]: https://github.com/mvmran/lscroster/issues/26
+[#29]: https://github.com/mvmran/lscroster/issues/29
+[#30]: https://github.com/mvmran/lscroster/issues/30
