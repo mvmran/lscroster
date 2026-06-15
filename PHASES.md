@@ -95,6 +95,16 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   the Media frame exports the sheet via a hand-rolled column-flow layout in
   jsPDF (lazy-loaded), file named `LyricsSheet-<ServiceName>-<YYYYMMDD>.pdf`.
   UI-only.
+- **#29** — **Meter in publish emails**: the plan-publish notification now lists
+  each song's Meter (from its Default arrangement) beside key/BPM. Code-only,
+  redeploy `send-plan-notification`.
+- **#30** — **Skills & eligibility (proficiency)**: each `team_member_positions`
+  row carries a `proficiency` level (`qualified`/`trainee`, migration 0012 enum).
+  Team page shows per-position eligible-people summaries and tap-to-toggle level
+  pills on members; the person profile shows/toggles levels; the scheduling
+  picker flags trainees. Foundation for the auto-scheduling epic — the engine
+  itself is **not** built. We extended the existing join rather than adding the
+  spec's separate `position_eligibility` table, to keep one source of truth.
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 
@@ -105,11 +115,12 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
 - **#7** — review keyboard shortcuts throughout the app.
 - **#9** — add a rehearsal workflow.
 
-**Schema since Phase 4:** migrations 0006–0011 in `supabase/migrations/`
+**Schema since Phase 4:** migrations 0006–0012 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
 scheduling fields + `service_type_teams`; backfill+drop `teams.service_type_id`
 onto that join; add `church_settings.address`; add `song_arrangements` +
-backfill Default per song + drop `songs.default_key`/`bpm`). New Edge Functions:
+backfill Default per song + drop `songs.default_key`/`bpm`; add
+`proficiency_level` enum + `team_member_positions.proficiency`). New Edge Functions:
 `cancel-assignment`, `send-plan-notification`. Regenerate
 `src/types/database.ts` from the local stack after pulling.
 

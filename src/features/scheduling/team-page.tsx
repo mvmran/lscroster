@@ -52,7 +52,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { fullName } from '@/features/people/person-utils'
 import { usePeople } from '@/features/people/use-people'
+import { PositionLevelPill } from '@/features/scheduling/position-level-pill'
 import { ServiceTypePicker } from '@/features/scheduling/service-type-picker'
+import { otherProficiency } from '@/features/scheduling/scheduling-utils'
 import {
   useDeleteTeam,
   useMembershipMutations,
@@ -65,6 +67,23 @@ import {
 } from '@/features/scheduling/use-teams'
 import { useServiceTypes } from '@/features/services/use-service-types'
 
+/** Names of the people eligible for a position, qualified first then trainees. */
+function eligibleSummary(
+  members: ReturnType<typeof useTeamMembers>['data'],
+  positionId: string,
+): { qualified: string[]; trainees: string[] } {
+  const qualified: string[] = []
+  const trainees: string[] = []
+  for (const member of members ?? []) {
+    const tp = member.team_member_positions.find((p) => p.position_id === positionId)
+    if (!tp) continue
+    ;(tp.proficiency === 'trainee' ? trainees : qualified).push(fullName(member.people))
+  }
+  qualified.sort((a, b) => a.localeCompare(b))
+  trainees.sort((a, b) => a.localeCompare(b))
+  return { qualified, trainees }
+}
+
 function PositionsCard({
   teamId,
   canManage,
@@ -73,6 +92,7 @@ function PositionsCard({
   canManage: boolean
 }) {
   const { data: positions, isPending } = usePositions(teamId)
+  const { data: members } = useTeamMembers(teamId)
   const { create, update, remove } = usePositionMutations(teamId)
   const [newName, setNewName] = useState('')
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null)
@@ -102,71 +122,93 @@ function PositionsCard({
           <Skeleton className="h-10 w-full" />
         ) : (
           <ul className="flex flex-col gap-1">
-            {(positions ?? []).map((position) => (
-              <li
-                key={position.id}
-                className="hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-1.5"
-              >
-                {editing?.id === position.id ? (
-                  <>
-                    <Input
-                      value={editing.name}
-                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                      className="h-8"
-                      autoFocus
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        if (!editing.name.trim()) return
-                        update.mutate(
-                          { id: position.id, values: { name: editing.name.trim() } },
-                          {
-                            onSuccess: () => setEditing(null),
-                            onError: (e) => toast.error(e.message),
-                          },
-                        )
-                      }}
-                    >
-                      Save
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setEditing(null)}>
-                      <X className="size-4" />
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <span className="min-w-0 flex-1 truncate text-sm">{position.name}</span>
-                    {canManage && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          onClick={() => setEditing({ id: position.id, name: position.name })}
-                          aria-label={`Rename ${position.name}`}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          onClick={() =>
-                            remove.mutate(position.id, {
+            {(positions ?? []).map((position) => {
+              const { qualified, trainees } = eligibleSummary(members, position.id)
+              const total = qualified.length + trainees.length
+              const names = [...qualified, ...trainees.map((n) => `${n} (trainee)`)]
+              return (
+                <li
+                  key={position.id}
+                  className="hover:bg-accent/40 flex flex-col gap-0.5 rounded-md px-2 py-1.5"
+                >
+                  {editing?.id === position.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editing.name}
+                        onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                        className="h-8"
+                        autoFocus
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (!editing.name.trim()) return
+                          update.mutate(
+                            { id: position.id, values: { name: editing.name.trim() } },
+                            {
+                              onSuccess: () => setEditing(null),
                               onError: (e) => toast.error(e.message),
-                            })
-                          }
-                          aria-label={`Delete ${position.name}`}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </>
-                    )}
-                  </>
-                )}
-              </li>
-            ))}
+                            },
+                          )
+                        }}
+                      >
+                        Save
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setEditing(null)}>
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-sm">
+                          {position.name}
+                        </span>
+                        {canManage && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
+                              onClick={() =>
+                                setEditing({ id: position.id, name: position.name })
+                              }
+                              aria-label={`Rename ${position.name}`}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
+                              onClick={() =>
+                                remove.mutate(position.id, {
+                                  onError: (e) => toast.error(e.message),
+                                })
+                              }
+                              aria-label={`Delete ${position.name}`}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        {total === 0 ? (
+                          'No one set up for this position yet.'
+                        ) : (
+                          <>
+                            <span className="font-medium">{total} eligible</span>
+                            {trainees.length > 0 && ` · ${trainees.length} trainee`}
+                            {` — ${names.join(', ')}`}
+                          </>
+                        )}
+                      </p>
+                    </>
+                  )}
+                </li>
+              )
+            })}
             {(positions ?? []).length === 0 && (
               <p className="text-muted-foreground px-2 py-1 text-sm">No positions yet.</p>
             )}
@@ -207,7 +249,8 @@ function MembersCard({
   const { data: members, isPending } = useTeamMembers(teamId)
   const { data: positions } = usePositions(teamId)
   const { data: people } = usePeople()
-  const { add, addPosition, removePosition, remove } = useMembershipMutations()
+  const { add, addPosition, removePosition, setProficiency, remove } =
+    useMembershipMutations()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
 
@@ -237,80 +280,95 @@ function MembersCard({
               const selectedIds = new Set(
                 member.team_member_positions.map((tp) => tp.position_id),
               )
-              const selectedNames = (positions ?? [])
-                .filter((p) => selectedIds.has(p.id))
-                .map((p) => p.name)
+              const memberPositions = [...member.team_member_positions].sort((a, b) =>
+                a.positions.name.localeCompare(b.positions.name),
+              )
               return (
                 <li
                   key={member.id}
-                  className="hover:bg-accent/40 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md px-2 py-1.5"
+                  className="hover:bg-accent/40 flex flex-col gap-1 rounded-md px-2 py-1.5"
                 >
-                  <Link
-                    to={`/people/${member.person_id}`}
-                    className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
-                  >
-                    {fullName(member.people)}
-                  </Link>
-                  {canManage ? (
-                    <>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 max-w-44 justify-between gap-1 font-normal"
-                            aria-label={`Positions for ${fullName(member.people)}`}
-                          >
-                            <span className="truncate">
-                              {selectedNames.length > 0
-                                ? selectedNames.join(', ')
-                                : 'Positions'}
-                            </span>
-                            <ChevronDown className="size-4 shrink-0 opacity-60" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {(positions ?? []).length === 0 ? (
-                            <DropdownMenuItem disabled>
-                              Add a position first
-                            </DropdownMenuItem>
-                          ) : (
-                            (positions ?? []).map((p) => (
-                              <DropdownMenuCheckboxItem
-                                key={p.id}
-                                checked={selectedIds.has(p.id)}
-                                onSelect={(e) => e.preventDefault()}
-                                onCheckedChange={(checked) =>
-                                  (checked ? addPosition : removePosition).mutate(
-                                    { member, positionId: p.id },
-                                    { onError: (e) => toast.error(e.message) },
-                                  )
-                                }
-                              >
-                                {p.name}
-                              </DropdownMenuCheckboxItem>
-                            ))
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8"
-                        onClick={() =>
-                          remove.mutate(member, { onError: (e) => toast.error(e.message) })
-                        }
-                        aria-label={`Remove ${fullName(member.people)}`}
-                      >
-                        <X className="size-4" />
-                      </Button>
-                    </>
-                  ) : (
-                    selectedNames.length > 0 && (
-                      <span className="text-muted-foreground text-sm">
-                        {selectedNames.join(', ')}
-                      </span>
-                    )
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/people/${member.person_id}`}
+                      className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+                    >
+                      {fullName(member.people)}
+                    </Link>
+                    {canManage && (
+                      <>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 justify-between gap-1 font-normal"
+                              aria-label={`Positions for ${fullName(member.people)}`}
+                            >
+                              Positions
+                              <ChevronDown className="size-4 shrink-0 opacity-60" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {(positions ?? []).length === 0 ? (
+                              <DropdownMenuItem disabled>
+                                Add a position first
+                              </DropdownMenuItem>
+                            ) : (
+                              (positions ?? []).map((p) => (
+                                <DropdownMenuCheckboxItem
+                                  key={p.id}
+                                  checked={selectedIds.has(p.id)}
+                                  onSelect={(e) => e.preventDefault()}
+                                  onCheckedChange={(checked) =>
+                                    (checked ? addPosition : removePosition).mutate(
+                                      { member, positionId: p.id },
+                                      { onError: (e) => toast.error(e.message) },
+                                    )
+                                  }
+                                >
+                                  {p.name}
+                                </DropdownMenuCheckboxItem>
+                              ))
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={() =>
+                            remove.mutate(member, { onError: (e) => toast.error(e.message) })
+                          }
+                          aria-label={`Remove ${fullName(member.people)}`}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  {memberPositions.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {memberPositions.map((tp) => (
+                        <PositionLevelPill
+                          key={tp.position_id}
+                          name={tp.positions.name}
+                          proficiency={tp.proficiency}
+                          canManage={canManage}
+                          disabled={setProficiency.isPending}
+                          onToggle={() =>
+                            setProficiency.mutate(
+                              {
+                                member,
+                                positionId: tp.position_id,
+                                proficiency: otherProficiency(tp.proficiency),
+                              },
+                              { onError: (e) => toast.error(e.message) },
+                            )
+                          }
+                        />
+                      ))}
+                    </div>
                   )}
                 </li>
               )

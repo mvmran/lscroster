@@ -41,6 +41,7 @@ import {
   ASSIGNMENT_STATUS_CLASSES,
   ASSIGNMENT_STATUS_LABELS,
   isBlockedOut,
+  PROFICIENCY_BADGE_CLASSES,
   timesOverlap,
   type Position,
   type Team,
@@ -92,8 +93,14 @@ export function AssignPersonDialog({
 
   const pending = createAssignment.isPending || replaceAssignment.isPending
 
-  const { preferred, members, others } = useMemo(() => {
-    if (!target) return { preferred: [], members: [], others: [] }
+  const { preferred, members, others, traineeIds } = useMemo(() => {
+    if (!target)
+      return {
+        preferred: [],
+        members: [],
+        others: [],
+        traineeIds: new Set<string>(),
+      }
     const term = search.trim().toLowerCase()
     const assignedHere = new Set(
       assignments
@@ -123,11 +130,24 @@ export function AssignPersonDialog({
         )
         .map((m) => m.person_id),
     )
+    // Trainees for this position (issue #30) — flagged so leaders notice.
+    const traineeIds = new Set(
+      teamMemberships
+        .filter((m) =>
+          m.team_member_positions.some(
+            (tp) =>
+              tp.position_id === target.position.id &&
+              tp.proficiency === 'trainee',
+          ),
+        )
+        .map((m) => m.person_id),
+    )
     const all = (people ?? []).filter(matches)
     return {
       preferred: all.filter((p) => preferredIds.has(p.id)),
       members: all.filter((p) => memberIds.has(p.id) && !preferredIds.has(p.id)),
       others: all.filter((p) => !memberIds.has(p.id)),
+      traineeIds,
     }
   }, [target, people, teamMembers, assignments, search])
 
@@ -198,6 +218,14 @@ export function AssignPersonDialog({
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {fullName(person)}
         </span>
+        {traineeIds.has(person.id) && (
+          <Badge
+            variant="outline"
+            className={`shrink-0 ${PROFICIENCY_BADGE_CLASSES.trainee}`}
+          >
+            Trainee
+          </Badge>
+        )}
         {warnings.map(({ icon: Icon, label }) => (
           <Badge
             key={label}
