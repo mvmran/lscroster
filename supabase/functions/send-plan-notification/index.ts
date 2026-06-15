@@ -101,16 +101,23 @@ Deno.serve(async (req) => {
   )
 
   const songIds = [...new Set(items.filter((i) => i.song_id).map((i) => i.song_id!))]
-  // Key/BPM now live on the song's Default arrangement (issue #24).
-  const songById = new Map<string, { default_key: string | null; bpm: number | null }>()
+  // Key/BPM/meter now live on the song's Default arrangement (issue #24/#29).
+  const songById = new Map<
+    string,
+    { default_key: string | null; bpm: number | null; meter: string | null }
+  >()
   if (songIds.length > 0) {
     const { data: arrRows } = await admin
       .from('song_arrangements')
-      .select('song_id, song_key, bpm')
+      .select('song_id, song_key, bpm, meter')
       .in('song_id', songIds)
       .eq('is_default', true)
     for (const a of arrRows ?? []) {
-      songById.set(a.song_id as string, { default_key: a.song_key, bpm: a.bpm })
+      songById.set(a.song_id as string, {
+        default_key: a.song_key,
+        bpm: a.bpm,
+        meter: a.meter,
+      })
     }
   }
 
@@ -142,6 +149,7 @@ Deno.serve(async (req) => {
         title: i.title,
         key: i.key_override ?? song?.default_key ?? null,
         bpm: song?.bpm ?? null,
+        meter: song?.meter ?? null,
       }
     })
 

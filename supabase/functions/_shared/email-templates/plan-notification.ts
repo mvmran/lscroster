@@ -26,7 +26,7 @@ export interface PlanNotificationParams {
   /** The order of service, in order. */
   order: { time: string | null; title: string; isHeader: boolean; detail: string | null }[]
   /** Songs in the plan, with the key/bpm shown to musicians. */
-  songs: { title: string; key: string | null; bpm: number | null }[]
+  songs: { title: string; key: string | null; bpm: number | null; meter: string | null }[]
   appUrl: string
 }
 
@@ -109,7 +109,11 @@ function songsSection(p: PlanNotificationParams): string {
   if (p.songs.length === 0) return ''
   const rows = p.songs
     .map((s) => {
-      const meta = [s.key ? `Key ${esc(s.key)}` : null, s.bpm ? `${s.bpm} BPM` : null]
+      const meta = [
+        s.key ? `Key ${esc(s.key)}` : null,
+        s.bpm ? `${s.bpm} BPM` : null,
+        s.meter ? esc(s.meter) : null,
+      ]
         .filter(Boolean)
         .join(' · ')
       return `<div style="font-size:14px;color:#3f3f46;padding:2px 0;">${esc(s.title)}${meta ? ` <span style="color:#a1a1aa;">— ${meta}</span>` : ''}</div>`
