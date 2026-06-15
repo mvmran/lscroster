@@ -33,6 +33,54 @@ export const PROFICIENCY_BADGE_CLASSES: Record<Proficiency, string> = {
     'border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200',
 }
 
+// --- Scheduling rules (issue #32, phase 1) ---------------------------------
+
+export type SchedulingStatus = Enums<'scheduling_status'>
+
+export const SCHEDULING_STATUS_LABELS: Record<SchedulingStatus, string> = {
+  active: 'Active',
+  break: 'On a break',
+  pending: 'Pending',
+}
+
+export type PairingKind = Enums<'pairing_kind'>
+
+export const PAIRING_KIND_LABELS: Record<PairingKind, string> = {
+  prefer: 'Prefers to serve with',
+  avoid: 'Avoid serving with',
+  together: 'Household — serve together',
+}
+
+export type PairingStrength = Enums<'pairing_strength'>
+
+/** Cadence presets mapping to `min_gap_days` (the stored value). */
+export const CADENCE_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: 'Any frequency' },
+  { value: 7, label: 'At most weekly' },
+  { value: 14, label: 'At most fortnightly' },
+  { value: 28, label: 'At most monthly' },
+]
+
+/** Sun..Sat short labels, 0-indexed to match the stored weekday. */
+export const WEEKDAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+/** "Every Sunday", "1st Sunday", "Last Saturday" from a recurring rule. */
+export function formatRecurringRule(
+  weekOfMonth: number | null,
+  weekday: number,
+): string {
+  const day = WEEKDAY_LABELS[weekday] ?? '?'
+  if (weekOfMonth == null) return `Every ${day}`
+  if (weekOfMonth === -1) return `Last ${day} of the month`
+  const ordinal = ['1st', '2nd', '3rd', '4th', '5th'][weekOfMonth - 1] ?? `${weekOfMonth}th`
+  return `${ordinal} ${day} of the month`
+}
+
+/** Normalise an unordered person pair so person_a < person_b (matches the DB check). */
+export function normalizePair(a: string, b: string): [string, string] {
+  return a < b ? [a, b] : [b, a]
+}
+
 /** Badge classes per status — the at-a-glance colour coding on plans. */
 export const ASSIGNMENT_STATUS_CLASSES: Record<AssignmentStatus, string> = {
   pending:
