@@ -30,6 +30,10 @@ All notable changes to LSCRoster are recorded here. The format follows
   for the songs in the order of service: each song's title, the Key/BPM/Meter
   from its Default arrangement, then its lyrics. It follows the setlist order
   and updates automatically when the setlist is reordered ([#25]).
+- **Print button on the Lyrics Sheet** — the Media frame can export the lyrics
+  sheet as a **two-column PDF**, laid out to flow song-by-song down each column
+  and across pages. The file is named
+  `LyricsSheet-<ServiceName>-<YYYYMMDD>.pdf` ([#26]).
 - **Song arrangements** — a song can now hold multiple **arrangements** in a
   tabbed section on its page, each with its own **Key**, **BPM** and a new
   **Meter** field. Every song has a **Default** arrangement (created
@@ -121,3 +125,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#22]: https://github.com/mvmran/lscroster/issues/22
 [#24]: https://github.com/mvmran/lscroster/issues/24
 [#25]: https://github.com/mvmran/lscroster/issues/25
+[#26]: https://github.com/mvmran/lscroster/issues/26

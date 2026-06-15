@@ -7,6 +7,7 @@ import {
   Music,
   Paperclip,
   Plus,
+  Printer,
   Trash2,
   Upload,
   X,
@@ -22,6 +23,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { downloadLyricsSheetPdf } from '@/features/services/lyrics-sheet-pdf'
 import {
   buildLyricsSheet,
   formatStartTime,
@@ -36,6 +38,7 @@ import {
 import { usePlanItems } from '@/features/services/use-plan-items'
 import { usePlanTimeMutations, usePlanTimes } from '@/features/services/use-plan-times'
 import { useSongs } from '@/features/services/use-songs'
+import { useChurchSettings } from '@/features/settings/use-church-settings'
 
 const MAX_ATTACHMENT_MB = 25
 
@@ -274,17 +277,23 @@ export function PlanAttachmentsCard({
  * derived from the order of service, so it always follows the setlist order and
  * updates when the setlist is reordered — there is nothing to edit here. Each
  * song shows its title, the Key/BPM/Meter from its Default arrangement, then its
- * lyrics.
+ * lyrics. The Print button produces a two-column PDF (issue #26).
  */
 export function PlanMediaCard({
   planId,
   canManage,
+  serviceName,
+  planDate,
 }: {
   planId: string
   canManage: boolean
+  serviceName: string
+  planDate: string
 }) {
   const { data: items, isPending: itemsPending } = usePlanItems(planId)
   const { data: songs, isPending: songsPending } = useSongs()
+  const { data: settings } = useChurchSettings()
+  const [generating, setGenerating] = useState(false)
 
   const songById = useMemo(() => new Map((songs ?? []).map((s) => [s.id, s])), [songs])
   const entries = useMemo(
@@ -298,13 +307,44 @@ export function PlanMediaCard({
   // other plan cards.
   if (!canManage && !isPending && entries.length === 0) return null
 
+  async function print() {
+    setGenerating(true)
+    try {
+      await downloadLyricsSheetPdf({
+        serviceName,
+        planDate,
+        churchName: settings?.name ?? null,
+        entries,
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not create PDF')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Media</CardTitle>
-        <CardDescription>
-          Lyrics sheet for the songs in this plan, in setlist order.
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between gap-2">
+        <div className="space-y-1.5">
+          <CardTitle>Media</CardTitle>
+          <CardDescription>
+            Lyrics sheet for the songs in this plan, in setlist order.
+          </CardDescription>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={print}
+          disabled={generating || entries.length === 0}
+        >
+          {generating ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Printer className="size-4" />
+          )}
+          Print
+        </Button>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         <p className="text-sm font-medium">Lyrics Sheet</p>

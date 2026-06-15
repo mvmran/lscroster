@@ -752,7 +752,12 @@ export function PlanPage() {
       <SchedulingPanel plan={plan} canManage={canManage} />
 
       <PlanTimesCard planId={plan.id} canManage={canManage} />
-      <PlanMediaCard planId={plan.id} canManage={canManage} />
+      <PlanMediaCard
+        planId={plan.id}
+        canManage={canManage}
+        serviceName={plan.service_types.name}
+        planDate={plan.date}
+      />
       <PlanAttachmentsCard planId={plan.id} canManage={canManage} />
 
       <NotesCard key={plan.notes ?? ''} plan={plan} canManage={canManage} />
