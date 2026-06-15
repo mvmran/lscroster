@@ -69,7 +69,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { useSendPlanNotification } from '@/features/scheduling/use-assignments'
+import { useRecordPublishOverrides } from '@/features/scheduling/use-scheduling-rules'
+import { usePlanValidation } from '@/features/scheduling/use-service-state'
 import { SchedulingPanel } from '@/features/scheduling/scheduling-panel'
+import { PublishGateDialog } from '@/features/services/publish-gate-dialog'
 import {
   PlanAttachmentsCard,
   PlanMediaCard,
@@ -472,6 +475,8 @@ export function PlanPage() {
   const updatePlan = useUpdatePlan()
   const deletePlan = useDeletePlan()
   const sendNotification = useSendPlanNotification(id ?? '')
+  const recordOverrides = useRecordPublishOverrides(id ?? '')
+  const validation = usePlanValidation(planQuery.data ?? undefined)
 
   const [itemDialog, setItemDialog] = useState<PlanItemDialogState>(null)
   const [songPickerOpen, setSongPickerOpen] = useState(false)
@@ -480,6 +485,7 @@ export function PlanPage() {
   const [templateOpen, setTemplateOpen] = useState(false)
   const [confirmDeletePlan, setConfirmDeletePlan] = useState(false)
   const [deletingItem, setDeletingItem] = useState<PlanItem | null>(null)
+  const [gateOpen, setGateOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -537,16 +543,11 @@ export function PlanPage() {
     })
   }
 
-  function togglePublish() {
-    const next = plan!.status === 'published' ? 'draft' : 'published'
+  function publishNow() {
     updatePlan.mutate(
-      { id: plan!.id, values: { status: next } },
+      { id: plan!.id, values: { status: 'published' } },
       {
         onSuccess: () => {
-          if (next !== 'published') {
-            toast.success('Plan moved back to draft')
-            return
-          }
           // Issue #17 — notify everyone scheduled when the plan goes live.
           toast.success('Plan published')
           sendNotification.mutate(undefined, {
@@ -570,6 +571,43 @@ export function PlanPage() {
         onError: (e) => toast.error(e.message),
       },
     )
+  }
+
+  function togglePublish() {
+    if (plan!.status === 'published') {
+      updatePlan.mutate(
+        { id: plan!.id, values: { status: 'draft' } },
+        {
+          onSuccess: () => toast.success('Plan moved back to draft'),
+          onError: (e) => toast.error(e.message),
+        },
+      )
+      return
+    }
+    // Publishing: gate on scheduling-rules validation (issue #34). A clean plan
+    // publishes straight away; any error or warning opens the two-tier gate.
+    if (validation.errors.length === 0 && validation.warnings.length === 0) {
+      publishNow()
+    } else {
+      setGateOpen(true)
+    }
+  }
+
+  // Record each overridden rule, then publish (issue #34).
+  function confirmPublishWithOverrides(reason: string | null) {
+    const overrides = [...validation.errors, ...validation.warnings].map((r) => ({
+      rule_code: r.code,
+      severity: r.severity,
+      message: r.message,
+      reason,
+    }))
+    recordOverrides.mutate(overrides, {
+      onSuccess: () => {
+        setGateOpen(false)
+        publishNow()
+      },
+      onError: (e) => toast.error(e.message),
+    })
   }
 
   async function confirmDelete() {
@@ -612,7 +650,11 @@ export function PlanPage() {
                   variant={plan.status === 'published' ? 'outline' : 'default'}
                   size="sm"
                   onClick={togglePublish}
-                  disabled={updatePlan.isPending || sendNotification.isPending}
+                  disabled={
+                    updatePlan.isPending ||
+                    sendNotification.isPending ||
+                    recordOverrides.isPending
+                  }
                 >
                   {sendNotification.isPending && (
                     <Loader2 className="size-4 animate-spin" />
@@ -776,6 +818,15 @@ export function PlanPage() {
         itemCount={items.length}
         songs={songs ?? []}
       />
+      <PublishGateDialog
+        open={gateOpen}
+        onOpenChange={setGateOpen}
+        errors={validation.errors}
+        warnings={validation.warnings}
+        isPending={recordOverrides.isPending || updatePlan.isPending}
+        onConfirm={confirmPublishWithOverrides}
+      />
+
       {editDetailsOpen && (
         <EditDetailsDialog plan={plan} open onOpenChange={setEditDetailsOpen} />
       )}

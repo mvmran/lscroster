@@ -16,6 +16,17 @@ export const schedulingRuleKeys = {
   recurring: (personId: string) => ['recurring-unavailability', personId] as const,
   pairings: (personId: string) => ['person-pairings', personId] as const,
   teamExclusions: ['team-exclusions'] as const,
+  allPrefs: ['scheduling-prefs-all'] as const,
+  allRecurring: ['recurring-unavailability-all'] as const,
+  allPairings: ['person-pairings-all'] as const,
+  rosteredDates: ['rostered-dates'] as const,
+}
+
+/** A person's non-declined assignment date for workload/cadence checks. */
+export interface RosteredDate {
+  person_id: string
+  plan_id: string
+  plans: { date: string; service_type_id: string } | null
 }
 
 // --- per-person preferences --------------------------------------------------
@@ -217,3 +228,91 @@ export type PositionRequirements = Pick<
   TablesUpdate<'positions'>,
   'min_count' | 'max_count' | 'requires_level' | 'fill_priority'
 >
+
+// --- whole-table reads for the validator (issue #34, P2) ---------------------
+// These power validateService, which needs rules for *everyone* on a plan.
+// Small tables (one-ish row per person), cached together; far simpler than
+// re-fetching per assigned person as a roster is edited.
+
+export function useAllPersonPrefs() {
+  return useQuery({
+    queryKey: schedulingRuleKeys.allPrefs,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('person_scheduling_prefs').select('*')
+      if (error) throw new Error(error.message)
+      return data as PersonSchedulingPrefs[]
+    },
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useAllRecurringUnavailability() {
+  return useQuery({
+    queryKey: schedulingRuleKeys.allRecurring,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('person_recurring_unavailability')
+        .select('*')
+      if (error) throw new Error(error.message)
+      return data as RecurringUnavailability[]
+    },
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useAllPairings() {
+  return useQuery({
+    queryKey: schedulingRuleKeys.allPairings,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('person_pairings').select('*')
+      if (error) throw new Error(error.message)
+      return data as PersonPairing[]
+    },
+    staleTime: 60 * 1000,
+  })
+}
+
+/** One audit row for a rule violation a leader chose to publish past (#34). */
+export interface PublishOverrideInput {
+  rule_code: string
+  severity: 'error' | 'warning'
+  message: string
+  reason: string | null
+}
+
+/**
+ * Record the rule violations a leader overrode when publishing a plan. Each
+ * becomes a `publish_overrides` row (`overridden_by` defaults to the current
+ * person in the DB). The publish gate calls this before flipping the status.
+ */
+export function useRecordPublishOverrides(planId: string) {
+  return useMutation({
+    mutationFn: async (rows: PublishOverrideInput[]) => {
+      if (rows.length === 0) return
+      const { error } = await supabase
+        .from('publish_overrides')
+        .insert(rows.map((r) => ({ ...r, plan_id: planId })))
+      if (error) throw new Error(error.message)
+    },
+  })
+}
+
+/**
+ * Every non-declined assignment with its plan's date + service type — the
+ * history the validator reads for cadence / per-month / consecutive checks.
+ * Invalidated alongside the per-plan assignment lists (see use-assignments).
+ */
+export function useRosteredDates() {
+  return useQuery({
+    queryKey: schedulingRuleKeys.rosteredDates,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('plan_assignments')
+        .select('person_id, plan_id, plans!inner(date, service_type_id)')
+        .neq('status', 'declined')
+      if (error) throw new Error(error.message)
+      return data as unknown as RosteredDate[]
+    },
+    staleTime: 60 * 1000,
+  })
+}

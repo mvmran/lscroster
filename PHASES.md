@@ -121,6 +121,43 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   those are spec phases P2–P5 (P2 = shared `validateService` + publish gate is
   the keystone; P3 engine; P4 explainability; P5 confirm/decline email). Kept
   proficiency at two levels (`requires_level` allows `qualified` only).
+- **#34 — #32 phase 2 of 5: shared validator + live badges + publish gate.**
+  Pure `validateService(state)` in `src/features/scheduling/validate-service.ts`
+  (per-rule helpers + a Vitest suite, 22 tests; Vitest added as a devDependency)
+  maps the spec's §3 taxonomy onto our schema. Hydrated per plan by
+  `usePlanValidation`/`useSchedulingRulesData` (`use-service-state.ts`); live
+  red/amber badges on the plan **People** panel and the **Matrix** (understaffed
+  → red `+`). Publishing runs a two-tier gate (`publish-gate-dialog.tsx`):
+  errors need a typed reason to override, each override logged to the new
+  `publish_overrides` table (migration 0015). Decisions: trainees count toward
+  `min_count` (TRAINEE_UNSUPERVISED only when a team is all-trainees);
+  MULTI_POSITION always hard-errors; `BELOW_REQUIRED_LEVEL` folds into
+  `NO_REQUIRED_LEVEL` while proficiency has two levels. **No engine yet** (P3–P5).
+- **#35 — #32 phase 3 of 5: auto-scheduler engine → editable draft.** Pure,
+  deterministic `autoSchedule(state)` in `auto-scheduler.ts` (11 Vitest tests):
+  expands unfilled `min_count` slots, fills scarcest/`fill_priority` first,
+  builds each pool from the **hard** constraints (eligibility, required-level
+  coverage, availability, active status, no multi-position, team exclusions,
+  hard-avoid, and **cadence as hard** per spec Q1), scores by recency/load/
+  preferred-pair, and reports unfilled slots with the blocking reason. Hydrated
+  by `useAutoScheduler` (`use-auto-scheduler.ts`) over every eligible team member
+  (the validator's per-person context maps were extracted in `use-service-state.ts`
+  and shared). UI: a **"Suggest roster"** button + preview dialog
+  (`auto-schedule-dialog.tsx`) on the plan People panel; Apply writes the
+  suggestions as `pending` assignments that flow through P2's badges + gate. No
+  new schema.
+- **#36 — #32 phase 4 of 5: explainability.** Pure `rankCandidates(state,
+  positionId, {exclude})` (3 more engine tests) returns the rule-passing
+  substitutes for a slot — score, "why", level, and count-this-month workload —
+  evaluated with the replaced person removed. UI: a **Replace…** action on every
+  assignment opens a ranked `ReplaceDialog` (`replace-dialog.tsx`), top flagged
+  "Suggested", with per-candidate workload so balance is visible while editing.
+- **#37 — #32 phase 5 of 5: decline → re-suggest (epic complete).** A declined
+  assignment's **Find replacement** now opens the engine-ranked `ReplaceDialog`
+  (decline reason shown, best substitute flagged "Suggested"); picking inserts a
+  `pending` request. The accept/decline-by-email loop itself is the existing
+  Phase-3 flow (`send-requests`/`respond-to-request`/`/respond/:token`) — P5 only
+  feeds declines into the engine's suggestions. **#32 epic done; no new schema.**
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 
@@ -131,14 +168,14 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
 - **#7** — review keyboard shortcuts throughout the app.
 - **#9** — add a rehearsal workflow.
 
-**Schema since Phase 4:** migrations 0006–0014 in `supabase/migrations/`
+**Schema since Phase 4:** migrations 0006–0015 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
 scheduling fields + `service_type_teams`; backfill+drop `teams.service_type_id`
 onto that join; add `church_settings.address`; add `song_arrangements` +
 backfill Default per song + drop `songs.default_key`/`bpm`; add
 `proficiency_level` enum + `team_member_positions.proficiency`;
 `service_type_teams.sort_order`; scheduling-rules tables + position requirement
-columns). New Edge Functions:
+columns; `publish_overrides` audit table). New Edge Functions:
 `cancel-assignment`, `send-plan-notification`. Regenerate
 `src/types/database.ts` from the local stack after pulling.
 
