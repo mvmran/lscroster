@@ -69,6 +69,7 @@ import {
   resultsByPosition,
   usePlanValidation,
 } from '@/features/scheduling/use-service-state'
+import { SuggestRosterButton } from '@/features/scheduling/auto-schedule-dialog'
 import { RuleBadges } from '@/features/scheduling/validation-badges'
 import type { PlanWithType } from '@/features/services/use-plans'
 
@@ -418,15 +419,20 @@ export function SchedulingPanel({
             <CardTitle>People</CardTitle>
             <CardDescription>Who's serving on this plan.</CardDescription>
           </div>
-          {canManage && unsentCount > 0 && (
-            <Button size="sm" onClick={send} disabled={sendRequests.isPending}>
-              {sendRequests.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Send className="size-4" />
+          {canManage && (
+            <div className="flex items-center gap-2">
+              <SuggestRosterButton plan={plan} />
+              {unsentCount > 0 && (
+                <Button size="sm" onClick={send} disabled={sendRequests.isPending}>
+                  {sendRequests.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Send className="size-4" />
+                  )}
+                  Send {unsentCount} request{unsentCount === 1 ? '' : 's'}
+                </Button>
               )}
-              Send {unsentCount} request{unsentCount === 1 ? '' : 's'}
-            </Button>
+            </div>
           )}
         </div>
       </CardHeader>

@@ -94,6 +94,81 @@ export function useSchedulingRulesData(): SchedulingRulesData {
 }
 
 /**
+ * Per-person rule context, indexed by person id. Shared by the validator
+ * (assigned people) and the auto-scheduler (every eligible candidate) so both
+ * read identical eligibility / availability / history semantics.
+ */
+export interface PersonContextMaps {
+  eligibility: Map<string, Record<string, ValidationProficiency>>
+  prefs: Map<string, NonNullable<SchedulingRulesData['data']['prefs']>[number]>
+  blockouts: Map<string, { start: string; end: string }[]>
+  recurring: Map<string, { weekOfMonth: number | null; weekday: number }[]>
+  /** Other (non-declined) service dates, excluding `excludePlanId`. */
+  history: Map<string, { date: string; serviceTypeId: string }[]>
+}
+
+export function buildPersonContextMaps(
+  data: SchedulingRulesData['data'],
+  excludePlanId: string,
+): PersonContextMaps {
+  const eligibility = new Map<string, Record<string, ValidationProficiency>>()
+  for (const m of data.members ?? []) {
+    const rec = eligibility.get(m.person_id) ?? {}
+    for (const tp of m.team_member_positions) rec[tp.position_id] = tp.proficiency
+    eligibility.set(m.person_id, rec)
+  }
+
+  const prefs = new Map((data.prefs ?? []).map((p) => [p.person_id, p]))
+
+  const blockouts = new Map<string, { start: string; end: string }[]>()
+  for (const b of data.blockouts ?? []) {
+    const arr = blockouts.get(b.person_id) ?? []
+    arr.push({ start: b.start_date, end: b.end_date })
+    blockouts.set(b.person_id, arr)
+  }
+
+  const recurring = new Map<string, { weekOfMonth: number | null; weekday: number }[]>()
+  for (const r of data.recurring ?? []) {
+    const arr = recurring.get(r.person_id) ?? []
+    arr.push({ weekOfMonth: r.week_of_month, weekday: r.weekday })
+    recurring.set(r.person_id, arr)
+  }
+
+  // History excludes this plan (the consumer re-adds it as "this service").
+  const history = new Map<string, { date: string; serviceTypeId: string }[]>()
+  for (const row of data.history ?? []) {
+    if (row.plan_id === excludePlanId || !row.plans) continue
+    const arr = history.get(row.person_id) ?? []
+    arr.push({ date: row.plans.date, serviceTypeId: row.plans.service_type_id })
+    history.set(row.person_id, arr)
+  }
+
+  return { eligibility, prefs, blockouts, recurring, history }
+}
+
+/** Assemble one person's full rule context from the maps. */
+export function makeValidationPerson(
+  maps: PersonContextMaps,
+  id: string,
+  name: string,
+): ValidationPerson {
+  const prefs = maps.prefs.get(id)
+  return {
+    id,
+    name,
+    status: prefs?.status ?? 'active',
+    minGapDays: prefs?.min_gap_days ?? 0,
+    maxPerMonth: prefs?.max_per_month ?? null,
+    targetPerMonth: prefs?.target_per_month ?? null,
+    maxConsecutive: prefs?.max_consecutive ?? null,
+    eligibility: maps.eligibility.get(id) ?? {},
+    blockouts: maps.blockouts.get(id) ?? [],
+    recurringUnavailability: maps.recurring.get(id) ?? [],
+    history: maps.history.get(id) ?? [],
+  }
+}
+
+/**
  * Build a {@link ServiceState} for one plan from its assignments + the shared
  * data, and run the validator. Pure given its inputs — usable in a loop (matrix)
  * without breaking the rules of hooks.
@@ -128,58 +203,13 @@ export function buildPlanValidation(
     status: a.status,
   }))
 
-  // Eligibility: person → positionId → level, merged across memberships.
-  const eligibilityByPerson = new Map<string, Record<string, ValidationProficiency>>()
-  for (const m of data.members ?? []) {
-    const rec = eligibilityByPerson.get(m.person_id) ?? {}
-    for (const tp of m.team_member_positions) rec[tp.position_id] = tp.proficiency
-    eligibilityByPerson.set(m.person_id, rec)
-  }
-
-  const prefsByPerson = new Map((data.prefs ?? []).map((p) => [p.person_id, p]))
-
-  const blockoutsByPerson = new Map<string, { start: string; end: string }[]>()
-  for (const b of data.blockouts ?? []) {
-    const arr = blockoutsByPerson.get(b.person_id) ?? []
-    arr.push({ start: b.start_date, end: b.end_date })
-    blockoutsByPerson.set(b.person_id, arr)
-  }
-
-  const recurringByPerson = new Map<string, { weekOfMonth: number | null; weekday: number }[]>()
-  for (const r of data.recurring ?? []) {
-    const arr = recurringByPerson.get(r.person_id) ?? []
-    arr.push({ weekOfMonth: r.week_of_month, weekday: r.weekday })
-    recurringByPerson.set(r.person_id, arr)
-  }
-
-  // History excludes this plan (validateService re-adds it as "this service").
-  const historyByPerson = new Map<string, { date: string; serviceTypeId: string }[]>()
-  for (const row of data.history ?? []) {
-    if (row.plan_id === plan.id || !row.plans) continue
-    const arr = historyByPerson.get(row.person_id) ?? []
-    arr.push({ date: row.plans.date, serviceTypeId: row.plans.service_type_id })
-    historyByPerson.set(row.person_id, arr)
-  }
-
+  const maps = buildPersonContextMaps(data, plan.id)
   const nameById = new Map(planAssignments.map((a) => [a.person_id, fullName(a.people)]))
 
   const assignedIds = [...new Set(assignments.map((a) => a.personId))]
-  const people: ValidationPerson[] = assignedIds.map((id) => {
-    const prefs = prefsByPerson.get(id)
-    return {
-      id,
-      name: nameById.get(id) ?? 'Someone',
-      status: prefs?.status ?? 'active',
-      minGapDays: prefs?.min_gap_days ?? 0,
-      maxPerMonth: prefs?.max_per_month ?? null,
-      targetPerMonth: prefs?.target_per_month ?? null,
-      maxConsecutive: prefs?.max_consecutive ?? null,
-      eligibility: eligibilityByPerson.get(id) ?? {},
-      blockouts: blockoutsByPerson.get(id) ?? [],
-      recurringUnavailability: recurringByPerson.get(id) ?? [],
-      history: historyByPerson.get(id) ?? [],
-    }
-  })
+  const people: ValidationPerson[] = assignedIds.map((id) =>
+    makeValidationPerson(maps, id, nameById.get(id) ?? 'Someone'),
+  )
 
   const state: ServiceState = {
     service: { id: plan.id, date: plan.date, serviceTypeId: plan.service_type_id },
