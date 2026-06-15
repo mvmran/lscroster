@@ -84,6 +84,17 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   flatten the Default's key/BPM back onto the song so plan/list/picker readers
   are unchanged; `send-plan-notification` reads key/BPM from the Default
   arrangement.
+- **#25** — **Media frame with a Lyrics Sheet**: a Media card on the plan
+  screen (between Times and Attachments) renders a formatted lyrics sheet for
+  the songs in the order of service — title, the Key/BPM/Meter from the song's
+  Default arrangement, then its lyrics — in setlist order, updating when the
+  setlist is reordered. Derived from `plan_items` + `useSongs` via
+  `buildLyricsSheet()`; the Default arrangement's meter was added to the
+  flattened `Song`. UI-only, no schema change.
+- **#26** — **Print the lyrics sheet as a two-column PDF**: a Print button on
+  the Media frame exports the sheet via a hand-rolled column-flow layout in
+  jsPDF (lazy-loaded), file named `LyricsSheet-<ServiceName>-<YYYYMMDD>.pdf`.
+  UI-only.
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 
