@@ -6,6 +6,15 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Auto-scheduler ("Suggest roster")** — the plan's People panel can now
+  auto-fill its required spots from the scheduling rules. A deterministic engine
+  fills scarce/specialist positions first, only picks people who pass every hard
+  rule (eligibility, required level, availability, not already serving, team
+  exclusions, hard-avoid pairs, and serving-frequency limits), and prefers those
+  who've served least recently. It **previews** the suggestions (each with a
+  short "why") and any spots it couldn't fill before you **add them as an
+  editable draft** — which still runs through the live badges and publish gate.
+  No black box: same inputs always give the same roster ([#35], part of [#32]).
 - **Scheduling-rules validation & publish gate** — a plan now checks its roster
   against the scheduling rules live as you schedule people: red error / amber
   warning badges appear on positions and people in the **People** panel and the
@@ -184,3 +193,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#31]: https://github.com/mvmran/lscroster/issues/31
 [#32]: https://github.com/mvmran/lscroster/issues/32
 [#34]: https://github.com/mvmran/lscroster/issues/34
+[#35]: https://github.com/mvmran/lscroster/issues/35

@@ -133,6 +133,19 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   `min_count` (TRAINEE_UNSUPERVISED only when a team is all-trainees);
   MULTI_POSITION always hard-errors; `BELOW_REQUIRED_LEVEL` folds into
   `NO_REQUIRED_LEVEL` while proficiency has two levels. **No engine yet** (P3–P5).
+- **#35 — #32 phase 3 of 5: auto-scheduler engine → editable draft.** Pure,
+  deterministic `autoSchedule(state)` in `auto-scheduler.ts` (11 Vitest tests):
+  expands unfilled `min_count` slots, fills scarcest/`fill_priority` first,
+  builds each pool from the **hard** constraints (eligibility, required-level
+  coverage, availability, active status, no multi-position, team exclusions,
+  hard-avoid, and **cadence as hard** per spec Q1), scores by recency/load/
+  preferred-pair, and reports unfilled slots with the blocking reason. Hydrated
+  by `useAutoScheduler` (`use-auto-scheduler.ts`) over every eligible team member
+  (the validator's per-person context maps were extracted in `use-service-state.ts`
+  and shared). UI: a **"Suggest roster"** button + preview dialog
+  (`auto-schedule-dialog.tsx`) on the plan People panel; Apply writes the
+  suggestions as `pending` assignments that flow through P2's badges + gate. No
+  new schema. **P4 (explainability) and P5 (confirm/decline email) remain.**
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 
