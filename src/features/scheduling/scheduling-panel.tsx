@@ -551,10 +551,14 @@ export function SchedulingPanel({
                                       {assignment.status === 'declined' && (
                                         <DropdownMenuItem
                                           onClick={() =>
-                                            setPicker({
+                                            setReplaceTarget({
+                                              assignmentId: assignment.id,
+                                              personId: assignment.person_id,
+                                              personName: fullName(assignment.people),
                                               team,
                                               position,
-                                              replaceAssignmentId: assignment.id,
+                                              declined: true,
+                                              declineReason: assignment.decline_reason,
                                             })
                                           }
                                         >
