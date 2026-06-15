@@ -70,7 +70,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { useSendPlanNotification } from '@/features/scheduling/use-assignments'
 import { SchedulingPanel } from '@/features/scheduling/scheduling-panel'
-import { PlanAttachmentsCard, PlanTimesCard } from '@/features/services/plan-extras-cards'
+import {
+  PlanAttachmentsCard,
+  PlanMediaCard,
+  PlanTimesCard,
+} from '@/features/services/plan-extras-cards'
 import { PlanItemDialog, type PlanItemDialogState } from '@/features/services/plan-item-dialog'
 import {
   computeItemTimes,
@@ -748,6 +752,7 @@ export function PlanPage() {
       <SchedulingPanel plan={plan} canManage={canManage} />
 
       <PlanTimesCard planId={plan.id} canManage={canManage} />
+      <PlanMediaCard planId={plan.id} canManage={canManage} />
       <PlanAttachmentsCard planId={plan.id} canManage={canManage} />
 
       <NotesCard key={plan.notes ?? ''} plan={plan} canManage={canManage} />

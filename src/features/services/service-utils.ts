@@ -6,13 +6,15 @@ export type PlanItem = Tables<'plan_items'>
 export type ServiceType = Tables<'service_types'>
 export type SongArrangement = Tables<'song_arrangements'>
 /**
- * A library song with its Default arrangement's key/BPM flattened on (issue #24
- * moved key/BPM onto arrangements). Keeping these here lets the songs list,
- * picker and plan readers keep using `song.default_key` / `song.bpm` unchanged.
+ * A library song with its Default arrangement's key/BPM/meter flattened on
+ * (issue #24 moved these onto arrangements). Keeping them here lets the songs
+ * list, picker and plan readers keep using `song.default_key` / `song.bpm`
+ * unchanged; `meter` joined them for the lyrics sheet (issue #25).
  */
 export type Song = Tables<'songs'> & {
   default_key: string | null
   bpm: number | null
+  meter: string | null
 }
 export type PlanItemKind = Enums<'plan_item_kind'>
 
@@ -184,6 +186,59 @@ export function songSearchLinks(title: string, author?: string | null) {
     chords: `https://www.ultimate-guitar.com/search.php?search_type=title&value=${q}`,
     listen: `https://www.youtube.com/results?search_query=${q}`,
   }
+}
+
+/**
+ * One song's entry on a plan's lyrics sheet (issue #25). Key/BPM/meter come
+ * from the song's Default arrangement (already flattened onto `Song`); the
+ * lyrics come from the song itself.
+ */
+export interface LyricsSheetEntry {
+  songItemId: string
+  title: string
+  key: string | null
+  bpm: number | null
+  meter: string | null
+  lyrics: string | null
+}
+
+/**
+ * The lyrics sheet for a plan: every song in the order of service, in setlist
+ * order, so reordering the setlist reorders the sheet for free. `songById` maps
+ * a song id to the flattened library song (from `useSongs`).
+ */
+export function buildLyricsSheet(
+  items: PlanItem[],
+  songById: Map<string, Song>,
+): LyricsSheetEntry[] {
+  return items
+    .filter((i) => i.kind === 'song')
+    .map((i) => {
+      const song = i.song_id ? songById.get(i.song_id) : undefined
+      return {
+        songItemId: i.id,
+        title: song?.title ?? i.title,
+        key: song?.default_key ?? null,
+        bpm: song?.bpm ?? null,
+        meter: song?.meter ?? null,
+        lyrics: song?.lyrics ?? null,
+      }
+    })
+}
+
+/** "Key G  ·  72 BPM  ·  4/4" from an entry, or '' when none are set. */
+export function lyricsSheetMeta(entry: {
+  key: string | null
+  bpm: number | null
+  meter: string | null
+}): string {
+  return [
+    entry.key ? `Key ${entry.key}` : null,
+    entry.bpm ? `${entry.bpm} BPM` : null,
+    entry.meter ? entry.meter : null,
+  ]
+    .filter(Boolean)
+    .join('  ·  ')
 }
 
 /** Comma-separated tag input -> clean string[]. */

@@ -25,6 +25,11 @@ All notable changes to LSCRoster are recorded here. The format follows
   buttons, and the New Song dialog has a lyrics-search link, each opening a
   pre-filled search in a new tab. No results are pulled into the app and no
   lyrics are stored ([#22]).
+- **Media frame on a plan** with a **Lyrics Sheet** — the plan screen now has a
+  Media card (between Times and Attachments) showing a formatted lyrics sheet
+  for the songs in the order of service: each song's title, the Key/BPM/Meter
+  from its Default arrangement, then its lyrics. It follows the setlist order
+  and updates automatically when the setlist is reordered ([#25]).
 - **Song arrangements** — a song can now hold multiple **arrangements** in a
   tabbed section on its page, each with its own **Key**, **BPM** and a new
   **Meter** field. Every song has a **Default** arrangement (created
@@ -115,3 +120,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#21]: https://github.com/mvmran/lscroster/issues/21
 [#22]: https://github.com/mvmran/lscroster/issues/22
 [#24]: https://github.com/mvmran/lscroster/issues/24
+[#25]: https://github.com/mvmran/lscroster/issues/25

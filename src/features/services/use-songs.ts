@@ -13,17 +13,22 @@ export const songKeys = {
   arrangements: (songId: string) => ['song-arrangements', songId] as const,
 }
 
-const SONG_SELECT = '*, song_arrangements(song_key, bpm, is_default)'
+const SONG_SELECT = '*, song_arrangements(song_key, bpm, meter, is_default)'
 
 type SongWithArrangements = Tables<'songs'> & {
-  song_arrangements: Pick<SongArrangement, 'song_key' | 'bpm' | 'is_default'>[]
+  song_arrangements: Pick<SongArrangement, 'song_key' | 'bpm' | 'meter' | 'is_default'>[]
 }
 
-/** Flatten the embedded Default arrangement's key/BPM onto the song row (#24). */
+/** Flatten the embedded Default arrangement's key/BPM/meter onto the song row (#24/#25). */
 function flattenSong(row: SongWithArrangements): Song {
   const { song_arrangements, ...song } = row
   const def = song_arrangements.find((a) => a.is_default)
-  return { ...song, default_key: def?.song_key ?? null, bpm: def?.bpm ?? null }
+  return {
+    ...song,
+    default_key: def?.song_key ?? null,
+    bpm: def?.bpm ?? null,
+    meter: def?.meter ?? null,
+  }
 }
 
 export function useSongs() {
