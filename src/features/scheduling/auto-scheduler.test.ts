@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   autoSchedule,
+  rankCandidates,
   type EngineCandidate,
   type EnginePosition,
   type EngineState,
@@ -199,5 +200,57 @@ describe('autoSchedule', () => {
         ],
       })
     expect(autoSchedule(build())).toEqual(autoSchedule(build()))
+  })
+})
+
+describe('rankCandidates', () => {
+  it('ranks the rule-passing substitutes, excluding the named person', () => {
+    const ranked = rankCandidates(
+      state({
+        positions: [position({ id: 'pos-1' })],
+        candidates: [
+          candidate({ id: 'out', eligibility: { 'pos-1': 'qualified' } }),
+          candidate({ id: 'recent', eligibility: { 'pos-1': 'qualified' }, history: [{ date: '2026-06-28', serviceTypeId: SVC }] }),
+          candidate({ id: 'rusty', eligibility: { 'pos-1': 'qualified' }, history: [{ date: '2026-01-04', serviceTypeId: SVC }] }),
+        ],
+        existingAssignments: [{ personId: 'out', positionId: 'pos-1', teamId: 'team-1' }],
+      }),
+      'pos-1',
+      { exclude: ['out'] },
+    )
+    expect(ranked.map((r) => r.personId)).toEqual(['rusty', 'recent'])
+    expect(ranked[0]).toMatchObject({ level: 'qualified', monthCount: 0 })
+  })
+
+  it('omits unavailable / over-limit people from the substitutes', () => {
+    const ranked = rankCandidates(
+      state({
+        positions: [position({ id: 'pos-1' })],
+        candidates: [
+          candidate({ id: 'free', eligibility: { 'pos-1': 'qualified' } }),
+          candidate({ id: 'away', eligibility: { 'pos-1': 'qualified' }, blockouts: [{ start: SUNDAY, end: SUNDAY }] }),
+        ],
+      }),
+      'pos-1',
+    )
+    expect(ranked.map((r) => r.personId)).toEqual(['free'])
+  })
+
+  it('restricts to qualified when replacing the only qualified in a required-level slot', () => {
+    const ranked = rankCandidates(
+      state({
+        positions: [position({ id: 'pos-1', requiresLevel: 'qualified' })],
+        candidates: [
+          candidate({ id: 'pro', eligibility: { 'pos-1': 'qualified' } }),
+          candidate({ id: 'sub', eligibility: { 'pos-1': 'qualified' } }),
+          candidate({ id: 'trainee', eligibility: { 'pos-1': 'trainee' } }),
+        ],
+        existingAssignments: [{ personId: 'pro', positionId: 'pos-1', teamId: 'team-1' }],
+      }),
+      'pos-1',
+      { exclude: ['pro'] },
+    )
+    // 'sub' qualifies; the trainee is filtered out because the slot now needs a qualified person
+    expect(ranked.map((r) => r.personId)).toEqual(['sub'])
   })
 })

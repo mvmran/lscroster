@@ -6,6 +6,7 @@ import {
   Mail,
   MoreHorizontal,
   Plus,
+  Repeat,
   Send,
   Trash2,
   UserPlus,
@@ -70,6 +71,7 @@ import {
   usePlanValidation,
 } from '@/features/scheduling/use-service-state'
 import { SuggestRosterButton } from '@/features/scheduling/auto-schedule-dialog'
+import { ReplaceDialog, type ReplaceTarget } from '@/features/scheduling/replace-dialog'
 import { RuleBadges } from '@/features/scheduling/validation-badges'
 import type { PlanWithType } from '@/features/services/use-plans'
 
@@ -325,6 +327,7 @@ export function SchedulingPanel({
   const cancelAssignment = useCancelAssignment(plan.id)
   const sendRequests = useSendRequests(plan.id)
   const [picker, setPicker] = useState<PickerTarget | null>(null)
+  const [replaceTarget, setReplaceTarget] = useState<ReplaceTarget | null>(null)
 
   // Live scheduling-rules validation (issue #34) — badges update on every edit.
   const validation = usePlanValidation(plan)
@@ -559,6 +562,22 @@ export function SchedulingPanel({
                                           Find replacement
                                         </DropdownMenuItem>
                                       )}
+                                      {assignment.status !== 'declined' && (
+                                        <DropdownMenuItem
+                                          onClick={() =>
+                                            setReplaceTarget({
+                                              assignmentId: assignment.id,
+                                              personId: assignment.person_id,
+                                              personName: fullName(assignment.people),
+                                              team,
+                                              position,
+                                            })
+                                          }
+                                        >
+                                          <Repeat className="size-4" />
+                                          Replace…
+                                        </DropdownMenuItem>
+                                      )}
                                       {assignment.status !== 'declined' &&
                                         assignment.people.email && (
                                           <DropdownMenuItem
@@ -611,6 +630,12 @@ export function SchedulingPanel({
         target={picker}
         onClose={() => setPicker(null)}
         assignments={assignments ?? []}
+      />
+
+      <ReplaceDialog
+        plan={plan}
+        target={replaceTarget}
+        onClose={() => setReplaceTarget(null)}
       />
     </Card>
   )

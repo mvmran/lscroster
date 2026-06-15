@@ -11,10 +11,12 @@ import {
 import { teamServesType } from '@/features/scheduling/use-teams'
 import {
   autoSchedule,
+  rankCandidates,
   type EngineCandidate,
   type EnginePosition,
   type EngineResult,
   type EngineState,
+  type RankedCandidate,
   type Suggestion,
 } from '@/features/scheduling/auto-scheduler'
 import type { SchedulingRulesData } from '@/features/scheduling/use-service-state'
@@ -124,6 +126,9 @@ export function useAutoScheduler(plan: PlanWithType | undefined) {
     /** Any serving position has a mandatory minimum — auto-fill has work to do. */
     hasMandatory: !!state && state.positions.some((p) => p.minCount >= 1),
     suggest: (): EngineResult => (state ? autoSchedule(state) : EMPTY_RESULT),
+    /** Ranked substitutes for a position (replace / re-suggest), P4/P5. */
+    rank: (positionId: string, exclude?: string[]): RankedCandidate[] =>
+      state ? rankCandidates(state, positionId, { exclude }) : [],
     apply,
   }
 }

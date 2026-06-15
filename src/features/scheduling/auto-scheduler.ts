@@ -111,6 +111,11 @@ interface WorkingAssignment {
 
 const sameMonth = (a: string, b: string) => a.slice(0, 7) === b.slice(0, 7)
 
+/** Everyone set up for a position (has an eligibility row for it). */
+function eligibleFor(state: EngineState, pos: EnginePosition): EngineCandidate[] {
+  return state.candidates.filter((c) => pos.id in c.eligibility)
+}
+
 /** Services this person already serves in the plan's month (history only). */
 function monthCount(person: EngineCandidate, date: string): number {
   return person.history.filter((h) => sameMonth(h.date, date)).length
@@ -254,14 +259,11 @@ export function autoSchedule(
     pos: EnginePosition
     poolSize: number
   }
-  const eligibleFor = (pos: EnginePosition) =>
-    state.candidates.filter((c) => pos.id in c.eligibility)
-
   const slots: Slot[] = []
   for (const pos of state.positions) {
     const filled = roster.filter((r) => r.positionId === pos.id).length
     const needed = Math.max(0, pos.minCount - filled)
-    const poolSize = eligibleFor(pos).length
+    const poolSize = eligibleFor(state, pos).length
     for (let i = 0; i < needed; i++) slots.push({ pos, poolSize })
   }
 
@@ -287,7 +289,7 @@ export function autoSchedule(
     // Candidate pool: everyone eligible who passes every hard constraint.
     const rejections = new Set<string>()
     const pool: { person: EngineCandidate; score: number; reason: string }[] = []
-    for (const person of eligibleFor(pos)) {
+    for (const person of eligibleFor(state, pos)) {
       const reject = rejectionReason(person, pos, state, roster, needsQualified)
       if (reject) {
         rejections.add(reject)
@@ -298,7 +300,7 @@ export function autoSchedule(
 
     if (pool.length === 0) {
       const why =
-        eligibleFor(pos).length === 0
+        eligibleFor(state, pos).length === 0
           ? `No one is set up for ${pos.name}`
           : REASON_TEXT[[...rejections][0]] ?? 'No one is available'
       unfilled.push({
@@ -331,4 +333,59 @@ export function autoSchedule(
   }
 
   return { suggestions, unfilled }
+}
+
+export interface RankedCandidate {
+  personId: string
+  personName: string
+  /** The level this person fills the position at. */
+  level: ValidationProficiency
+  score: number
+  /** Short "why this person". */
+  reason: string
+  /** Services this person already serves in the plan's month (workload). */
+  monthCount: number
+}
+
+/**
+ * Rank the eligible, rule-passing substitutes for one position — the data behind
+ * explainability, the "replace" menu, and decline re-suggestions (P4/P5). Same
+ * hard constraints and scoring as the auto-fill, evaluated against the roster
+ * with `exclude`d people removed (e.g. the person being replaced). Highest score
+ * first; deterministic tiebreak by id.
+ */
+export function rankCandidates(
+  state: EngineState,
+  positionId: string,
+  options: { exclude?: string[]; weights?: ScoringWeights } = {},
+): RankedCandidate[] {
+  const pos = state.positions.find((p) => p.id === positionId)
+  if (!pos) return []
+  const exclude = new Set(options.exclude ?? [])
+  const weights = options.weights ?? DEFAULT_WEIGHTS
+  const candidateById = new Map(state.candidates.map((c) => [c.id, c]))
+
+  const roster: WorkingAssignment[] = state.existingAssignments
+    .filter((a) => !exclude.has(a.personId))
+    .map((a) => ({ ...a, level: candidateById.get(a.personId)?.eligibility[a.positionId] }))
+
+  const hasQualified = roster.some((r) => r.positionId === pos.id && r.level === 'qualified')
+  const needsQualified = pos.requiresLevel === 'qualified' && !hasQualified
+
+  const ranked: RankedCandidate[] = []
+  for (const person of eligibleFor(state, pos)) {
+    if (exclude.has(person.id)) continue
+    if (rejectionReason(person, pos, state, roster, needsQualified)) continue
+    const { score, reason } = scoreCandidate(person, state, roster, weights)
+    ranked.push({
+      personId: person.id,
+      personName: person.name,
+      level: person.eligibility[pos.id],
+      score,
+      reason,
+      monthCount: monthCount(person, state.service.date),
+    })
+  }
+  ranked.sort((a, b) => b.score - a.score || a.personId.localeCompare(b.personId))
+  return ranked
 }
