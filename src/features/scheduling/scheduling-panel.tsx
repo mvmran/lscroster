@@ -58,6 +58,7 @@ import {
 } from '@/features/scheduling/use-assignments'
 import { useBlockouts } from '@/features/scheduling/use-blockouts'
 import {
+  serviceTypeTeamSort,
   teamServesType,
   useAllPositions,
   useAllTeamMembers,
@@ -320,7 +321,14 @@ export function SchedulingPanel({
   const [picker, setPicker] = useState<PickerTarget | null>(null)
 
   const planTeams = useMemo(
-    () => (teams ?? []).filter((t) => teamServesType(t, plan.service_type_id)),
+    () =>
+      (teams ?? [])
+        .filter((t) => teamServesType(t, plan.service_type_id))
+        .sort(
+          (a, b) =>
+            serviceTypeTeamSort(a, plan.service_type_id) -
+            serviceTypeTeamSort(b, plan.service_type_id),
+        ),
     [teams, plan.service_type_id],
   )
 

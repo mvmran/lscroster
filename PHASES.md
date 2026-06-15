@@ -105,6 +105,22 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   picker flags trainees. Foundation for the auto-scheduling epic — the engine
   itself is **not** built. We extended the existing join rather than adding the
   spec's separate `position_eligibility` table, to keep one source of truth.
+- **#31** — **Order a service type's required teams**: `service_type_teams`
+  gains a `sort_order` (migration 0013, seeded from the team's global order); the
+  add/edit service-type dialog reorders the required-teams list, and a plan's
+  People section orders teams by it (`serviceTypeTeamSort`). Serve-all teams (no
+  join rows) fall after the explicitly-ordered ones.
+- **#32 (phase 1 of 5)** — **Scheduling rules storage + UI**, the foundation for
+  auto-scheduling. Migration 0014 adds `person_scheduling_prefs`,
+  `person_recurring_unavailability`, `person_pairings`, `team_exclusions` and
+  position requirement columns (`min_count`/`max_count`/`requires_level`/
+  `fill_priority`); one-off unavailability reuses the existing `blockout_dates`.
+  UI: a person-page "Scheduling rules" card (prefs + recurring unavailability +
+  serve-with pairings), a Teams-screen team-exclusions dialog, and per-position
+  requirement editing on the team page. **No validator and no engine yet** —
+  those are spec phases P2–P5 (P2 = shared `validateService` + publish gate is
+  the keystone; P3 engine; P4 explainability; P5 confirm/decline email). Kept
+  proficiency at two levels (`requires_level` allows `qualified` only).
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 
@@ -115,12 +131,14 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
 - **#7** — review keyboard shortcuts throughout the app.
 - **#9** — add a rehearsal workflow.
 
-**Schema since Phase 4:** migrations 0006–0012 in `supabase/migrations/`
+**Schema since Phase 4:** migrations 0006–0014 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
 scheduling fields + `service_type_teams`; backfill+drop `teams.service_type_id`
 onto that join; add `church_settings.address`; add `song_arrangements` +
 backfill Default per song + drop `songs.default_key`/`bpm`; add
-`proficiency_level` enum + `team_member_positions.proficiency`). New Edge Functions:
+`proficiency_level` enum + `team_member_positions.proficiency`;
+`service_type_teams.sort_order`; scheduling-rules tables + position requirement
+columns). New Edge Functions:
 `cancel-assignment`, `send-plan-notification`. Regenerate
 `src/types/database.ts` from the local stack after pulling.
 

@@ -6,7 +6,7 @@ import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 export type TeamWithCounts = Tables<'teams'> & {
   positions: { count: number }[]
   team_members: { count: number }[]
-  service_type_teams: { service_type_id: string }[]
+  service_type_teams: { service_type_id: string; sort_order: number }[]
 }
 
 /** A team plus the ids of the service types it serves. */
@@ -26,6 +26,21 @@ export function teamServesType(
     team.service_type_teams.length === 0 ||
     team.service_type_teams.some((st) => st.service_type_id === serviceTypeId)
   )
+}
+
+/**
+ * Sort key for a team within a service type's plan (issue #31): explicitly
+ * required teams use their per-service-type `sort_order`; teams that serve all
+ * service types (no join rows) fall after them, keeping their global order.
+ */
+export function serviceTypeTeamSort(
+  team: TeamWithCounts,
+  serviceTypeId: string,
+): number {
+  const join = team.service_type_teams.find(
+    (st) => st.service_type_id === serviceTypeId,
+  )
+  return join ? join.sort_order : 1_000_000 + team.sort_order
 }
 
 export type TeamMemberWithPerson = Tables<'team_members'> & {
@@ -63,7 +78,7 @@ export function useTeams() {
       const { data, error } = await supabase
         .from('teams')
         .select(
-          '*, positions(count), team_members(count), service_type_teams(service_type_id)',
+          '*, positions(count), team_members(count), service_type_teams(service_type_id, sort_order)',
         )
         .order('sort_order')
         .order('name')

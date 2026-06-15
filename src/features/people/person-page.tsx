@@ -56,6 +56,7 @@ import {
   useUpdatePerson,
 } from '@/features/people/use-people'
 import { usePhotoUrl, useUploadPhoto } from '@/features/people/use-photos'
+import { PersonSchedulingCard } from '@/features/scheduling/person-scheduling-card'
 import { PersonTeamsCard } from '@/features/scheduling/person-teams-card'
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024
@@ -250,6 +251,8 @@ export function PersonPage() {
       </Card>
 
       <PersonTeamsCard personId={p.id} canManage={isAdmin || isLeader} />
+
+      {(isAdmin || isLeader) && <PersonSchedulingCard personId={p.id} />}
 
       {/* Notes — admins and leaders only */}
       {(isAdmin || isLeader) && p.notes && (

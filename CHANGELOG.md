@@ -6,6 +6,19 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Scheduling rules** (foundation for auto-scheduling) — per-person
+  **preferences** (how often they serve, max/target per month, max in a row,
+  scheduling status), **recurring unavailability** (e.g. every 1st Sunday,
+  alongside the existing one-off blockouts), and **serve-with pairings**
+  (prefer / avoid / household, each soft or strict) on the person page;
+  **team exclusions** (teams that can't share a person in one service) from the
+  Teams screen; and per-**position requirements** (minimum/maximum people,
+  whether it needs a qualified person, and fill priority) on the team page. This
+  ships the rule **storage and editing UI only** — the validator and
+  auto-scheduler are later phases ([#32]).
+- **Ordering of a service type's required teams** — the "Teams required" list on
+  the add/edit service type screen can be reordered, and a plan shows its teams
+  in that order ([#31]).
 - **Skills & eligibility** — each position a team member can fill now carries a
   **proficiency level** (Qualified or Trainee). On the team page, tap a member's
   position pill to toggle the level, and each position shows an "eligible people"
@@ -127,6 +140,18 @@ All notable changes to LSCRoster are recorded here. The format follows
   automatically via `supabase db push`; no manual data steps, no new RLS (the
   column inherits the table's existing admin/leader-write policy), and no emails
   or links change.
+- Migration `20260615110000_service_type_team_order` (#31) adds a `sort_order`
+  column to `service_type_teams` and **seeds it from each team's global order**
+  so existing service types keep their current display order. Applies
+  automatically via `supabase db push`; no manual steps.
+- Migration `20260615120000_scheduling_rules` (#32) adds the
+  `scheduling_status` / `pairing_kind` / `pairing_strength` enums; the
+  `person_scheduling_prefs`, `person_recurring_unavailability`,
+  `person_pairings` and `team_exclusions` tables (admin/leader-write RLS); and
+  `min_count` / `max_count` / `requires_level` / `fill_priority` columns on
+  `positions`. One-off unavailability continues to use the existing
+  `blockout_dates`. Additive only — applies automatically via
+  `supabase db push`; no manual steps and no emails or links change.
 
 [#1]: https://github.com/mvmran/lscroster/issues/1
 [#2]: https://github.com/mvmran/lscroster/issues/2
@@ -148,3 +173,5 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#26]: https://github.com/mvmran/lscroster/issues/26
 [#29]: https://github.com/mvmran/lscroster/issues/29
 [#30]: https://github.com/mvmran/lscroster/issues/30
+[#31]: https://github.com/mvmran/lscroster/issues/31
+[#32]: https://github.com/mvmran/lscroster/issues/32

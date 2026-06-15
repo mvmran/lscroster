@@ -5,6 +5,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  SlidersHorizontal,
   Trash2,
   UserPlus,
   UsersRound,
@@ -49,12 +50,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { fullName } from '@/features/people/person-utils'
 import { usePeople } from '@/features/people/use-people'
 import { PositionLevelPill } from '@/features/scheduling/position-level-pill'
 import { ServiceTypePicker } from '@/features/scheduling/service-type-picker'
-import { otherProficiency } from '@/features/scheduling/scheduling-utils'
+import { otherProficiency, type Position } from '@/features/scheduling/scheduling-utils'
 import {
   useDeleteTeam,
   useMembershipMutations,
@@ -84,6 +86,139 @@ function eligibleSummary(
   return { qualified, trainees }
 }
 
+/** One-line summary of a position's headcount/level requirements (issue #32). */
+function positionReqSummary(p: Position): string {
+  const parts: string[] = []
+  parts.push(
+    p.min_count >= 1
+      ? p.min_count === 1
+        ? 'Mandatory'
+        : `Needs ${p.min_count}`
+      : 'Optional',
+  )
+  if (p.max_count != null) parts.push(`max ${p.max_count}`)
+  if (p.requires_level === 'qualified') parts.push('needs a qualified person')
+  if (p.fill_priority !== 100) parts.push(`priority ${p.fill_priority}`)
+  return parts.join(' · ')
+}
+
+function PositionRequirementsDialog({
+  position,
+  onSave,
+  pending,
+  onClose,
+}: {
+  position: Position | null
+  onSave: (values: {
+    min_count: number
+    max_count: number | null
+    requires_level: 'qualified' | null
+    fill_priority: number
+  }) => void
+  pending: boolean
+  onClose: () => void
+}) {
+  const [minCount, setMinCount] = useState('0')
+  const [maxCount, setMaxCount] = useState('')
+  const [needsQualified, setNeedsQualified] = useState(false)
+  const [priority, setPriority] = useState('100')
+
+  // Seed when a position opens (set-state-during-render, like other dialogs).
+  const [seededFor, setSeededFor] = useState<string | null>(null)
+  if (position && seededFor !== position.id) {
+    setSeededFor(position.id)
+    setMinCount(String(position.min_count))
+    setMaxCount(position.max_count == null ? '' : String(position.max_count))
+    setNeedsQualified(position.requires_level === 'qualified')
+    setPriority(String(position.fill_priority))
+  }
+  if (!position && seededFor !== null) setSeededFor(null)
+
+  function save() {
+    const min = Number.parseInt(minCount, 10) || 0
+    const max = maxCount.trim() === '' ? null : Number.parseInt(maxCount, 10)
+    if (max != null && max < min) {
+      toast.error('Maximum must be at least the minimum')
+      return
+    }
+    onSave({
+      min_count: min,
+      max_count: max,
+      requires_level: needsQualified ? 'qualified' : null,
+      fill_priority: Number.parseInt(priority, 10) || 100,
+    })
+  }
+
+  return (
+    <Dialog open={!!position} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{position?.name} requirements</DialogTitle>
+          <DialogDescription>
+            How many people this position needs and the level required. Used by
+            roster warnings and auto-scheduling.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="pr-min">Minimum needed</Label>
+              <Input
+                id="pr-min"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={minCount}
+                onChange={(e) => setMinCount(e.target.value)}
+                className="w-28"
+              />
+              <p className="text-muted-foreground text-xs">0 = optional</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="pr-max">Maximum</Label>
+              <Input
+                id="pr-max"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={maxCount}
+                onChange={(e) => setMaxCount(e.target.value)}
+                placeholder="No limit"
+                className="w-28"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="pr-priority">Fill priority</Label>
+              <Input
+                id="pr-priority"
+                type="number"
+                inputMode="numeric"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                className="w-28"
+              />
+              <p className="text-muted-foreground text-xs">lower = fill first</p>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Switch checked={needsQualified} onCheckedChange={setNeedsQualified} />
+            Requires a qualified person (not just trainees)
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={pending}>
+            {pending && <Loader2 className="size-4 animate-spin" />}
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function PositionsCard({
   teamId,
   canManage,
@@ -96,6 +231,7 @@ function PositionsCard({
   const { create, update, remove } = usePositionMutations(teamId)
   const [newName, setNewName] = useState('')
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null)
+  const [reqDialog, setReqDialog] = useState<Position | null>(null)
 
   function addPosition() {
     const trimmed = newName.trim()
@@ -170,6 +306,15 @@ function PositionsCard({
                               variant="ghost"
                               size="icon"
                               className="size-8"
+                              onClick={() => setReqDialog(position)}
+                              aria-label={`${position.name} requirements`}
+                            >
+                              <SlidersHorizontal className="size-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
                               onClick={() =>
                                 setEditing({ id: position.id, name: position.name })
                               }
@@ -193,6 +338,11 @@ function PositionsCard({
                           </>
                         )}
                       </div>
+                      {canManage && (
+                        <p className="text-muted-foreground text-xs">
+                          {positionReqSummary(position)}
+                        </p>
+                      )}
                       <p className="text-muted-foreground text-xs">
                         {total === 0 ? (
                           'No one set up for this position yet.'
@@ -235,6 +385,22 @@ function PositionsCard({
           </form>
         )}
       </CardContent>
+
+      <PositionRequirementsDialog
+        position={reqDialog}
+        pending={update.isPending}
+        onClose={() => setReqDialog(null)}
+        onSave={(values) =>
+          reqDialog &&
+          update.mutate(
+            { id: reqDialog.id, values },
+            {
+              onSuccess: () => setReqDialog(null),
+              onError: (e) => toast.error(e.message),
+            },
+          )
+        }
+      />
     </Card>
   )
 }
