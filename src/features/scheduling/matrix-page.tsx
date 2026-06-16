@@ -1,7 +1,16 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
-import { AlertCircle, AlertTriangle, ArrowLeft, Loader2, Plus, Send, X } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  ArrowUpDown,
+  Loader2,
+  Plus,
+  Send,
+  X,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FullPageError } from '@/components/full-page-error'
@@ -45,7 +54,17 @@ import {
   useSchedulingRulesData,
 } from '@/features/scheduling/use-service-state'
 import { worstSeverity, type RuleResult } from '@/features/scheduling/validate-service'
-import { teamServesType, useAllPositions, useTeams } from '@/features/scheduling/use-teams'
+import { MatrixTeamOrderDialog } from '@/features/scheduling/matrix-team-order-dialog'
+import {
+  applyTeamOrder,
+  useMatrixTeamOrder,
+} from '@/features/scheduling/use-matrix-team-order'
+import {
+  serviceTypeTeamSort,
+  teamServesType,
+  useAllPositions,
+  useTeams,
+} from '@/features/scheduling/use-teams'
 import { supabase } from '@/lib/supabase'
 import { splitUpcomingPast, usePlans, type PlanWithType } from '@/features/services/use-plans'
 
@@ -243,6 +262,30 @@ export function MatrixPage() {
 
   const [typeFilter, setTypeFilter] = useState('all')
   const [picker, setPicker] = useState<(PickerTarget & { plan: PlanWithType }) | null>(null)
+  const [orderOpen, setOrderOpen] = useState(false)
+  const { order, saveOrder } = useMatrixTeamOrder()
+
+  // Team section order (issue #33). A single service type uses the per-type
+  // order from #31 (matching the plan page); the "All" view uses the user's
+  // personal saved order (localStorage, per login).
+  const sortedTeams = useMemo(() => {
+    const list = teams ?? []
+    if (typeFilter !== 'all') {
+      return [...list].sort(
+        (a, b) =>
+          serviceTypeTeamSort(a, typeFilter) - serviceTypeTeamSort(b, typeFilter) ||
+          a.name.localeCompare(b.name),
+      )
+    }
+    return applyTeamOrder(list, order)
+  }, [teams, typeFilter, order])
+
+  // Teams that actually render in the Matrix (have ≥1 position) — the reorder
+  // popup lists exactly these, in the current effective order.
+  const reorderableTeams = useMemo(
+    () => sortedTeams.filter((t) => (positions ?? []).some((p) => p.team_id === t.id)),
+    [sortedTeams, positions],
+  )
 
   const matrixPlans = useMemo(() => {
     const { upcoming } = splitUpcomingPast(plansQuery.data ?? [])
@@ -295,21 +338,33 @@ export function MatrixPage() {
         </Button>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold">Matrix</h1>
-          {serviceTypes.length > 1 && (
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-48" aria-label="Filter by service type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All service types</SelectItem>
-                {serviceTypes.map(([id, name]) => (
-                  <SelectItem key={id} value={id}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <div className="flex items-center gap-2">
+            {typeFilter === 'all' && reorderableTeams.length > 1 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOrderOpen(true)}
+              >
+                <ArrowUpDown className="size-4" />
+                Reorder teams
+              </Button>
+            )}
+            {serviceTypes.length > 1 && (
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-48" aria-label="Filter by service type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All service types</SelectItem>
+                  {serviceTypes.map(([id, name]) => (
+                    <SelectItem key={id} value={id}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </div>
         <p className="text-muted-foreground text-sm">
           The next {matrixPlans.length || ''} services side by side — click a
@@ -362,7 +417,7 @@ export function MatrixPage() {
               </tr>
             </thead>
             <tbody>
-              {(teams ?? []).map((team) => {
+              {sortedTeams.map((team) => {
                 const teamPositions = (positions ?? []).filter(
                   (p) => p.team_id === team.id,
                 )
@@ -424,6 +479,14 @@ export function MatrixPage() {
           target={picker}
           onClose={() => setPicker(null)}
           assignments={assignmentsByPlan[picker.plan.id] ?? []}
+        />
+      )}
+
+      {orderOpen && (
+        <MatrixTeamOrderDialog
+          onOpenChange={setOrderOpen}
+          teams={reorderableTeams}
+          onSave={saveOrder}
         />
       )}
     </div>

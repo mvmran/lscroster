@@ -158,6 +158,13 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   `pending` request. The accept/decline-by-email loop itself is the existing
   Phase-3 flow (`send-requests`/`respond-to-request`/`/respond/:token`) — P5 only
   feeds declines into the engine's suggestions. **#32 epic done; no new schema.**
+- **#33 / #49 — Matrix team ordering.** The Matrix now lists team sections in the
+  same order a plan uses: a single service-type filter follows the #31 per-type
+  order (`serviceTypeTeamSort`); **All service types** uses a personal order saved
+  per-login in `localStorage` (`use-matrix-team-order.ts`, pure `applyTeamOrder`).
+  A **Reorder teams** popup (`matrix-team-order-dialog.tsx`, All view only)
+  supports **drag-and-drop** (dnd-kit, #49) with up/down arrows as a touch/keyboard
+  fallback. Client-only — no schema, RLS or migration.
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 
