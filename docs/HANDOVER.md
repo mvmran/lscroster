@@ -8,12 +8,13 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 
 ## Current state of the tree
 
-- Branch `main`, clean, synced with `origin/main` (latest merge: **#33 + #49**,
-  Matrix team ordering — see below; before that, **`60c7254`** the #32 P2–P5 merge).
+- Branch `main`, clean, synced with `origin/main` (latest merge: **#47**, partial
+  accept of roster suggestions; before that **#33 + #49** Matrix team ordering, and
+  **`60c7254`** the #32 P2–P5 merge).
 - Production (lscroster.xyz) is **up to date**: migrations through **0015** applied,
   no Edge Function changes pending, Vercel auto-deployed from `main`.
 - Schema since Phase 4: migrations **0006–0015** (see `supabase/migrations/`).
-  #33/#49 added **no** schema — client-only render order + localStorage.
+  #33/#49/#47 added **no** schema — client-only UI.
 
 ## What just shipped
 
@@ -28,6 +29,7 @@ RLS probe with a member JWT + browser UI), deployed to prod, and merged to `main
 | #32 | **Scheduling rules & auto-scheduling — full 5-phase epic** | **closed** |
 | #33 | **Order teams in the Matrix** (per-type order + personal localStorage order) | closed |
 | #49 | **Drag-and-drop** reorder in the Matrix "Reorder teams" popup (dnd-kit) | closed |
+| #47 | **Partial accept** of a roster suggestion — per-suggestion checkboxes + select-all | closed |
 
 ### #32 epic — done (P1–P5)
 
@@ -68,6 +70,17 @@ teams** popup (`matrix-team-order-dialog.tsx`) shows only in the All view and
 supports **drag-and-drop** (dnd-kit, same idiom as the order-of-service reorder in
 `plan-page.tsx`) plus up/down arrows as a touch/keyboard fallback. No schema, no
 RLS, no migration; `applyTeamOrder` has a Vitest suite.
+
+### #47 — partial accept of a roster suggestion (client-only)
+
+`auto-schedule-dialog.tsx` (the #35 "Suggest roster" preview) now tracks a
+`Set<string>` of ticked suggestion keys (`${positionId}-${personId}`), defaulting to
+all. Each suggestion row and a select-all header use the new shadcn **`Checkbox`**
+(`components/ui/checkbox.tsx`, radix-ui umbrella — already a dep; mirrors
+`switch.tsx`'s `data-checked` convention, supports `indeterminate`). "Add N to plan"
+applies only the ticked suggestions via the unchanged `useApplySuggestions`. Pair
+the Checkbox with a sibling `<label htmlFor>` — do **not** nest the radix checkbox
+button inside the label (the label re-forwards the click and cancels the toggle).
 
 ## Open backlog (GitHub)
 

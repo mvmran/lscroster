@@ -165,6 +165,10 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   A **Reorder teams** popup (`matrix-team-order-dialog.tsx`, All view only)
   supports **drag-and-drop** (dnd-kit, #49) with up/down arrows as a touch/keyboard
   fallback. Client-only — no schema, RLS or migration.
+- **#47 — partial accept of a roster suggestion.** The #35 "Suggest roster" preview
+  (`auto-schedule-dialog.tsx`) now has a checkbox per suggestion + a select-all
+  header (new shadcn `Checkbox` in `components/ui/checkbox.tsx`); "Add N to plan"
+  inserts only the ticked picks. Client-only — no schema.
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 

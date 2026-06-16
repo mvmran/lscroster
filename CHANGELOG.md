@@ -6,6 +6,10 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Accept part of a roster suggestion** — the "Suggest roster" preview now has a
+  checkbox on each suggested assignment and a **Select all / Deselect all** toggle,
+  so you can accept only some of the auto-scheduler's picks. Everything starts
+  ticked; "Add to plan" inserts just the ticked ones ([#47]).
 - **Team order in the Matrix** — the Matrix now lists team sections in the same
   order a plan uses. Filtered to one service type, it follows that type's
   required-team order ([#31]); in **All service types**, each person can set
@@ -212,3 +216,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#37]: https://github.com/mvmran/lscroster/issues/37
 [#33]: https://github.com/mvmran/lscroster/issues/33
 [#49]: https://github.com/mvmran/lscroster/issues/49
+[#47]: https://github.com/mvmran/lscroster/issues/47
