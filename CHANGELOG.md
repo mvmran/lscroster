@@ -6,6 +6,12 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Team order in the Matrix** — the Matrix now lists team sections in the same
+  order a plan uses. Filtered to one service type, it follows that type's
+  required-team order ([#31]); in **All service types**, each person can set
+  their **own** order from a new **Reorder teams** popup — drag a team by its
+  handle (desktop) or use the up/down arrows. The order is saved on that device
+  for that login only and doesn't affect anyone else ([#33], [#49]).
 - **Replace with ranked suggestions & decline re-suggest** — every scheduled
   person now has a **Replace…** action that lists the best available substitutes
   for that spot (top one flagged **Suggested**), each with a short reason and how
@@ -204,3 +210,5 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#35]: https://github.com/mvmran/lscroster/issues/35
 [#36]: https://github.com/mvmran/lscroster/issues/36
 [#37]: https://github.com/mvmran/lscroster/issues/37
+[#33]: https://github.com/mvmran/lscroster/issues/33
+[#49]: https://github.com/mvmran/lscroster/issues/49

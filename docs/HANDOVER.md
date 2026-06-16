@@ -1,6 +1,6 @@
 # Session handover — LSCRoster
 
-_Last updated: 2026-06-15 (later session)_
+_Last updated: 2026-06-16_
 
 This is a working handover note for continuing development in a fresh Claude Code
 session. Read `CLAUDE.md` first for the project rules; this file captures only the
@@ -8,11 +8,12 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 
 ## Current state of the tree
 
-- Branch `main`, clean, synced with `origin/main` at **`60c7254`** (the #32
-  P2–P5 merge).
+- Branch `main`, clean, synced with `origin/main` (latest merge: **#33 + #49**,
+  Matrix team ordering — see below; before that, **`60c7254`** the #32 P2–P5 merge).
 - Production (lscroster.xyz) is **up to date**: migrations through **0015** applied,
   no Edge Function changes pending, Vercel auto-deployed from `main`.
 - Schema since Phase 4: migrations **0006–0015** (see `supabase/migrations/`).
+  #33/#49 added **no** schema — client-only render order + localStorage.
 
 ## What just shipped
 
@@ -25,6 +26,8 @@ RLS probe with a member JWT + browser UI), deployed to prod, and merged to `main
 | #30 | Position **proficiency / eligibility** (qualified/trainee) + manual editing UI | closed |
 | #31 | **Order** a service type's required teams (`service_type_teams.sort_order`, 0013) | closed |
 | #32 | **Scheduling rules & auto-scheduling — full 5-phase epic** | **closed** |
+| #33 | **Order teams in the Matrix** (per-type order + personal localStorage order) | closed |
+| #49 | **Drag-and-drop** reorder in the Matrix "Reorder teams" popup (dnd-kit) | closed |
 
 ### #32 epic — done (P1–P5)
 
@@ -53,6 +56,18 @@ when a team is all-trainees); MULTI_POSITION always hard-errors; cadence is **ha
 in the auto-fill engine but a **warning** on a manual edit; `BELOW_REQUIRED_LEVEL`
 folds into `NO_REQUIRED_LEVEL` at two proficiency levels. **Vitest** is now a
 devDependency (`npm test`); the validator + engine have unit suites.
+
+### #33 / #49 — Matrix team ordering (client-only)
+
+`matrix-page.tsx` now sorts its team sections via a `sortedTeams` memo: a single
+service-type filter uses `serviceTypeTeamSort` (the #31 per-type order, matching
+the plan page); **All service types** uses a personal order from
+`use-matrix-team-order.ts` (localStorage key `lscroster.matrixTeamOrder.<authUserId>`,
+pure `applyTeamOrder` helper — new teams append, never hidden). The **Reorder
+teams** popup (`matrix-team-order-dialog.tsx`) shows only in the All view and
+supports **drag-and-drop** (dnd-kit, same idiom as the order-of-service reorder in
+`plan-page.tsx`) plus up/down arrows as a touch/keyboard fallback. No schema, no
+RLS, no migration; `applyTeamOrder` has a Vitest suite.
 
 ## Open backlog (GitHub)
 
