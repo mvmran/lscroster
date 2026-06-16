@@ -169,6 +169,11 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   (`auto-schedule-dialog.tsx`) now has a checkbox per suggestion + a select-all
   header (new shadcn `Checkbox` in `components/ui/checkbox.tsx`); "Add N to plan"
   inserts only the ticked picks. Client-only — no schema.
+- **#52 — schedules on the person page.** A Schedules card
+  (`features/people/person-schedule-card.tsx`) lists a person's Past / Upcoming
+  services with a past-period dropdown (Last 1 month / Last 3 months / Most recent
+  6); upcoming always shows all. New person-keyed `usePersonSchedule` hook; the
+  profile becomes a two-column layout on large screens. Client-only — no schema.
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 

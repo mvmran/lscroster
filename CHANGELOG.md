@@ -6,6 +6,12 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Schedules on the person page** — a profile now shows the services a person is
+  scheduled onto, split into **Past** and **Upcoming**. A dropdown beside the
+  "Schedules" title trims the past list: **Last 1 month** (default), **Last 3
+  months**, or **Most recent 6**; upcoming always shows everything. On large
+  screens the page is a two-column layout with Schedules alongside the existing
+  detail cards ([#52]).
 - **Accept part of a roster suggestion** — the "Suggest roster" preview now has a
   checkbox on each suggested assignment and a **Select all / Deselect all** toggle,
   so you can accept only some of the auto-scheduler's picks. Everything starts
@@ -217,3 +223,4 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#33]: https://github.com/mvmran/lscroster/issues/33
 [#49]: https://github.com/mvmran/lscroster/issues/49
 [#47]: https://github.com/mvmran/lscroster/issues/47
+[#52]: https://github.com/mvmran/lscroster/issues/52

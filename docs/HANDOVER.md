@@ -8,13 +8,13 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 
 ## Current state of the tree
 
-- Branch `main`, clean, synced with `origin/main` (latest merge: **#47**, partial
-  accept of roster suggestions; before that **#33 + #49** Matrix team ordering, and
-  **`60c7254`** the #32 P2–P5 merge).
+- Branch `main`, clean, synced with `origin/main` (latest merge: **#52**, person-page
+  schedules; before that **#47** partial-accept, **#33 + #49** Matrix team ordering,
+  and **`60c7254`** the #32 P2–P5 merge).
 - Production (lscroster.xyz) is **up to date**: migrations through **0015** applied,
   no Edge Function changes pending, Vercel auto-deployed from `main`.
 - Schema since Phase 4: migrations **0006–0015** (see `supabase/migrations/`).
-  #33/#49/#47 added **no** schema — client-only UI.
+  #33/#49/#47/#52 added **no** schema — client-only UI.
 
 ## What just shipped
 
@@ -30,6 +30,7 @@ RLS probe with a member JWT + browser UI), deployed to prod, and merged to `main
 | #33 | **Order teams in the Matrix** (per-type order + personal localStorage order) | closed |
 | #49 | **Drag-and-drop** reorder in the Matrix "Reorder teams" popup (dnd-kit) | closed |
 | #47 | **Partial accept** of a roster suggestion — per-suggestion checkboxes + select-all | closed |
+| #52 | **Past & upcoming schedules** on the person page + past-period dropdown | closed |
 
 ### #32 epic — done (P1–P5)
 
@@ -81,6 +82,19 @@ all. Each suggestion row and a select-all header use the new shadcn **`Checkbox`
 applies only the ticked suggestions via the unchanged `useApplySuggestions`. Pair
 the Checkbox with a sibling `<label htmlFor>` — do **not** nest the radix checkbox
 button inside the label (the label re-forwards the click and cancels the toggle).
+
+### #52 — schedules on the person page (client-only)
+
+`person-schedule-card.tsx` (under `features/people`) lists a person's non-declined
+services, split Past (most-recent first) / Upcoming (all, ascending), deduped to one
+row per service date. The past-period dropdown ("Last 1 month" default / "Last 3
+months" / "Most recent 6") trims only the past list. Data comes from the new
+**person-keyed** `usePersonSchedule(personId)` in `use-assignments.ts` (key
+`['person-schedule', personId]` — not the constant `mine` key; invalidated by
+`useInvalidateAssignments`). `person-page.tsx` is now a two-column grid on `lg`
+(Schedules left, the existing detail cards right; container widened to `max-w-5xl`);
+the card shows for admins, leaders, and self. RLS already covers it (the same
+policies My Schedule relies on).
 
 ## Open backlog (GitHub)
 
