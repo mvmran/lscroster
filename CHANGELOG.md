@@ -9,7 +9,7 @@ All notable changes to LSCRoster are recorded here. The format follows
 - **Schedules on the person page** — a profile now shows the services a person is
   scheduled onto, split into **Past** and **Upcoming**. A dropdown beside the
   "Schedules" title trims the past list: **Last 1 month** (default), **Last 3
-  months**, or **Most recent 6**; upcoming always shows everything. On large
+  months**, or **Last 6 services**; upcoming always shows everything. On large
   screens the page is a two-column layout with Schedules alongside the existing
   detail cards ([#52]).
 - **Accept part of a roster suggestion** — the "Suggest roster" preview now has a

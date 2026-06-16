@@ -88,7 +88,7 @@ button inside the label (the label re-forwards the click and cancels the toggle)
 `person-schedule-card.tsx` (under `features/people`) lists a person's non-declined
 services, split Past (most-recent first) / Upcoming (all, ascending), deduped to one
 row per service date. The past-period dropdown ("Last 1 month" default / "Last 3
-months" / "Most recent 6") trims only the past list. Data comes from the new
+months" / "Last 6 services") trims only the past list. Data comes from the new
 **person-keyed** `usePersonSchedule(personId)` in `use-assignments.ts` (key
 `['person-schedule', personId]` — not the constant `mine` key; invalidated by
 `useInvalidateAssignments`). `person-page.tsx` is now a two-column grid on `lg`
