@@ -17,7 +17,7 @@ type PastPeriod = 'last1m' | 'last3m' | 'recent6'
 const PAST_PERIOD_LABELS: Record<PastPeriod, string> = {
   last1m: 'Last 1 month',
   last3m: 'Last 3 months',
-  recent6: 'Most recent 6',
+  recent6: 'Last 6 services',
 }
 
 function DateList({ dates, empty }: { dates: string[]; empty: string }) {
