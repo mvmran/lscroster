@@ -56,6 +56,7 @@ import {
   useUpdatePerson,
 } from '@/features/people/use-people'
 import { usePhotoUrl, useUploadPhoto } from '@/features/people/use-photos'
+import { PersonScheduleCard } from '@/features/people/person-schedule-card'
 import { PersonSchedulingCard } from '@/features/scheduling/person-scheduling-card'
 import { PersonTeamsCard } from '@/features/scheduling/person-teams-card'
 
@@ -142,8 +143,12 @@ export function PersonPage() {
     }
   }
 
+  // The Schedules card (issue #52) lists a person's services; show it to anyone
+  // who can read their assignments — admins/leaders, or the person themselves.
+  const showSchedule = isAdmin || isLeader || isSelf
+
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="relative">
@@ -219,11 +224,22 @@ export function PersonPage() {
         )}
       </div>
 
-      {/* Contact details */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Contact details</CardTitle>
-        </CardHeader>
+      <div
+        className={
+          showSchedule
+            ? 'grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start'
+            : 'flex flex-col gap-4'
+        }
+      >
+        {showSchedule && <PersonScheduleCard personId={p.id} />}
+
+        {/* Everything else stacks in the right column on large screens. */}
+        <div className="flex flex-col gap-4">
+          {/* Contact details */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Contact details</CardTitle>
+            </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
             <div>
@@ -339,6 +355,8 @@ export function PersonPage() {
           </CardContent>
         </Card>
       )}
+        </div>
+      </div>
     </div>
   )
 }

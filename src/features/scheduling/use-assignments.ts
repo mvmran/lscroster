@@ -37,6 +37,36 @@ export const assignmentKeys = {
   plan: (planId: string) => ['assignments', planId] as const,
   mine: ['my-assignments'] as const,
   onDate: (date: string) => ['assignments-on-date', date] as const,
+  personSchedule: (personId: string) => ['person-schedule', personId] as const,
+}
+
+/** One service a person is (was) scheduled onto, for the profile Schedules card. */
+export interface PersonScheduleRow {
+  id: string
+  status: AssignmentStatus
+  plans: { id: string; date: string } | null
+}
+
+/**
+ * A person's non-declined assignments with each plan's date — powers the
+ * Schedules card on the person page (issue #52). Keyed by personId (unlike the
+ * constant `mine` key) so any profile can load its own list. RLS limits what a
+ * viewer sees: admins/leaders see all, a member sees their own.
+ */
+export function usePersonSchedule(personId: string | undefined) {
+  return useQuery({
+    queryKey: assignmentKeys.personSchedule(personId ?? ''),
+    enabled: !!personId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('plan_assignments')
+        .select('id, status, plans!inner(id, date)')
+        .eq('person_id', personId!)
+        .neq('status', 'declined')
+      if (error) throw new Error(error.message)
+      return data as unknown as PersonScheduleRow[]
+    },
+  })
 }
 
 export function usePlanAssignments(planId: string | undefined) {
@@ -107,6 +137,8 @@ function useInvalidateAssignments() {
     queryClient.invalidateQueries({ queryKey: ['assignments-matrix'] })
     // The validator's workload/cadence history (issue #34).
     queryClient.invalidateQueries({ queryKey: ['rostered-dates'] })
+    // Profile Schedules card (issue #52) — refresh for every person.
+    queryClient.invalidateQueries({ queryKey: ['person-schedule'] })
   }
 }
 
