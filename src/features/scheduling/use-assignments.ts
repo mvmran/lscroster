@@ -44,7 +44,9 @@ export const assignmentKeys = {
 export interface PersonScheduleRow {
   id: string
   status: AssignmentStatus
-  plans: { id: string; date: string } | null
+  /** Set when the request email went out — null means "yet to be emailed". */
+  notified_at: string | null
+  plans: { id: string; date: string; service_types: { name: string } | null } | null
 }
 
 /**
@@ -60,7 +62,7 @@ export function usePersonSchedule(personId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('plan_assignments')
-        .select('id, status, plans!inner(id, date)')
+        .select('id, status, notified_at, plans!inner(id, date, service_types(name))')
         .eq('person_id', personId!)
         .neq('status', 'declined')
       if (error) throw new Error(error.message)
