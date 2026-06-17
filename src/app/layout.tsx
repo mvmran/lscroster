@@ -67,10 +67,10 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   )
 }
 
-function Brand() {
+function Brand({ className }: { className?: string }) {
   const { data: settings } = useChurchSettings()
   return (
-    <div className="flex items-center gap-2 px-4">
+    <div className={cn('flex items-center gap-2', className)}>
       <Church className="size-6 shrink-0" />
       <span className="truncate text-base font-semibold">
         {settings?.name ?? 'LSCRoster'}
@@ -137,12 +137,13 @@ export function AppLayout() {
   return (
     <div className="min-h-svh">
       {/* Desktop sidebar */}
-      <aside className="bg-sidebar border-sidebar-border bg-gradient-to-b from-[var(--chrome-from)] to-[var(--chrome-to)] dark:bg-none fixed inset-y-0 left-0 z-30 hidden w-60 flex-col gap-6 border-r py-5 md:flex">
-        <Brand />
+      {/* pt aligns the first nav item's text with the page heading: header
+          (h-14) + main top padding (md:p-6) − the nav link's own py-2.5. */}
+      <aside className="bg-sidebar border-sidebar-border bg-gradient-to-b from-[var(--chrome-from)] to-[var(--chrome-to)] dark:bg-none fixed inset-y-0 left-0 z-30 hidden w-48 flex-col gap-6 border-r pt-[70px] pb-5 shadow-lg md:flex">
         <NavLinks />
       </aside>
 
-      <div className="flex min-h-svh flex-col md:pl-60">
+      <div className="flex min-h-svh flex-col md:pl-48">
         {/* Topbar */}
         <header className="bg-gradient-to-r from-[var(--chrome-from)] to-[var(--chrome-to)] dark:bg-none dark:bg-background/95 dark:supports-[backdrop-filter]:bg-background/60 sticky top-0 z-20 flex h-14 items-center gap-2 border-b px-4 backdrop-blur">
           <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
@@ -159,7 +160,7 @@ export function AppLayout() {
             <SheetContent side="left" className="bg-sidebar bg-gradient-to-b from-[var(--chrome-from)] to-[var(--chrome-to)] dark:bg-none w-64 p-0">
               <SheetHeader className="px-2 pt-5 pb-0">
                 <SheetTitle asChild>
-                  <Brand />
+                  <Brand className="px-4" />
                 </SheetTitle>
               </SheetHeader>
               <div className="pt-4">
@@ -168,6 +169,7 @@ export function AppLayout() {
             </SheetContent>
           </Sheet>
 
+          <Brand />
           <div className="flex-1" />
           <ModeToggle />
           <UserMenu />
