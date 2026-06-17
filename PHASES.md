@@ -174,6 +174,20 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   services with a past-period dropdown (Last 1 month / Last 3 months / Last 6
   services); upcoming always shows all. New person-keyed `usePersonSchedule` hook; the
   profile becomes a two-column layout on large screens. Client-only — no schema.
+- **#54 — left-menu changes.** The church name + logo (`Brand`) moved from the
+  desktop sidebar into the top **header** (kept in the mobile nav sheet); the
+  sidebar narrowed `w-60`→`w-48` to fit the longest label, gained `shadow-lg`,
+  and its top padding (`pt-[70px]`) aligns the first nav item's text with the
+  page heading. Client-only — no schema.
+- **#55 — Schedules card formatting.** "Past"/"Upcoming" headings switched from
+  `text-lg font-semibold` to the `CardTitle` style; each row now reads
+  `date — service type` (deduped per plan, so two services on one day stay
+  separate; `usePersonSchedule` gained `service_types(name)`). New **red/yellow/
+  green status bar** above Past (`StatusBar` in `person-schedule-card.tsx`)
+  summarising the member's **upcoming** assignments — red = pending & not emailed
+  (`notified_at` null), yellow = emailed & unconfirmed, green = confirmed — sized
+  by share, with native `title` hover counts ("x confirmed assignment(s)").
+  `usePersonSchedule` gained `notified_at`. Client-only — no schema.
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
 

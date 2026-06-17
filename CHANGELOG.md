@@ -6,6 +6,12 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Assignment status bar on a profile** — the person **Schedules** card now shows
+  a red/yellow/green bar above the **Past** list summarising the member's
+  **upcoming** assignments across all services (published and unpublished): red =
+  requests not yet emailed, yellow = emailed but not yet confirmed, green =
+  confirmed, each segment sized by its share of the total. Hovering a segment
+  shows its count, e.g. "2 confirmed assignments" ([#55]).
 - **Schedules on the person page** — a profile now shows the services a person is
   scheduled onto, split into **Past** and **Upcoming**. A dropdown beside the
   "Schedules" title trims the past list: **Last 1 month** (default), **Last 3
@@ -108,6 +114,12 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#10]). Assigning multiple positions to a member (#1) is unaffected.
 
 ### Changed
+- **Sidebar & header** — the church name and logo moved from the side menu up into
+  the top header; the side menu is now narrower (sized to fit its items), has a
+  drop shadow, and its items line up with the page heading ([#54]).
+- The person **Schedules** card now reads **date — service type** for each listed
+  service, and its "Past" / "Upcoming" headings now match the other card titles
+  ([#55]).
 - A team can now serve **multiple service types** instead of just one. The
   team add/edit screen uses a service-type multi-select; leaving it empty means
   the team appears on every service type's plans (the old default). This reuses
@@ -224,3 +236,5 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#49]: https://github.com/mvmran/lscroster/issues/49
 [#47]: https://github.com/mvmran/lscroster/issues/47
 [#52]: https://github.com/mvmran/lscroster/issues/52
+[#54]: https://github.com/mvmran/lscroster/issues/54
+[#55]: https://github.com/mvmran/lscroster/issues/55
