@@ -21,6 +21,14 @@ const AcceptInvitePage = lazyPage(
   () => import('@/features/auth/accept-invite-page'),
   'AcceptInvitePage',
 )
+const ForgotPasswordPage = lazyPage(
+  () => import('@/features/auth/forgot-password-page'),
+  'ForgotPasswordPage',
+)
+const ResetPasswordPage = lazyPage(
+  () => import('@/features/auth/reset-password-page'),
+  'ResetPasswordPage',
+)
 const RespondPage = lazyPage(
   () => import('@/features/scheduling/respond-page'),
   'RespondPage',
@@ -82,6 +90,8 @@ export function App() {
         <Suspense fallback={<FullPageLoader />}>
           <Routes>
             <Route path="/signin" element={<SignInPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/setup" element={<SetupPage />} />
             <Route path="/invite/:token" element={<AcceptInvitePage />} />
             {/* Scheduling responses are answerable without logging in. */}
