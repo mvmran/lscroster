@@ -6,6 +6,30 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Forgot-password flow** — the sign-in page now has a **Forgot password?** link.
+  It opens a request page that always shows the same neutral confirmation ("If an
+  account exists for that email, we've sent a reset link") so it can't be used to
+  probe which addresses are registered. The reset email goes through our own
+  Resend pipeline (branded, logged to the email log), and the link lands on a
+  **/reset-password** page where the member sets a new password and is signed in.
+  Expired or invalid links show a friendly message with a path back to sign in
+  ([#39]).
+- **Church logo** — Settings → Church now takes a **light-** and a **dark-theme**
+  logo (each tile labels itself until an image is set, like a member avatar). The
+  logo shows in the app header and on the sign-in page, switching variant with the
+  theme; upload only one and it's used for both ([#58]).
+- **Block-out dates & activity summary on a profile** — the **Schedules** card now
+  lists each service's **positions** (in service-type order) and links each row to
+  the plan, adds a **Block out dates** section, and an **Activity summary** strip:
+  services this month / this year, top two positions, a serving streak ("3
+  consecutive Sundays"), and — for admins and leaders — how the person's serving
+  load compares with the team ([#56]).
+- **Pending status on People** — people without sign-in access yet now show a
+  **Pending** status (and a new **Pending** filter), making it easy to see who
+  still needs an email invite after a bulk CSV import ([#43]).
+- **Matrix services-shown control** — the Matrix has **−/+** buttons to change how
+  many upcoming services it shows side by side (default 4, between 2 and 9), saved
+  on that device for that login ([#57]).
 - **Assignment status bar on a profile** — the person **Schedules** card now shows
   a red/yellow/green bar above the **Past** list summarising the member's
   **upcoming** assignments across all services (published and unpublished): red =
@@ -114,6 +138,10 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#10]). Assigning multiple positions to a member (#1) is unaffected.
 
 ### Changed
+- **Phone numbers** are now validated and tidied: a number entered as an
+  Australian mobile is stored and shown as `04xx xxx xxx`, and an international
+  number (typed with a leading `+`) as `+cc nnn nnn nnn`. The same formatting is
+  applied on the People list, the profile, and CSV import ([#42]).
 - **Sidebar & header** — the church name and logo moved from the side menu up into
   the top header; the side menu is now narrower (sized to fit its items), has a
   drop shadow, and its items line up with the page heading ([#54]).
@@ -148,6 +176,9 @@ All notable changes to LSCRoster are recorded here. The format follows
   Resend's throttle ([#18]).
 
 ### Fixed
+- Adding or editing a person with an email another person already uses now shows
+  a friendly **"A person with this email already exists."** instead of the raw
+  database constraint error ([#38]).
 - Plan-publish emails now include each song's **Meter** (from its Default
   arrangement) alongside the key and BPM; previously the meter was omitted
   ([#29]).
@@ -205,6 +236,19 @@ All notable changes to LSCRoster are recorded here. The format follows
   `positions`. One-off unavailability continues to use the existing
   `blockout_dates`. Additive only — applies automatically via
   `supabase db push`; no manual steps and no emails or links change.
+- Migration `20260618090000_church_logo` (#58) adds a nullable
+  `church_settings.logo_dark_url` column and a **public** `church-logo` storage
+  bucket (world-readable so the logo can show on the pre-auth sign-in page;
+  writes are admin-only). Additive only — applies automatically via
+  `supabase db push`; no manual data steps and no links change.
+- The forgot-password flow (#39) adds a new **`request-password-reset` Edge
+  Function** (no schema change). Deploy it with `supabase functions deploy
+  request-password-reset` (it already has `verify_jwt = false` in
+  `config.toml`); it reuses the existing `RESEND_API_KEY` / `EMAIL_FROM` /
+  `APP_URL` secrets. **One manual prod step:** add
+  `https://lscroster.xyz/reset-password` to the Supabase project's **Auth → URL
+  Configuration → Redirect URLs**, or recovery links will fall back to the site
+  root instead of the reset page.
 
 [#1]: https://github.com/mvmran/lscroster/issues/1
 [#2]: https://github.com/mvmran/lscroster/issues/2
@@ -235,6 +279,13 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#33]: https://github.com/mvmran/lscroster/issues/33
 [#49]: https://github.com/mvmran/lscroster/issues/49
 [#47]: https://github.com/mvmran/lscroster/issues/47
+[#38]: https://github.com/mvmran/lscroster/issues/38
+[#39]: https://github.com/mvmran/lscroster/issues/39
+[#42]: https://github.com/mvmran/lscroster/issues/42
+[#43]: https://github.com/mvmran/lscroster/issues/43
 [#52]: https://github.com/mvmran/lscroster/issues/52
 [#54]: https://github.com/mvmran/lscroster/issues/54
 [#55]: https://github.com/mvmran/lscroster/issues/55
+[#56]: https://github.com/mvmran/lscroster/issues/56
+[#57]: https://github.com/mvmran/lscroster/issues/57
+[#58]: https://github.com/mvmran/lscroster/issues/58
