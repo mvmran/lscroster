@@ -11,6 +11,7 @@ import {
   Trash2,
   UserPlus,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -509,9 +510,12 @@ export function SchedulingPanel({
                                 className="flex items-center gap-2"
                               >
                                 <div className="min-w-0 flex-1">
-                                  <span className="block truncate text-sm">
+                                  <Link
+                                    to={`/people/${assignment.person_id}`}
+                                    className="block truncate text-sm hover:underline"
+                                  >
                                     {fullName(assignment.people)}
-                                  </span>
+                                  </Link>
                                   {assignment.status === 'declined' &&
                                     assignment.decline_reason && (
                                       <p className="text-muted-foreground truncate text-xs">

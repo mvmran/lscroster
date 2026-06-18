@@ -1,5 +1,33 @@
 import { useState } from 'react'
-import { ArrowDown, ArrowUp, CalendarDays, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react'
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import {
+  ArrowDown,
+  ArrowUp,
+  CalendarDays,
+  GripVertical,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -43,12 +71,173 @@ import {
 import {
   useCreateServiceType,
   useDeleteServiceType,
-  useReorderServiceType,
+  useReorderServiceTypes,
   useServiceTypes,
   useServiceTypeTeamIds,
   useSetServiceTypeTeams,
   useUpdateServiceType,
 } from '@/features/services/use-service-types'
+
+/**
+ * One reorderable required-team row: drag handle (desktop mouse / keyboard) +
+ * up/down arrows (touch fallback) + remove, mirroring the Matrix reorder dialog
+ * (#33/#49). Order is local until the service type is saved (#31/#50).
+ */
+function SortableRequiredTeam({
+  id,
+  name,
+  index,
+  count,
+  onMove,
+  onRemove,
+}: {
+  id: string
+  name: string
+  index: number
+  count: number
+  onMove: (index: number, direction: -1 | 1) => void
+  onRemove: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id })
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`bg-card flex items-center gap-1 rounded-md border px-2 py-1.5 text-sm ${
+        isDragging ? 'relative z-10 opacity-80 shadow-sm' : ''
+      }`}
+    >
+      <button
+        type="button"
+        className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1"
+        aria-label={`Drag ${name} to reorder`}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-4" />
+      </button>
+      <span className="min-w-0 flex-1 truncate">{name}</span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-8"
+        disabled={index === 0}
+        onClick={() => onMove(index, -1)}
+        aria-label={`Move ${name} up`}
+      >
+        <ArrowUp className="size-4" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-8"
+        disabled={index === count - 1}
+        onClick={() => onMove(index, 1)}
+        aria-label={`Move ${name} down`}
+      >
+        <ArrowDown className="size-4" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-8"
+        onClick={onRemove}
+        aria-label={`Remove ${name}`}
+      >
+        <X className="size-4" />
+      </Button>
+    </li>
+  )
+}
+
+/** One reorderable service-type card on the index: drag handle + arrows (#51). */
+function SortableServiceTypeCard({
+  st,
+  index,
+  count,
+  reordering,
+  onMove,
+  onEdit,
+  onDelete,
+}: {
+  st: ServiceType
+  index: number
+  count: number
+  reordering: boolean
+  onMove: (index: number, direction: -1 | 1) => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: st.id })
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={isDragging ? 'relative z-10 opacity-80' : undefined}
+    >
+      <Card className={`py-3 ${isDragging ? 'shadow-md' : ''}`}>
+        <CardContent className="flex items-center gap-1 px-4">
+        <button
+          type="button"
+          className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1"
+          aria-label={`Drag ${st.name} to reorder`}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium">{st.name}</p>
+          <p className="text-muted-foreground truncate text-sm">
+            {serviceTypeSummary(st)}
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={index === 0 || reordering}
+          onClick={() => onMove(index, -1)}
+          aria-label={`Move ${st.name} up`}
+        >
+          <ArrowUp className="size-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={index === count - 1 || reordering}
+          onClick={() => onMove(index, 1)}
+          aria-label={`Move ${st.name} down`}
+        >
+          <ArrowDown className="size-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onEdit}
+          aria-label={`Edit ${st.name}`}
+        >
+          <Pencil className="size-4" />
+        </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onDelete}
+            aria-label={`Delete ${st.name}`}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
 
 function ServiceTypeDialog({
   serviceType,
@@ -111,14 +300,28 @@ function ServiceTypeDialog({
     )
   }
 
-  // Reorder the required teams (issue #31) — order is persisted on save.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  // Reorder the required teams (#31 arrows, #50 drag) — persisted on save.
   function moveTeam(index: number, direction: -1 | 1) {
     setTeamIds((prev) => {
-      const next = [...prev]
       const target = index + direction
-      if (target < 0 || target >= next.length) return prev
-      ;[next[index], next[target]] = [next[target], next[index]]
-      return next
+      if (target < 0 || target >= prev.length) return prev
+      return arrayMove(prev, index, target)
+    })
+  }
+
+  function handleTeamDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setTeamIds((prev) => {
+      const oldIndex = prev.indexOf(active.id as string)
+      const newIndex = prev.indexOf(over.id as string)
+      if (oldIndex < 0 || newIndex < 0) return prev
+      return arrayMove(prev, oldIndex, newIndex)
     })
   }
 
@@ -249,55 +452,35 @@ function ServiceTypeDialog({
             ) : (
               <div className="flex flex-col gap-3">
                 {teamIds.length > 0 ? (
-                  <ul className="divide-y rounded-md border">
-                    {teamIds.map((id, index) => {
-                      const team = teams.find((t) => t.id === id)
-                      if (!team) return null
-                      return (
-                        <li
-                          key={id}
-                          className="flex items-center gap-1 px-2 py-1.5 text-sm"
-                        >
-                          <span className="text-muted-foreground w-5 shrink-0 text-center text-xs tabular-nums">
-                            {index + 1}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate">{team.name}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            disabled={index === 0}
-                            onClick={() => moveTeam(index, -1)}
-                            aria-label={`Move ${team.name} up`}
-                          >
-                            <ArrowUp className="size-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            disabled={index === teamIds.length - 1}
-                            onClick={() => moveTeam(index, 1)}
-                            aria-label={`Move ${team.name} down`}
-                          >
-                            <ArrowDown className="size-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            onClick={() => toggleTeam(id)}
-                            aria-label={`Remove ${team.name}`}
-                          >
-                            <X className="size-4" />
-                          </Button>
-                        </li>
-                      )
-                    })}
-                  </ul>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                    onDragEnd={handleTeamDragEnd}
+                  >
+                    <SortableContext
+                      items={teamIds}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <ul className="flex flex-col gap-1.5">
+                        {teamIds.map((id, index) => {
+                          const team = teams.find((t) => t.id === id)
+                          if (!team) return null
+                          return (
+                            <SortableRequiredTeam
+                              key={id}
+                              id={id}
+                              name={team.name}
+                              index={index}
+                              count={teamIds.length}
+                              onMove={moveTeam}
+                              onRemove={() => toggleTeam(id)}
+                            />
+                          )
+                        })}
+                      </ul>
+                    </SortableContext>
+                  </DndContext>
                 ) : (
                   <p className="text-muted-foreground rounded-md border border-dashed p-3 text-sm">
                     No teams added yet. A service type with none shows every
@@ -347,25 +530,36 @@ function ServiceTypeDialog({
 
 export function ServiceTypesPage() {
   const { data: serviceTypes, isPending } = useServiceTypes()
-  const reorder = useReorderServiceType()
+  const reorder = useReorderServiceTypes()
   const remove = useDeleteServiceType()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<ServiceType | null>(null)
   const [deleting, setDeleting] = useState<ServiceType | null>(null)
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
   function move(index: number, direction: -1 | 1) {
     if (!serviceTypes) return
-    const neighbour = serviceTypes[index + direction]
-    const current = serviceTypes[index]
-    if (!neighbour) return
-    // sort_order values may be equal (both default 0); fall back to indexes.
-    const a = { id: current.id, sort_order: index }
-    const b = { id: neighbour.id, sort_order: index + direction }
-    reorder.mutate(
-      { a, b },
-      { onError: (e) => toast.error(e.message) },
-    )
+    const target = index + direction
+    if (target < 0 || target >= serviceTypes.length) return
+    reorder.mutate(arrayMove(serviceTypes, index, target), {
+      onError: (e) => toast.error(e.message),
+    })
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id || !serviceTypes) return
+    const oldIndex = serviceTypes.findIndex((st) => st.id === active.id)
+    const newIndex = serviceTypes.findIndex((st) => st.id === over.id)
+    if (oldIndex < 0 || newIndex < 0) return
+    reorder.mutate(arrayMove(serviceTypes, oldIndex, newIndex), {
+      onError: (e) => toast.error(e.message),
+    })
   }
 
   async function confirmDelete() {
@@ -407,57 +601,35 @@ export function ServiceTypesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="flex flex-col gap-2">
-          {serviceTypes.map((st, index) => (
-            <Card key={st.id} className="py-3">
-              <CardContent className="flex items-center gap-2 px-4">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{st.name}</p>
-                  <p className="text-muted-foreground truncate text-sm">
-                    {serviceTypeSummary(st)}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={index === 0 || reorder.isPending}
-                  onClick={() => move(index, -1)}
-                  aria-label={`Move ${st.name} up`}
-                >
-                  <ArrowUp className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={index === serviceTypes.length - 1 || reorder.isPending}
-                  onClick={() => move(index, 1)}
-                  aria-label={`Move ${st.name} down`}
-                >
-                  <ArrowDown className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={serviceTypes.map((st) => st.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex flex-col gap-2">
+              {serviceTypes.map((st, index) => (
+                <SortableServiceTypeCard
+                  key={st.id}
+                  st={st}
+                  index={index}
+                  count={serviceTypes.length}
+                  reordering={reorder.isPending}
+                  onMove={move}
+                  onEdit={() => {
                     setEditing(st)
                     setDialogOpen(true)
                   }}
-                  aria-label={`Edit ${st.name}`}
-                >
-                  <Pencil className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setDeleting(st)}
-                  aria-label={`Delete ${st.name}`}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  onDelete={() => setDeleting(st)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       <ServiceTypeDialog
