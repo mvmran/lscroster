@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { formatPhone } from '@/features/people/phone-utils'
 import { peopleKeys, usePeople } from '@/features/people/use-people'
 import { supabase } from '@/lib/supabase'
 import { useQueryClient } from '@tanstack/react-query'
@@ -181,7 +182,7 @@ export function ImportPage() {
           first_name: firstName,
           last_name: lastName,
           email: email || null,
-          phone: get('phone') || null,
+          phone: formatPhone(get('phone')) || null,
           birthday: parseBirthday(get('birthday')),
           notes: get('notes') || null,
         },

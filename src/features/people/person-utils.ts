@@ -1,4 +1,5 @@
 import type { PersonFormValues } from '@/features/people/person-form'
+import { formatPhone } from '@/features/people/phone-utils'
 import type { Person } from '@/features/people/use-people'
 import type { Enums, TablesInsert } from '@/types/database'
 
@@ -17,6 +18,28 @@ export const ROLE_LABELS: Record<Enums<'app_role'>, string> = {
 }
 
 export const ROLES = ['admin', 'leader', 'member'] as const
+
+/**
+ * Display-only account state for the People screen (issue #43):
+ * - `inactive` — archived record (hidden from the directory by default)
+ * - `pending`  — active record with no sign-in access yet; needs an email
+ *   invite (the common state straight after a bulk CSV import)
+ * - `active`   — active record linked to a login
+ */
+export type AccountStatus = 'active' | 'pending' | 'inactive'
+
+export const ACCOUNT_STATUS_LABELS: Record<AccountStatus, string> = {
+  active: 'Active',
+  pending: 'Pending',
+  inactive: 'Inactive',
+}
+
+export function accountStatus(
+  person: Pick<Person, 'status' | 'auth_user_id'>,
+): AccountStatus {
+  if (person.status === 'inactive') return 'inactive'
+  return person.auth_user_id ? 'active' : 'pending'
+}
 
 export function personToFormValues(person: Person): PersonFormValues {
   return {
@@ -37,7 +60,7 @@ export function formValuesToPerson(
     first_name: values.firstName,
     last_name: values.lastName,
     email: values.email || null,
-    phone: values.phone || null,
+    phone: formatPhone(values.phone) || null,
     birthday: values.birthday || null,
     notes: values.notes || null,
     role: values.role,

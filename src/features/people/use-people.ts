@@ -10,6 +10,18 @@ export const peopleKeys = {
   detail: (id: string) => ['people', id] as const,
 }
 
+/**
+ * Turn a Postgres error into a human message. A unique-violation (23505) on the
+ * email index means another person already uses that address (issue #38) —
+ * surface that instead of the raw `people_email_unique` constraint text.
+ */
+function personErrorMessage(error: { code?: string; message: string }): string {
+  if (error.code === '23505' && error.message.includes('people_email_unique')) {
+    return 'A person with this email already exists.'
+  }
+  return error.message
+}
+
 export function usePeople() {
   return useQuery({
     queryKey: peopleKeys.all,
@@ -57,7 +69,7 @@ export function useCreatePerson() {
         .insert(values)
         .select()
         .single()
-      if (error) throw new Error(error.message)
+      if (error) throw new Error(personErrorMessage(error))
       return data
     },
     onSuccess: invalidate,
@@ -80,7 +92,7 @@ export function useUpdatePerson() {
         .eq('id', id)
         .select()
         .single()
-      if (error) throw new Error(error.message)
+      if (error) throw new Error(personErrorMessage(error))
       return data
     },
     onSuccess: invalidate,

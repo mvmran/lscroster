@@ -42,9 +42,11 @@ import {
 } from '@/components/ui/dialog'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { InviteControls } from '@/features/people/invite-controls'
+import { formatPhone } from '@/features/people/phone-utils'
 import { PersonAvatar } from '@/features/people/person-avatar'
 import { PersonForm, type PersonFormValues } from '@/features/people/person-form'
 import {
+  accountStatus,
   formValuesToPerson,
   fullName,
   personToFormValues,
@@ -190,6 +192,14 @@ export function PersonPage() {
               {ROLE_LABELS[p.role]}
             </Badge>
             {p.status === 'inactive' && <Badge variant="outline">Inactive</Badge>}
+            {accountStatus(p) === 'pending' && (
+              <Badge
+                variant="outline"
+                className="border-amber-300 text-amber-700 dark:border-amber-700/60 dark:text-amber-400"
+              >
+                Pending invite
+              </Badge>
+            )}
             {p.auth_user_id && (
               <Badge variant="outline">
                 <KeyRound className="size-3" />
@@ -231,7 +241,9 @@ export function PersonPage() {
             : 'flex flex-col gap-4'
         }
       >
-        {showSchedule && <PersonScheduleCard personId={p.id} />}
+        {showSchedule && (
+          <PersonScheduleCard personId={p.id} canSeeTeam={isAdmin || isLeader} />
+        )}
 
         {/* Everything else stacks in the right column on large screens. */}
         <div className="flex flex-col gap-4">
@@ -248,7 +260,9 @@ export function PersonPage() {
             </div>
             <div>
               <dt className="text-muted-foreground">Phone</dt>
-              <dd className="font-medium">{p.phone ?? '—'}</dd>
+              <dd className="font-medium">
+                {p.phone ? formatPhone(p.phone) : '—'}
+              </dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Birthday</dt>
