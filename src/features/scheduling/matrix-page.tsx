@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ArrowUpDown,
   Loader2,
+  Minus,
   Plus,
   Send,
   X,
@@ -60,6 +61,11 @@ import {
   useMatrixTeamOrder,
 } from '@/features/scheduling/use-matrix-team-order'
 import {
+  MATRIX_PLAN_COUNT_MAX,
+  MATRIX_PLAN_COUNT_MIN,
+  useMatrixPlanCount,
+} from '@/features/scheduling/use-matrix-plan-count'
+import {
   serviceTypeTeamSort,
   teamServesType,
   useAllPositions,
@@ -67,8 +73,6 @@ import {
 } from '@/features/scheduling/use-teams'
 import { supabase } from '@/lib/supabase'
 import { splitUpcomingPast, usePlans, type PlanWithType } from '@/features/services/use-plans'
-
-const MATRIX_PLAN_COUNT = 8
 
 /** Assignments for all matrix plans in one query, grouped by plan. */
 function useMatrixAssignments(planIds: string[]) {
@@ -264,6 +268,7 @@ export function MatrixPage() {
   const [picker, setPicker] = useState<(PickerTarget & { plan: PlanWithType }) | null>(null)
   const [orderOpen, setOrderOpen] = useState(false)
   const { order, saveOrder } = useMatrixTeamOrder()
+  const { count: planCount, setCount: setPlanCount } = useMatrixPlanCount()
 
   // Team section order (issue #33). A single service type uses the per-type
   // order from #31 (matching the plan page); the "All" view uses the user's
@@ -291,8 +296,8 @@ export function MatrixPage() {
     const { upcoming } = splitUpcomingPast(plansQuery.data ?? [])
     return upcoming
       .filter((p) => typeFilter === 'all' || p.service_type_id === typeFilter)
-      .slice(0, MATRIX_PLAN_COUNT)
-  }, [plansQuery.data, typeFilter])
+      .slice(0, planCount)
+  }, [plansQuery.data, typeFilter, planCount])
 
   const planIds = useMemo(() => matrixPlans.map((p) => p.id), [matrixPlans])
   const assignmentsQuery = useMatrixAssignments(planIds)
@@ -339,6 +344,36 @@ export function MatrixPage() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold">Matrix</h1>
           <div className="flex items-center gap-2">
+            {/* Services-shown stepper (issue #57): default 4, clamped 2–9. */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                onClick={() => setPlanCount(planCount - 1)}
+                disabled={planCount <= MATRIX_PLAN_COUNT_MIN}
+                aria-label="Show fewer services"
+              >
+                <Minus className="size-4" />
+              </Button>
+              <span
+                className="text-muted-foreground w-9 text-center text-sm tabular-nums"
+                aria-live="polite"
+                aria-label={`Showing ${planCount} services`}
+              >
+                {planCount}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                onClick={() => setPlanCount(planCount + 1)}
+                disabled={planCount >= MATRIX_PLAN_COUNT_MAX}
+                aria-label="Show more services"
+              >
+                <Plus className="size-4" />
+              </Button>
+            </div>
             {typeFilter === 'all' && reorderableTeams.length > 1 && (
               <Button
                 variant="outline"
