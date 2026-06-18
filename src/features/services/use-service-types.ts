@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { TablesInsert, TablesUpdate } from '@/types/database'
+import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
+
+type ServiceTypeRow = Tables<'service_types'>
 
 export const serviceTypesKey = ['service-types'] as const
 
@@ -64,26 +66,41 @@ export function useUpdateServiceType() {
   })
 }
 
-/** Swap sort_order with the neighbour above/below. */
-export function useReorderServiceType() {
-  const invalidate = useInvalidateServiceTypes()
+/**
+ * Persist a drag-reorder of the whole list (issue #51). Writes each row's
+ * sort_order to its new index and optimistically updates the cache so the list
+ * doesn't snap back while the updates are in flight — mirrors useReorderPlanItems.
+ */
+export function useReorderServiceTypes() {
+  const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({
-      a,
-      b,
-    }: {
-      a: { id: string; sort_order: number }
-      b: { id: string; sort_order: number }
-    }) => {
-      const results = await Promise.all([
-        supabase.from('service_types').update({ sort_order: b.sort_order }).eq('id', a.id),
-        supabase.from('service_types').update({ sort_order: a.sort_order }).eq('id', b.id),
-      ])
+    mutationFn: async (ordered: ServiceTypeRow[]) => {
+      const results = await Promise.all(
+        ordered.map((st, index) =>
+          supabase.from('service_types').update({ sort_order: index }).eq('id', st.id),
+        ),
+      )
       for (const { error } of results) {
         if (error) throw new Error(error.message)
       }
     },
-    onSuccess: invalidate,
+    onMutate: async (ordered) => {
+      await queryClient.cancelQueries({ queryKey: serviceTypesKey })
+      const previous = queryClient.getQueryData<ServiceTypeRow[]>(serviceTypesKey)
+      queryClient.setQueryData<ServiceTypeRow[]>(
+        serviceTypesKey,
+        ordered.map((st, index) => ({ ...st, sort_order: index })),
+      )
+      return { previous }
+    },
+    onError: (_error, _ordered, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(serviceTypesKey, context.previous)
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: serviceTypesKey })
+    },
   })
 }
 

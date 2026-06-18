@@ -217,6 +217,27 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   admin write). Upload UI in Settings → Church (light + dark tiles); `<ChurchLogo>`
   shows the theme-appropriate variant in the header brand and on the
   sign-in / forgot / reset cards, falling back to the church icon.
+- **#50 — drag-reorder "Teams required".** The add/edit service-type dialog's
+  required-teams list gained a dnd-kit drag handle (new `SortableRequiredTeam`)
+  beside the existing #31 up/down arrows; order is still local until save. Mirrors
+  the Matrix reorder idiom (#33/#49). Client-only — no schema.
+- **#51 — drag-reorder the Service types list.** The Service types index is now a
+  dnd-kit sortable list (`SortableServiceTypeCard` + grip handle; arrows kept).
+  New `useReorderServiceTypes` bulk mutation writes each row's `sort_order` to its
+  index with an optimistic cache update (mirrors `useReorderPlanItems`); replaces
+  the old neighbour-swap `useReorderServiceType` (removed). Reuses existing
+  `service_types.sort_order` + RLS — no schema.
+- **#61 — template update/delete on save.** The **Save as template** dialog
+  (`SaveTemplateDialog` in `plan-page.tsx`) gained a dropdown of the service
+  type's existing templates: picking one (or typing its exact name) flips the
+  action to **Update template** (`useUpdateTemplate` — renames + replaces the
+  template's items wholesale), a fresh name still creates, and a bin per row
+  deletes via the existing `useDeleteTemplate` behind an `AlertDialog` confirm.
+  Create/update is derived from a case-insensitive name match, not separate state.
+  Reuses `plan_templates`/`plan_template_items` + RLS — no schema.
+- **#62 — member names on a plan link to their profile.** The scheduling panel's
+  assigned-person name is now a `<Link to={/people/:id}>` (hover underline),
+  replicating the team-page behaviour. Client-only — no schema.
 - **#39 — forgot-password flow.** New `request-password-reset` Edge Function
   (`verify_jwt = false`, enumeration-safe; `generateLink` recovery → Resend via
   `_shared/email-templates/password-reset.ts` → `email_log`). `/forgot-password`

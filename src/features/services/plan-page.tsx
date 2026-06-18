@@ -21,6 +21,7 @@ import { addDays, format, parseISO } from 'date-fns'
 import {
   ArrowLeft,
   CalendarDays,
+  ChevronDown,
   Copy,
   GripVertical,
   LayoutTemplate,
@@ -100,7 +101,13 @@ import {
   useUpdatePlan,
   type PlanWithType,
 } from '@/features/services/use-plans'
-import { useSaveAsTemplate } from '@/features/services/use-plan-templates'
+import {
+  useDeleteTemplate,
+  usePlanTemplates,
+  useSaveAsTemplate,
+  useUpdateTemplate,
+  type PlanTemplate,
+} from '@/features/services/use-plan-templates'
 import { useSongs } from '@/features/services/use-songs'
 
 function offsetLabel(seconds: number) {
@@ -366,54 +373,161 @@ function SaveTemplateDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const { data: allTemplates } = usePlanTemplates()
   const saveTemplate = useSaveAsTemplate()
+  const updateTemplate = useUpdateTemplate()
+  const deleteTemplate = useDeleteTemplate()
   const [name, setName] = useState(`${plan.service_types.name} template`)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [deleting, setDeleting] = useState<PlanTemplate | null>(null)
+
+  // Only this service type's templates can be created from this plan / overwritten.
+  const templates = (allTemplates ?? []).filter(
+    (t) => t.service_type_id === plan.service_type_id,
+  )
+  const trimmed = name.trim()
+  // Typing an existing template's name (or picking it) switches Save → Update (#61).
+  const matching =
+    templates.find(
+      (t) => t.name.trim().toLowerCase() === trimmed.toLowerCase(),
+    ) ?? null
+  const pending = saveTemplate.isPending || updateTemplate.isPending
 
   async function save() {
-    const trimmed = name.trim()
     if (!trimmed) return
     try {
-      await saveTemplate.mutateAsync({
-        name: trimmed,
-        serviceTypeId: plan.service_type_id,
-        items,
-      })
-      toast.success(`Template “${trimmed}” saved`)
+      if (matching) {
+        await updateTemplate.mutateAsync({ id: matching.id, name: trimmed, items })
+        toast.success(`Template “${trimmed}” updated`)
+      } else {
+        await saveTemplate.mutateAsync({
+          name: trimmed,
+          serviceTypeId: plan.service_type_id,
+          items,
+        })
+        toast.success(`Template “${trimmed}” saved`)
+      }
       onOpenChange(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not save template')
     }
   }
 
+  async function confirmDelete() {
+    if (!deleting) return
+    try {
+      await deleteTemplate.mutateAsync(deleting.id)
+      toast.success(`Deleted “${deleting.name}”`)
+      setDeleting(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not delete template')
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Save as template</DialogTitle>
-          <DialogDescription>
-            New plans can start from this template in the "New plan" dialog.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="tpl-name">Template name</Label>
-          <Input
-            id="tpl-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={save} disabled={saveTemplate.isPending || !name.trim()}>
-            {saveTemplate.isPending && <Loader2 className="size-4 animate-spin" />}
-            Save template
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save as template</DialogTitle>
+            <DialogDescription>
+              Type a new name to create a template, or pick an existing one for
+              this service type to overwrite it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="tpl-name">Template name</Label>
+            <div className="flex gap-2">
+              <Input
+                id="tpl-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+                className="flex-1"
+              />
+              <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={templates.length === 0}
+                    aria-label="Choose an existing template"
+                  >
+                    <ChevronDown className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  {templates.map((t) => (
+                    <div key={t.id} className="flex items-center gap-1 pr-1">
+                      <DropdownMenuItem
+                        className="min-w-0 flex-1"
+                        onSelect={() => setName(t.name)}
+                      >
+                        <span className="truncate">{t.name}</span>
+                      </DropdownMenuItem>
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-destructive shrink-0 rounded p-1"
+                        aria-label={`Delete ${t.name}`}
+                        onClick={() => {
+                          setMenuOpen(false)
+                          setDeleting(t)
+                        }}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              {matching
+                ? `Overwrites the existing “${matching.name}” template with this order of service.`
+                : 'Creates a new template. New plans can start from it in the “New plan” dialog.'}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={save} disabled={pending || !trimmed}>
+              {pending && <Loader2 className="size-4 animate-spin" />}
+              {matching ? 'Update template' : 'Save template'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{deleting?.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the template and its saved order of
+              service. Plans already created from it are unaffected. This cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteTemplate.isPending && (
+                <Loader2 className="size-4 animate-spin" />
+              )}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 

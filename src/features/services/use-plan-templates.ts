@@ -73,6 +73,55 @@ export function useSaveAsTemplate() {
   })
 }
 
+/** Overwrite an existing template's name and order of service (issue #61). */
+export function useUpdateTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      name,
+      items,
+    }: {
+      id: string
+      name: string
+      items: PlanItem[]
+    }) => {
+      const { error: nameError } = await supabase
+        .from('plan_templates')
+        .update({ name })
+        .eq('id', id)
+      if (nameError) throw new Error(nameError.message)
+
+      // Replace the template's items wholesale with the current order of service.
+      const { error: clearError } = await supabase
+        .from('plan_template_items')
+        .delete()
+        .eq('template_id', id)
+      if (clearError) throw new Error(clearError.message)
+
+      if (items.length > 0) {
+        const rows = items.map((item, index) => ({
+          template_id: id,
+          sort_order: index,
+          kind: item.kind,
+          title: item.title,
+          song_id: item.song_id,
+          key_override: item.key_override,
+          length_seconds: item.length_seconds,
+          description: item.description,
+        }))
+        const { error: itemsError } = await supabase
+          .from('plan_template_items')
+          .insert(rows)
+        if (itemsError) throw new Error(itemsError.message)
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: planTemplatesKey })
+    },
+  })
+}
+
 export function useDeleteTemplate() {
   const queryClient = useQueryClient()
   return useMutation({

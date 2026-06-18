@@ -6,6 +6,17 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Reorder service types by dragging** — the **Service types** screen now lets
+  you drag a row by its handle to reorder the list (the up/down arrows still
+  work), and the order is saved for everyone ([#51]).
+- **Update or delete a saved template** — the **Save as template** dialog now has
+  a dropdown of the existing templates for that service type. Pick one to
+  **overwrite** it with the current order of service (the button switches to
+  **Update template**), type a new name to create a fresh one, or use the bin
+  beside a template to **delete** it ([#61]).
+- **Member names on a plan link to their profile** — clicking a scheduled
+  person's name in a plan's **People** panel now opens their people page, the
+  same as on a team's page ([#62]).
 - **Forgot-password flow** — the sign-in page now has a **Forgot password?** link.
   It opens a request page that always shows the same neutral confirmation ("If an
   account exists for that email, we've sent a reset link") so it can't be used to
@@ -138,6 +149,9 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#10]). Assigning multiple positions to a member (#1) is unaffected.
 
 ### Changed
+- **Teams required can be dragged to reorder** — the "Teams required" list on the
+  add/edit service type screen gained a drag handle alongside the existing up/down
+  arrows ([#50]).
 - **Phone numbers** are now validated and tidied: a number entered as an
   Australian mobile is stored and shown as `04xx xxx xxx`, and an international
   number (typed with a leading `+`) as `+cc nnn nnn nnn`. The same formatting is
@@ -184,6 +198,10 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#29]).
 
 ### Migration / upgrade notes
+- Issues #50, #51, #61 and #62 are **code-only — no schema change**. They reuse
+  existing tables (`service_types.sort_order`, `plan_templates` /
+  `plan_template_items`) and their existing admin/leader-write RLS; ship by
+  redeploying the static bundle (`git push` → Vercel).
 - Migration `20260613052530_teams_multi_position_and_leaders` adds the
   `team_member_positions` table. It **migrates each member's existing
   `default_position_id` into the new table, then drops that column.** The
@@ -289,3 +307,7 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#56]: https://github.com/mvmran/lscroster/issues/56
 [#57]: https://github.com/mvmran/lscroster/issues/57
 [#58]: https://github.com/mvmran/lscroster/issues/58
+[#50]: https://github.com/mvmran/lscroster/issues/50
+[#51]: https://github.com/mvmran/lscroster/issues/51
+[#61]: https://github.com/mvmran/lscroster/issues/61
+[#62]: https://github.com/mvmran/lscroster/issues/62
