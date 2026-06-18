@@ -46,12 +46,21 @@ export interface PersonScheduleRow {
   status: AssignmentStatus
   /** Set when the request email went out — null means "yet to be emailed". */
   notified_at: string | null
-  plans: { id: string; date: string; service_types: { name: string } | null } | null
+  /** Position + team drive the per-service position list (issue #56). */
+  position_id: string
+  team_id: string
+  plans: {
+    id: string
+    date: string
+    service_type_id: string
+    service_types: { name: string } | null
+  } | null
 }
 
 /**
  * A person's non-declined assignments with each plan's date — powers the
- * Schedules card on the person page (issue #52). Keyed by personId (unlike the
+ * Schedules card on the person page (issue #52, extended in #56 with the
+ * position/team/service-type a row is for). Keyed by personId (unlike the
  * constant `mine` key) so any profile can load its own list. RLS limits what a
  * viewer sees: admins/leaders see all, a member sees their own.
  */
@@ -62,11 +71,44 @@ export function usePersonSchedule(personId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('plan_assignments')
-        .select('id, status, notified_at, plans!inner(id, date, service_types(name))')
+        .select(
+          'id, status, notified_at, position_id, team_id, plans!inner(id, date, service_type_id, service_types(name))',
+        )
         .eq('person_id', personId!)
         .neq('status', 'declined')
       if (error) throw new Error(error.message)
       return data as unknown as PersonScheduleRow[]
+    },
+  })
+}
+
+export interface RosterWorkloadRow {
+  person_id: string
+  plans: { date: string } | null
+}
+
+/**
+ * Every non-declined assignment across the church in the trailing year — used to
+ * rank one person's serving load against the team (the percentile in the #56
+ * Activity summary). Gate with `enabled`: only admins/leaders can read others'
+ * assignments under RLS, so for a member viewing their own profile this query is
+ * skipped (the percentile is hidden rather than computed from just themselves).
+ */
+export function useRosterWorkload(enabled: boolean) {
+  return useQuery({
+    queryKey: ['roster-workload'],
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const cutoff = new Date()
+      cutoff.setFullYear(cutoff.getFullYear() - 1)
+      const { data, error } = await supabase
+        .from('plan_assignments')
+        .select('person_id, plans!inner(date)')
+        .neq('status', 'declined')
+        .gte('plans.date', cutoff.toISOString().slice(0, 10))
+      if (error) throw new Error(error.message)
+      return data as unknown as RosterWorkloadRow[]
     },
   })
 }
@@ -141,6 +183,8 @@ function useInvalidateAssignments() {
     queryClient.invalidateQueries({ queryKey: ['rostered-dates'] })
     // Profile Schedules card (issue #52) — refresh for every person.
     queryClient.invalidateQueries({ queryKey: ['person-schedule'] })
+    // Team workload percentile in the Activity summary (issue #56).
+    queryClient.invalidateQueries({ queryKey: ['roster-workload'] })
   }
 }
 

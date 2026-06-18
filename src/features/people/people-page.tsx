@@ -24,7 +24,13 @@ import {
 } from '@/components/ui/table'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { PersonAvatar } from '@/features/people/person-avatar'
-import { fullName, ROLE_LABELS, ROLES } from '@/features/people/person-utils'
+import { formatPhone } from '@/features/people/phone-utils'
+import {
+  accountStatus,
+  fullName,
+  ROLE_LABELS,
+  ROLES,
+} from '@/features/people/person-utils'
 import { usePeople, type Person } from '@/features/people/use-people'
 import { usePhotoUrls } from '@/features/people/use-photos'
 
@@ -34,6 +40,41 @@ function matchesSearch(person: Person, term: string) {
   const haystack =
     `${person.first_name} ${person.last_name} ${person.email ?? ''}`.toLowerCase()
   return haystack.includes(term)
+}
+
+// Status filter (issue #43). "active" stays "not archived" (so freshly imported
+// people who still need an invite remain visible by default); "pending" narrows
+// to exactly those without sign-in access yet; "inactive" is archived.
+function matchesStatus(person: Person, filter: string) {
+  switch (filter) {
+    case 'active':
+      return person.status === 'active'
+    case 'pending':
+      return accountStatus(person) === 'pending'
+    case 'inactive':
+      return person.status === 'inactive'
+    default:
+      return true
+  }
+}
+
+/** Status pill for the People list (issue #43). Pending = no login yet. */
+function StatusBadge({ person }: { person: Person }) {
+  const status = accountStatus(person)
+  if (status === 'active') {
+    return <span className="text-muted-foreground">Active</span>
+  }
+  if (status === 'pending') {
+    return (
+      <Badge
+        variant="outline"
+        className="border-amber-300 text-amber-700 dark:border-amber-700/60 dark:text-amber-400"
+      >
+        Pending
+      </Badge>
+    )
+  }
+  return <Badge variant="outline">Inactive</Badge>
 }
 
 export function PeoplePage() {
@@ -55,7 +96,7 @@ export function PeoplePage() {
       (p) =>
         (term === '' || matchesSearch(p, term)) &&
         (roleFilter === 'all' || p.role === roleFilter) &&
-        (statusFilter === 'all' || p.status === statusFilter),
+        matchesStatus(p, statusFilter),
     )
     result.sort((a, b) => {
       if (sort === 'newest') return b.created_at.localeCompare(a.created_at)
@@ -135,6 +176,7 @@ export function PeoplePage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
                 <SelectItem value="all">All statuses</SelectItem>
               </SelectContent>
@@ -186,12 +228,14 @@ export function PeoplePage() {
                         <span className="truncate font-medium">
                           {fullName(person)}
                         </span>
-                        {person.status === 'inactive' && (
-                          <Badge variant="outline">Inactive</Badge>
+                        {accountStatus(person) !== 'active' && (
+                          <StatusBadge person={person} />
                         )}
                       </div>
                       <p className="text-muted-foreground truncate text-sm">
-                        {person.email ?? person.phone ?? '—'}
+                        {person.email ??
+                          (person.phone ? formatPhone(person.phone) : null) ??
+                          '—'}
                       </p>
                     </div>
                     <Badge
@@ -239,7 +283,7 @@ export function PeoplePage() {
                       {person.email ?? '—'}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {person.phone ?? '—'}
+                      {person.phone ? formatPhone(person.phone) : '—'}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -249,11 +293,7 @@ export function PeoplePage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {person.status === 'active' ? (
-                        <span className="text-muted-foreground">Active</span>
-                      ) : (
-                        <Badge variant="outline">Inactive</Badge>
-                      )}
+                      <StatusBadge person={person} />
                     </TableCell>
                   </TableRow>
                 ))}

@@ -190,6 +190,39 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   `usePersonSchedule` gained `notified_at`. Client-only — no schema.
 - **#2 → reverted by #10** — a per-team `is_leader` flag was added then removed.
   Do **not** reintroduce per-team leaders before resolving #6.
+- **#38 — friendly duplicate-email error.** `use-people` maps the Postgres
+  `23505` violation on `people_email_unique` to "A person with this email already
+  exists." in create + update. Client-only.
+- **#42 — phone validation + formatting.** `features/people/phone-utils.ts`
+  (`formatPhone` / `isValidPhone`, Vitest): AU mobile → `04xx xxx xxx`, intl
+  (leading `+`) → `+cc nnn nnn nnn`. Form validates via Zod + formats on blur;
+  list / profile / CSV import display through `formatPhone`. Client-only.
+- **#43 — Pending status on People.** `person-utils` `accountStatus()`
+  (active / pending / inactive from `status` + `auth_user_id`). People list shows a
+  **Pending** badge + filter option; profile shows a "Pending invite" badge.
+  Display-only, client-only.
+- **#56 — Schedules card overhaul.** Italic headings + a "(upcoming assignments
+  status)" caption under the status bar; each row lists the **positions** served
+  (in service-type order) and links to the plan; a **Block out dates** section
+  (`usePersonBlockouts`, past hidden); an **Activity summary** (services this
+  month / year, top-2 positions, serving streak, and — for admins/leaders — a
+  team-relative percentile). `usePersonSchedule` extended; new
+  `useRosterWorkload(enabled)`; pure `describeStreak` / `workloadPercentile`
+  (Vitest). Client-only.
+- **#57 — Matrix services-shown control.** `use-matrix-plan-count.ts` (per-login
+  localStorage, default 4, clamp 2–9) drives **−/+** buttons; replaces the old
+  fixed `MATRIX_PLAN_COUNT`. Client-only.
+- **#58 — church logo.** Migration `20260618090000_church_logo`: nullable
+  `church_settings.logo_dark_url` + a **public** `church-logo` bucket (anon read,
+  admin write). Upload UI in Settings → Church (light + dark tiles); `<ChurchLogo>`
+  shows the theme-appropriate variant in the header brand and on the
+  sign-in / forgot / reset cards, falling back to the church icon.
+- **#39 — forgot-password flow.** New `request-password-reset` Edge Function
+  (`verify_jwt = false`, enumeration-safe; `generateLink` recovery → Resend via
+  `_shared/email-templates/password-reset.ts` → `email_log`). `/forgot-password`
+  (neutral confirmation) + `/reset-password` (recovery-session detection →
+  `updateUser`). **Manual prod step:** add `https://lscroster.xyz/reset-password`
+  to Supabase **Auth → URL Configuration → Redirect URLs**.
 
 **Open backlog (not started):**
 - **#3** — investigate scheduling preferences on people.
@@ -205,8 +238,9 @@ onto that join; add `church_settings.address`; add `song_arrangements` +
 backfill Default per song + drop `songs.default_key`/`bpm`; add
 `proficiency_level` enum + `team_member_positions.proficiency`;
 `service_type_teams.sort_order`; scheduling-rules tables + position requirement
-columns; `publish_overrides` audit table). New Edge Functions:
-`cancel-assignment`, `send-plan-notification`. Regenerate
+columns; `publish_overrides` audit table; `church_settings.logo_dark_url` + the
+public `church-logo` bucket). New Edge Functions: `cancel-assignment`,
+`send-plan-notification`, `request-password-reset`. Regenerate
 `src/types/database.ts` from the local stack after pulling.
 
 ---

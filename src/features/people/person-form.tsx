@@ -13,13 +13,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { PHONE_ERROR, formatPhone, isValidPhone } from '@/features/people/phone-utils'
 import { ROLE_LABELS, ROLES } from '@/features/people/person-utils'
 
 const personFormSchema = z.object({
   firstName: z.string().trim().min(1, { error: 'First name is required' }),
   lastName: z.string().trim().min(1, { error: 'Last name is required' }),
   email: z.union([z.literal(''), z.email({ error: 'Enter a valid email' })]),
-  phone: z.string().trim(),
+  phone: z.string().trim().refine(isValidPhone, { error: PHONE_ERROR }),
   birthday: z.string(), // yyyy-mm-dd from <input type="date">, or ''
   notes: z.string(),
   role: z.enum(ROLES),
@@ -108,7 +109,24 @@ export function PersonForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="phone">Phone</Label>
-          <Input id="phone" type="tel" {...form.register('phone')} />
+          <Input
+            id="phone"
+            type="tel"
+            placeholder="0412 345 678"
+            {...form.register('phone', {
+              onBlur: (e) => {
+                // Tidy the displayed number once the field loses focus, but
+                // never touch an invalid value the user is still fixing.
+                const formatted = formatPhone(e.target.value)
+                if (formatted && isValidPhone(formatted)) {
+                  form.setValue('phone', formatted, { shouldValidate: true })
+                }
+              },
+            })}
+          />
+          {errors.phone && (
+            <p className="text-destructive text-sm">{errors.phone.message}</p>
+          )}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="birthday">Birthday</Label>

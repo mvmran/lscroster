@@ -1,6 +1,6 @@
 # Session handover — LSCRoster
 
-_Last updated: 2026-06-16_
+_Last updated: 2026-06-18_
 
 This is a working handover note for continuing development in a fresh Claude Code
 session. Read `CLAUDE.md` first for the project rules; this file captures only the
@@ -8,13 +8,20 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 
 ## Current state of the tree
 
-- Branch `main`, clean, synced with `origin/main` (latest merge: **#52**, person-page
-  schedules; before that **#47** partial-accept, **#33 + #49** Matrix team ordering,
-  and **`60c7254`** the #32 P2–P5 merge).
-- Production (lscroster.xyz) is **up to date**: migrations through **0015** applied,
-  no Edge Function changes pending, Vercel auto-deployed from `main`.
-- Schema since Phase 4: migrations **0006–0015** (see `supabase/migrations/`).
-  #33/#49/#47/#52 added **no** schema — client-only UI.
+- Branch `main`, clean, synced with `origin/main` (latest merges: **#38 / #39 /
+  #42 / #43 / #56 / #57 / #58** batch; before that **#54 / #55** header + Schedules
+  formatting, **#52** person-page schedules, **#47** partial-accept, **#33 + #49**
+  Matrix team ordering).
+- Production (lscroster.xyz) is **up to date** once this batch deploys: the
+  `20260618090000_church_logo` migration and the new `request-password-reset` Edge
+  Function ship with it; Vercel auto-deploys from `main`.
+- Schema since Phase 4: migrations **0006–** `20260618090000_church_logo`
+  (see `supabase/migrations/`). Of this batch, only **#58** changed schema (logo
+  column + public bucket); **#39** added an Edge Function; #42/#38/#43/#56/#57 are
+  client-only.
+- **Manual prod step for #39:** add `https://lscroster.xyz/reset-password` to the
+  Supabase project's **Auth → URL Configuration → Redirect URLs**, or recovery
+  links fall back to the site root instead of the reset page.
 
 ## What just shipped
 
@@ -31,6 +38,41 @@ RLS probe with a member JWT + browser UI), deployed to prod, and merged to `main
 | #49 | **Drag-and-drop** reorder in the Matrix "Reorder teams" popup (dnd-kit) | closed |
 | #47 | **Partial accept** of a roster suggestion — per-suggestion checkboxes + select-all | closed |
 | #52 | **Past & upcoming schedules** on the person page + past-period dropdown | closed |
+| #38 | **Friendly duplicate-email error** on create/update person | closed |
+| #39 | **Forgot-password flow** — `request-password-reset` fn + `/forgot-password` + `/reset-password` | closed |
+| #42 | **Phone validation + formatting** (AU mobile / `+cc` international) | closed |
+| #43 | **Pending status** on People (no login yet) + filter | closed |
+| #56 | **Schedules card**: positions per row, clickable rows, block-out dates, activity summary | closed |
+| #57 | **Matrix −/+** services-shown control (localStorage, default 4, 2–9) | closed |
+| #58 | **Church logo** — light/dark upload + header & sign-in display | closed |
+
+### #38 / #39 / #42 / #43 / #56 / #57 / #58 batch (this session)
+
+- **#42 phone** — `features/people/phone-utils.ts` (`formatPhone` / `isValidPhone`,
+  Vitest). Form validates via Zod + formats on blur; the list, profile and CSV
+  import all display through `formatPhone`.
+- **#38 dup email** — `use-people.ts` maps Postgres `23505` on `people_email_unique`
+  to a friendly message in create + update.
+- **#43 pending** — `person-utils.ts` `accountStatus()` (active / pending /
+  inactive, derived from `status` + `auth_user_id`). People list shows a **Pending**
+  badge + filter; profile shows a "Pending invite" badge. Client-only.
+- **#56 schedules card** — `person-schedule-card.tsx` rewritten;
+  `usePersonSchedule` extended with position/team/service-type; new
+  `useRosterWorkload(enabled)` (admins/leaders only) for the team percentile;
+  pure helpers + Vitest in `person-schedule-utils.ts` (`describeStreak`,
+  `workloadPercentile`). Positions sort by `serviceTypeTeamSort` then position
+  order; rows link to the plan; blockouts via `usePersonBlockouts`. Client-only.
+- **#57 matrix −/+** — `use-matrix-plan-count.ts` (per-login localStorage, default
+  4, clamp 2–9), wired into `matrix-page.tsx` replacing the old fixed constant.
+- **#58 logo** — migration `20260618090000_church_logo` (logo_dark_url + public
+  `church-logo` bucket, admin-write RLS). `use-church-logo.ts` (upload/clear +
+  `logoPublicUrl`) and `church-logo.tsx` (`<ChurchLogo>` theme-aware, falls back to
+  the icon). Upload UI in Settings → Church; shown in the header brand + sign-in.
+- **#39 forgot password** — `request-password-reset` Edge Function (enumeration-safe,
+  Resend via `_shared/email-templates/password-reset.ts`, logs to `email_log`);
+  `/forgot-password` (neutral confirmation) and `/reset-password` (recovery-session
+  detection → `updateUser`); `config.toml` adds the function (`verify_jwt = false`)
+  and local `/reset-password` redirect URLs.
 
 ### #32 epic — done (P1–P5)
 

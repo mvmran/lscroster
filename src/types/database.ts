@@ -78,6 +78,7 @@ export type Database = {
           created_at: string
           email_from_name: string | null
           id: string
+          logo_dark_url: string | null
           logo_url: string | null
           name: string
           reminder_days_before: number
@@ -91,6 +92,7 @@ export type Database = {
           created_at?: string
           email_from_name?: string | null
           id?: string
+          logo_dark_url?: string | null
           logo_url?: string | null
           name: string
           reminder_days_before?: number
@@ -104,6 +106,7 @@ export type Database = {
           created_at?: string
           email_from_name?: string | null
           id?: string
+          logo_dark_url?: string | null
           logo_url?: string | null
           name?: string
           reminder_days_before?: number

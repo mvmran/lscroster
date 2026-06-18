@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { CalendarDays, Loader2, Mail, Users as UsersIcon } from 'lucide-react'
+import { CalendarDays, Loader2, Mail, Users as UsersIcon, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -18,12 +18,119 @@ import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/features/auth/use-auth'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import {
+  logoPublicUrl,
+  useClearChurchLogo,
+  useUploadChurchLogo,
+  type LogoVariant,
+} from '@/features/settings/use-church-logo'
+import {
   useChurchSettings,
   useUpdateChurchSettings,
 } from '@/features/settings/use-church-settings'
 import { invokeFunction } from '@/lib/functions'
+import { cn } from '@/lib/utils'
 
 type ChurchSettings = NonNullable<ReturnType<typeof useChurchSettings>['data']>
+
+const MAX_LOGO_BYTES = 5 * 1024 * 1024
+
+/**
+ * One logo upload tile (issue #58). Empty tiles label themselves ("Light theme"
+ * / "Dark theme") and the label gives way to the image once a logo is uploaded,
+ * mirroring how the avatar shows initials until a photo is set.
+ */
+function LogoField({
+  settings,
+  variant,
+}: {
+  settings: ChurchSettings
+  variant: LogoVariant
+}) {
+  const upload = useUploadChurchLogo()
+  const clear = useClearChurchLogo()
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const path = variant === 'light' ? settings.logo_url : settings.logo_dark_url
+  const url = logoPublicUrl(path)
+  const label = variant === 'light' ? 'Light theme' : 'Dark theme'
+  const dark = variant === 'dark'
+
+  function onChosen(file: File | undefined) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Choose an image file')
+      return
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      toast.error('Logo must be under 5 MB')
+      return
+    }
+    upload.mutate(
+      { settingsId: settings.id, variant, file, currentPath: path },
+      {
+        onSuccess: () => toast.success(`${label} logo updated`),
+        onError: (e) => toast.error(e.message),
+      },
+    )
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={upload.isPending}
+        className={cn(
+          'flex h-24 w-full items-center justify-center rounded-lg border transition-colors',
+          dark
+            ? 'border-zinc-700 bg-zinc-900 hover:bg-zinc-800'
+            : 'border-zinc-200 bg-white hover:bg-zinc-50',
+        )}
+        aria-label={`Upload ${label.toLowerCase()} logo`}
+      >
+        {upload.isPending ? (
+          <Loader2
+            className={cn('size-5 animate-spin', dark ? 'text-zinc-400' : 'text-zinc-500')}
+          />
+        ) : url ? (
+          <img src={url} alt={`${label} logo`} className="max-h-20 max-w-full object-contain p-2" />
+        ) : (
+          <span className={cn('text-xs', dark ? 'text-zinc-400' : 'text-muted-foreground')}>
+            {label} logo
+          </span>
+        )}
+      </button>
+      {url && !upload.isPending && (
+        <Button
+          type="button"
+          size="icon"
+          variant="secondary"
+          className="absolute -top-2 -right-2 size-6 rounded-full border shadow-sm"
+          aria-label={`Remove ${label.toLowerCase()} logo`}
+          disabled={clear.isPending}
+          onClick={() =>
+            clear.mutate(
+              { settingsId: settings.id, variant, currentPath: path },
+              {
+                onSuccess: () => toast.success(`${label} logo removed`),
+                onError: (e) => toast.error(e.message),
+              },
+            )
+          }
+        >
+          <X className="size-3.5" />
+        </Button>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => onChosen(e.target.files?.[0])}
+      />
+    </div>
+  )
+}
 
 function ChurchSettingsForm({ settings }: { settings: ChurchSettings }) {
   const updateSettings = useUpdateChurchSettings()
@@ -55,6 +162,17 @@ function ChurchSettingsForm({ settings }: { settings: ChurchSettings }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label>Church logo</Label>
+        <p className="text-muted-foreground text-xs">
+          Shown in the app header and on the sign-in page. Upload a light- and a
+          dark-theme version; if you upload only one, it's used for both.
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <LogoField settings={settings} variant="light" />
+          <LogoField settings={settings} variant="dark" />
+        </div>
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="church-address">Address</Label>
