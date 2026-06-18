@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/sheet'
 import { useAuth } from '@/features/auth/use-auth'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { ChurchLogo } from '@/features/settings/church-logo'
 import { useChurchSettings } from '@/features/settings/use-church-settings'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -71,7 +72,11 @@ function Brand({ className }: { className?: string }) {
   const { data: settings } = useChurchSettings()
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      <Church className="size-6 shrink-0" />
+      <ChurchLogo
+        settings={settings}
+        className="h-7 w-auto max-w-[120px]"
+        fallback={<Church className="size-6 shrink-0" />}
+      />
       <span className="truncate text-base font-semibold">
         {settings?.name ?? 'LSCRoster'}
       </span>
