@@ -332,6 +332,45 @@ export function usePositionMutations(teamId: string) {
   return { create, update, remove }
 }
 
+/**
+ * Set a position's minimum required count from the plan People panel (issue #71).
+ * Optimistically patches the global `['positions']` cache so the stepper and the
+ * live understaffed badge respond instantly; invalidating the `['positions']`
+ * prefix also refreshes the team-scoped `['positions', teamId]` query.
+ */
+export function useUpdatePositionMinCount() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, min_count }: { id: string; min_count: number }) => {
+      const { error } = await supabase
+        .from('positions')
+        .update({ min_count })
+        .eq('id', id)
+      if (error) throw new Error(error.message)
+    },
+    onMutate: async ({ id, min_count }) => {
+      await queryClient.cancelQueries({ queryKey: ['positions'] })
+      const previous = queryClient.getQueryData<Tables<'positions'>[]>(['positions'])
+      if (previous) {
+        queryClient.setQueryData<Tables<'positions'>[]>(
+          ['positions'],
+          previous.map((p) => (p.id === id ? { ...p, min_count } : p)),
+        )
+      }
+      return { previous }
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['positions'], context.previous)
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['positions'] })
+      queryClient.invalidateQueries({ queryKey: teamKeys.all })
+    },
+  })
+}
+
 export function useMembershipMutations() {
   const queryClient = useQueryClient()
   const invalidate = (teamId: string, personId: string) => {

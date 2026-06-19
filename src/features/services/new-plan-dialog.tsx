@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { addDays, format, parseISO } from 'date-fns'
 import { Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -23,7 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { formatPlanDateShort, todayISODate } from '@/features/services/service-utils'
+import {
+  formatPlanDateShort,
+  todayISODate,
+  weeklyDates,
+} from '@/features/services/service-utils'
 import { useCreatePlan, type PlanWithType } from '@/features/services/use-plans'
 import { usePlanTemplates } from '@/features/services/use-plan-templates'
 import { useServiceTypes } from '@/features/services/use-service-types'
@@ -50,7 +53,11 @@ export function NewPlanDialog({
   const [date, setDate] = useState(todayISODate())
   const [title, setTitle] = useState('')
   const [source, setSource] = useState('blank')
-  const [repeat, setRepeat] = useState('1')
+  // Repeat weekly until this date (issue #72); empty = just the one plan.
+  const [repeatUntil, setRepeatUntil] = useState('')
+
+  // The repeat-until date must be later than the plan date when set.
+  const repeatInvalid = repeatUntil !== '' && repeatUntil <= date
 
   const effectiveTypeId = serviceTypeId || serviceTypes?.[0]?.id || ''
 
@@ -68,21 +75,22 @@ export function NewPlanDialog({
   )
 
   async function create() {
-    if (!effectiveTypeId || !date) return
+    if (!effectiveTypeId || !date || repeatInvalid) return
     const [kind, id] = source.split(':') as ['template' | 'plan', string] | ['blank', undefined]
-    const count = parseInt(repeat, 10)
+    // One plan at `date`, or weekly plans through the repeat-until date (#72).
+    const dates = repeatUntil ? weeklyDates(date, repeatUntil) : [date]
     try {
       let firstPlanId: string | null = null
-      for (let week = 0; week < count; week++) {
+      for (const planDate of dates) {
         const plan = await createPlan.mutateAsync({
           service_type_id: effectiveTypeId,
-          date: format(addDays(parseISO(date), week * 7), 'yyyy-MM-dd'),
+          date: planDate,
           title: title.trim() || null,
           source: kind !== 'blank' && id ? { kind, id } : undefined,
         })
         firstPlanId ??= plan.id
       }
-      if (count > 1) toast.success(`Created ${count} weekly plans`)
+      if (dates.length > 1) toast.success(`Created ${dates.length} weekly plans`)
       onOpenChange(false)
       navigate(`/services/plans/${firstPlanId}`)
     } catch (error) {
@@ -144,18 +152,29 @@ export function NewPlanDialog({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="np-repeat">Repeat</Label>
-            <Select value={repeat} onValueChange={setRepeat}>
-              <SelectTrigger id="np-repeat" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Just this date</SelectItem>
-                <SelectItem value="4">Weekly · next 4 weeks</SelectItem>
-                <SelectItem value="8">Weekly · next 8 weeks</SelectItem>
-                <SelectItem value="13">Weekly · next 13 weeks</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="np-repeat-until">Repeat weekly until (optional)</Label>
+            <Input
+              id="np-repeat-until"
+              type="date"
+              value={repeatUntil}
+              min={date}
+              onChange={(e) => setRepeatUntil(e.target.value)}
+              className="w-44"
+              aria-invalid={repeatInvalid}
+            />
+            <p
+              className={
+                repeatInvalid
+                  ? 'text-destructive text-xs'
+                  : 'text-muted-foreground text-xs'
+              }
+            >
+              {repeatInvalid
+                ? 'The repeat date must be later than the plan date.'
+                : repeatUntil
+                  ? `Creates ${weeklyDates(date, repeatUntil).length} weekly plans through ${formatPlanDateShort(repeatUntil)}.`
+                  : 'Leave blank for a single plan. Pick a future date to create a weekly plan through to it.'}
+            </p>
           </div>
 
           {(typeTemplates.length > 0 || recentPlans.length > 0) && (
@@ -197,7 +216,10 @@ export function NewPlanDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={create} disabled={createPlan.isPending || !effectiveTypeId || !date}>
+          <Button
+            onClick={create}
+            disabled={createPlan.isPending || !effectiveTypeId || !date || repeatInvalid}
+          >
             {createPlan.isPending && <Loader2 className="size-4 animate-spin" />}
             Create plan
           </Button>

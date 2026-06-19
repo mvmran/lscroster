@@ -6,6 +6,16 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Page the Matrix through earlier/later weeks** — the Matrix has **←** and **→**
+  buttons that shift the window one service earlier or later, so you can roster
+  past the next few weeks (and look back at past ones) without changing how many
+  show at once ([#67]).
+- **Jump between services from a plan** — a plan now has **Prev**, **Today** and
+  **Next** buttons in its header to step through that service type's plans in date
+  order; **Today** returns to the next upcoming (or today's) service ([#69]).
+- **Set a position's minimum from the plan** — each position in a plan's **People**
+  panel now has a small **Min −/+** stepper, so you can change how many people a
+  position needs (and clear the understaffed flag) without leaving the plan ([#71]).
 - **Reorder service types by dragging** — the **Service types** screen now lets
   you drag a row by its handle to reorder the list (the up/down arrows still
   work), and the order is saved for everyone ([#51]).
@@ -149,6 +159,14 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#10]). Assigning multiple positions to a member (#1) is unaffected.
 
 ### Changed
+- **Repeat a new plan up to a date** — the **New plan** dialog's *Repeat* control is
+  now a date picker: leave it blank for a single plan, or pick a future date and a
+  weekly plan is created through to it (the date must be later than the plan date)
+  ([#72]).
+- **Matrix team order for a single service type** — when the Matrix shows only one
+  service type (filtered to it, or because only one type is in view), teams are
+  ordered by that service type's setup order and the **Reorder teams** button —
+  which only governs the mixed "all types" personal order — is hidden ([#70]).
 - **Teams required can be dragged to reorder** — the "Teams required" list on the
   add/edit service type screen gained a drag handle alongside the existing up/down
   arrows ([#50]).
@@ -198,6 +216,9 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#29]).
 
 ### Migration / upgrade notes
+- Issues #67, #69, #70, #71 and #72 are **code-only — no schema change**. #71
+  edits the existing `positions.min_count` column (covered by its existing
+  admin/leader-write RLS); the rest are UI-only. Ship by `git push` → Vercel.
 - Issues #50, #51, #61 and #62 are **code-only — no schema change**. They reuse
   existing tables (`service_types.sort_order`, `plan_templates` /
   `plan_template_items`) and their existing admin/leader-write RLS; ship by
@@ -311,3 +332,8 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#51]: https://github.com/mvmran/lscroster/issues/51
 [#61]: https://github.com/mvmran/lscroster/issues/61
 [#62]: https://github.com/mvmran/lscroster/issues/62
+[#67]: https://github.com/mvmran/lscroster/issues/67
+[#69]: https://github.com/mvmran/lscroster/issues/69
+[#70]: https://github.com/mvmran/lscroster/issues/70
+[#71]: https://github.com/mvmran/lscroster/issues/71
+[#72]: https://github.com/mvmran/lscroster/issues/72
