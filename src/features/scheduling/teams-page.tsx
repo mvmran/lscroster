@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2, Plus, SlidersHorizontal, UsersRound } from 'lucide-react'
+import { Loader2, Plus, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FullPageError } from '@/components/full-page-error'
@@ -19,7 +19,6 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { ServiceTypePicker } from '@/features/scheduling/service-type-picker'
-import { TeamExclusionsDialog } from '@/features/scheduling/team-exclusions-dialog'
 import {
   useCreateTeam,
   useSetTeamServiceTypes,
@@ -115,7 +114,6 @@ export function TeamsPage() {
   const { data: serviceTypes } = useServiceTypes()
   const { data: me } = useCurrentPerson()
   const [newTeamOpen, setNewTeamOpen] = useState(false)
-  const [rulesOpen, setRulesOpen] = useState(false)
 
   const canManage = me?.role === 'admin' || me?.role === 'leader'
   const typeLabel = (team: TeamWithCounts) => {
@@ -134,16 +132,10 @@ export function TeamsPage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Teams</h1>
         {canManage && (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setRulesOpen(true)}>
-              <SlidersHorizontal className="size-4" />
-              Scheduling rules
-            </Button>
-            <Button onClick={() => setNewTeamOpen(true)}>
-              <Plus className="size-4" />
-              New team
-            </Button>
-          </div>
+          <Button onClick={() => setNewTeamOpen(true)}>
+            <Plus className="size-4" />
+            New team
+          </Button>
         )}
       </div>
 
@@ -188,7 +180,6 @@ export function TeamsPage() {
       )}
 
       <NewTeamDialog open={newTeamOpen} onOpenChange={setNewTeamOpen} />
-      <TeamExclusionsDialog open={rulesOpen} onOpenChange={setRulesOpen} />
     </div>
   )
 }

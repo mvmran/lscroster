@@ -47,7 +47,6 @@ function state(overrides: Partial<EngineState> = {}): EngineState {
     candidates: [],
     existingAssignments: [],
     pairings: [],
-    teamExclusions: [],
     ...overrides,
   }
 }

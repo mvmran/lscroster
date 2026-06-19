@@ -57,7 +57,6 @@ export interface EngineState {
   /** Manual assignments already on the plan (non-declined occupy a slot). */
   existingAssignments: EngineAssignment[]
   pairings: EnginePairing[]
-  teamExclusions: [string, string][]
 }
 
 export interface Suggestion {
@@ -141,19 +140,13 @@ function rejectionReason(
   state: EngineState,
   roster: WorkingAssignment[],
   needsQualified: boolean,
-): 'level' | 'unavailable' | 'inactive' | 'in-service' | 'exclusion' | 'avoid' | 'cadence' | null {
+): 'level' | 'unavailable' | 'inactive' | 'in-service' | 'avoid' | 'cadence' | null {
   const level = person.eligibility[pos.id]
   if (needsQualified && level !== 'qualified') return 'level'
   if (person.status !== 'active') return 'inactive'
   if (isUnavailableOn(person, state.service.date)) return 'unavailable'
 
   if (roster.some((r) => r.personId === person.id)) return 'in-service' // no multi-position
-
-  // team exclusion vs anyone already assigned
-  for (const [a, b] of state.teamExclusions) {
-    const other = a === pos.teamId ? b : b === pos.teamId ? a : null
-    if (other && roster.some((r) => r.teamId === other)) return 'exclusion'
-  }
 
   // hard-avoid vs anyone already assigned
   const assignedIds = new Set(roster.map((r) => r.personId))
@@ -191,7 +184,6 @@ const REASON_TEXT: Record<string, string> = {
   unavailable: 'everyone set up is unavailable',
   inactive: 'everyone set up is on a break',
   'in-service': 'everyone set up is already serving',
-  exclusion: 'remaining people are blocked by a team exclusion',
   avoid: 'remaining people are blocked by an avoid rule',
   cadence: 'everyone set up is over their serving limit',
 }

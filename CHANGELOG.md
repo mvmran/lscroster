@@ -6,6 +6,12 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Bulk actions on the People page** — admins can now select several people at
+  once (hover a row's avatar to reveal a tick box, or use the **select-all** box in
+  the header) and then **Send invitation** or **Archive member** to all of them in
+  one go. A confirmation step shows how many people the action will affect, and
+  people it can't apply to (no email, already invited, already archived, or
+  yourself) are skipped automatically ([#77]).
 - **Archiving disables sign-in** — archiving a person now immediately revokes their
   ability to sign in (their account is locked and any active session ends), and
   reactivating restores it. Their record and history are kept, as before. A
@@ -178,6 +184,10 @@ All notable changes to LSCRoster are recorded here. The format follows
   key/BPM (a per-plan key override still wins) ([#24]).
 
 ### Removed
+- **Team scheduling rules (cross-team exclusions)** — the **Scheduling rules**
+  button on the Teams page and the "two teams can't share a person" rule it managed
+  have been removed entirely. Per-position requirements inside a team (minimum and
+  maximum count, required level, fill priority) are unchanged ([#76]).
 - The per-team **team-leader designation** added for [#2] has been removed
   ([#10]). Assigning multiple positions to a member (#1) is unaffected.
 
@@ -250,6 +260,12 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#29]).
 
 ### Migration / upgrade notes
+- Migration `20260619140000_drop_team_exclusions` (#76) **drops the
+  `team_exclusions` table** (and its RLS policies). The feature is gone; the only
+  data lost is cross-team exclusion pairs. Re-runnable (`drop table if exists`).
+  Apply with `supabase db push` **before** `git push`, then regenerate
+  `database.ts` types. #77 (bulk People actions) is **code-only — no schema
+  change**, reusing the existing `invite` function and people-update RLS.
 - Migration `20260619100000_account_access_guards` adds two database triggers on
   `people`: one blocks an admin from demoting their own role (#44), the other
   bans the auth account and drops live sessions when a person is archived, and
@@ -394,3 +410,5 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#45]: https://github.com/mvmran/lscroster/issues/45
 [#60]: https://github.com/mvmran/lscroster/issues/60
 [#73]: https://github.com/mvmran/lscroster/issues/73
+[#76]: https://github.com/mvmran/lscroster/issues/76
+[#77]: https://github.com/mvmran/lscroster/issues/77

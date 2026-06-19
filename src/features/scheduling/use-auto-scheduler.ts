@@ -73,7 +73,6 @@ function buildEngineState(
       kind: p.kind,
       strength: p.strength,
     })),
-    teamExclusions: (data.exclusions ?? []).map((e) => [e.team_a, e.team_b]),
   }
 }
 

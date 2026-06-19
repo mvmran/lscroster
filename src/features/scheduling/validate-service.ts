@@ -29,7 +29,6 @@ export const RULE_SHORT_LABELS: Record<string, string> = {
   BELOW_REQUIRED_LEVEL: 'Below level',
   UNAVAILABLE_SCHEDULED: 'Unavailable',
   MULTI_POSITION: 'Double-booked',
-  TEAM_EXCLUSION: 'Team clash',
   AVOID_PAIR_TOGETHER: 'Avoid pair',
   SOFT_AVOID_TOGETHER: 'Avoid pair',
   INACTIVE_SCHEDULED: 'On a break',
@@ -116,7 +115,6 @@ export interface ServiceState {
   /** Context for every person referenced by an assignment. */
   people: ValidationPerson[]
   pairings: ValidationPairing[]
-  teamExclusions: [string, string][]
 }
 
 // --- small, individually-testable date helpers -------------------------------
@@ -250,35 +248,6 @@ export function checkMultiPosition(state: ServiceState): RuleResult[] {
         message: `${nameOf(people, personId)} is scheduled in ${positionIds.size} positions (${names}).`,
         personIds: [personId],
       })
-    }
-  }
-  return results
-}
-
-/** TEAM_EXCLUSION — a person is in two mutually-exclusive teams this service. */
-export function checkTeamExclusions(state: ServiceState): RuleResult[] {
-  const people = peopleById(state)
-  const teamName = new Map(state.positions.map((p) => [p.teamId, p.teamName]))
-  const teamsByPerson = new Map<string, Set<string>>()
-  for (const a of scheduled(state)) {
-    ;(
-      teamsByPerson.get(a.personId) ??
-      teamsByPerson.set(a.personId, new Set()).get(a.personId)!
-    ).add(a.teamId)
-  }
-  const results: RuleResult[] = []
-  for (const [personId, teamIds] of teamsByPerson) {
-    for (const [a, b] of state.teamExclusions) {
-      if (teamIds.has(a) && teamIds.has(b)) {
-        results.push({
-          code: 'TEAM_EXCLUSION',
-          severity: 'error',
-          message: `${nameOf(people, personId)} is in both ${teamName.get(a) ?? 'one team'} and ${
-            teamName.get(b) ?? 'another'
-          }, which can't share a person.`,
-          personIds: [personId],
-        })
-      }
     }
   }
   return results
@@ -487,7 +456,6 @@ const CHECKS = [
   checkAvailability,
   checkInactive,
   checkMultiPosition,
-  checkTeamExclusions,
   checkPairings,
   checkCoverage,
   checkSupervision,

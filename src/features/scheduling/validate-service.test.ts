@@ -8,7 +8,6 @@ import {
   checkMultiPosition,
   checkPairings,
   checkSupervision,
-  checkTeamExclusions,
   consecutiveRun,
   isLastWeekdayOfMonth,
   isUnavailableOn,
@@ -69,7 +68,6 @@ function state(overrides: Partial<ServiceState> = {}): ServiceState {
     assignments: [],
     people: [],
     pairings: [],
-    teamExclusions: [],
     ...overrides,
   }
 }
@@ -167,26 +165,6 @@ describe('checkMultiPosition', () => {
     const results = checkMultiPosition(s)
     expect(results).toHaveLength(1)
     expect(results[0].personIds).toEqual(['a'])
-  })
-})
-
-describe('checkTeamExclusions', () => {
-  it('flags a person serving in two mutually-exclusive teams', () => {
-    const s = state({
-      positions: [
-        position({ id: 'pos-1', teamId: 'band', teamName: 'Band' }),
-        position({ id: 'pos-2', teamId: 'ushers', teamName: 'Ushers' }),
-      ],
-      assignments: [
-        assign('a', 'pos-1', { teamId: 'band' }),
-        assign('a', 'pos-2', { teamId: 'ushers' }),
-      ],
-      people: [person({ id: 'a', name: 'Ann' })],
-      teamExclusions: [['band', 'ushers']],
-    })
-    const results = checkTeamExclusions(s)
-    expect(results).toHaveLength(1)
-    expect(results[0].code).toBe('TEAM_EXCLUSION')
   })
 })
 

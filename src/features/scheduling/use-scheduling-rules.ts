@@ -9,13 +9,11 @@ import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 export type PersonSchedulingPrefs = Tables<'person_scheduling_prefs'>
 export type RecurringUnavailability = Tables<'person_recurring_unavailability'>
 export type PersonPairing = Tables<'person_pairings'>
-export type TeamExclusion = Tables<'team_exclusions'>
 
 export const schedulingRuleKeys = {
   prefs: (personId: string) => ['scheduling-prefs', personId] as const,
   recurring: (personId: string) => ['recurring-unavailability', personId] as const,
   pairings: (personId: string) => ['person-pairings', personId] as const,
-  teamExclusions: ['team-exclusions'] as const,
   allPrefs: ['scheduling-prefs-all'] as const,
   allRecurring: ['recurring-unavailability-all'] as const,
   allPairings: ['person-pairings-all'] as const,
@@ -169,52 +167,6 @@ export function usePairingMutations(personId: string) {
         .eq('id', pairing.id)
       if (error) throw new Error(error.message)
       return pairing.person_a === personId ? pairing.person_b : pairing.person_a
-    },
-    onSuccess: invalidate,
-  })
-  return { add, remove }
-}
-
-// --- team exclusions ---------------------------------------------------------
-
-export function useTeamExclusions() {
-  return useQuery({
-    queryKey: schedulingRuleKeys.teamExclusions,
-    queryFn: async () => {
-      const { data, error } = await supabase.from('team_exclusions').select('*')
-      if (error) throw new Error(error.message)
-      return data as TeamExclusion[]
-    },
-    staleTime: 60 * 1000,
-  })
-}
-
-export function useTeamExclusionMutations() {
-  const queryClient = useQueryClient()
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.teamExclusions })
-  const add = useMutation({
-    mutationFn: async ({ teamA, teamB }: { teamA: string; teamB: string }) => {
-      const [team_a, team_b] = normalizePair(teamA, teamB)
-      const { error } = await supabase
-        .from('team_exclusions')
-        .insert({ team_a, team_b })
-      if (error) {
-        throw new Error(
-          error.code === '23505' ? 'Those teams are already excluded' : error.message,
-        )
-      }
-    },
-    onSuccess: invalidate,
-  })
-  const remove = useMutation({
-    mutationFn: async (exclusion: TeamExclusion) => {
-      const { error } = await supabase
-        .from('team_exclusions')
-        .delete()
-        .eq('team_a', exclusion.team_a)
-        .eq('team_b', exclusion.team_b)
-      if (error) throw new Error(error.message)
     },
     onSuccess: invalidate,
   })
