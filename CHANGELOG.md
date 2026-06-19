@@ -59,9 +59,13 @@ All notable changes to LSCRoster are recorded here. The format follows
 - **Pending status on People** — people without sign-in access yet now show a
   **Pending** status (and a new **Pending** filter), making it easy to see who
   still needs an email invite after a bulk CSV import ([#43]).
-- **Matrix services-shown control** — the Matrix has **−/+** buttons to change how
-  many upcoming services it shows side by side (default 4, between 2 and 9), saved
+- **Matrix services-shown control** — the Matrix has a **Columns** slider to change
+  how many upcoming services it shows side by side (default 4, between 2 and 9), saved
   on that device for that login ([#57]).
+- **Jump back to now in the Matrix** — the Matrix week pager now has a **Now** button
+  between the **←** and **→** arrows that returns the window to the next upcoming
+  service, and the two control groups (**Weeks** and **Columns**) are labelled and
+  spaced apart.
 - **Assignment status bar on a profile** — the person **Schedules** card now shows
   a red/yellow/green bar above the **Past** list summarising the member's
   **upcoming** assignments across all services (published and unpublished): red =

@@ -11,7 +11,6 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  Minus,
   Plus,
   Send,
   UserRound,
@@ -38,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   AssignPersonDialog,
@@ -407,59 +407,62 @@ export function MatrixPage() {
         </Button>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold">Matrix</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-12 gap-y-2">
             {/* Week paging (issue #67): shift the window one service earlier/later. */}
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-8"
-                onClick={() => setWeekOffset((o) => o - 1)}
-                disabled={startIndex <= 0}
-                aria-label="Show earlier services"
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-8"
-                onClick={() => setWeekOffset((o) => o + 1)}
-                disabled={startIndex >= maxStart}
-                aria-label="Show later services"
-              >
-                <ChevronRight className="size-4" />
-              </Button>
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground text-xs font-medium">Weeks</span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-8"
+                  onClick={() => setWeekOffset((o) => o - 1)}
+                  disabled={startIndex <= 0}
+                  aria-label="Show earlier services"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                {/* Jump back to the next-upcoming service (window default). */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setWeekOffset(0)}
+                  disabled={weekOffset === 0}
+                  aria-label="Show today's upcoming services"
+                >
+                  Now
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-8"
+                  onClick={() => setWeekOffset((o) => o + 1)}
+                  disabled={startIndex >= maxStart}
+                  aria-label="Show later services"
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
             </div>
-            {/* Services-shown stepper (issue #57): default 4, clamped 2–9. */}
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-8"
-                onClick={() => setPlanCount(planCount - 1)}
-                disabled={planCount <= MATRIX_PLAN_COUNT_MIN}
-                aria-label="Show fewer services"
-              >
-                <Minus className="size-4" />
-              </Button>
+            {/* Services-shown slider (issue #57): default 4, clamped 2–9. */}
+            <div className="flex items-center gap-2.5">
+              <span className="text-muted-foreground text-xs font-medium">Columns</span>
+              <Slider
+                className="w-24"
+                min={MATRIX_PLAN_COUNT_MIN}
+                max={MATRIX_PLAN_COUNT_MAX}
+                step={1}
+                value={[planCount]}
+                onValueChange={(v) => setPlanCount(v[0])}
+                aria-label="Number of services shown side by side"
+              />
               <span
-                className="text-muted-foreground w-9 text-center text-sm tabular-nums"
+                className="text-muted-foreground w-4 text-center text-sm tabular-nums"
                 aria-live="polite"
-                aria-label={`Showing ${planCount} services`}
               >
                 {planCount}
               </span>
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-8"
-                onClick={() => setPlanCount(planCount + 1)}
-                disabled={planCount >= MATRIX_PLAN_COUNT_MAX}
-                aria-label="Show more services"
-              >
-                <Plus className="size-4" />
-              </Button>
             </div>
             {/* Reorder is personal-order only — hidden when one type is shown (#70). */}
             {!displayedTypeId && reorderableTeams.length > 1 && (
@@ -497,8 +500,8 @@ export function MatrixPage() {
           </div>
         </div>
         <p className="text-muted-foreground text-sm">
-          {matrixPlans.length || ''} services side by side — use ← → to change the
-          weeks shown; click a cell to schedule.
+          {matrixPlans.length || ''} services side by side — use the slider to
+          change the weeks shown; click a cell to schedule.
         </p>
       </div>
 

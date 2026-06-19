@@ -210,8 +210,10 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   `useRosterWorkload(enabled)`; pure `describeStreak` / `workloadPercentile`
   (Vitest). Client-only.
 - **#57 — Matrix services-shown control.** `use-matrix-plan-count.ts` (per-login
-  localStorage, default 4, clamp 2–9) drives **−/+** buttons; replaces the old
-  fixed `MATRIX_PLAN_COUNT`. Client-only.
+  localStorage, default 4, clamp 2–9) drives a **Columns** slider
+  (`components/ui/slider.tsx`); replaces the old fixed `MATRIX_PLAN_COUNT`.
+  The week pager also has a **Now** button (resets `weekOffset` to 0) between the
+  ← / → arrows, with labelled+spaced **Weeks**/**Columns** groups. Client-only.
 - **#58 — church logo.** Migration `20260618090000_church_logo`: nullable
   `church_settings.logo_dark_url` + a **public** `church-logo` bucket (anon read,
   admin write). Upload UI in Settings → Church (light + dark tiles); `<ChurchLogo>`
