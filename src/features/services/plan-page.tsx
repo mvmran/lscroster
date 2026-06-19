@@ -22,6 +22,7 @@ import {
   ArrowLeft,
   CalendarDays,
   ChevronDown,
+  Clock,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -88,7 +89,9 @@ import {
   formatClock,
   formatLength,
   formatPlanDate,
+  formatStartTime,
   formatTotalLength,
+  planEffectiveTimes,
   todayISODate,
   type ClashCandidate,
   type PlanItem,
@@ -322,21 +325,26 @@ function DuplicateDialog({
   const [date, setDate] = useState(() =>
     format(addDays(parseISO(plan.date), 7), 'yyyy-MM-dd'),
   )
-  // Existing services the copy's date would double up on (issue #78).
+  // The copy starts at the source plan's effective time; editable here.
+  const [startTime, setStartTime] = useState(
+    () => planEffectiveTimes(plan).start?.slice(0, 5) ?? '',
+  )
+  // Existing services the copy's date/time would double up on (issue #78).
   const [clashes, setClashes] = useState<ClashCandidate[]>([])
+
+  // The chosen start as 'HH:mm:ss', with the source plan's end shifted to match.
+  const startValue = startTime ? `${startTime}:00` : null
 
   // Warn before copying onto a date/time that already has a service (issue #78).
   function attemptDuplicate() {
     if (!date) return
-    const found = findClashingPlans(
-      {
-        date,
-        start: plan.service_types.default_start_time,
-        end: plan.service_types.end_time,
-        excludeId: plan.id,
-      },
-      plans ?? [],
-    )
+    // The copy's effective window: the chosen start, with the service type's
+    // end shifted to match (so a retimed copy clashes sensibly).
+    const { start, end } = planEffectiveTimes({
+      start_time: startValue,
+      service_types: plan.service_types,
+    })
+    const found = findClashingPlans({ date, start, end, excludeId: plan.id }, plans ?? [])
     if (found.length > 0) {
       setClashes(found)
       return
@@ -351,6 +359,7 @@ function DuplicateDialog({
         service_type_id: plan.service_type_id,
         date,
         title: plan.title,
+        start_time: startValue,
         source: { kind: 'plan', id: plan.id },
       })
       onOpenChange(false)
@@ -370,15 +379,27 @@ function DuplicateDialog({
               Copies the whole order of service into a new draft plan.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="dup-date">Date for the copy</Label>
-            <Input
-              id="dup-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-44"
-            />
+          <div className="flex gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="dup-date">Date for the copy</Label>
+              <Input
+                id="dup-date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-44"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="dup-start">Start time</Label>
+              <Input
+                id="dup-start"
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-32"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -444,12 +465,19 @@ function SaveTemplateDialog({
     if (!trimmed) return
     try {
       if (matching) {
-        await updateTemplate.mutateAsync({ id: matching.id, name: trimmed, items, times })
+        await updateTemplate.mutateAsync({
+          id: matching.id,
+          name: trimmed,
+          startTime: plan.start_time,
+          items,
+          times,
+        })
         toast.success(`Template “${trimmed}” updated`)
       } else {
         await saveTemplate.mutateAsync({
           name: trimmed,
           serviceTypeId: plan.service_type_id,
+          startTime: plan.start_time,
           items,
           times,
         })
@@ -624,6 +652,96 @@ function NotesCard({ plan, canManage }: { plan: PlanWithType; canManage: boolean
   )
 }
 
+/**
+ * The plan's start time on the header subtitle. Managers can override it per
+ * plan (e.g. a one-off evening service of a normally-morning service type);
+ * leaving it on the service-type default keeps inheriting future changes.
+ */
+function PlanStartTime({
+  plan,
+  canManage,
+  label,
+}: {
+  plan: PlanWithType
+  canManage: boolean
+  label: string | null
+}) {
+  const updatePlan = useUpdatePlan()
+  const [editing, setEditing] = useState(false)
+  const effectiveStart = plan.start_time ?? plan.service_types.default_start_time
+  const [draft, setDraft] = useState(effectiveStart?.slice(0, 5) ?? '')
+  const defaultLabel = formatStartTime(plan.service_types.default_start_time)
+
+  function save(value: string | null) {
+    updatePlan.mutate(
+      { id: plan.id, values: { start_time: value } },
+      {
+        onSuccess: () => setEditing(false),
+        onError: (e) => toast.error(e.message),
+      },
+    )
+  }
+
+  if (editing) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <Input
+          type="time"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          className="h-7 w-28"
+          autoFocus
+        />
+        <Button
+          size="sm"
+          className="h-7"
+          disabled={!draft || updatePlan.isPending}
+          onClick={() => save(`${draft}:00`)}
+        >
+          {updatePlan.isPending && <Loader2 className="size-3.5 animate-spin" />}
+          Save
+        </Button>
+        {plan.start_time && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7"
+            disabled={updatePlan.isPending}
+            onClick={() => save(null)}
+            title={defaultLabel ? `Use the service default (${defaultLabel})` : 'Use the service default'}
+          >
+            Use default
+          </Button>
+        )}
+        <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditing(false)}>
+          Cancel
+        </Button>
+      </span>
+    )
+  }
+
+  const text = label ? `Starts ${label}` : 'Set start time'
+  if (!canManage) return label ? <span>{text}</span> : null
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setDraft(effectiveStart?.slice(0, 5) ?? '')
+        setEditing(true)
+      }}
+      className="inline-flex items-center gap-1 rounded hover:text-foreground hover:underline"
+      title="Edit the start time for this plan"
+    >
+      <Clock className="size-3.5" />
+      {text}
+      {plan.start_time && (
+        <span className="text-xs">(custom)</span>
+      )}
+    </button>
+  )
+}
+
 export function PlanPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -668,7 +786,7 @@ export function PlanPage() {
       computeItemTimes(
         items,
         plan?.date ?? '2000-01-01',
-        plan?.service_types.default_start_time ?? null,
+        plan?.start_time ?? plan?.service_types.default_start_time ?? null,
       ),
     [items, plan],
   )
@@ -802,14 +920,14 @@ export function PlanPage() {
     }
   }
 
-  const startTime = plan.service_types.default_start_time
+  const startTime = plan.start_time ?? plan.service_types.default_start_time
   const startLabel = timed.length > 0 && timed[0].startsAt ? formatClock(timed[0].startsAt) : null
 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <Button variant="ghost" size="sm" className="-ml-2" asChild>
+        <div className="relative mb-1 flex items-center justify-center gap-2">
+          <Button variant="ghost" size="sm" className="absolute left-0 -ml-2" asChild>
             <Link to="/services">
               <ArrowLeft className="size-4" />
               Services
@@ -924,15 +1042,18 @@ export function PlanPage() {
             )}
           </div>
         </div>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {[
-            startLabel ? `Starts ${startLabel}` : null,
-            formatTotalLength(totalSeconds),
-            endsAt && startTime ? `ends ${formatClock(endsAt)}` : null,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </p>
+        <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-1.5 text-sm">
+          <PlanStartTime plan={plan} canManage={canManage} label={startLabel} />
+          <span>
+            {[
+              startLabel ? '·' : null,
+              formatTotalLength(totalSeconds),
+              endsAt && startTime ? `· ends ${formatClock(endsAt)}` : null,
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          </span>
+        </div>
       </div>
 
       <Card className="py-2">

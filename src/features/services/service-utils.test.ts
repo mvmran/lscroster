@@ -55,10 +55,12 @@ describe('findClashingPlans (issue #78)', () => {
     start: string | null,
     end: string | null,
     name = 'Sunday Service',
+    startOverride: string | null = null,
   ): ClashCandidate => ({
     id,
     date,
     title: null,
+    start_time: startOverride,
     service_types: { name, default_start_time: start, end_time: end },
   })
 
@@ -114,5 +116,23 @@ describe('findClashingPlans (issue #78)', () => {
       existing,
     )
     expect(clashes.map((c) => c.id)).toEqual(['a', 'b'])
+  })
+
+  it("honours an existing plan's per-plan start override when comparing", () => {
+    // Plan 'd' is a normally-10am service moved to 18:30 on the same day; a new
+    // 10am service should NOT clash with it (its window shifted to the evening).
+    const withOverride = [
+      plan('d', '2026-07-05', '10:00:00', '11:30:00', 'Sunday Service', '18:30:00'),
+    ]
+    expect(
+      findClashingPlans({ date: '2026-07-05', start: '10:00:00', end: '11:30:00' }, withOverride),
+    ).toEqual([])
+    // But a new evening service overlapping the moved window does clash.
+    expect(
+      findClashingPlans(
+        { date: '2026-07-05', start: '19:00:00', end: '20:00:00' },
+        withOverride,
+      ).map((c) => c.id),
+    ).toEqual(['d'])
   })
 })

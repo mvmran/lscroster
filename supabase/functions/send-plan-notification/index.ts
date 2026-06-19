@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
 
   const { data: plan } = await admin
     .from('plans')
-    .select('id, date, title, service_types(name, default_start_time, end_time)')
+    .select('id, date, title, start_time, service_types(name, default_start_time, end_time)')
     .eq('id', planId)
     .maybeSingle()
   if (!plan) return jsonResponse({ error: 'Plan not found' }, 404)
@@ -121,7 +121,9 @@ Deno.serve(async (req) => {
     }
   }
 
-  const start = serviceType.default_start_time
+  // The plan's own start-time override wins over the service-type default.
+  const planStartOverride = (plan as { start_time: string | null }).start_time
+  const start = planStartOverride ?? serviceType.default_start_time
   let offset = 0
   const order = items.map((item) => {
     const isHeader = item.kind === 'header'
@@ -137,9 +139,12 @@ Deno.serve(async (req) => {
   const totalSeconds = offset
   const durationLabel = formatDurationSeconds(totalSeconds)
   const startTime = formatStartTime(start)
-  const endTime = serviceType.end_time
-    ? formatStartTime(serviceType.end_time)
-    : clockFromBase(start, totalSeconds)
+  // With an overridden start, the service-type end no longer lines up, so fall
+  // back to the order-of-service-derived end.
+  const endTime =
+    serviceType.end_time && !planStartOverride
+      ? formatStartTime(serviceType.end_time)
+      : clockFromBase(start, totalSeconds)
 
   const songs = items
     .filter((i) => i.kind === 'song')

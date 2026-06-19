@@ -148,7 +148,7 @@ export function PlanPrintPage() {
       computeItemTimes(
         items,
         plan?.date ?? '2000-01-01',
-        plan?.service_types.default_start_time ?? null,
+        plan?.start_time ?? plan?.service_types.default_start_time ?? null,
       ),
     [items, plan],
   )
@@ -157,7 +157,7 @@ export function PlanPrintPage() {
   if (planQuery.isPending || itemsQuery.isPending) return <FullPageLoader />
   if (!plan) return <FullPageError message="This plan doesn't exist." />
 
-  const hasClock = !!plan.service_types.default_start_time
+  const hasClock = !!(plan.start_time ?? plan.service_types.default_start_time)
   const startLabel =
     hasClock && timed[0]?.startsAt ? formatClock(timed[0].startsAt) : null
 

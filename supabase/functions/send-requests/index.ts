@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
   const { data: plan } = await admin
     .from('plans')
-    .select('id, date, title, service_types(name, default_start_time)')
+    .select('id, date, title, start_time, service_types(name, default_start_time)')
     .eq('id', planId)
     .maybeSingle()
   if (!plan) return jsonResponse({ error: 'Plan not found' }, 404)
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
   const startTime = await planTimesLine(
     admin,
     planId,
-    formatStartTime(plan.service_types.default_start_time),
+    formatStartTime(plan.start_time ?? plan.service_types.default_start_time),
   )
 
   const skipped: { name: string; reason: string }[] = []
