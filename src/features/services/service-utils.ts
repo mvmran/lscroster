@@ -136,12 +136,14 @@ export function serviceTypeSummary(st: ServiceType): string {
 
 /**
  * Minimal shape of an existing plan needed to detect a service-time clash
- * (issue #78) — the date plus its service type's start/end times and name.
+ * (issue #78) — the date, its own start-time override, and its service type's
+ * start/end times and name.
  */
 export type ClashCandidate = {
   id: string
   date: string
   title: string | null
+  start_time: string | null
   service_types: {
     name: string
     default_start_time: string | null
@@ -149,13 +151,42 @@ export type ClashCandidate = {
   }
 }
 
+/** Shift an 'HH:mm:ss' time by whole seconds, keeping it a 'HH:mm:ss' string. */
+function shiftTime(time: string, deltaSeconds: number): string {
+  return format(addSeconds(parseISO(`2000-01-01T${time}`), deltaSeconds), 'HH:mm:ss')
+}
+
+/**
+ * A plan's effective service window. The start is the plan's own `start_time`
+ * override when set, else the service type's default. The end follows the
+ * service type's `end_time`, shifted by the override delta so the window keeps
+ * its length when the start moves (so an overridden evening service still has a
+ * sensible end for clash comparison).
+ */
+export function planEffectiveTimes(p: {
+  start_time: string | null
+  service_types: { default_start_time: string | null; end_time: string | null }
+}): { start: string | null; end: string | null } {
+  const defStart = p.service_types.default_start_time
+  const start = p.start_time ?? defStart
+  let end = p.service_types.end_time
+  if (p.start_time && defStart && end) {
+    const deltaMs =
+      parseISO(`2000-01-01T${p.start_time}`).getTime() -
+      parseISO(`2000-01-01T${defStart}`).getTime()
+    end = shiftTime(end, Math.round(deltaMs / 1000))
+  }
+  return { start, end }
+}
+
 /**
  * Existing plans whose service time clashes with a new service on `date`
  * (issue #78). We compare the *actual* start/end times (not the service type
- * identity), so two services on one day at non-overlapping times are fine while
- * overlapping windows clash even when their start or end differ. `start`/`end`
- * are the new service's 'HH:mm:ss' times (from its service type). `excludeId`
- * skips a plan from the comparison (e.g. the plan being duplicated).
+ * identity), honouring each plan's per-plan start-time override, so two
+ * services on one day at non-overlapping times are fine while overlapping
+ * windows clash even when their start or end differ. `start`/`end` are the new
+ * service's effective 'HH:mm:ss' times. `excludeId` skips a plan from the
+ * comparison (e.g. the plan being duplicated).
  */
 export function findClashingPlans(
   candidate: {
@@ -166,17 +197,11 @@ export function findClashingPlans(
   },
   existing: ClashCandidate[],
 ): ClashCandidate[] {
-  return existing.filter(
-    (p) =>
-      p.id !== candidate.excludeId &&
-      p.date === candidate.date &&
-      timesOverlap(
-        candidate.start,
-        candidate.end,
-        p.service_types.default_start_time,
-        p.service_types.end_time,
-      ),
-  )
+  return existing.filter((p) => {
+    if (p.id === candidate.excludeId || p.date !== candidate.date) return false
+    const e = planEffectiveTimes(p)
+    return timesOverlap(candidate.start, candidate.end, e.start, e.end)
+  })
 }
 
 export interface TimedPlanItem<T> {
@@ -189,7 +214,8 @@ export interface TimedPlanItem<T> {
 
 /**
  * The running clock: each item starts where the previous one ended.
- * `serviceStart` is the service type's default_start_time ('HH:mm:ss') or null.
+ * `serviceStart` is the plan's effective start ('HH:mm:ss') — its own start_time
+ * override when set, else the service type's default_start_time — or null.
  */
 export function computeItemTimes<T extends { length_seconds: number }>(
   items: T[],

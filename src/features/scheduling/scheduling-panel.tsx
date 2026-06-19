@@ -76,6 +76,7 @@ import {
 import { SuggestRosterButton } from '@/features/scheduling/auto-schedule-dialog'
 import { ReplaceDialog, type ReplaceTarget } from '@/features/scheduling/replace-dialog'
 import { RuleBadges } from '@/features/scheduling/validation-badges'
+import { planEffectiveTimes } from '@/features/services/service-utils'
 import type { PlanWithType } from '@/features/services/use-plans'
 
 export interface PickerTarget {
@@ -171,21 +172,26 @@ export function AssignPersonDialog({
     }
     // Only warn when the other service's time actually overlaps this one
     // (issue #14): being on two services the same day at different times is OK.
-    const planStart = plan.service_types.default_start_time
-    const planEnd = plan.service_types.end_time
-    const elsewhere = (onDate ?? []).filter(
-      (a) =>
-        a.person_id === personId &&
-        a.status !== 'declined' &&
-        a.id !== target?.replaceAssignmentId &&
-        (a.plan_id === plan.id ||
-          timesOverlap(
-            planStart,
-            planEnd,
-            a.plans?.service_types?.default_start_time ?? null,
-            a.plans?.service_types?.end_time ?? null,
-          )),
-    )
+    // Each plan's own start-time override is honoured via planEffectiveTimes.
+    const here = planEffectiveTimes(plan)
+    const elsewhere = (onDate ?? []).filter((a) => {
+      if (
+        a.person_id !== personId ||
+        a.status === 'declined' ||
+        a.id === target?.replaceAssignmentId
+      ) {
+        return false
+      }
+      if (a.plan_id === plan.id) return true
+      const there = planEffectiveTimes({
+        start_time: a.plans?.start_time ?? null,
+        service_types: {
+          default_start_time: a.plans?.service_types?.default_start_time ?? null,
+          end_time: a.plans?.service_types?.end_time ?? null,
+        },
+      })
+      return timesOverlap(here.start, here.end, there.start, there.end)
+    })
     if (elsewhere.length > 0) {
       warnings.push({
         icon: AlertTriangle,
@@ -335,7 +341,7 @@ function PositionMinCount({ position }: { position: Position }) {
 
   return (
     <div
-      className="flex items-center gap-0.5"
+      className="flex items-center gap-0.5 rounded-md border px-1.5 py-0.5"
       title="Minimum people required for this position"
     >
       <span className="text-muted-foreground mr-0.5 text-xs">Min</span>
@@ -532,7 +538,7 @@ export function SchedulingPanel({
                             <div className="flex items-center gap-1">
                               <PositionMinCount position={position} />
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 className="h-7 px-2"
                                 onClick={() => setPicker({ team, position })}

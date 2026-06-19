@@ -167,8 +167,8 @@ export function DashboardPage() {
                   <p className="text-muted-foreground truncate text-sm">
                     {plan.service_types.name}
                     {plan.title ? ` — ${plan.title}` : ''}
-                    {plan.service_types.default_start_time
-                      ? ` · ${formatStartTime(plan.service_types.default_start_time)}`
+                    {plan.start_time ?? plan.service_types.default_start_time
+                      ? ` · ${formatStartTime(plan.start_time ?? plan.service_types.default_start_time)}`
                       : ''}
                   </p>
                 </div>

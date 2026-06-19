@@ -658,6 +658,7 @@ export type Database = {
           name: string
           notes: string | null
           service_type_id: string
+          start_time: string | null
           updated_at: string
         }
         Insert: {
@@ -666,6 +667,7 @@ export type Database = {
           name: string
           notes?: string | null
           service_type_id: string
+          start_time?: string | null
           updated_at?: string
         }
         Update: {
@@ -674,6 +676,7 @@ export type Database = {
           name?: string
           notes?: string | null
           service_type_id?: string
+          start_time?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -731,6 +734,7 @@ export type Database = {
           id: string
           notes: string | null
           service_type_id: string
+          start_time: string | null
           status: Database["public"]["Enums"]["plan_status"]
           title: string | null
           updated_at: string
@@ -741,6 +745,7 @@ export type Database = {
           id?: string
           notes?: string | null
           service_type_id: string
+          start_time?: string | null
           status?: Database["public"]["Enums"]["plan_status"]
           title?: string | null
           updated_at?: string
@@ -751,6 +756,7 @@ export type Database = {
           id?: string
           notes?: string | null
           service_type_id?: string
+          start_time?: string | null
           status?: Database["public"]["Enums"]["plan_status"]
           title?: string | null
           updated_at?: string

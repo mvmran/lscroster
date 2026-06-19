@@ -41,9 +41,21 @@ merged `8bfac28`; follow-up tweaks in `ccea615`. Verified on the local stack
   (`attemptDuplicate`, `excludeId: plan.id`).
   - **Interpretation (settled with Manoj):** "use the time on the service, not the
     service type" = dedupe by **time overlap**, not by service-type identity. The
-    time *source* stays the service type's `default_start_time` / `end_time` (the
-    only start+end span we store). **Do NOT** add an end time to `plan_times` for
+    *end* source stays the service type's `end_time`; the *start* now honours a
+    per-plan override (see below). **Do NOT** add an end time to `plan_times` for
     this — Manoj explicitly declined that extension.
+- **Per-plan start time.** `plans.start_time` (and `plan_templates.start_time`),
+  both nullable `time` (migration `20260619145343_plan_start_time`); null inherits
+  `service_types.default_start_time`, so existing plans/instances are unchanged.
+  Read everywhere via `start_time ?? service_types.default_start_time` (plan page,
+  matrix, print, dashboard, My Schedule, all 5 scheduling Edge Functions).
+  `planEffectiveTimes()` in `service-utils.ts` returns `{ start, end }` — the
+  override (or default) plus the service-type end **shifted by the override delta**
+  so a moved service keeps its window length for clash checks. Editable inline on
+  the plan header (`PlanStartTime`, manager-only, with "Use default"), and as a
+  Start-time field in the New-plan and Duplicate dialogs. `useCreatePlan` precedence:
+  explicit override > source template/plan's `start_time` > null (inherit). Saving a
+  plan as a template carries `plan.start_time` onto the template.
 - **#79 — ORDER section in the Matrix.** A new top section (above the team
   sections) lists each plan's order of service with running start times
   (`computeItemTimes` off the service-type start) and headers. Each row is
@@ -55,6 +67,17 @@ merged `8bfac28`; follow-up tweaks in `ccea615`. Verified on the local stack
     the **full width** up to the sidebar — `app/layout.tsx` toggles `max-w-none`
     vs `max-w-5xl` via `useLocation().pathname === '/services/matrix'`. Other
     pages keep the centred 1024px reading width.
+- **Suggest roster from the Matrix.** The **first** team heading row renders a
+  per-column **Suggest roster** button (`SuggestRosterButton` with the new
+  `compact` prop, gated on `canManage`); that row splits into a sticky team-name
+  cell + one `<td>` per plan instead of the colSpan used by later team headings.
+  Each button reuses the plan-page suggest/preview/apply flow (`useAutoScheduler`)
+  for its own plan, so one click fills that single service's roster.
+- **Matrix toolbar.** Paging buttons read **‹ Prev / Now / Next ›** (no "Weeks"
+  label); **Columns** is a compact −/+ stepper (replaced the slider; `Slider`
+  import dropped); the first column (section labels + position names) is sticky via
+  a `sticky left-0` inner element so it stays put on horizontal scroll. Plus minor
+  header polish on the plan page (centred Prev/Today/Next).
 
 ## Recent batches (all on `main`, all verified + deployed)
 

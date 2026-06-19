@@ -27,7 +27,14 @@ function suggestionKey(s: Suggestion): string {
  * (issue #47); applying inserts the selected ones as a `pending` draft they can
  * still edit and which still passes through the publish gate.
  */
-export function SuggestRosterButton({ plan }: { plan: PlanWithType }) {
+export function SuggestRosterButton({
+  plan,
+  compact = false,
+}: {
+  plan: PlanWithType
+  /** Compact, full-width rendering for the Matrix's per-column header cells. */
+  compact?: boolean
+}) {
   const engine = useAutoScheduler(plan)
   const [open, setOpen] = useState(false)
   const [result, setResult] = useState<EngineResult | null>(null)
@@ -83,8 +90,10 @@ export function SuggestRosterButton({ plan }: { plan: PlanWithType }) {
         size="sm"
         onClick={run}
         disabled={engine.isPending || !engine.ready}
+        className={compact ? 'h-7 w-full px-1.5 text-xs' : undefined}
+        title={compact ? 'Suggest a roster for this service' : undefined}
       >
-        <Sparkles className="size-4" />
+        <Sparkles className={compact ? 'size-3.5' : 'size-4'} />
         Suggest roster
       </Button>
 

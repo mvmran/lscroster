@@ -35,6 +35,7 @@ interface AssignmentRow {
     id: string
     date: string
     title: string | null
+    start_time: string | null
     service_types: { name: string; default_start_time: string | null }
   }
 }
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
       `id, status, plan_id,
        people(id, first_name, last_name, email, status),
        positions(name), teams(name),
-       plans!inner(id, date, title, service_types(name, default_start_time))`,
+       plans!inner(id, date, title, start_time, service_types(name, default_start_time))`,
     )
     .eq('id', assignmentId)
     .maybeSingle()
@@ -90,7 +91,7 @@ Deno.serve(async (req) => {
       startTime: await planTimesLine(
         admin,
         row.plans.id,
-        formatStartTime(row.plans.service_types.default_start_time),
+        formatStartTime(row.plans.start_time ?? row.plans.service_types.default_start_time),
       ),
       serviceTypeName: row.plans.service_types.name,
       planTitle: row.plans.title,

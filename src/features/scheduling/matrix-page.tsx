@@ -30,6 +30,7 @@ import {
   EyeOff,
   GripVertical,
   Loader2,
+  Minus,
   Music,
   Plus,
   Send,
@@ -57,7 +58,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Slider } from '@/components/ui/slider'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   AssignPersonDialog,
@@ -81,6 +81,7 @@ import {
 } from '@/features/scheduling/use-service-state'
 import { worstSeverity, type RuleResult } from '@/features/scheduling/validate-service'
 import { fillMatrixWindow } from '@/features/scheduling/matrix-utils'
+import { SuggestRosterButton } from '@/features/scheduling/auto-schedule-dialog'
 import { MatrixTeamOrderDialog } from '@/features/scheduling/matrix-team-order-dialog'
 import {
   applyTeamOrder,
@@ -369,8 +370,12 @@ function MatrixOrderCell({
   const items = useMemo(() => data ?? [], [data])
   const { timed } = useMemo(
     () =>
-      computeItemTimes(items, plan.date, plan.service_types.default_start_time),
-    [items, plan.date, plan.service_types.default_start_time],
+      computeItemTimes(
+        items,
+        plan.date,
+        plan.start_time ?? plan.service_types.default_start_time,
+      ),
+    [items, plan.date, plan.start_time, plan.service_types.default_start_time],
   )
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -577,18 +582,18 @@ export function MatrixPage() {
           <h1 className="text-2xl font-semibold">Matrix</h1>
           <div className="flex flex-wrap items-center gap-x-12 gap-y-2">
             {/* Week paging (issue #67): shift the window one service earlier/later. */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground text-xs font-medium">Weeks</span>
+            <div className="flex items-center justify-center gap-1.5 [&_button]:border-foreground/30">
               <div className="flex items-center gap-1">
                 <Button
                   variant="outline"
-                  size="icon"
-                  className="size-8"
+                  size="sm"
+                  className="h-8"
                   onClick={() => setWeekOffset((o) => o - 1)}
                   disabled={startIndex <= 0}
                   aria-label="Show earlier services"
                 >
                   <ChevronLeft className="size-4" />
+                  Prev
                 </Button>
                 {/* Jump back to the next-upcoming service (window default). */}
                 <Button
@@ -603,34 +608,48 @@ export function MatrixPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  size="icon"
-                  className="size-8"
+                  size="sm"
+                  className="h-8"
                   onClick={() => setWeekOffset((o) => o + 1)}
                   disabled={startIndex >= maxStart}
                   aria-label="Show later services"
                 >
+                  Next
                   <ChevronRight className="size-4" />
                 </Button>
               </div>
             </div>
             {/* Services-shown slider (issue #57): default 4, clamped 2–9. */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 rounded-md border px-2 py-1">
               <span className="text-muted-foreground text-xs font-medium">Columns</span>
-              <Slider
-                className="w-24"
-                min={MATRIX_PLAN_COUNT_MIN}
-                max={MATRIX_PLAN_COUNT_MAX}
-                step={1}
-                value={[planCount]}
-                onValueChange={(v) => setPlanCount(v[0])}
-                aria-label="Number of services shown side by side"
-              />
-              <span
-                className="text-muted-foreground w-4 text-center text-sm tabular-nums"
-                aria-live="polite"
-              >
-                {planCount}
-              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-5"
+                  onClick={() => setPlanCount(planCount - 1)}
+                  disabled={planCount <= MATRIX_PLAN_COUNT_MIN}
+                  aria-label="Show fewer services"
+                >
+                  <Minus className="size-3" />
+                </Button>
+                <span
+                  className="w-4 text-center text-sm tabular-nums"
+                  aria-live="polite"
+                >
+                  {planCount}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-5"
+                  onClick={() => setPlanCount(planCount + 1)}
+                  disabled={planCount >= MATRIX_PLAN_COUNT_MAX}
+                  aria-label="Show more services"
+                >
+                  <Plus className="size-3" />
+                </Button>
+              </div>
             </div>
             {/* Reorder is personal-order only — hidden when one type is shown (#70). */}
             {!displayedTypeId && reorderableTeams.length > 1 && (
@@ -668,8 +687,8 @@ export function MatrixPage() {
           </div>
         </div>
         <p className="text-muted-foreground text-sm">
-          {matrixPlans.length || ''} services side by side — use the slider to
-          change the weeks shown; click a cell to schedule.
+          {matrixPlans.length || ''} services side by side — use the Columns
+          buttons to change how many are shown; click a cell to schedule.
         </p>
       </div>
 
@@ -755,9 +774,9 @@ export function MatrixPage() {
               <tr>
                 <td
                   colSpan={matrixPlans.length + 1}
-                  className="bg-muted/50 text-muted-foreground border-b px-2 py-1 text-xs font-semibold tracking-wide uppercase"
+                  className="bg-muted/50 text-muted-foreground border-b p-0 text-xs font-semibold tracking-wide uppercase"
                 >
-                  Order
+                  <div className="sticky left-0 inline-block px-2 py-1">Order</div>
                 </td>
               </tr>
               <tr className="border-b">
@@ -766,22 +785,49 @@ export function MatrixPage() {
                   <MatrixOrderCell key={plan.id} plan={plan} canManage={canManage} />
                 ))}
               </tr>
-              {sortedTeams.map((team) => {
+              {sortedTeams.map((team, teamIndex) => {
                 const teamPositions = (positions ?? []).filter(
                   (p) => p.team_id === team.id,
                 )
                 if (teamPositions.length === 0) return null
+                // The first team heading carries a per-column "Suggest roster"
+                // button that auto-fills that service's whole roster.
+                const showSuggest = teamIndex === 0 && canManage
                 return [
                   <tr key={team.id}>
-                    <td
-                      colSpan={matrixPlans.length + 1}
-                      className="bg-muted/50 text-muted-foreground border-b px-2 py-1 text-xs font-semibold tracking-wide uppercase"
-                    >
-                      {/* Team name links to the team view (issue #74). */}
-                      <Link to={`/teams/${team.id}`} className="hover:underline">
-                        {team.name}
-                      </Link>
-                    </td>
+                    {showSuggest ? (
+                      <>
+                        <td className="bg-muted/50 text-muted-foreground sticky left-0 z-10 border-b p-0 text-xs font-semibold tracking-wide uppercase">
+                          <Link
+                            to={`/teams/${team.id}`}
+                            className="inline-block px-2 py-1 hover:underline"
+                          >
+                            {team.name}
+                          </Link>
+                        </td>
+                        {matrixPlans.map((plan) => (
+                          <td
+                            key={plan.id}
+                            className="bg-muted/50 border-b border-l p-1 align-middle"
+                          >
+                            <SuggestRosterButton plan={plan} compact />
+                          </td>
+                        ))}
+                      </>
+                    ) : (
+                      <td
+                        colSpan={matrixPlans.length + 1}
+                        className="bg-muted/50 text-muted-foreground border-b p-0 text-xs font-semibold tracking-wide uppercase"
+                      >
+                        {/* Team name links to the team view (issue #74). */}
+                        <Link
+                          to={`/teams/${team.id}`}
+                          className="sticky left-0 inline-block px-2 py-1 hover:underline"
+                        >
+                          {team.name}
+                        </Link>
+                      </td>
+                    )}
                   </tr>,
                   ...teamPositions.map((position) => (
                     <tr key={position.id} className="border-b last:border-b-0">

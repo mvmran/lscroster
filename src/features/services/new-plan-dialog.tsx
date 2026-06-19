@@ -25,6 +25,8 @@ import {
 import {
   findClashingPlans,
   formatPlanDateShort,
+  formatStartTime,
+  planEffectiveTimes,
   todayISODate,
   weeklyDates,
   type ClashCandidate,
@@ -55,6 +57,9 @@ export function NewPlanDialog({
   const [serviceTypeId, setServiceTypeId] = useState<string>('')
   const [date, setDate] = useState(todayISODate())
   const [title, setTitle] = useState('')
+  // Optional start-time override; blank inherits the service type's default
+  // (and any template/plan start when starting from one).
+  const [startTime, setStartTime] = useState('')
   const [source, setSource] = useState('blank')
   // Repeat weekly until this date (issue #72); empty = just the one plan.
   const [repeatUntil, setRepeatUntil] = useState('')
@@ -66,6 +71,9 @@ export function NewPlanDialog({
   const repeatInvalid = repeatUntil !== '' && repeatUntil <= date
 
   const effectiveTypeId = serviceTypeId || serviceTypes?.[0]?.id || ''
+  const defaultStartLabel = formatStartTime(
+    serviceTypes?.find((st) => st.id === effectiveTypeId)?.default_start_time ?? null,
+  )
 
   const typeTemplates = useMemo(
     () => (templates ?? []).filter((t) => t.service_type_id === effectiveTypeId),
@@ -91,15 +99,17 @@ export function NewPlanDialog({
   function attemptCreate() {
     if (!effectiveTypeId || !date || repeatInvalid) return
     const type = serviceTypes?.find((st) => st.id === effectiveTypeId)
+    // The new plan's effective window: the chosen start (or the type default),
+    // with the type's end shifted to match.
+    const { start, end } = planEffectiveTimes({
+      start_time: startTime ? `${startTime}:00` : null,
+      service_types: {
+        default_start_time: type?.default_start_time ?? null,
+        end_time: type?.end_time ?? null,
+      },
+    })
     const found = dates.flatMap((planDate) =>
-      findClashingPlans(
-        {
-          date: planDate,
-          start: type?.default_start_time ?? null,
-          end: type?.end_time ?? null,
-        },
-        plans,
-      ),
+      findClashingPlans({ date: planDate, start, end }, plans),
     )
     const unique = [...new Map(found.map((p) => [p.id, p])).values()]
     if (unique.length > 0) {
@@ -120,6 +130,8 @@ export function NewPlanDialog({
           service_type_id: effectiveTypeId,
           date: planDate,
           title: title.trim() || null,
+          // Blank inherits (the source's start, else the service-type default).
+          start_time: startTime ? `${startTime}:00` : undefined,
           source: kind !== 'blank' && id ? { kind, id } : undefined,
         })
         firstPlanId ??= plan.id
@@ -165,15 +177,32 @@ export function NewPlanDialog({
             </Select>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="np-date">Date</Label>
-            <Input
-              id="np-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-44"
-            />
+          <div className="flex gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="np-date">Date</Label>
+              <Input
+                id="np-date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-44"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="np-start">Start time</Label>
+              <Input
+                id="np-start"
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-32"
+              />
+              <p className="text-muted-foreground text-xs">
+                {defaultStartLabel
+                  ? `Defaults to ${defaultStartLabel}.`
+                  : 'Optional.'}
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">

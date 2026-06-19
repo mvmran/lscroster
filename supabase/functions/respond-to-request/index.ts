@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
        people(first_name),
        positions(name),
        teams(name),
-       plans(id, date, title, status, service_types(name, default_start_time))`,
+       plans(id, date, title, status, start_time, service_types(name, default_start_time))`,
     )
     .eq('token_hash', await sha256Hex(token))
     .maybeSingle()
@@ -85,7 +85,9 @@ Deno.serve(async (req) => {
     startTime: await planTimesLine(
       admin,
       assignment.plans.id,
-      formatStartTime(assignment.plans.service_types.default_start_time),
+      formatStartTime(
+        assignment.plans.start_time ?? assignment.plans.service_types.default_start_time,
+      ),
     ),
     serviceTypeName: assignment.plans.service_types.name,
     planTitle: assignment.plans.title,

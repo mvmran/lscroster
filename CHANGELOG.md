@@ -6,6 +6,22 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Suggest a roster from the Matrix** — the Matrix's first team heading row now
+  has a **Suggest roster** button in each service's column. Clicking it runs the
+  auto-scheduler for that one service, previews who it would add (tick the ones you
+  want), and fills that week's roster — without opening the plan. It's the same
+  suggestion engine and preview as the plan page, just per column.
+- **Per-plan start time** — a single plan can now start at its own time instead of
+  always inheriting the service type's default. This is what you need when one
+  service type has two plans on the same day at different times — e.g. a one-off
+  extra Sunday **evening** service. Edit it inline from the plan header (a
+  **Starts …** control with **Use default** to fall back to the service type), and
+  set it when **creating** a plan or **duplicating** one. Saving a plan as a
+  **template** carries its start time, so plans made from that template start at the
+  same time. Everywhere a start time is shown — the plan, the Matrix, the printed
+  sheet, the dashboard, My Schedule and every scheduling email — now reflects the
+  plan's own time, and the duplicate-service warning compares the actual (possibly
+  overridden) times so two services on one day at different times no longer warn.
 - **Reorder a service's songs from the Matrix** — the Matrix now has an **ORDER**
   section at the top showing each service's order of service (headers, songs and
   items with their running start times). Drag the handle on any row to reorder
@@ -204,6 +220,10 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#10]). Assigning multiple positions to a member (#1) is unaffected.
 
 ### Changed
+- **Matrix toolbar** — the **Weeks** label is gone; the paging buttons now read
+  **‹ Prev** / **Now** / **Next ›**, and the **Columns** control is a compact
+  −/+ stepper (replacing the slider). The first column (section labels and position
+  names) stays fixed when you scroll the grid sideways.
 - **Confirm before removing a team membership** — removing someone from a team now
   asks for confirmation first, both from the **Teams** screen (removing a member
   from a team) and from a person's profile (removing them from a team), so an

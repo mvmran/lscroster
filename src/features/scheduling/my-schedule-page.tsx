@@ -63,7 +63,10 @@ function AssignmentSummary({ assignment }: { assignment: MyAssignment }) {
       ? planTimes
           .map((t) => `${t.label} ${formatStartTime(t.start_time) ?? ''}`.trim())
           .join(' · ')
-      : formatStartTime(assignment.plans.service_types.default_start_time)
+      : formatStartTime(
+          assignment.plans.start_time ??
+            assignment.plans.service_types.default_start_time,
+        )
   return (
     <div className="min-w-0 flex-1">
       <p className="font-medium">{formatPlanDate(assignment.plans.date)}</p>

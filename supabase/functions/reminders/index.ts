@@ -44,6 +44,7 @@ interface ReminderRow {
     id: string
     date: string
     title: string | null
+    start_time: string | null
     service_types: { name: string; default_start_time: string | null }
   }
 }
@@ -83,7 +84,7 @@ Deno.serve(async (req) => {
   const selectColumns = `id, notified_at,
     people(id, first_name, last_name, email, status),
     positions(name), teams(name),
-    plans!inner(id, date, title, service_types(name, default_start_time))`
+    plans!inner(id, date, title, start_time, service_types(name, default_start_time))`
 
   // -- nudges: pending, emailed at least nudge_days ago, never nudged --------
   const { data: nudgeRows } = await admin
@@ -132,7 +133,7 @@ Deno.serve(async (req) => {
       startTime: await planTimesLine(
         admin,
         row.plans.id,
-        formatStartTime(row.plans.service_types.default_start_time),
+        formatStartTime(row.plans.start_time ?? row.plans.service_types.default_start_time),
       ),
       serviceTypeName: row.plans.service_types.name,
       planTitle: row.plans.title,
@@ -203,7 +204,7 @@ Deno.serve(async (req) => {
       startTime: await planTimesLine(
         admin,
         row.plans.id,
-        formatStartTime(row.plans.service_types.default_start_time),
+        formatStartTime(row.plans.start_time ?? row.plans.service_types.default_start_time),
       ),
       serviceTypeName: row.plans.service_types.name,
       planTitle: row.plans.title,

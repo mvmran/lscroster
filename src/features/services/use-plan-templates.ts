@@ -50,17 +50,20 @@ export function useSaveAsTemplate() {
     mutationFn: async ({
       name,
       serviceTypeId,
+      startTime = null,
       items,
       times = [],
     }: {
       name: string
       serviceTypeId: string
+      /** The plan's start-time override, carried onto plans made from this. */
+      startTime?: string | null
       items: PlanItem[]
       times?: TemplateTime[]
     }) => {
       const { data: template, error } = await supabase
         .from('plan_templates')
-        .insert({ name, service_type_id: serviceTypeId })
+        .insert({ name, service_type_id: serviceTypeId, start_time: startTime })
         .select()
         .single()
       if (error) throw new Error(error.message)
@@ -102,17 +105,19 @@ export function useUpdateTemplate() {
     mutationFn: async ({
       id,
       name,
+      startTime = null,
       items,
       times = [],
     }: {
       id: string
       name: string
+      startTime?: string | null
       items: PlanItem[]
       times?: TemplateTime[]
     }) => {
       const { error: nameError } = await supabase
         .from('plan_templates')
-        .update({ name })
+        .update({ name, start_time: startTime })
         .eq('id', id)
       if (nameError) throw new Error(nameError.message)
 

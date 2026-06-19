@@ -25,6 +25,7 @@ export interface AssignmentOnDate {
   status: AssignmentStatus
   plans: {
     date: string
+    start_time: string | null
     service_types: {
       default_start_time: string | null
       end_time: string | null
@@ -141,7 +142,7 @@ export function useAssignmentsOnDate(date: string | undefined) {
       const { data, error } = await supabase
         .from('plan_assignments')
         .select(
-          'id, person_id, plan_id, status, plans!inner(date, service_types(default_start_time, end_time)), teams(name)',
+          'id, person_id, plan_id, status, plans!inner(date, start_time, service_types(default_start_time, end_time)), teams(name)',
         )
         .eq('plans.date', date!)
       if (error) throw new Error(error.message)

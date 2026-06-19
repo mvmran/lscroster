@@ -59,6 +59,12 @@ export interface CreatePlanInput {
   service_type_id: string
   date: string
   title: string | null
+  /**
+   * Per-plan start-time override ('HH:mm:ss'). When omitted (undefined), the
+   * start is inherited from the source template/plan (if any), else left null
+   * to inherit the service type's default. Pass null to force the default.
+   */
+  start_time?: string | null
   /** Copy the order of service from a template or an existing plan. */
   source?: { kind: 'template' | 'plan'; id: string }
 }
@@ -113,16 +119,36 @@ async function fetchSourceTimes(
   return data
 }
 
+/** The start-time override carried from a source template or plan (issue: per-plan start). */
+async function fetchSourceStart(
+  source: NonNullable<CreatePlanInput['source']>,
+): Promise<string | null> {
+  const table = source.kind === 'template' ? 'plan_templates' : 'plans'
+  const { data, error } = await supabase
+    .from(table)
+    .select('start_time')
+    .eq('id', source.id)
+    .single()
+  if (error) throw new Error(error.message)
+  return data.start_time
+}
+
 export function useCreatePlan() {
   const invalidate = useInvalidatePlans()
   return useMutation({
-    mutationFn: async ({ source, ...values }: CreatePlanInput) => {
-      const [items, times] = source
-        ? await Promise.all([fetchSourceItems(source), fetchSourceTimes(source)])
-        : [[], []]
+    mutationFn: async ({ source, start_time, ...values }: CreatePlanInput) => {
+      const [items, times, sourceStart] = source
+        ? await Promise.all([
+            fetchSourceItems(source),
+            fetchSourceTimes(source),
+            fetchSourceStart(source),
+          ])
+        : [[], [], null]
+      // An explicit override wins; otherwise inherit the source's start.
+      const startTime = start_time !== undefined ? start_time : sourceStart
       const { data: plan, error } = await supabase
         .from('plans')
-        .insert(values)
+        .insert({ ...values, start_time: startTime })
         .select()
         .single()
       if (error) throw new Error(error.message)
