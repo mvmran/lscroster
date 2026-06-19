@@ -6,6 +6,8 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   Minus,
   Plus,
@@ -72,7 +74,8 @@ import {
   useTeams,
 } from '@/features/scheduling/use-teams'
 import { supabase } from '@/lib/supabase'
-import { splitUpcomingPast, usePlans, type PlanWithType } from '@/features/services/use-plans'
+import { todayISODate } from '@/features/services/service-utils'
+import { usePlans, type PlanWithType } from '@/features/services/use-plans'
 
 /** Assignments for all matrix plans in one query, grouped by plan. */
 function useMatrixAssignments(planIds: string[]) {
@@ -267,23 +270,60 @@ export function MatrixPage() {
   const [typeFilter, setTypeFilter] = useState('all')
   const [picker, setPicker] = useState<(PickerTarget & { plan: PlanWithType }) | null>(null)
   const [orderOpen, setOrderOpen] = useState(false)
+  // Window offset (issue #67): 0 = window starts at the next upcoming service;
+  // the ← / → buttons step it one service earlier / later (into the past too).
+  const [weekOffset, setWeekOffset] = useState(0)
   const { order, saveOrder } = useMatrixTeamOrder()
   const { count: planCount, setCount: setPlanCount } = useMatrixPlanCount()
 
-  // Team section order (issue #33). A single service type uses the per-type
-  // order from #31 (matching the plan page); the "All" view uses the user's
-  // personal saved order (localStorage, per login).
+  // All plans for the current filter, oldest → newest (issue #67 pages over these).
+  const filteredPlans = useMemo(
+    () =>
+      (plansQuery.data ?? [])
+        .filter((p) => typeFilter === 'all' || p.service_type_id === typeFilter)
+        .slice()
+        .sort((a, b) => a.date.localeCompare(b.date)),
+    [plansQuery.data, typeFilter],
+  )
+
+  // Default window starts at the next upcoming plan (today or later); if every
+  // plan is past, show the last full window.
+  const defaultStart = useMemo(() => {
+    const today = todayISODate()
+    const idx = filteredPlans.findIndex((p) => p.date >= today)
+    return idx === -1 ? Math.max(0, filteredPlans.length - planCount) : idx
+  }, [filteredPlans, planCount])
+
+  const maxStart = Math.max(0, filteredPlans.length - planCount)
+  const startIndex = Math.min(Math.max(defaultStart + weekOffset, 0), maxStart)
+
+  const matrixPlans = useMemo(
+    () => filteredPlans.slice(startIndex, startIndex + planCount),
+    [filteredPlans, startIndex, planCount],
+  )
+
+  // The single service type currently shown — either the explicit filter, or the
+  // only type present in the window (issue #70). Null when several types mix.
+  const displayedTypeId = useMemo(() => {
+    if (typeFilter !== 'all') return typeFilter
+    const ids = new Set(matrixPlans.map((p) => p.service_type_id))
+    return ids.size === 1 ? [...ids][0] : null
+  }, [typeFilter, matrixPlans])
+
+  // Team section order (issues #33/#70). When a single service type is displayed,
+  // order teams by that type's setup order (#31, matching the plan page); when
+  // several types mix, use the user's personal saved order (localStorage).
   const sortedTeams = useMemo(() => {
     const list = teams ?? []
-    if (typeFilter !== 'all') {
+    if (displayedTypeId) {
       return [...list].sort(
         (a, b) =>
-          serviceTypeTeamSort(a, typeFilter) - serviceTypeTeamSort(b, typeFilter) ||
-          a.name.localeCompare(b.name),
+          serviceTypeTeamSort(a, displayedTypeId) -
+            serviceTypeTeamSort(b, displayedTypeId) || a.name.localeCompare(b.name),
       )
     }
     return applyTeamOrder(list, order)
-  }, [teams, typeFilter, order])
+  }, [teams, displayedTypeId, order])
 
   // Teams that actually render in the Matrix (have ≥1 position) — the reorder
   // popup lists exactly these, in the current effective order.
@@ -291,13 +331,6 @@ export function MatrixPage() {
     () => sortedTeams.filter((t) => (positions ?? []).some((p) => p.team_id === t.id)),
     [sortedTeams, positions],
   )
-
-  const matrixPlans = useMemo(() => {
-    const { upcoming } = splitUpcomingPast(plansQuery.data ?? [])
-    return upcoming
-      .filter((p) => typeFilter === 'all' || p.service_type_id === typeFilter)
-      .slice(0, planCount)
-  }, [plansQuery.data, typeFilter, planCount])
 
   const planIds = useMemo(() => matrixPlans.map((p) => p.id), [matrixPlans])
   const assignmentsQuery = useMatrixAssignments(planIds)
@@ -344,6 +377,29 @@ export function MatrixPage() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold">Matrix</h1>
           <div className="flex items-center gap-2">
+            {/* Week paging (issue #67): shift the window one service earlier/later. */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                onClick={() => setWeekOffset((o) => o - 1)}
+                disabled={startIndex <= 0}
+                aria-label="Show earlier services"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                onClick={() => setWeekOffset((o) => o + 1)}
+                disabled={startIndex >= maxStart}
+                aria-label="Show later services"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
             {/* Services-shown stepper (issue #57): default 4, clamped 2–9. */}
             <div className="flex items-center gap-1">
               <Button
@@ -374,7 +430,8 @@ export function MatrixPage() {
                 <Plus className="size-4" />
               </Button>
             </div>
-            {typeFilter === 'all' && reorderableTeams.length > 1 && (
+            {/* Reorder is personal-order only — hidden when one type is shown (#70). */}
+            {!displayedTypeId && reorderableTeams.length > 1 && (
               <Button
                 variant="outline"
                 size="sm"
@@ -385,7 +442,13 @@ export function MatrixPage() {
               </Button>
             )}
             {serviceTypes.length > 1 && (
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <Select
+                value={typeFilter}
+                onValueChange={(v) => {
+                  setTypeFilter(v)
+                  setWeekOffset(0)
+                }}
+              >
                 <SelectTrigger className="w-48" aria-label="Filter by service type">
                   <SelectValue />
                 </SelectTrigger>
@@ -402,8 +465,8 @@ export function MatrixPage() {
           </div>
         </div>
         <p className="text-muted-foreground text-sm">
-          The next {matrixPlans.length || ''} services side by side — click a
-          cell to schedule.
+          {matrixPlans.length || ''} services side by side — use ← → to change the
+          weeks shown; click a cell to schedule.
         </p>
       </div>
 

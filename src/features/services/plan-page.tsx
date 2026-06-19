@@ -22,6 +22,8 @@ import {
   ArrowLeft,
   CalendarDays,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   GripVertical,
   LayoutTemplate,
@@ -86,6 +88,7 @@ import {
   formatLength,
   formatPlanDate,
   formatTotalLength,
+  todayISODate,
   type PlanItem,
 } from '@/features/services/service-utils'
 import { SongPickerDialog } from '@/features/services/song-picker-dialog'
@@ -98,6 +101,7 @@ import {
   useCreatePlan,
   useDeletePlan,
   usePlan,
+  usePlans,
   useUpdatePlan,
   type PlanWithType,
 } from '@/features/services/use-plans'
@@ -625,6 +629,26 @@ export function PlanPage() {
     [items, plan],
   )
 
+  // Prev/next/today navigation across this service type's plans (issue #69).
+  const plansQuery = usePlans()
+  const siblings = useMemo(() => {
+    if (!plan) return []
+    return (plansQuery.data ?? [])
+      .filter((p) => p.service_type_id === plan.service_type_id)
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }, [plansQuery.data, plan])
+  const currentIndex = siblings.findIndex((p) => p.id === plan?.id)
+  const prevPlan = currentIndex > 0 ? siblings[currentIndex - 1] : null
+  const nextPlan =
+    currentIndex >= 0 && currentIndex < siblings.length - 1
+      ? siblings[currentIndex + 1]
+      : null
+  // "Today" jumps to the next upcoming plan (or today's); falls back to the latest.
+  const todayPlan = useMemo(() => {
+    const today = todayISODate()
+    return siblings.find((p) => p.date >= today) ?? siblings[siblings.length - 1] ?? null
+  }, [siblings])
+
   if (planQuery.isError) return <FullPageError message={planQuery.error.message} />
   if (planQuery.isPending) {
     return (
@@ -740,12 +764,46 @@ export function PlanPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Button variant="ghost" size="sm" className="-ml-2 mb-1" asChild>
-          <Link to="/services">
-            <ArrowLeft className="size-4" />
-            Services
-          </Link>
-        </Button>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <Button variant="ghost" size="sm" className="-ml-2" asChild>
+            <Link to="/services">
+              <ArrowLeft className="size-4" />
+              Services
+            </Link>
+          </Button>
+          {/* Prev / today / next across this service type's plans (issue #69). */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!prevPlan}
+              onClick={() => prevPlan && navigate(`/services/plans/${prevPlan.id}`)}
+              aria-label="Previous service"
+            >
+              <ChevronLeft className="size-4" />
+              <span className="hidden sm:inline">Prev</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!todayPlan || todayPlan.id === plan.id}
+              onClick={() => todayPlan && navigate(`/services/plans/${todayPlan.id}`)}
+              title="Jump to today or the next upcoming service"
+            >
+              Today
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!nextPlan}
+              onClick={() => nextPlan && navigate(`/services/plans/${nextPlan.id}`)}
+              aria-label="Next service"
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h1 className="text-2xl font-semibold">{formatPlanDate(plan.date)}</h1>

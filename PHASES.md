@@ -217,6 +217,30 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   admin write). Upload UI in Settings → Church (light + dark tiles); `<ChurchLogo>`
   shows the theme-appropriate variant in the header brand and on the
   sign-in / forgot / reset cards, falling back to the church icon.
+- **#67 — Matrix week paging.** A `weekOffset` state + **←/→** buttons window the
+  Matrix over *all* filtered plans (past + future) sorted ascending, defaulting to
+  the next-upcoming plan (`todayISODate`); arrows step one service and clamp at
+  the ends. Replaces the old `splitUpcomingPast(...).slice(0, planCount)`.
+  Client-only — no schema.
+- **#69 — prev/next/today on a plan.** The plan header gained **Prev/Today/Next**
+  buttons that navigate this service type's plans in date order (`usePlans`
+  filtered + sorted; **Today** = first plan with `date >= today`, else latest).
+  Client-only — no schema.
+- **#70 — Matrix single-type team order.** New `displayedTypeId` (explicit filter
+  *or* the sole `service_type_id` in the visible window) drives team ordering:
+  single type → `serviceTypeTeamSort` (the #31 setup order); mixed → the personal
+  `applyTeamOrder`. The **Reorder teams** button now shows only when
+  `!displayedTypeId` — fixing the single-service-type church case where the
+  toolbar stayed in "all" mode. Client-only — no schema.
+- **#71 — inline position min_count on a plan.** A `PositionMinCount` **Min −/+**
+  stepper beside each position in the scheduling panel edits the global
+  `positions.min_count` via new `useUpdatePositionMinCount` (optimistic on the
+  `['positions']` cache, so the value + understaffed badge update instantly).
+  Client-only — no schema (reuses the column's admin/leader RLS).
+- **#72 — repeat a new plan to a date.** The New-plan dialog's *Repeat* count
+  dropdown became a **repeat-until date** picker; pure `weeklyDates(start, end)`
+  (in `service-utils.ts`, Vitest, 6 tests) generates the weekly dates, and the
+  dialog validates the date is later than the plan date. Client-only — no schema.
 - **#50 — drag-reorder "Teams required".** The add/edit service-type dialog's
   required-teams list gained a dnd-kit drag handle (new `SortableRequiredTeam`)
   beside the existing #31 up/down arrows; order is still local until save. Mirrors

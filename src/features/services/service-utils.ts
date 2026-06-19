@@ -1,4 +1,4 @@
-import { addSeconds, format, parseISO } from 'date-fns'
+import { addDays, addSeconds, format, parseISO } from 'date-fns'
 import type { Enums, Tables } from '@/types/database'
 
 export type Plan = Tables<'plans'>
@@ -34,6 +34,24 @@ export const DEFAULT_ITEM_LENGTH: Record<PlanItemKind, number> = {
 /** 'yyyy-MM-dd' for today in the browser's timezone (plan dates are wall dates). */
 export function todayISODate() {
   return format(new Date(), 'yyyy-MM-dd')
+}
+
+/**
+ * Weekly 'yyyy-MM-dd' dates from `startISO` up to and including `endISO`
+ * (issue #72). `endISO` before `startISO` yields just the start date; callers
+ * validate that the repeat-until date is later. Capped to avoid runaway loops.
+ */
+export function weeklyDates(startISO: string, endISO: string, cap = 104): string[] {
+  const start = parseISO(startISO)
+  const end = parseISO(endISO)
+  const dates: string[] = []
+  for (let week = 0; week < cap; week++) {
+    const d = addDays(start, week * 7)
+    if (d > end && dates.length > 0) break
+    dates.push(format(d, 'yyyy-MM-dd'))
+    if (d > end) break
+  }
+  return dates
 }
 
 export function formatPlanDate(date: string) {

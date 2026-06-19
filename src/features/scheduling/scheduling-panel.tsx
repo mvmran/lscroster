@@ -4,6 +4,7 @@ import {
   CalendarX,
   Loader2,
   Mail,
+  Minus,
   MoreHorizontal,
   Plus,
   Repeat,
@@ -65,6 +66,7 @@ import {
   useAllPositions,
   useAllTeamMembers,
   useTeams,
+  useUpdatePositionMinCount,
 } from '@/features/scheduling/use-teams'
 import {
   resultsByPerson,
@@ -314,6 +316,56 @@ export function AssignPersonDialog({
   )
 }
 
+/**
+ * Inline minimum-required stepper beside a position on the plan (issue #71).
+ * Edits the position's global `min_count`; the optimistic cache update makes the
+ * value and the understaffed badge respond immediately. min_count 0 = optional.
+ */
+function PositionMinCount({ position }: { position: Position }) {
+  const update = useUpdatePositionMinCount()
+  const value = position.min_count
+
+  function set(next: number) {
+    if (next < 0 || next > 99 || next === value) return
+    update.mutate(
+      { id: position.id, min_count: next },
+      { onError: (e) => toast.error(e.message) },
+    )
+  }
+
+  return (
+    <div
+      className="flex items-center gap-0.5"
+      title="Minimum people required for this position"
+    >
+      <span className="text-muted-foreground mr-0.5 text-xs">Min</span>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-6"
+        disabled={value <= 0 || update.isPending}
+        onClick={() => set(value - 1)}
+        aria-label={`Decrease minimum for ${position.name}`}
+      >
+        <Minus className="size-3.5" />
+      </Button>
+      <span className="w-4 text-center text-sm tabular-nums" aria-live="polite">
+        {value}
+      </span>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-6"
+        disabled={update.isPending}
+        onClick={() => set(value + 1)}
+        aria-label={`Increase minimum for ${position.name}`}
+      >
+        <Plus className="size-3.5" />
+      </Button>
+    </div>
+  )
+}
+
 export function SchedulingPanel({
   plan,
   canManage,
@@ -477,15 +529,18 @@ export function SchedulingPanel({
                             <RuleBadges results={posResults} />
                           </div>
                           {canManage && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2"
-                              onClick={() => setPicker({ team, position })}
-                            >
-                              <Plus className="size-3.5" />
-                              Add
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <PositionMinCount position={position} />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2"
+                                onClick={() => setPicker({ team, position })}
+                              >
+                                <Plus className="size-3.5" />
+                                Add
+                              </Button>
+                            </div>
                           )}
                         </div>
                         {slotAssignments.length === 0 ? (
