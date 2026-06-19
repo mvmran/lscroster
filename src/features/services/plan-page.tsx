@@ -84,13 +84,16 @@ import {
 import { PlanItemDialog, type PlanItemDialogState } from '@/features/services/plan-item-dialog'
 import {
   computeItemTimes,
+  findClashingPlans,
   formatClock,
   formatLength,
   formatPlanDate,
   formatTotalLength,
   todayISODate,
+  type ClashCandidate,
   type PlanItem,
 } from '@/features/services/service-utils'
+import { PlanClashDialog } from '@/features/services/plan-clash-dialog'
 import { SongPickerDialog } from '@/features/services/song-picker-dialog'
 import {
   useDeletePlanItem,
@@ -315,11 +318,34 @@ function DuplicateDialog({
 }) {
   const createPlan = useCreatePlan()
   const navigate = useNavigate()
+  const { data: plans } = usePlans()
   const [date, setDate] = useState(() =>
     format(addDays(parseISO(plan.date), 7), 'yyyy-MM-dd'),
   )
+  // Existing services the copy's date would double up on (issue #78).
+  const [clashes, setClashes] = useState<ClashCandidate[]>([])
+
+  // Warn before copying onto a date/time that already has a service (issue #78).
+  function attemptDuplicate() {
+    if (!date) return
+    const found = findClashingPlans(
+      {
+        date,
+        start: plan.service_types.default_start_time,
+        end: plan.service_types.end_time,
+        excludeId: plan.id,
+      },
+      plans ?? [],
+    )
+    if (found.length > 0) {
+      setClashes(found)
+      return
+    }
+    void duplicate()
+  }
 
   async function duplicate() {
+    setClashes([])
     try {
       const copy = await createPlan.mutateAsync({
         service_type_id: plan.service_type_id,
@@ -335,35 +361,43 @@ function DuplicateDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Duplicate plan</DialogTitle>
-          <DialogDescription>
-            Copies the whole order of service into a new draft plan.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="dup-date">Date for the copy</Label>
-          <Input
-            id="dup-date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-44"
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={duplicate} disabled={createPlan.isPending || !date}>
-            {createPlan.isPending && <Loader2 className="size-4 animate-spin" />}
-            Duplicate
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Duplicate plan</DialogTitle>
+            <DialogDescription>
+              Copies the whole order of service into a new draft plan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="dup-date">Date for the copy</Label>
+            <Input
+              id="dup-date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-44"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={attemptDuplicate} disabled={createPlan.isPending || !date}>
+              {createPlan.isPending && <Loader2 className="size-4 animate-spin" />}
+              Duplicate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <PlanClashDialog
+        clashes={clashes}
+        pending={createPlan.isPending}
+        onConfirm={duplicate}
+        onCancel={() => setClashes([])}
+      />
+    </>
   )
 }
 

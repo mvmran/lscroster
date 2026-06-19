@@ -23,10 +23,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  findClashingPlans,
   formatPlanDateShort,
   todayISODate,
   weeklyDates,
+  type ClashCandidate,
 } from '@/features/services/service-utils'
+import { PlanClashDialog } from '@/features/services/plan-clash-dialog'
 import { useCreatePlan, type PlanWithType } from '@/features/services/use-plans'
 import { usePlanTemplates } from '@/features/services/use-plan-templates'
 import { useServiceTypes } from '@/features/services/use-service-types'
@@ -55,6 +58,9 @@ export function NewPlanDialog({
   const [source, setSource] = useState('blank')
   // Repeat weekly until this date (issue #72); empty = just the one plan.
   const [repeatUntil, setRepeatUntil] = useState('')
+  // Existing services this creation would double up on (issue #78); non-empty
+  // opens the warning dialog, where "Create anyway" proceeds.
+  const [clashes, setClashes] = useState<ClashCandidate[]>([])
 
   // The repeat-until date must be later than the plan date when set.
   const repeatInvalid = repeatUntil !== '' && repeatUntil <= date
@@ -74,11 +80,39 @@ export function NewPlanDialog({
     [plans, effectiveTypeId],
   )
 
+  // One plan at `date`, or weekly plans through the repeat-until date (#72).
+  const dates = useMemo(
+    () => (repeatUntil ? weeklyDates(date, repeatUntil) : [date]),
+    [repeatUntil, date],
+  )
+
+  // Try to create; if any date doubles up on an existing service (issue #78),
+  // open the warning dialog first instead of creating straight away.
+  function attemptCreate() {
+    if (!effectiveTypeId || !date || repeatInvalid) return
+    const type = serviceTypes?.find((st) => st.id === effectiveTypeId)
+    const found = dates.flatMap((planDate) =>
+      findClashingPlans(
+        {
+          date: planDate,
+          start: type?.default_start_time ?? null,
+          end: type?.end_time ?? null,
+        },
+        plans,
+      ),
+    )
+    const unique = [...new Map(found.map((p) => [p.id, p])).values()]
+    if (unique.length > 0) {
+      setClashes(unique)
+      return
+    }
+    void create()
+  }
+
   async function create() {
     if (!effectiveTypeId || !date || repeatInvalid) return
+    setClashes([])
     const [kind, id] = source.split(':') as ['template' | 'plan', string] | ['blank', undefined]
-    // One plan at `date`, or weekly plans through the repeat-until date (#72).
-    const dates = repeatUntil ? weeklyDates(date, repeatUntil) : [date]
     try {
       let firstPlanId: string | null = null
       for (const planDate of dates) {
@@ -99,6 +133,7 @@ export function NewPlanDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -217,7 +252,7 @@ export function NewPlanDialog({
             Cancel
           </Button>
           <Button
-            onClick={create}
+            onClick={attemptCreate}
             disabled={createPlan.isPending || !effectiveTypeId || !date || repeatInvalid}
           >
             {createPlan.isPending && <Loader2 className="size-4 animate-spin" />}
@@ -226,5 +261,12 @@ export function NewPlanDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+      <PlanClashDialog
+        clashes={clashes}
+        pending={createPlan.isPending}
+        onConfirm={create}
+        onCancel={() => setClashes([])}
+      />
+    </>
   )
 }

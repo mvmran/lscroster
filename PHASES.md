@@ -332,6 +332,17 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   (Vitest) decide eligibility (invite needs email + no login + not archived;
   archive skips self + already-archived). Runs sequentially via the existing
   `useSendInvite` / `useUpdatePerson`. Client-only — no schema.
+- **#78 — warn before a duplicate service.** New `findClashingPlans` +
+  `ClashCandidate` in `service-utils.ts` (Vitest) reuse the #14 `timesOverlap`
+  helper to find existing plans on the same date whose service-type start/end
+  window overlaps the new one. A shared `PlanClashDialog` (soft "Create anyway"
+  confirm) gates creation in the New-plan dialog (single/repeat/template/copy)
+  and the plan page's Duplicate dialog. Client-only — no schema.
+- **#79 — ORDER section in the Matrix.** A new top section lists each plan's
+  order of service (running times via `computeItemTimes`, song keys, headers),
+  each row draggable via the existing `useReorderPlanItems` (one `DndContext`
+  per column; grips gated on admin/leader). Removed the grid's "Position" label.
+  Client-only — no schema.
 
 **Open backlog (not started):**
 - **#3** — investigate scheduling preferences on people.

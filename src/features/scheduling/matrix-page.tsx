@@ -1,5 +1,23 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { format, parseISO } from 'date-fns'
 import {
   AlertCircle,
@@ -10,7 +28,9 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  GripVertical,
   Loader2,
+  Music,
   Plus,
   Send,
   UserRound,
@@ -78,8 +98,20 @@ import {
   useTeams,
 } from '@/features/scheduling/use-teams'
 import { supabase } from '@/lib/supabase'
-import { todayISODate } from '@/features/services/service-utils'
+import { useCurrentPerson } from '@/features/auth/use-current-person'
+import {
+  computeItemTimes,
+  formatClock,
+  todayISODate,
+  type PlanItem,
+  type Song,
+} from '@/features/services/service-utils'
+import {
+  usePlanItems,
+  useReorderPlanItems,
+} from '@/features/services/use-plan-items'
 import { usePlans, type PlanWithType } from '@/features/services/use-plans'
+import { useSongs } from '@/features/services/use-songs'
 
 /** Assignments for all matrix plans in one query, grouped by plan. */
 function useMatrixAssignments(planIds: string[]) {
@@ -268,14 +300,177 @@ function SendColumnButton({ plan, unsent }: { plan: PlanWithType; unsent: number
   )
 }
 
+/** One draggable order-of-service row inside a Matrix ORDER cell (issue #79). */
+function OrderItemRow({
+  item,
+  startsAt,
+  songKey,
+  canManage,
+}: {
+  item: PlanItem
+  startsAt: Date | null
+  songKey: string | null
+  canManage: boolean
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.id, disabled: !canManage })
+  const isHeader = item.kind === 'header'
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`flex items-center gap-1 rounded px-1 py-0.5 ${
+        isDragging ? 'bg-accent relative z-10' : ''
+      }`}
+    >
+      {canManage && (
+        <button
+          type="button"
+          className="text-muted-foreground/50 hover:text-foreground -ml-0.5 shrink-0 cursor-grab touch-none"
+          aria-label={`Reorder ${item.title}`}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-3" />
+        </button>
+      )}
+      {startsAt && (
+        <span className="text-muted-foreground w-8 shrink-0 text-right text-[11px] tabular-nums">
+          {formatClock(startsAt)}
+        </span>
+      )}
+      {item.kind === 'song' && (
+        <Music className="text-muted-foreground size-3 shrink-0" />
+      )}
+      <span
+        className={
+          isHeader
+            ? 'text-muted-foreground min-w-0 truncate text-[11px] font-semibold tracking-wide uppercase'
+            : 'min-w-0 truncate text-xs'
+        }
+      >
+        {item.title}
+      </span>
+      {item.kind === 'song' && songKey && (
+        <Badge
+          variant="secondary"
+          className="shrink-0 px-1 py-0 text-[10px] font-normal"
+        >
+          {songKey}
+        </Badge>
+      )}
+    </div>
+  )
+}
+
+/**
+ * A plan's order of service in one Matrix column (issue #79) — songs and items
+ * in order with their running start times and keys, each with a drag handle to
+ * reorder this plan's order of service inline. Reorders persist via the same
+ * hook the plan page uses, so the two views stay in sync.
+ */
+function MatrixOrderCell({
+  plan,
+  songById,
+  canManage,
+}: {
+  plan: PlanWithType
+  songById: Map<string, Song>
+  canManage: boolean
+}) {
+  const { data, isPending } = usePlanItems(plan.id)
+  const reorder = useReorderPlanItems(plan.id)
+  const items = useMemo(() => data ?? [], [data])
+  const { timed } = useMemo(
+    () =>
+      computeItemTimes(items, plan.date, plan.service_types.default_start_time),
+    [items, plan.date, plan.service_types.default_start_time],
+  )
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = items.findIndex((i) => i.id === active.id)
+    const newIndex = items.findIndex((i) => i.id === over.id)
+    if (oldIndex < 0 || newIndex < 0) return
+    reorder.mutate(arrayMove(items, oldIndex, newIndex), {
+      onError: (e) => toast.error(e.message),
+    })
+  }
+
+  if (isPending) {
+    return (
+      <td className="border-l p-1.5 align-top">
+        <Skeleton className="h-8 w-full" />
+      </td>
+    )
+  }
+  if (items.length === 0) {
+    return (
+      <td className="text-muted-foreground/40 border-l p-2 text-center align-top text-xs">
+        —
+      </td>
+    )
+  }
+
+  return (
+    <td className="border-l p-1.5 align-top">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={items.map((i) => i.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="flex min-w-32 flex-col gap-0.5">
+            {timed.map(({ item, startsAt }) => (
+              <OrderItemRow
+                key={item.id}
+                item={item}
+                startsAt={startsAt}
+                songKey={
+                  item.kind === 'song'
+                    ? item.key_override ??
+                      (item.song_id ? songById.get(item.song_id)?.default_key ?? null : null)
+                    : null
+                }
+                canManage={canManage}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </td>
+  )
+}
+
 /**
  * Weeks × positions grid across upcoming plans, with inline scheduling —
  * roster a month in one sitting.
  */
 export function MatrixPage() {
   const plansQuery = usePlans()
+  const { data: me } = useCurrentPerson()
   const { data: teams, isPending: teamsPending } = useTeams()
   const { data: positions } = useAllPositions()
+  const { data: songs } = useSongs()
+
+  // Only admins/leaders can reorder a plan's order of service (issue #79); RLS
+  // enforces it too, so members see the list read-only (no drag handles).
+  const canManage = me?.role === 'admin' || me?.role === 'leader'
+
+  // Song keys for the ORDER section (issue #79) — default key per song id.
+  const songById = useMemo(
+    () => new Map((songs ?? []).map((s) => [s.id, s])),
+    [songs],
+  )
 
   const [typeFilter, setTypeFilter] = useState('all')
   const [picker, setPicker] = useState<(PickerTarget & { plan: PlanWithType }) | null>(null)
@@ -538,9 +733,9 @@ export function MatrixPage() {
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
-                <th className="bg-card sticky left-0 z-10 min-w-36 border-b p-2 text-left font-medium">
-                  Position
-                </th>
+                {/* Position label removed (issue #79); cell kept for layout. */}
+                <th className="bg-card sticky left-0 z-10 min-w-36 border-b p-2 text-left font-medium" />
+
                 {matrixPlans.map((plan) => (
                   <th key={plan.id} className="min-w-32 border-b border-l p-2 text-left">
                     <div className="flex items-start justify-between gap-1">
@@ -582,6 +777,27 @@ export function MatrixPage() {
               </tr>
             </thead>
             <tbody>
+              {/* ORDER section (issue #79): each plan's order of service,
+                  reorderable inline. Sits before the team sections. */}
+              <tr>
+                <td
+                  colSpan={matrixPlans.length + 1}
+                  className="bg-muted/50 text-muted-foreground border-b px-2 py-1 text-xs font-semibold tracking-wide uppercase"
+                >
+                  Order
+                </td>
+              </tr>
+              <tr className="border-b">
+                <td className="bg-card sticky left-0 z-10 p-2 align-top" />
+                {matrixPlans.map((plan) => (
+                  <MatrixOrderCell
+                    key={plan.id}
+                    plan={plan}
+                    songById={songById}
+                    canManage={canManage}
+                  />
+                ))}
+              </tr>
               {sortedTeams.map((team) => {
                 const teamPositions = (positions ?? []).filter(
                   (p) => p.team_id === team.id,

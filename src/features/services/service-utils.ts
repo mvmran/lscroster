@@ -1,5 +1,6 @@
 import { addDays, addSeconds, format, parseISO } from 'date-fns'
 import type { Enums, Tables } from '@/types/database'
+import { timesOverlap } from '@/features/scheduling/scheduling-utils'
 
 export type Plan = Tables<'plans'>
 export type PlanItem = Tables<'plan_items'>
@@ -131,6 +132,51 @@ export function serviceTypeSummary(st: ServiceType): string {
   if (start && end) parts.push(`${start}–${end}`)
   else if (start) parts.push(start)
   return parts.length > 0 ? parts.join(' · ') : 'No schedule set'
+}
+
+/**
+ * Minimal shape of an existing plan needed to detect a service-time clash
+ * (issue #78) — the date plus its service type's start/end times and name.
+ */
+export type ClashCandidate = {
+  id: string
+  date: string
+  title: string | null
+  service_types: {
+    name: string
+    default_start_time: string | null
+    end_time: string | null
+  }
+}
+
+/**
+ * Existing plans whose service time clashes with a new service on `date`
+ * (issue #78). We compare the *actual* start/end times (not the service type
+ * identity), so two services on one day at non-overlapping times are fine while
+ * overlapping windows clash even when their start or end differ. `start`/`end`
+ * are the new service's 'HH:mm:ss' times (from its service type). `excludeId`
+ * skips a plan from the comparison (e.g. the plan being duplicated).
+ */
+export function findClashingPlans(
+  candidate: {
+    date: string
+    start: string | null
+    end: string | null
+    excludeId?: string
+  },
+  existing: ClashCandidate[],
+): ClashCandidate[] {
+  return existing.filter(
+    (p) =>
+      p.id !== candidate.excludeId &&
+      p.date === candidate.date &&
+      timesOverlap(
+        candidate.start,
+        candidate.end,
+        p.service_types.default_start_time,
+        p.service_types.end_time,
+      ),
+  )
 }
 
 export interface TimedPlanItem<T> {
