@@ -66,6 +66,7 @@ import {
   useTeam,
   useTeamMembers,
   useUpdateTeam,
+  type TeamMemberWithPositions,
 } from '@/features/scheduling/use-teams'
 import { useServiceTypes } from '@/features/services/use-service-types'
 
@@ -419,6 +420,9 @@ function MembersCard({
     useMembershipMutations()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [memberToRemove, setMemberToRemove] = useState<TeamMemberWithPositions | null>(
+    null,
+  )
 
   const candidates = useMemo(() => {
     const memberIds = new Set((members ?? []).map((m) => m.person_id))
@@ -503,9 +507,7 @@ function MembersCard({
                           variant="ghost"
                           size="icon"
                           className="size-8"
-                          onClick={() =>
-                            remove.mutate(member, { onError: (e) => toast.error(e.message) })
-                          }
+                          onClick={() => setMemberToRemove(member)}
                           aria-label={`Remove ${fullName(member.people)}`}
                         >
                           <X className="size-4" />
@@ -598,6 +600,40 @@ function MembersCard({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm before removing a member from the team (issue #66). */}
+      <AlertDialog
+        open={!!memberToRemove}
+        onOpenChange={(open) => !open && setMemberToRemove(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Remove {memberToRemove ? fullName(memberToRemove.people) : 'this member'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They'll be taken off this team and its positions. Existing
+              assignments on published plans aren't changed. You can add them
+              back at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (!memberToRemove) return
+                remove.mutate(memberToRemove, {
+                  onError: (e) => toast.error(e.message),
+                })
+                setMemberToRemove(null)
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }
