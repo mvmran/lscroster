@@ -6,6 +6,17 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Reorder a service's songs from the Matrix** — the Matrix now has an **ORDER**
+  section at the top showing each service's order of service (headers, songs and
+  items with their running start times and keys). Drag the handle on any row to
+  reorder that service's items inline, without opening the plan. The redundant
+  **Position** label on the grid's first column has been removed ([#79]).
+- **Warn before creating a duplicate service** — when you create a plan (single,
+  repeated, from a template, or by duplicating an existing one), LSCRoster now
+  checks for another service on the **same date whose time overlaps** and asks you
+  to confirm before going ahead. It compares the services' actual start/end times,
+  so two services on one day at different, non-overlapping times don't trigger a
+  warning, while overlapping ones do — even if their start or end differ ([#78]).
 - **Bulk actions on the People page** — admins can now select several people at
   once (hover a row's avatar to reveal a tick box, or use the **select-all** box in
   the header) and then **Send invitation** or **Archive member** to all of them in
@@ -412,3 +423,5 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#73]: https://github.com/mvmran/lscroster/issues/73
 [#76]: https://github.com/mvmran/lscroster/issues/76
 [#77]: https://github.com/mvmran/lscroster/issues/77
+[#78]: https://github.com/mvmran/lscroster/issues/78
+[#79]: https://github.com/mvmran/lscroster/issues/79
