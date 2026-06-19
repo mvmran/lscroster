@@ -6,6 +6,17 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Pick several positions when adding someone to a team** — on a person's profile,
+  **Add to team** now has a second step listing that team's positions with tick
+  boxes, so you can grant all the positions they fill in one go instead of adding
+  them one at a time ([#65]).
+- **Hide Matrix columns** — each Matrix date column has a small **hide** button;
+  hiding a column drops it and pulls the next service in so the same number of
+  columns stays on screen. Hidden services show as chips above the grid — click
+  one to bring it back ([#68]).
+- **View a member from the Matrix** — clicking a **team name** in the Matrix opens
+  that team, and a scheduled person's cell menu now has a **View <name>** entry
+  that opens their profile ([#74]).
 - **Page the Matrix through earlier/later weeks** — the Matrix has **←** and **→**
   buttons that shift the window one service earlier or later, so you can roster
   past the next few weeks (and look back at past ones) without changing how many
@@ -159,6 +170,10 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#10]). Assigning multiple positions to a member (#1) is unaffected.
 
 ### Changed
+- **Confirm before removing a team membership** — removing someone from a team now
+  asks for confirmation first, both from the **Teams** screen (removing a member
+  from a team) and from a person's profile (removing them from a team), so an
+  accidental click no longer drops the membership ([#64], [#66]).
 - **Repeat a new plan up to a date** — the **New plan** dialog's *Repeat* control is
   now a date picker: leave it blank for a single plan, or pick a future date and a
   weekly plan is created through to it (the date must be later than the plan date)
@@ -216,6 +231,9 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#29]).
 
 ### Migration / upgrade notes
+- Issues #64, #65, #66, #68 and #74 are **code-only — no schema change** — UI on
+  the People, Teams and Matrix screens reusing existing membership/position
+  mutations and their RLS. Ship by `git push` → Vercel.
 - Issues #67, #69, #70, #71 and #72 are **code-only — no schema change**. #71
   edits the existing `positions.min_count` column (covered by its existing
   admin/leader-write RLS); the rest are UI-only. Ship by `git push` → Vercel.
@@ -337,3 +355,8 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#70]: https://github.com/mvmran/lscroster/issues/70
 [#71]: https://github.com/mvmran/lscroster/issues/71
 [#72]: https://github.com/mvmran/lscroster/issues/72
+[#64]: https://github.com/mvmran/lscroster/issues/64
+[#65]: https://github.com/mvmran/lscroster/issues/65
+[#66]: https://github.com/mvmran/lscroster/issues/66
+[#68]: https://github.com/mvmran/lscroster/issues/68
+[#74]: https://github.com/mvmran/lscroster/issues/74

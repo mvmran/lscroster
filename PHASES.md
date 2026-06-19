@@ -217,6 +217,24 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   admin write). Upload UI in Settings → Church (light + dark tiles); `<ChurchLogo>`
   shows the theme-appropriate variant in the header brand and on the
   sign-in / forgot / reset cards, falling back to the church icon.
+- **#64 / #66 — confirm removing a team membership.** An `AlertDialog` now gates
+  membership removal on both the person profile (`person-teams-card.tsx`,
+  `membershipToRemove`) and the team page (`team-page.tsx` `MembersCard`,
+  `memberToRemove`); the X button opens the confirm instead of mutating directly.
+  Client-only — no schema.
+- **#65 — multi-position add to a team.** The person profile's **Add to team** flow
+  is now a two-step `AddToTeamDialog` (`person-teams-card.tsx`): pick a team, then
+  tick its positions (`usePositions(teamId)` + shadcn `Checkbox`); confirm runs
+  `add.mutateAsync` then `addPosition.mutateAsync` per ticked position. Client-only.
+- **#68 — collapse Matrix columns.** An **EyeOff** button per date header adds the
+  plan to a `collapsedIds` set; the visible window is computed by the pure
+  `fillMatrixWindow(plans, startIndex, count, collapsedIds)` (`matrix-utils.ts`,
+  Vitest, 6 tests) which skips collapsed plans and pulls the next in to keep the
+  column count. Hidden services show as **Eye** restore chips above the grid;
+  collapses reset on filter change. Client-only — no schema.
+- **#74 — Matrix links.** The team-section name links to `/teams/:id` and each
+  assignment's cell menu gained a **View <name>** item linking to `/people/:id`
+  (`matrix-page.tsx`). Client-only — no schema.
 - **#67 — Matrix week paging.** A `weekOffset` state + **←/→** buttons window the
   Matrix over *all* filtered plans (past + future) sorted ascending, defaulting to
   the next-upcoming plan (`todayISODate`); arrows step one service and clamp at

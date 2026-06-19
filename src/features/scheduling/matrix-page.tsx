@@ -8,10 +8,13 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  EyeOff,
   Loader2,
   Minus,
   Plus,
   Send,
+  UserRound,
   X,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -57,6 +60,7 @@ import {
   useSchedulingRulesData,
 } from '@/features/scheduling/use-service-state'
 import { worstSeverity, type RuleResult } from '@/features/scheduling/validate-service'
+import { fillMatrixWindow } from '@/features/scheduling/matrix-utils'
 import { MatrixTeamOrderDialog } from '@/features/scheduling/matrix-team-order-dialog'
 import {
   applyTeamOrder,
@@ -179,6 +183,12 @@ function MatrixCell({
                     : ''}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to={`/people/${assignment.person_id}`}>
+                    <UserRound className="size-4" />
+                    View {assignment.people.first_name} {assignment.people.last_name}
+                  </Link>
+                </DropdownMenuItem>
                 {assignment.status === 'declined' && (
                   <DropdownMenuItem onClick={() => onReplace(assignment.id)}>
                     Find replacement
@@ -273,6 +283,9 @@ export function MatrixPage() {
   // Window offset (issue #67): 0 = window starts at the next upcoming service;
   // the ← / → buttons step it one service earlier / later (into the past too).
   const [weekOffset, setWeekOffset] = useState(0)
+  // Collapsed (hidden) plan columns (issue #68); the window fills the next plan
+  // in to keep the column count steady.
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
   const { order, saveOrder } = useMatrixTeamOrder()
   const { count: planCount, setCount: setPlanCount } = useMatrixPlanCount()
 
@@ -297,10 +310,28 @@ export function MatrixPage() {
   const maxStart = Math.max(0, filteredPlans.length - planCount)
   const startIndex = Math.min(Math.max(defaultStart + weekOffset, 0), maxStart)
 
+  // Visible columns: planCount plans from startIndex, skipping collapsed ones (#68).
   const matrixPlans = useMemo(
-    () => filteredPlans.slice(startIndex, startIndex + planCount),
-    [filteredPlans, startIndex, planCount],
+    () => fillMatrixWindow(filteredPlans, startIndex, planCount, collapsedIds),
+    [filteredPlans, startIndex, planCount, collapsedIds],
   )
+
+  // Collapsed plans still within the current filter — shown as a restore strip (#68).
+  const collapsedPlans = useMemo(
+    () => filteredPlans.filter((p) => collapsedIds.has(p.id)),
+    [filteredPlans, collapsedIds],
+  )
+
+  function collapsePlan(id: string) {
+    setCollapsedIds((prev) => new Set(prev).add(id))
+  }
+  function restorePlan(id: string) {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }
 
   // The single service type currently shown — either the explicit filter, or the
   // only type present in the window (issue #70). Null when several types mix.
@@ -447,6 +478,7 @@ export function MatrixPage() {
                 onValueChange={(v) => {
                   setTypeFilter(v)
                   setWeekOffset(0)
+                  setCollapsedIds(new Set())
                 }}
               >
                 <SelectTrigger className="w-48" aria-label="Filter by service type">
@@ -470,6 +502,26 @@ export function MatrixPage() {
         </p>
       </div>
 
+      {/* Restore strip for collapsed columns (issue #68). */}
+      {collapsedPlans.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 text-sm">
+          <span className="text-muted-foreground">Hidden:</span>
+          {collapsedPlans.map((plan) => (
+            <Button
+              key={plan.id}
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 px-2"
+              onClick={() => restorePlan(plan.id)}
+              title="Show this column again"
+            >
+              <Eye className="size-3.5" />
+              {format(parseISO(plan.date), 'EEE d MMM')}
+            </Button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <Skeleton className="h-64 w-full" />
       ) : matrixPlans.length === 0 ? (
@@ -488,12 +540,24 @@ export function MatrixPage() {
                 </th>
                 {matrixPlans.map((plan) => (
                   <th key={plan.id} className="min-w-32 border-b border-l p-2 text-left">
-                    <Link
-                      to={`/services/plans/${plan.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {format(parseISO(plan.date), 'EEE d MMM')}
-                    </Link>
+                    <div className="flex items-start justify-between gap-1">
+                      <Link
+                        to={`/services/plans/${plan.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {format(parseISO(plan.date), 'EEE d MMM')}
+                      </Link>
+                      {/* Collapse (hide) this column (issue #68). */}
+                      <button
+                        type="button"
+                        onClick={() => collapsePlan(plan.id)}
+                        className="text-muted-foreground/60 hover:text-foreground -mt-0.5 -mr-1 shrink-0 p-0.5"
+                        title="Hide this column"
+                        aria-label={`Hide ${format(parseISO(plan.date), 'EEE d MMM')}`}
+                      >
+                        <EyeOff className="size-3.5" />
+                      </button>
+                    </div>
                     <div className="text-muted-foreground flex items-center gap-1 text-xs font-normal">
                       {plan.service_types.name}
                       {plan.status === 'draft' && (
@@ -526,7 +590,10 @@ export function MatrixPage() {
                       colSpan={matrixPlans.length + 1}
                       className="bg-muted/50 text-muted-foreground border-b px-2 py-1 text-xs font-semibold tracking-wide uppercase"
                     >
-                      {team.name}
+                      {/* Team name links to the team view (issue #74). */}
+                      <Link to={`/teams/${team.id}`} className="hover:underline">
+                        {team.name}
+                      </Link>
                     </td>
                   </tr>,
                   ...teamPositions.map((position) => (
