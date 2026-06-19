@@ -1,172 +1,143 @@
 # Session handover — LSCRoster
 
-_Last updated: 2026-06-18_
+_Last updated: 2026-06-19_
 
 This is a working handover note for continuing development in a fresh Claude Code
 session. Read `CLAUDE.md` first for the project rules; this file captures only the
-**live state** that isn't obvious from the repo.
+**live state** that isn't obvious from the repo. Full per-issue history lives in
+`CHANGELOG.md` and `PHASES.md`.
 
 ## Current state of the tree
 
-- Branch `main`, clean, synced with `origin/main` (latest merges: **#38 / #39 /
-  #42 / #43 / #56 / #57 / #58** batch; before that **#54 / #55** header + Schedules
-  formatting, **#52** person-page schedules, **#47** partial-accept, **#33 + #49**
-  Matrix team ordering).
-- Production (lscroster.xyz) is **up to date** once this batch deploys: the
-  `20260618090000_church_logo` migration and the new `request-password-reset` Edge
-  Function ship with it; Vercel auto-deploys from `main`.
-- Schema since Phase 4: migrations **0006–** `20260618090000_church_logo`
-  (see `supabase/migrations/`). Of this batch, only **#58** changed schema (logo
-  column + public bucket); **#39** added an Edge Function; #42/#38/#43/#56/#57 are
-  client-only.
-- **Manual prod step for #39:** add `https://lscroster.xyz/reset-password` to the
-  Supabase project's **Auth → URL Configuration → Redirect URLs**, or recovery
-  links fall back to the site root instead of the reset page.
+- Branch `main`, clean, synced with `origin/main`. Latest commit **`ccea615`**
+  (#79 follow-up: Matrix drops the song-key badge + goes full-width), on top of
+  the **#78 / #79** merge (`8bfac28`).
+- Production (**lscroster.xyz**) is up to date; Vercel auto-deploys from `main`.
+- Schema: migrations **0006 – `20260619140000_drop_team_exclusions`** in
+  `supabase/migrations/`. The three most recent migrations:
+  - `20260619100000_account_access_guards` (#44/#45) — self-demotion guard +
+    ban/session triggers on archive.
+  - `20260619100100_plan_template_times` (#73) — `plan_template_times` table.
+  - `20260619140000_drop_team_exclusions` (#76) — dropped the `team_exclusions`
+    table (prod had 0 rows; was an explicit confirmed destructive prod drop).
+- **No outstanding manual prod steps.** (The #39 reset-password redirect URL —
+  `https://lscroster.xyz/reset-password` in Supabase **Auth → URL Configuration →
+  Redirect URLs** — was added 2026-06-19.)
 
-## What just shipped
+## What just shipped — #78 / #79 (this session)
 
-All implemented, verified on the local stack (build + lint + typecheck + Vitest +
-RLS probe with a member JWT + browser UI), deployed to prod, and merged to `main`.
+Client-only, **no schema**. Branch `feat/duplicate-service-warning-and-matrix-order`,
+merged `8bfac28`; follow-up tweaks in `ccea615`. Verified on the local stack
+(build + lint + typecheck + 90 Vitest + **live browser** on a reseeded local DB).
 
-| Issue | What | Status |
+- **#78 — warn before a duplicate service.** New pure `findClashingPlans` /
+  `ClashCandidate` in `service-utils.ts` (Vitest) reuse the #14 `timesOverlap`
+  helper (imported from `scheduling-utils.ts`) to find existing plans on the
+  **same date** whose service-time window overlaps the new one. A shared
+  `PlanClashDialog` (soft "Create anyway" confirm, rendered as a fragment sibling
+  of the parent `Dialog`) gates creation in `new-plan-dialog.tsx`
+  (single / repeat-weekly / template / copy — `attemptCreate` checks every
+  `weeklyDates` date, de-dupes by id) and the plan-page `DuplicateDialog`
+  (`attemptDuplicate`, `excludeId: plan.id`).
+  - **Interpretation (settled with Manoj):** "use the time on the service, not the
+    service type" = dedupe by **time overlap**, not by service-type identity. The
+    time *source* stays the service type's `default_start_time` / `end_time` (the
+    only start+end span we store). **Do NOT** add an end time to `plan_times` for
+    this — Manoj explicitly declined that extension.
+- **#79 — ORDER section in the Matrix.** A new top section (above the team
+  sections) lists each plan's order of service with running start times
+  (`computeItemTimes` off the service-type start) and headers. Each row is
+  draggable via the existing `useReorderPlanItems` (one `DndContext` **per
+  column**; grips gated on `canManage` = admin/leader, RLS-enforced too). Removed
+  the grid's redundant "Position" `<th>` label.
+  - **Follow-up (`ccea615`):** the song **key badge was removed** from the ORDER
+    cells (dropped the `useSongs`/`songById` plumbing); and the Matrix now uses
+    the **full width** up to the sidebar — `app/layout.tsx` toggles `max-w-none`
+    vs `max-w-5xl` via `useLocation().pathname === '/services/matrix'`. Other
+    pages keep the centred 1024px reading width.
+
+## Recent batches (all on `main`, all verified + deployed)
+
+Newest first. Detail in `CHANGELOG.md` / `PHASES.md`; schema noted where relevant.
+
+| Batch (merge) | What | Schema |
 |---|---|---|
-| #29 | Publish emails include the song **Meter** from the Default arrangement | closed |
-| #30 | Position **proficiency / eligibility** (qualified/trainee) + manual editing UI | closed |
-| #31 | **Order** a service type's required teams (`service_type_teams.sort_order`, 0013) | closed |
-| #32 | **Scheduling rules & auto-scheduling — full 5-phase epic** | **closed** |
-| #33 | **Order teams in the Matrix** (per-type order + personal localStorage order) | closed |
-| #49 | **Drag-and-drop** reorder in the Matrix "Reorder teams" popup (dnd-kit) | closed |
-| #47 | **Partial accept** of a roster suggestion — per-suggestion checkboxes + select-all | closed |
-| #52 | **Past & upcoming schedules** on the person page + past-period dropdown | closed |
-| #38 | **Friendly duplicate-email error** on create/update person | closed |
-| #39 | **Forgot-password flow** — `request-password-reset` fn + `/forgot-password` + `/reset-password` | closed |
-| #42 | **Phone validation + formatting** (AU mobile / `+cc` international) | closed |
-| #43 | **Pending status** on People (no login yet) + filter | closed |
-| #56 | **Schedules card**: positions per row, clickable rows, block-out dates, activity summary | closed |
-| #57 | **Matrix −/+** services-shown control (localStorage, default 4, 2–9) | closed |
-| #58 | **Church logo** — light/dark upload + header & sign-in display | closed |
+| **#78 / #79** (`8bfac28`) | Duplicate-service time-overlap warning; Matrix ORDER section + full-width grid | none |
+| **#76 / #77** (`19c7439`) | Removed the team-exclusions feature entirely; admin-only **bulk People** actions (select → Send invitation / Archive) | **0019** drop `team_exclusions` |
+| **#44 / #45 / #60 / #73** (`a7f0ea2`) | Admin self-demotion guard; archived members lose sign-on (ban + session triggers); shared password rules (`auth/password-utils.ts`); plan **Times** saved in templates & copies | **0017** access guards, **0018** `plan_template_times` |
+| **Matrix toolbar** (`4dc4762`) | Columns **slider** (replaced the #57 −/+ stepper) + **Now** button + Weeks/Columns labels; new `components/ui/slider.tsx` | none |
+| **#64 / #65 / #66 / #68 / #74** | Confirm before removing a team membership; two-step Add-to-team multi-position picker; Matrix collapse/hide columns (`fillMatrixWindow` + restore chips); Matrix team-name link + "View member" | none |
+| **#67 / #69 / #70 / #71 / #72** | Matrix ←/→ week paging + Now; plan-page Prev/Today/Next; single-service-type team ordering; inline position `min_count` −/+ on a plan; new-plan repeat-until-date (`weeklyDates`) | none |
+| **#50 / #51 / #61 / #62** | Service-types list + Teams-required dnd reorder; template update/delete on save; plan member-name → profile link | none |
+| **#38 / #39 / #42 / #43 / #56 / #57 / #58** | Friendly dup-email; forgot-password (`request-password-reset` fn + `/forgot-password` + `/reset-password`); phone validation/format; Pending status + filter; Schedules-card overhaul; Matrix services-shown control; church logo | **church_logo** (logo col + public bucket); #39 added an Edge Function |
 
-### #38 / #39 / #42 / #43 / #56 / #57 / #58 batch (this session)
+Earlier (#1–#37, #47, #49, #52, #54, #55) — see `PHASES.md` "Done & deployed".
 
-- **#42 phone** — `features/people/phone-utils.ts` (`formatPhone` / `isValidPhone`,
-  Vitest). Form validates via Zod + formats on blur; the list, profile and CSV
-  import all display through `formatPhone`.
-- **#38 dup email** — `use-people.ts` maps Postgres `23505` on `people_email_unique`
-  to a friendly message in create + update.
-- **#43 pending** — `person-utils.ts` `accountStatus()` (active / pending /
-  inactive, derived from `status` + `auth_user_id`). People list shows a **Pending**
-  badge + filter; profile shows a "Pending invite" badge. Client-only.
-- **#56 schedules card** — `person-schedule-card.tsx` rewritten;
-  `usePersonSchedule` extended with position/team/service-type; new
-  `useRosterWorkload(enabled)` (admins/leaders only) for the team percentile;
-  pure helpers + Vitest in `person-schedule-utils.ts` (`describeStreak`,
-  `workloadPercentile`). Positions sort by `serviceTypeTeamSort` then position
-  order; rows link to the plan; blockouts via `usePersonBlockouts`. Client-only.
-- **#57 matrix −/+** — `use-matrix-plan-count.ts` (per-login localStorage, default
-  4, clamp 2–9), wired into `matrix-page.tsx` replacing the old fixed constant.
-- **#58 logo** — migration `20260618090000_church_logo` (logo_dark_url + public
-  `church-logo` bucket, admin-write RLS). `use-church-logo.ts` (upload/clear +
-  `logoPublicUrl`) and `church-logo.tsx` (`<ChurchLogo>` theme-aware, falls back to
-  the icon). Upload UI in Settings → Church; shown in the header brand + sign-in.
-- **#39 forgot password** — `request-password-reset` Edge Function (enumeration-safe,
-  Resend via `_shared/email-templates/password-reset.ts`, logs to `email_log`);
-  `/forgot-password` (neutral confirmation) and `/reset-password` (recovery-session
-  detection → `updateUser`); `config.toml` adds the function (`verify_jwt = false`)
-  and local `/reset-password` redirect URLs.
+## Decisions still in force (don't relitigate without Manoj)
 
-### #32 epic — done (P1–P5)
+- **Single-tenant per instance.** No `tenant_id`, no shared multi-tenant DB. Each
+  church = its own fork + Supabase + Vercel. Push back if asked to add multi-tenancy.
+- **No per-team `is_leader`.** Added then reverted (#10); blocked on **#6** ("what
+  does Team Leader do"). Role lives on `people.role` only.
+- **#32 scheduling-rules epic:** proficiency is **2 levels** (qualified/trainee),
+  `requires_level` = `qualified` only; trainees count toward `min_count`
+  (TRAINEE_UNSUPERVISED fires only for an all-trainee team); MULTI_POSITION always
+  hard-errors; cadence is **hard** in the auto-fill engine but a **warning** on a
+  manual edit; `BELOW_REQUIRED_LEVEL` folds into `NO_REQUIRED_LEVEL`.
+- **`plan_times` has no end time** and stays that way (see #78 above).
 
-Per the spec `scheduling-rules-and-auto-scheduling.md`. Shipped as five phases;
-proficiency kept at 2 levels (qualified/trainee), `requires_level` = `qualified` only.
+## Gotchas worth remembering
 
-- **P1** (b6fcc47, migration 0014): rule storage + manual-editing UI —
-  `person_scheduling_prefs`, `person_recurring_unavailability`, `person_pairings`,
-  `team_exclusions`, and position columns `min_count`/`max_count`/`requires_level`/
-  `fill_priority`. One-off unavailability **reuses `blockout_dates`**.
-  (`team_exclusions` and its UI were later removed entirely by #76, migration 0019.)
-- **P2 #34** (migration 0015): pure `validateService()` (`validate-service.ts`,
-  Vitest) + live red/amber badges on the plan People panel and Matrix + a two-tier
-  publish gate logging overrides to **`publish_overrides`**. Hydrated by
-  `use-service-state.ts`.
-- **P3 #35**: deterministic `autoSchedule()` engine (`auto-scheduler.ts`) +
-  "Suggest roster" preview dialog → editable `pending` draft.
-- **P4 #36**: `rankCandidates()` + a "Replace…" action (`replace-dialog.tsx`) with
-  ranked substitutes, reasons, and per-candidate month workload.
-- **P5 #37**: a declined assignment's "Find replacement" opens the engine-ranked
-  dialog (top flagged "Suggested"). The accept/decline **email** loop itself is the
-  existing Phase-3 flow (`send-requests`/`respond-to-request`/`/respond/:token`) —
-  P5 only feeds declines into the engine.
+- **shadcn `Checkbox` / radix nested-interactive:** pair a Checkbox (or a
+  `DropdownMenuItem`'s sibling button) with a sibling `<label htmlFor>` — do **not**
+  nest the radix button inside the label; the label re-forwards the click and
+  cancels the toggle.
+- **shadcn `Card` has no `forwardRef`** — for dnd, wrap it in a `<div ref={…}>`,
+  don't pass `ref` to `Card`.
+- **`detectSessionInUrl` runs only at client init** — the reset-password page needs
+  a full page load with the recovery hash present; changing only the hash on the
+  same path won't trigger it.
+- **Optimistic position edits:** validation reads positions from the
+  `['positions']` query (`useAllPositions`); invalidating that prefix also
+  refreshes `['positions', teamId]`.
+- **Cross-feature import is fine** where it reads cleanly: `service-utils.ts`
+  imports `timesOverlap` from `scheduling-utils.ts` (no cycle — scheduling-utils
+  only imports types).
 
-Decisions baked in: trainees count toward `min_count` (TRAINEE_UNSUPERVISED only
-when a team is all-trainees); MULTI_POSITION always hard-errors; cadence is **hard**
-in the auto-fill engine but a **warning** on a manual edit; `BELOW_REQUIRED_LEVEL`
-folds into `NO_REQUIRED_LEVEL` at two proficiency levels. **Vitest** is now a
-devDependency (`npm test`); the validator + engine have unit suites.
-
-### #33 / #49 — Matrix team ordering (client-only)
-
-`matrix-page.tsx` now sorts its team sections via a `sortedTeams` memo: a single
-service-type filter uses `serviceTypeTeamSort` (the #31 per-type order, matching
-the plan page); **All service types** uses a personal order from
-`use-matrix-team-order.ts` (localStorage key `lscroster.matrixTeamOrder.<authUserId>`,
-pure `applyTeamOrder` helper — new teams append, never hidden). The **Reorder
-teams** popup (`matrix-team-order-dialog.tsx`) shows only in the All view and
-supports **drag-and-drop** (dnd-kit, same idiom as the order-of-service reorder in
-`plan-page.tsx`) plus up/down arrows as a touch/keyboard fallback. No schema, no
-RLS, no migration; `applyTeamOrder` has a Vitest suite.
-
-### #47 — partial accept of a roster suggestion (client-only)
-
-`auto-schedule-dialog.tsx` (the #35 "Suggest roster" preview) now tracks a
-`Set<string>` of ticked suggestion keys (`${positionId}-${personId}`), defaulting to
-all. Each suggestion row and a select-all header use the new shadcn **`Checkbox`**
-(`components/ui/checkbox.tsx`, radix-ui umbrella — already a dep; mirrors
-`switch.tsx`'s `data-checked` convention, supports `indeterminate`). "Add N to plan"
-applies only the ticked suggestions via the unchanged `useApplySuggestions`. Pair
-the Checkbox with a sibling `<label htmlFor>` — do **not** nest the radix checkbox
-button inside the label (the label re-forwards the click and cancels the toggle).
-
-### #52 — schedules on the person page (client-only)
-
-`person-schedule-card.tsx` (under `features/people`) lists a person's non-declined
-services, split Past (most-recent first) / Upcoming (all, ascending), deduped to one
-row per service date. The past-period dropdown ("Last 1 month" default / "Last 3
-months" / "Last 6 services") trims only the past list. Data comes from the new
-**person-keyed** `usePersonSchedule(personId)` in `use-assignments.ts` (key
-`['person-schedule', personId]` — not the constant `mine` key; invalidated by
-`useInvalidateAssignments`). `person-page.tsx` is now a two-column grid on `lg`
-(Schedules left, the existing detail cards right; container widened to `max-w-5xl`);
-the card shows for admins, leaders, and self. RLS already covers it (the same
-policies My Schedule relies on).
-
-## Open backlog (GitHub)
+## Open backlog (GitHub, none started)
 
 - **#27** — Service assignment acceptance email changes.
 - **#19** — Member level access.
 - **#9** — Rehearsal workflow.
 - **#7** — Review keyboard shortcuts.
-- **#6** — Define what "Team Leader" does. ⚠️ Do NOT reintroduce a per-team `is_leader`
-  flag before #6 is resolved (it was reverted via #10).
-- **#4** — More detail on the Teams screen.
-- **#3** — Scheduling preferences on people (now largely subsumed by #32 P1).
+- **#6** — Define what "Team Leader" does. ⚠️ gates whether per-team leaders return.
+- **#40** — Accounts for minors without an email.
+- **#41** — SMS integration.
+- **#48** — Session expiry.
+- **#59** — Position pairings per member (allow same person in multiple positions
+  without double-booking); labelled _non-issue_ — confirm scope with Manoj.
 
-Phase 5 (distribution) needs Manoj's confirmation before starting — see `PHASES.md`.
+**Phase 5 (distribution)** — needs Manoj's confirmation before starting. Will be
+docs-heavy: `SETUP.md`, `UPGRADE.md`, seed/demo data, deploy button, dry run.
 
 ## How we work (project-specific reminders beyond CLAUDE.md)
 
-- **Issue workflow:** implement → verify (build + local `db reset --local` + RLS probe
-  with member JWT) → confirm with Manoj → **`db push` + `functions deploy` BEFORE
-  `git push`** → merge `--no-ff` → close issue. One commit per issue + a separate docs commit.
-- **Never** run destructive commands against linked **production** (`db reset`, drop
-  table/column, delete buckets) without confirming with Manoj. Local Docker DB is fair game.
+- **Issue workflow:** implement → verify (build + local `db reset --local` + RLS
+  probe with a member JWT + browser UI) → confirm with Manoj → **`db push` +
+  `functions deploy` BEFORE `git push`** (Vercel ships the bundle immediately and
+  must not hit a DB missing its tables) → merge `--no-ff` → close the issue. One
+  feature commit + a separate docs commit. Client-only batches skip `db push`.
+- Combine verification across similar issues in a batch to save time/tokens.
+- **Never** run destructive commands against linked **production** (`db reset`,
+  drop table/column, delete buckets) without confirming with Manoj — and the
+  auto-mode classifier will block the first such `db push` until you ask. Local
+  Docker DB is fair game.
 - Regenerate types via **bash, not PowerShell**:
   `npx supabase gen types typescript --local > src/types/database.ts`
   (PowerShell `>` writes UTF-16 and corrupts the file).
-- Bash here-strings: don't use PowerShell `@'...'@`. For commit messages write to a
-  temp file and `git commit -F`.
 - Commit footer: `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
-- Production is a real church instance (~50 users). TS strict, no `any`, Zod at boundaries.
-- Radix `Select` is not a native `<select>`; `preview_fill` can't set it — click by text via eval.
+- Production is a real church instance (~50 users). TS strict, no `any`, Zod at
+  boundaries, mobile-first.
 
 ## Verification quickstart (local stack)
 
@@ -174,9 +145,31 @@ Phase 5 (distribution) needs Manoj's confirmation before starting — see `PHASE
 npx supabase start                 # Docker Desktop must be up; retry once if it wedges
 npx supabase db reset --local      # rebuild from migrations
 npx supabase gen types typescript --local > src/types/database.ts   # bash only
-npm run build && npm run lint && npm run typecheck
-npm run dev                        # then drive UI via preview_* tools
+npm run build && npm run lint && npm run typecheck && npm test
+npm run dev                        # then drive the UI via preview_* tools
 ```
 
-RLS probe: seed a member JWT and confirm member writes to the new rule tables → 403,
+**The local DB has no `seed.sql`** — after a reset it's empty (no users, no
+`church_settings`, so the app routes to `/setup`). To drive the UI you must reseed:
+
+1. Keys: `npx supabase status` (current local format: Publishable `sb_publishable_…`,
+   Secret `sb_secret_…`).
+2. Create a confirmed admin via the GoTrue admin API:
+   `curl -s -X POST http://127.0.0.1:54321/auth/v1/admin/users` with
+   `apikey` + `Authorization: Bearer` = the **secret** key and body
+   `{"email":…,"password":…,"email_confirm":true}`; grab the returned `id`.
+3. One psql batch: insert a `church_settings` row (else `/setup`), a `people` row
+   (role `admin`, `auth_user_id` = that id), and whatever domain data you need
+   (`service_types` with start/end times, `plans`, `plan_items`, …). Pipe SQL via
+   `MSYS_NO_PATHCONV=1 docker exec -i supabase_db_lscroster psql -U postgres -d postgres < file.sql`
+   — Git Bash mangles container paths for `-f` / `docker cp`.
+
+**RLS probe:** seed a member JWT and confirm member writes to new rule tables → 403,
 reads → 200, admin writes → success. Hidden buttons are not security.
+
+**preview_* tool notes:** `preview_eval` arg is `expression` (no top-level `await`);
+`preview_click` needs a CSS `selector` (no `:has-text`/`ref`) — click a button by
+text via eval; set a React-controlled input with the native value setter +
+`input`/`change` events; a programmatic `/auth` fetch does **not** log the SPA in,
+use the sign-in form. Radix `Select` isn't a native `<select>` — `preview_fill`
+can't set it; click by text via eval.
