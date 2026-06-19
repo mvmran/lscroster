@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { PASSWORD_HINT, passwordField } from '@/features/auth/password-utils'
 import {
   churchSettingsQueryKey,
   useChurchSettings,
@@ -38,9 +39,7 @@ const setupSchema = z.object({
   firstName: z.string().trim().min(1, { error: 'Enter your first name' }),
   lastName: z.string().trim().min(1, { error: 'Enter your last name' }),
   email: z.email({ error: 'Enter a valid email address' }),
-  password: z
-    .string()
-    .min(8, { error: 'Password must be at least 8 characters' }),
+  password: passwordField,
 })
 
 type SetupValues = z.infer<typeof setupSchema>
@@ -192,10 +191,12 @@ export function SetupPage() {
                 autoComplete="new-password"
                 {...form.register('password')}
               />
-              {errors.password && (
+              {errors.password ? (
                 <p className="text-destructive text-sm">
                   {errors.password.message}
                 </p>
+              ) : (
+                <p className="text-muted-foreground text-xs">{PASSWORD_HINT}</p>
               )}
             </div>
 

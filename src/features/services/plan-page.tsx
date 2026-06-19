@@ -112,6 +112,7 @@ import {
   useUpdateTemplate,
   type PlanTemplate,
 } from '@/features/services/use-plan-templates'
+import { usePlanTimes } from '@/features/services/use-plan-times'
 import { useSongs } from '@/features/services/use-songs'
 
 function offsetLabel(seconds: number) {
@@ -378,6 +379,7 @@ function SaveTemplateDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const { data: allTemplates } = usePlanTemplates()
+  const { data: planTimes } = usePlanTimes(plan.id)
   const saveTemplate = useSaveAsTemplate()
   const updateTemplate = useUpdateTemplate()
   const deleteTemplate = useDeleteTemplate()
@@ -397,17 +399,25 @@ function SaveTemplateDialog({
     ) ?? null
   const pending = saveTemplate.isPending || updateTemplate.isPending
 
+  // Capture the plan's Times alongside its order of service (issue #73).
+  const times = (planTimes ?? []).map((t, index) => ({
+    label: t.label,
+    start_time: t.start_time,
+    sort_order: t.sort_order ?? index,
+  }))
+
   async function save() {
     if (!trimmed) return
     try {
       if (matching) {
-        await updateTemplate.mutateAsync({ id: matching.id, name: trimmed, items })
+        await updateTemplate.mutateAsync({ id: matching.id, name: trimmed, items, times })
         toast.success(`Template “${trimmed}” updated`)
       } else {
         await saveTemplate.mutateAsync({
           name: trimmed,
           serviceTypeId: plan.service_type_id,
           items,
+          times,
         })
         toast.success(`Template “${trimmed}” saved`)
       }

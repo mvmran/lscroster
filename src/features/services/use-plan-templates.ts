@@ -5,6 +5,23 @@ import type { PlanItem } from '@/features/services/service-utils'
 
 export type PlanTemplate = Tables<'plan_templates'>
 
+/** Times saved alongside a template's order of service (issue #73). */
+export type TemplateTime = { label: string; start_time: string; sort_order: number }
+
+async function replaceTemplateTimes(templateId: string, times: TemplateTime[]) {
+  const { error: clearError } = await supabase
+    .from('plan_template_times')
+    .delete()
+    .eq('template_id', templateId)
+  if (clearError) throw new Error(clearError.message)
+  if (times.length > 0) {
+    const { error } = await supabase
+      .from('plan_template_times')
+      .insert(times.map((t) => ({ ...t, template_id: templateId })))
+    if (error) throw new Error(error.message)
+  }
+}
+
 export const planTemplatesKey = ['plan-templates'] as const
 
 /**
@@ -34,10 +51,12 @@ export function useSaveAsTemplate() {
       name,
       serviceTypeId,
       items,
+      times = [],
     }: {
       name: string
       serviceTypeId: string
       items: PlanItem[]
+      times?: TemplateTime[]
     }) => {
       const { data: template, error } = await supabase
         .from('plan_templates')
@@ -46,24 +65,27 @@ export function useSaveAsTemplate() {
         .single()
       if (error) throw new Error(error.message)
 
-      if (items.length > 0) {
-        const rows = items.map((item, index) => ({
-          template_id: template.id,
-          sort_order: index,
-          kind: item.kind,
-          title: item.title,
-          song_id: item.song_id,
-          key_override: item.key_override,
-          length_seconds: item.length_seconds,
-          description: item.description,
-        }))
-        const { error: itemsError } = await supabase
-          .from('plan_template_items')
-          .insert(rows)
-        if (itemsError) {
-          await supabase.from('plan_templates').delete().eq('id', template.id)
-          throw new Error(itemsError.message)
+      try {
+        if (items.length > 0) {
+          const rows = items.map((item, index) => ({
+            template_id: template.id,
+            sort_order: index,
+            kind: item.kind,
+            title: item.title,
+            song_id: item.song_id,
+            key_override: item.key_override,
+            length_seconds: item.length_seconds,
+            description: item.description,
+          }))
+          const { error: itemsError } = await supabase
+            .from('plan_template_items')
+            .insert(rows)
+          if (itemsError) throw new Error(itemsError.message)
         }
+        await replaceTemplateTimes(template.id, times)
+      } catch (e) {
+        await supabase.from('plan_templates').delete().eq('id', template.id)
+        throw e
       }
       return template
     },
@@ -81,10 +103,12 @@ export function useUpdateTemplate() {
       id,
       name,
       items,
+      times = [],
     }: {
       id: string
       name: string
       items: PlanItem[]
+      times?: TemplateTime[]
     }) => {
       const { error: nameError } = await supabase
         .from('plan_templates')
@@ -115,6 +139,9 @@ export function useUpdateTemplate() {
           .insert(rows)
         if (itemsError) throw new Error(itemsError.message)
       }
+
+      // Times follow the same wholesale-replace as items (issue #73).
+      await replaceTemplateTimes(id, times)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planTemplatesKey })

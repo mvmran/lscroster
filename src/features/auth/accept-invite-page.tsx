@@ -16,20 +16,11 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PASSWORD_HINT, passwordWithConfirm } from '@/features/auth/password-utils'
 import { invokeFunction } from '@/lib/functions'
 import { supabase } from '@/lib/supabase'
 
-const passwordSchema = z
-  .object({
-    password: z
-      .string()
-      .min(8, { error: 'Password must be at least 8 characters' }),
-    confirm: z.string(),
-  })
-  .refine((v) => v.password === v.confirm, {
-    error: 'Passwords do not match',
-    path: ['confirm'],
-  })
+const passwordSchema = passwordWithConfirm
 
 type PasswordValues = z.infer<typeof passwordSchema>
 
@@ -134,10 +125,12 @@ export function AcceptInvitePage() {
                 autoComplete="new-password"
                 {...form.register('password')}
               />
-              {errors.password && (
+              {errors.password ? (
                 <p className="text-destructive text-sm">
                   {errors.password.message}
                 </p>
+              ) : (
+                <p className="text-muted-foreground text-xs">{PASSWORD_HINT}</p>
               )}
             </div>
             <div className="flex flex-col gap-2">

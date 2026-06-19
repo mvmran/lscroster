@@ -15,20 +15,13 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PASSWORD_HINT, passwordWithConfirm } from '@/features/auth/password-utils'
 import { ChurchLogo } from '@/features/settings/church-logo'
 import { useChurchSettings } from '@/features/settings/use-church-settings'
 import { supabase } from '@/lib/supabase'
 
-// Same rules as the invite page's password form (min 8 + confirm match).
-const passwordSchema = z
-  .object({
-    password: z.string().min(8, { error: 'Password must be at least 8 characters' }),
-    confirm: z.string(),
-  })
-  .refine((v) => v.password === v.confirm, {
-    error: 'Passwords do not match',
-    path: ['confirm'],
-  })
+// Same rules as every other password form (issue #60).
+const passwordSchema = passwordWithConfirm
 
 type PasswordValues = z.infer<typeof passwordSchema>
 
@@ -140,8 +133,10 @@ export function ResetPasswordPage() {
                 autoComplete="new-password"
                 {...form.register('password')}
               />
-              {errors.password && (
+              {errors.password ? (
                 <p className="text-destructive text-sm">{errors.password.message}</p>
+              ) : (
+                <p className="text-muted-foreground text-xs">{PASSWORD_HINT}</p>
               )}
             </div>
             <div className="flex flex-col gap-2">
