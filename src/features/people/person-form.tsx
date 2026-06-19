@@ -37,6 +37,8 @@ interface PersonFormProps {
   /** Role and notes are admin-only fields. */
   canEditRole: boolean
   canEditNotes: boolean
+  /** An admin can't demote their own role (issue #44) — lock the selector. */
+  roleLocked?: boolean
   serverError?: string | null
 }
 
@@ -57,6 +59,7 @@ export function PersonForm({
   canEditEmail,
   canEditRole,
   canEditNotes,
+  roleLocked,
   serverError,
 }: PersonFormProps) {
   const form = useForm<PersonFormValues>({
@@ -141,7 +144,11 @@ export function PersonForm({
             control={form.control}
             name="role"
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
+              <Select
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={roleLocked}
+              >
                 <SelectTrigger id="role" className="w-full sm:w-48">
                   <SelectValue />
                 </SelectTrigger>
@@ -155,6 +162,11 @@ export function PersonForm({
               </Select>
             )}
           />
+          {roleLocked && (
+            <p className="text-muted-foreground text-xs">
+              Another admin must change your role.
+            </p>
+          )}
         </div>
       )}
 

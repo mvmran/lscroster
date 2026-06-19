@@ -288,6 +288,33 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   (neutral confirmation) + `/reset-password` (recovery-session detection →
   `updateUser`). **Manual prod step:** add `https://lscroster.xyz/reset-password`
   to Supabase **Auth → URL Configuration → Redirect URLs**.
+- **#44 — block admin self-demotion.** Migration `20260619100000_account_access_guards`
+  adds `prevent_self_admin_demotion()` (BEFORE UPDATE trigger) that raises when the
+  caller changes *their own* row's role away from admin (service role / direct DB
+  bypass). UI: `PersonForm` gained a `roleLocked` prop (locks the Select + shows
+  "Another admin must change your role"); `person-page` passes `isAdmin && isSelf`
+  and drops `role` from a self-update payload. Verified by JWT-claim psql probes
+  (self → blocked, other-admin → allowed, member edit → unaffected).
+- **#45 — archived members lose sign-on.** Same migration adds
+  `sync_signin_with_status()` (AFTER UPDATE trigger): status→inactive bans the auth
+  account (`banned_until = 'infinity'`) and deletes live `auth.sessions`;
+  status→active clears the ban. Backfills existing archived people on upgrade.
+  `person-page` shows **Sign-in disabled** + an explanatory note while inactive.
+  Verified via psql probe (ban set + session dropped on archive, cleared on
+  reactivate).
+- **#60 — password rules.** New `features/auth/password-utils.ts`: shared
+  `passwordField` / `passwordWithConfirm` Zod schema (min 8, requires upper+lower,
+  rejects a common-password blocklist) + `PASSWORD_HINT`, used by the setup wizard,
+  invite-acceptance, and reset-password forms. Vitest (`password-utils.test.ts`).
+  Supabase Auth's own policy is the server-side backstop.
+- **#73 — plan times in templates & copies.** Migration `20260619100100_plan_template_times`
+  adds the `plan_template_times` table (leader/admin RLS, mirrors
+  `plan_template_items`). `use-plan-templates` save/update now replace template
+  times (from the plan's current Times via `usePlanTimes` in `SaveTemplateDialog`);
+  `useCreatePlan` copies times into the new plan from either source —
+  `fetchSourceTimes` reads `plan_template_times` (template) or `plan_times` (plan),
+  so Duplicate, "copy a recent plan", and template-based creation all carry times.
+  Member-JWT probe confirmed members can't write `plan_template_times`.
 
 **Open backlog (not started):**
 - **#3** — investigate scheduling preferences on people.
@@ -296,7 +323,7 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
 - **#7** — review keyboard shortcuts throughout the app.
 - **#9** — add a rehearsal workflow.
 
-**Schema since Phase 4:** migrations 0006–0015 in `supabase/migrations/`
+**Schema since Phase 4:** migrations 0006–0018 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
 scheduling fields + `service_type_teams`; backfill+drop `teams.service_type_id`
 onto that join; add `church_settings.address`; add `song_arrangements` +
@@ -304,9 +331,10 @@ backfill Default per song + drop `songs.default_key`/`bpm`; add
 `proficiency_level` enum + `team_member_positions.proficiency`;
 `service_type_teams.sort_order`; scheduling-rules tables + position requirement
 columns; `publish_overrides` audit table; `church_settings.logo_dark_url` + the
-public `church-logo` bucket). New Edge Functions: `cancel-assignment`,
-`send-plan-notification`, `request-password-reset`. Regenerate
-`src/types/database.ts` from the local stack after pulling.
+public `church-logo` bucket; `account_access_guards` self-demotion +
+archive-sign-in triggers; `plan_template_times` table). New Edge Functions:
+`cancel-assignment`, `send-plan-notification`, `request-password-reset`.
+Regenerate `src/types/database.ts` from the local stack after pulling.
 
 ---
 

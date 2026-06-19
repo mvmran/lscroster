@@ -613,6 +613,44 @@ export type Database = {
           },
         ]
       }
+      plan_template_times: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          sort_order: number
+          start_time: string
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          sort_order?: number
+          start_time: string
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          sort_order?: number
+          start_time?: string
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_template_times_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "plan_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_templates: {
         Row: {
           created_at: string

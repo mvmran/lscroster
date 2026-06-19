@@ -98,6 +98,10 @@ export function PersonPage() {
       delete update.email
       delete update.role
       delete update.notes
+    } else if (isSelf) {
+      // An admin can't change their own role (issue #44) — the selector is
+      // locked, but drop it from the payload too so the DB guard never fires.
+      delete update.role
     }
     try {
       await updatePerson.mutateAsync({ id: p.id, values: update })
@@ -200,12 +204,18 @@ export function PersonPage() {
                 Pending invite
               </Badge>
             )}
-            {p.auth_user_id && (
-              <Badge variant="outline">
-                <KeyRound className="size-3" />
-                Can sign in
-              </Badge>
-            )}
+            {p.auth_user_id &&
+              (p.status === 'inactive' ? (
+                <Badge variant="outline" className="text-muted-foreground">
+                  <KeyRound className="size-3" />
+                  Sign-in disabled
+                </Badge>
+              ) : (
+                <Badge variant="outline">
+                  <KeyRound className="size-3" />
+                  Can sign in
+                </Badge>
+              ))}
           </div>
         </div>
         {canEdit && (
@@ -227,6 +237,7 @@ export function PersonPage() {
                 canEditEmail={isAdmin}
                 canEditRole={isAdmin}
                 canEditNotes={isAdmin}
+                roleLocked={isAdmin && isSelf}
                 serverError={editError}
               />
             </DialogContent>
@@ -306,7 +317,9 @@ export function PersonPage() {
           <CardContent className="flex flex-col gap-4">
             {p.auth_user_id ? (
               <p className="text-muted-foreground text-sm">
-                {p.first_name} has sign-in access.
+                {p.status === 'inactive'
+                  ? `${p.first_name} is archived — sign-in is disabled until reactivated.`
+                  : `${p.first_name} has sign-in access.`}
               </p>
             ) : (
               <InviteControls person={p} />

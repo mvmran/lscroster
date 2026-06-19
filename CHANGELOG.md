@@ -6,6 +6,14 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Archiving disables sign-in** — archiving a person now immediately revokes their
+  ability to sign in (their account is locked and any active session ends), and
+  reactivating restores it. Their record and history are kept, as before. A
+  profile shows **Sign-in disabled** while the person is archived ([#45]).
+- **Plan times are saved in templates and copies** — the **Times** card
+  (Rehearsal, Service, …) is now carried over when you save a plan as a template,
+  create a plan from a template, duplicate a plan, or start from a recent plan.
+  Previously every new plan started with an empty Times section ([#73]).
 - **Pick several positions when adding someone to a team** — on a person's profile,
   **Add to team** now has a second step listing that team's positions with tick
   boxes, so you can grant all the positions they fill in one go instead of adding
@@ -227,6 +235,13 @@ All notable changes to LSCRoster are recorded here. The format follows
   Resend's throttle ([#18]).
 
 ### Fixed
+- An admin can no longer **demote their own role** away from admin — the role
+  selector is locked on your own profile ("Another admin must change your role"),
+  and the database rejects it outright, so an instance can never be left without
+  an admin through the UI. An admin can still change other people's roles ([#44]).
+- **Stronger password rules** when setting a password (first-run setup, accepting
+  an invite, resetting a password): at least 8 characters, with both upper- and
+  lower-case letters, and common passwords are rejected ([#60]).
 - Adding or editing a person with an email another person already uses now shows
   a friendly **"A person with this email already exists."** instead of the raw
   database constraint error ([#38]).
@@ -235,6 +250,17 @@ All notable changes to LSCRoster are recorded here. The format follows
   ([#29]).
 
 ### Migration / upgrade notes
+- Migration `20260619100000_account_access_guards` adds two database triggers on
+  `people`: one blocks an admin from demoting their own role (#44), the other
+  bans the auth account and drops live sessions when a person is archived, and
+  unbans on reactivate (#45). It **backfills** the ban for anyone already archived
+  before the upgrade. Re-runnable on a fresh DB. Apply with `supabase db push`
+  **before** `git push`.
+- Migration `20260619100100_plan_template_times` (#73) adds the
+  `plan_template_times` table (leader/admin-write RLS, mirroring
+  `plan_template_items`). No data migration; existing templates simply have no
+  saved times until re-saved. Apply with `supabase db push` **before** `git push`.
+  After pushing, regenerate `database.ts` types.
 - Issues #64, #65, #66, #68 and #74 are **code-only — no schema change** — UI on
   the People, Teams and Matrix screens reusing existing membership/position
   mutations and their RLS. Ship by `git push` → Vercel.
@@ -364,3 +390,7 @@ All notable changes to LSCRoster are recorded here. The format follows
 [#66]: https://github.com/mvmran/lscroster/issues/66
 [#68]: https://github.com/mvmran/lscroster/issues/68
 [#74]: https://github.com/mvmran/lscroster/issues/74
+[#44]: https://github.com/mvmran/lscroster/issues/44
+[#45]: https://github.com/mvmran/lscroster/issues/45
+[#60]: https://github.com/mvmran/lscroster/issues/60
+[#73]: https://github.com/mvmran/lscroster/issues/73

@@ -92,25 +92,56 @@ async function fetchSourceItems(
   return data
 }
 
+/** Times carried into a new plan from a template or another plan (issue #73). */
+type CopiedTime = { label: string; start_time: string; sort_order: number }
+
+async function fetchSourceTimes(
+  source: NonNullable<CreatePlanInput['source']>,
+): Promise<CopiedTime[]> {
+  const query =
+    source.kind === 'template'
+      ? supabase
+          .from('plan_template_times')
+          .select('label, start_time, sort_order')
+          .eq('template_id', source.id)
+      : supabase
+          .from('plan_times')
+          .select('label, start_time, sort_order')
+          .eq('plan_id', source.id)
+  const { data, error } = await query.order('sort_order')
+  if (error) throw new Error(error.message)
+  return data
+}
+
 export function useCreatePlan() {
   const invalidate = useInvalidatePlans()
   return useMutation({
     mutationFn: async ({ source, ...values }: CreatePlanInput) => {
-      const items = source ? await fetchSourceItems(source) : []
+      const [items, times] = source
+        ? await Promise.all([fetchSourceItems(source), fetchSourceTimes(source)])
+        : [[], []]
       const { data: plan, error } = await supabase
         .from('plans')
         .insert(values)
         .select()
         .single()
       if (error) throw new Error(error.message)
-      if (items.length > 0) {
-        const { error: itemsError } = await supabase
-          .from('plan_items')
-          .insert(items.map((item) => ({ ...item, plan_id: plan.id })))
-        if (itemsError) {
-          await supabase.from('plans').delete().eq('id', plan.id)
-          throw new Error(itemsError.message)
+      try {
+        if (items.length > 0) {
+          const { error: itemsError } = await supabase
+            .from('plan_items')
+            .insert(items.map((item) => ({ ...item, plan_id: plan.id })))
+          if (itemsError) throw new Error(itemsError.message)
         }
+        if (times.length > 0) {
+          const { error: timesError } = await supabase
+            .from('plan_times')
+            .insert(times.map((time) => ({ ...time, plan_id: plan.id })))
+          if (timesError) throw new Error(timesError.message)
+        }
+      } catch (e) {
+        await supabase.from('plans').delete().eq('id', plan.id)
+        throw e
       }
       return plan
     },
