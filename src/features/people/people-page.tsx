@@ -1,10 +1,22 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search, Upload, Users } from 'lucide-react'
+import { Loader2, Plus, Search, Upload, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { FullPageError } from '@/components/full-page-error'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -23,15 +35,22 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
+import {
+  BULK_ACTION_LABELS,
+  bulkConfirmQuestion,
+  partitionBulk,
+  type BulkAction,
+} from '@/features/people/bulk-utils'
 import { PersonAvatar } from '@/features/people/person-avatar'
 import { formatPhone } from '@/features/people/phone-utils'
+import { useSendInvite } from '@/features/people/use-invitations'
 import {
   accountStatus,
   fullName,
   ROLE_LABELS,
   ROLES,
 } from '@/features/people/person-utils'
-import { usePeople, type Person } from '@/features/people/use-people'
+import { usePeople, useUpdatePerson, type Person } from '@/features/people/use-people'
 import { usePhotoUrls } from '@/features/people/use-photos'
 
 type SortOrder = 'name-asc' | 'name-desc' | 'newest'
@@ -111,6 +130,81 @@ export function PeoplePage() {
     [filtered],
   )
   const { data: photoUrls } = usePhotoUrls(photoPaths)
+
+  // --- bulk selection (issue #77, admin-only) --------------------------------
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkAction, setBulkAction] = useState<BulkAction>('invite')
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [running, setRunning] = useState(false)
+  const sendInvite = useSendInvite()
+  const updatePerson = useUpdatePerson()
+
+  // Selection is scoped to the rows currently visible, so a filter change can't
+  // act on people you can no longer see.
+  const selectedPeople = useMemo(
+    () => filtered.filter((p) => selectedIds.has(p.id)),
+    [filtered, selectedIds],
+  )
+  const allVisibleSelected = filtered.length > 0 && selectedPeople.length === filtered.length
+
+  function toggleOne(id: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }
+  function toggleAllVisible(checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      for (const p of filtered) {
+        if (checked) next.add(p.id)
+        else next.delete(p.id)
+      }
+      return next
+    })
+  }
+  function clearSelection() {
+    setSelectedIds(new Set())
+  }
+
+  const { eligible, skipped } = partitionBulk(bulkAction, selectedPeople, me?.id)
+
+  function onGo() {
+    if (eligible.length === 0) {
+      toast.info(`Nothing to do — none of the selected people can be ${
+        bulkAction === 'invite' ? 'invited' : 'archived'
+      }.`)
+      return
+    }
+    setConfirmOpen(true)
+  }
+
+  async function runBulk() {
+    setConfirmOpen(false)
+    setRunning(true)
+    let ok = 0
+    let failed = 0
+    for (const person of eligible) {
+      try {
+        if (bulkAction === 'invite') {
+          await sendInvite.mutateAsync(person.id)
+        } else {
+          await updatePerson.mutateAsync({ id: person.id, values: { status: 'inactive' } })
+        }
+        ok++
+      } catch {
+        failed++
+      }
+    }
+    setRunning(false)
+    clearSelection()
+    const verb = bulkAction === 'invite' ? 'invited' : 'archived'
+    if (ok > 0) toast.success(`${ok} ${verb}`)
+    if (failed > 0) toast.error(`${failed} failed`)
+    if (skipped.length > 0) toast.warning(`${skipped.length} skipped`)
+  }
 
   if (isError) return <FullPageError message={error.message} />
 
@@ -195,6 +289,33 @@ export function PeoplePage() {
         </div>
       </div>
 
+      {/* Bulk-action toolbar (issue #77) — admin-only, shown once rows are picked. */}
+      {isAdmin && selectedPeople.length > 0 && (
+        <div className="bg-accent/60 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
+          <span className="text-sm font-medium">
+            {selectedPeople.length} selected
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <Select value={bulkAction} onValueChange={(v) => setBulkAction(v as BulkAction)}>
+              <SelectTrigger className="w-44" aria-label="Bulk action">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="invite">{BULK_ACTION_LABELS.invite}</SelectItem>
+                <SelectItem value="archive">{BULK_ACTION_LABELS.archive}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={onGo} disabled={running}>
+              {running && <Loader2 className="size-4 animate-spin" />}
+              Go
+            </Button>
+            <Button variant="ghost" onClick={clearSelection} disabled={running}>
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
       {isPending ? (
         <div className="flex flex-col gap-2">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -254,7 +375,18 @@ export function PeoplePage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-3">
+                      {isAdmin && (
+                        <Checkbox
+                          checked={allVisibleSelected}
+                          onCheckedChange={(c) => toggleAllVisible(c === true)}
+                          aria-label="Select all people"
+                        />
+                      )}
+                      Name
+                    </div>
+                  </TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Role</TableHead>
@@ -262,20 +394,45 @@ export function PeoplePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((person) => (
+                {filtered.map((person) => {
+                  const selected = selectedIds.has(person.id)
+                  return (
                   <TableRow
                     key={person.id}
+                    data-state={selected ? 'selected' : undefined}
                     className="cursor-pointer"
                     onClick={() => navigate(`/people/${person.id}`)}
                   >
                     <TableCell>
-                      <div className="flex items-center gap-3">
-                        <PersonAvatar
-                          person={person}
-                          photoUrl={
-                            person.photo_url ? photoUrls?.[person.photo_url] : null
-                          }
-                        />
+                      <div className="group/sel flex items-center gap-3">
+                        {/* Hovering the avatar (or selecting) reveals a checkbox (#77). */}
+                        <div className="relative size-9 shrink-0">
+                          <PersonAvatar
+                            person={person}
+                            photoUrl={
+                              person.photo_url ? photoUrls?.[person.photo_url] : null
+                            }
+                            className={
+                              isAdmin
+                                ? `transition-opacity ${selected ? 'opacity-0' : 'group-hover/sel:opacity-0'}`
+                                : undefined
+                            }
+                          />
+                          {isAdmin && (
+                            <span
+                              className={`absolute inset-0 flex items-center justify-center transition-opacity ${
+                                selected ? 'opacity-100' : 'opacity-0 group-hover/sel:opacity-100'
+                              }`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Checkbox
+                                checked={selected}
+                                onCheckedChange={(c) => toggleOne(person.id, c === true)}
+                                aria-label={`Select ${fullName(person)}`}
+                              />
+                            </span>
+                          )}
+                        </div>
                         <span className="font-medium">{fullName(person)}</span>
                       </div>
                     </TableCell>
@@ -296,12 +453,39 @@ export function PeoplePage() {
                       <StatusBadge person={person} />
                     </TableCell>
                   </TableRow>
-                ))}
+                  )
+                })}
               </TableBody>
             </Table>
           </Card>
         </>
       )}
+
+      {/* Bulk confirm (issue #77). */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulkConfirmQuestion(bulkAction, eligible.length)}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkAction === 'invite'
+                ? 'Each person will be emailed a link to set their password.'
+                : 'Archived people are hidden from the directory and can no longer sign in. You can reactivate them later.'}
+              {skipped.length > 0 &&
+                ` ${skipped.length} of the selected ${
+                  skipped.length === 1 ? 'person' : 'people'
+                } will be skipped.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={runBulk}>
+              {BULK_ACTION_LABELS[bulkAction]}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

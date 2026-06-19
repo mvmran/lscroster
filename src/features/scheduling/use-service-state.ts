@@ -7,7 +7,6 @@ import {
   useAllPersonPrefs,
   useAllRecurringUnavailability,
   useRosteredDates,
-  useTeamExclusions,
 } from '@/features/scheduling/use-scheduling-rules'
 import {
   teamServesType,
@@ -50,7 +49,6 @@ export interface SchedulingRulesData {
     prefs: ReturnType<typeof useAllPersonPrefs>['data']
     recurring: ReturnType<typeof useAllRecurringUnavailability>['data']
     pairings: ReturnType<typeof useAllPairings>['data']
-    exclusions: ReturnType<typeof useTeamExclusions>['data']
     history: ReturnType<typeof useRosteredDates>['data']
   }
 }
@@ -63,7 +61,6 @@ export function useSchedulingRulesData(): SchedulingRulesData {
   const prefs = useAllPersonPrefs()
   const recurring = useAllRecurringUnavailability()
   const pairings = useAllPairings()
-  const exclusions = useTeamExclusions()
   const history = useRosteredDates()
 
   const isPending =
@@ -74,7 +71,6 @@ export function useSchedulingRulesData(): SchedulingRulesData {
     prefs.isPending ||
     recurring.isPending ||
     pairings.isPending ||
-    exclusions.isPending ||
     history.isPending
 
   return {
@@ -87,7 +83,6 @@ export function useSchedulingRulesData(): SchedulingRulesData {
       prefs: prefs.data,
       recurring: recurring.data,
       pairings: pairings.data,
-      exclusions: exclusions.data,
       history: history.data,
     },
   }
@@ -222,7 +217,6 @@ export function buildPlanValidation(
       kind: p.kind,
       strength: p.strength,
     })),
-    teamExclusions: (data.exclusions ?? []).map((e) => [e.team_a, e.team_b]),
   }
 
   const { errors, warnings } = validateService(state)

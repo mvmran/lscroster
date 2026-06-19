@@ -83,6 +83,7 @@ proficiency kept at 2 levels (qualified/trainee), `requires_level` = `qualified`
   `person_scheduling_prefs`, `person_recurring_unavailability`, `person_pairings`,
   `team_exclusions`, and position columns `min_count`/`max_count`/`requires_level`/
   `fill_priority`. One-off unavailability **reuses `blockout_dates`**.
+  (`team_exclusions` and its UI were later removed entirely by #76, migration 0019.)
 - **P2 #34** (migration 0015): pure `validateService()` (`validate-service.ts`,
   Vitest) + live red/amber badges on the plan People panel and Matrix + a two-tier
   publish gate logging overrides to **`publish_overrides`**. Hydrated by

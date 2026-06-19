@@ -316,6 +316,23 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   so Duplicate, "copy a recent plan", and template-based creation all carry times.
   Member-JWT probe confirmed members can't write `plan_template_times`.
 
+- **#76 — remove team exclusions.** Migration `20260619140000_drop_team_exclusions`
+  drops the `team_exclusions` table. Deleted `team-exclusions-dialog.tsx` + the
+  **Scheduling rules** button on `teams-page.tsx`; stripped `useTeamExclusions`/
+  `useTeamExclusionMutations` + the key from `use-scheduling-rules.ts`, the
+  `exclusions`/`teamExclusions` field from `use-service-state`/`use-auto-scheduler`,
+  `checkTeamExclusions` + `TEAM_EXCLUSION` + the CHECKS entry from
+  `validate-service.ts`, and the exclusion branch + `'exclusion'` reason from
+  `auto-scheduler.ts`. Tests trimmed. Per-position requirements untouched.
+- **#77 — bulk actions on People.** Admin-only selection on the desktop People
+  table: a header **select-all** box + a per-row box revealed on avatar hover (or
+  when selected); a toolbar (Select **Send invitation**/**Archive member** + **Go**
+  + **Clear**) appears once ≥1 is picked; **Go** opens an `AlertDialog` confirm.
+  Pure `partitionBulk`/`bulkSkipReason`/`bulkConfirmQuestion` in `bulk-utils.ts`
+  (Vitest) decide eligibility (invite needs email + no login + not archived;
+  archive skips self + already-archived). Runs sequentially via the existing
+  `useSendInvite` / `useUpdatePerson`. Client-only — no schema.
+
 **Open backlog (not started):**
 - **#3** — investigate scheduling preferences on people.
 - **#4** — investigate more detail on the Teams screen.
@@ -323,7 +340,7 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
 - **#7** — review keyboard shortcuts throughout the app.
 - **#9** — add a rehearsal workflow.
 
-**Schema since Phase 4:** migrations 0006–0018 in `supabase/migrations/`
+**Schema since Phase 4:** migrations 0006–0019 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
 scheduling fields + `service_type_teams`; backfill+drop `teams.service_type_id`
 onto that join; add `church_settings.address`; add `song_arrangements` +
@@ -332,7 +349,8 @@ backfill Default per song + drop `songs.default_key`/`bpm`; add
 `service_type_teams.sort_order`; scheduling-rules tables + position requirement
 columns; `publish_overrides` audit table; `church_settings.logo_dark_url` + the
 public `church-logo` bucket; `account_access_guards` self-demotion +
-archive-sign-in triggers; `plan_template_times` table). New Edge Functions:
+archive-sign-in triggers; `plan_template_times` table; drop `team_exclusions`).
+New Edge Functions:
 `cancel-assignment`, `send-plan-notification`, `request-password-reset`.
 Regenerate `src/types/database.ts` from the local stack after pulling.
 

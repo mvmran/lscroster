@@ -1056,39 +1056,6 @@ export type Database = {
         }
         Relationships: []
       }
-      team_exclusions: {
-        Row: {
-          created_at: string
-          team_a: string
-          team_b: string
-        }
-        Insert: {
-          created_at?: string
-          team_a: string
-          team_b: string
-        }
-        Update: {
-          created_at?: string
-          team_a?: string
-          team_b?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "team_exclusions_team_a_fkey"
-            columns: ["team_a"]
-            isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "team_exclusions_team_b_fkey"
-            columns: ["team_b"]
-            isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       team_member_positions: {
         Row: {
           created_at: string
