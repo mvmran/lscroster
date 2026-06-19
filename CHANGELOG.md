@@ -8,9 +8,10 @@ All notable changes to LSCRoster are recorded here. The format follows
 ### Added
 - **Reorder a service's songs from the Matrix** — the Matrix now has an **ORDER**
   section at the top showing each service's order of service (headers, songs and
-  items with their running start times and keys). Drag the handle on any row to
-  reorder that service's items inline, without opening the plan. The redundant
-  **Position** label on the grid's first column has been removed ([#79]).
+  items with their running start times). Drag the handle on any row to reorder
+  that service's items inline, without opening the plan. The Matrix also now uses
+  the full width of the screen so more of each column is visible, and the
+  redundant **Position** label on the grid's first column has been removed ([#79]).
 - **Warn before creating a duplicate service** — when you create a plan (single,
   repeated, from a template, or by duplicating an existing one), LSCRoster now
   checks for another service on the **same date whose time overlaps** and asks you

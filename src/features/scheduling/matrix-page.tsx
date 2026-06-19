@@ -104,14 +104,12 @@ import {
   formatClock,
   todayISODate,
   type PlanItem,
-  type Song,
 } from '@/features/services/service-utils'
 import {
   usePlanItems,
   useReorderPlanItems,
 } from '@/features/services/use-plan-items'
 import { usePlans, type PlanWithType } from '@/features/services/use-plans'
-import { useSongs } from '@/features/services/use-songs'
 
 /** Assignments for all matrix plans in one query, grouped by plan. */
 function useMatrixAssignments(planIds: string[]) {
@@ -304,12 +302,10 @@ function SendColumnButton({ plan, unsent }: { plan: PlanWithType; unsent: number
 function OrderItemRow({
   item,
   startsAt,
-  songKey,
   canManage,
 }: {
   item: PlanItem
   startsAt: Date | null
-  songKey: string | null
   canManage: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -351,31 +347,21 @@ function OrderItemRow({
       >
         {item.title}
       </span>
-      {item.kind === 'song' && songKey && (
-        <Badge
-          variant="secondary"
-          className="shrink-0 px-1 py-0 text-[10px] font-normal"
-        >
-          {songKey}
-        </Badge>
-      )}
     </div>
   )
 }
 
 /**
  * A plan's order of service in one Matrix column (issue #79) — songs and items
- * in order with their running start times and keys, each with a drag handle to
- * reorder this plan's order of service inline. Reorders persist via the same
- * hook the plan page uses, so the two views stay in sync.
+ * in order with their running start times, each with a drag handle to reorder
+ * this plan's order of service inline. Reorders persist via the same hook the
+ * plan page uses, so the two views stay in sync.
  */
 function MatrixOrderCell({
   plan,
-  songById,
   canManage,
 }: {
   plan: PlanWithType
-  songById: Map<string, Song>
   canManage: boolean
 }) {
   const { data, isPending } = usePlanItems(plan.id)
@@ -435,12 +421,6 @@ function MatrixOrderCell({
                 key={item.id}
                 item={item}
                 startsAt={startsAt}
-                songKey={
-                  item.kind === 'song'
-                    ? item.key_override ??
-                      (item.song_id ? songById.get(item.song_id)?.default_key ?? null : null)
-                    : null
-                }
                 canManage={canManage}
               />
             ))}
@@ -460,17 +440,10 @@ export function MatrixPage() {
   const { data: me } = useCurrentPerson()
   const { data: teams, isPending: teamsPending } = useTeams()
   const { data: positions } = useAllPositions()
-  const { data: songs } = useSongs()
 
   // Only admins/leaders can reorder a plan's order of service (issue #79); RLS
   // enforces it too, so members see the list read-only (no drag handles).
   const canManage = me?.role === 'admin' || me?.role === 'leader'
-
-  // Song keys for the ORDER section (issue #79) — default key per song id.
-  const songById = useMemo(
-    () => new Map((songs ?? []).map((s) => [s.id, s])),
-    [songs],
-  )
 
   const [typeFilter, setTypeFilter] = useState('all')
   const [picker, setPicker] = useState<(PickerTarget & { plan: PlanWithType }) | null>(null)
@@ -790,12 +763,7 @@ export function MatrixPage() {
               <tr className="border-b">
                 <td className="bg-card sticky left-0 z-10 p-2 align-top" />
                 {matrixPlans.map((plan) => (
-                  <MatrixOrderCell
-                    key={plan.id}
-                    plan={plan}
-                    songById={songById}
-                    canManage={canManage}
-                  />
+                  <MatrixOrderCell key={plan.id} plan={plan} canManage={canManage} />
                 ))}
               </tr>
               {sortedTeams.map((team) => {

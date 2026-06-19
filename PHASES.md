@@ -339,10 +339,11 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   confirm) gates creation in the New-plan dialog (single/repeat/template/copy)
   and the plan page's Duplicate dialog. Client-only — no schema.
 - **#79 — ORDER section in the Matrix.** A new top section lists each plan's
-  order of service (running times via `computeItemTimes`, song keys, headers),
-  each row draggable via the existing `useReorderPlanItems` (one `DndContext`
-  per column; grips gated on admin/leader). Removed the grid's "Position" label.
-  Client-only — no schema.
+  order of service (running times via `computeItemTimes`, headers), each row
+  draggable via the existing `useReorderPlanItems` (one `DndContext` per column;
+  grips gated on admin/leader). Removed the grid's "Position" label, and the
+  Matrix opts out of the layout's `max-w-5xl` (full width up to the sidebar) via
+  a `useLocation` check in `app/layout.tsx`. Client-only — no schema.
 
 **Open backlog (not started):**
 - **#3** — investigate scheduling preferences on people.

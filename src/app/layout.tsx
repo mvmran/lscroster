@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CalendarCheck, CalendarDays, Church, CircleUser, House, LogOut, Menu, Music, Settings, Users, UsersRound } from 'lucide-react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -138,6 +138,9 @@ function UserMenu() {
 
 export function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  // The Matrix grid wants every pixel between the sidebar and the right edge —
+  // it scrolls many columns — so it opts out of the centred reading width.
+  const fullWidth = useLocation().pathname === '/services/matrix'
 
   return (
     <div className="min-h-svh">
@@ -180,7 +183,12 @@ export function AppLayout() {
           <UserMenu />
         </header>
 
-        <main className="mx-auto w-full max-w-5xl flex-1 p-4 md:p-6">
+        <main
+          className={cn(
+            'mx-auto w-full flex-1 p-4 md:p-6',
+            fullWidth ? 'max-w-none' : 'max-w-5xl',
+          )}
+        >
           <Outlet />
         </main>
       </div>
