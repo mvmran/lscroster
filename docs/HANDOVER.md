@@ -9,9 +9,10 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 
 ## Current state of the tree
 
-- Branch `main`, clean, synced with `origin/main`. Latest work is the **ad-hoc UI
-  batch** (this session, client-only) merged from `feat/adhoc-2026-06-20`, on top
-  of the **per-plan start time + Matrix Suggest** merge (`f82a639`).
+- Branch `main`, clean, synced with `origin/main`. Latest commit **`6a65dd7`** —
+  the **ad-hoc UI batch** (this session, client-only) merged from
+  `feat/adhoc-2026-06-20`, on top of the **per-plan start time + Matrix Suggest**
+  merge (`f82a639`).
 - Production (**lscroster.xyz**) is up to date; Vercel auto-deploys from `main`.
 - Schema: migrations **0006 – `20260619145343_plan_start_time`** in
   `supabase/migrations/`. The three most recent migrations:
@@ -26,7 +27,7 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 
 ## What just shipped — ad-hoc UI batch (this session)
 
-Client-only, **no schema**. Branch `feat/adhoc-2026-06-20`, merged to `main`
+Client-only, **no schema**. Branch `feat/adhoc-2026-06-20`, merged `6a65dd7`
 (Vercel auto-deploys). A set of direct UI tweaks (not GitHub issues), verified on
 the local stack (build + lint + typecheck + 91 Vitest) and driven **live in the
 browser** on a reseeded local DB (15 test people inserted via psql — local only,
