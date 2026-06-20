@@ -6,6 +6,30 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Quick send & cancel from the Matrix** — each service column in the Matrix now
+  has compact icon buttons in the VOCALS row: **Suggest roster**, **Send
+  requests**, and **Cancel unsent**. Send emails everyone whose request hasn't
+  gone out yet; Cancel removes those same not-yet-sent assignments. Both stay
+  visible but are disabled when there's nothing to do, with tooltips showing the
+  count. (The Send button moved here from the column header.)
+- **Cancel unsent requests on a plan** — the plan's **People** card has a **Cancel
+  unsent** button beside **Send N requests** that removes every assignment whose
+  request email hasn't been sent yet (no email is sent, since nobody was notified).
+- **Find your way back to a person** — viewing a person now shows a **← People**
+  back link (matching the Services pages). Returning scrolls the list to that
+  person and briefly highlights them, which helps in a long directory.
+
+### Changed
+- **Pages open at the top** — navigating to a new page now resets the scroll
+  position, so opening a person near the bottom of a long list no longer lands you
+  part-way down their page.
+- **Wider person page** — the person detail page now uses the full screen width,
+  and the **Schedules** card is narrower (45%) so **Contact details** and the cards
+  below it get more room (55%).
+- **Plan header polish** — the **Prev / Today / Next** controls now sit on the same
+  line as the service date, centred, with right-sized icons and darker borders; the
+  back link reads **← Back** and returns you to wherever you came from (the Services
+  list or the Matrix).
 - **Suggest a roster from the Matrix** — the Matrix's first team heading row now
   has a **Suggest roster** button in each service's column. Clicking it runs the
   auto-scheduler for that one service, previews who it would add (tick the ones you

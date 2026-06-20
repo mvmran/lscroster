@@ -1,6 +1,6 @@
 # Session handover — LSCRoster
 
-_Last updated: 2026-06-19_
+_Last updated: 2026-06-20_
 
 This is a working handover note for continuing development in a fresh Claude Code
 session. Read `CLAUDE.md` first for the project rules; this file captures only the
@@ -9,75 +9,71 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 
 ## Current state of the tree
 
-- Branch `main`, clean, synced with `origin/main`. Latest commit **`ccea615`**
-  (#79 follow-up: Matrix drops the song-key badge + goes full-width), on top of
-  the **#78 / #79** merge (`8bfac28`).
+- Branch `main`, clean, synced with `origin/main`. Latest work is the **ad-hoc UI
+  batch** (this session, client-only) merged from `feat/adhoc-2026-06-20`, on top
+  of the **per-plan start time + Matrix Suggest** merge (`f82a639`).
 - Production (**lscroster.xyz**) is up to date; Vercel auto-deploys from `main`.
-- Schema: migrations **0006 – `20260619140000_drop_team_exclusions`** in
+- Schema: migrations **0006 – `20260619145343_plan_start_time`** in
   `supabase/migrations/`. The three most recent migrations:
-  - `20260619100000_account_access_guards` (#44/#45) — self-demotion guard +
-    ban/session triggers on archive.
   - `20260619100100_plan_template_times` (#73) — `plan_template_times` table.
   - `20260619140000_drop_team_exclusions` (#76) — dropped the `team_exclusions`
     table (prod had 0 rows; was an explicit confirmed destructive prod drop).
+  - `20260619145343_plan_start_time` — nullable `start_time` on `plans` /
+    `plan_templates` (null inherits `service_types.default_start_time`).
 - **No outstanding manual prod steps.** (The #39 reset-password redirect URL —
   `https://lscroster.xyz/reset-password` in Supabase **Auth → URL Configuration →
   Redirect URLs** — was added 2026-06-19.)
 
-## What just shipped — #78 / #79 (this session)
+## What just shipped — ad-hoc UI batch (this session)
 
-Client-only, **no schema**. Branch `feat/duplicate-service-warning-and-matrix-order`,
-merged `8bfac28`; follow-up tweaks in `ccea615`. Verified on the local stack
-(build + lint + typecheck + 90 Vitest + **live browser** on a reseeded local DB).
+Client-only, **no schema**. Branch `feat/adhoc-2026-06-20`, merged to `main`
+(Vercel auto-deploys). A set of direct UI tweaks (not GitHub issues), verified on
+the local stack (build + lint + typecheck + 91 Vitest) and driven **live in the
+browser** on a reseeded local DB (15 test people inserted via psql — local only,
+not committed). Touched files: `app/layout.tsx`, `people/people-page.tsx`,
+`people/person-page.tsx`, `people/person-schedule-card.tsx`,
+`scheduling/auto-schedule-dialog.tsx`, `scheduling/matrix-page.tsx`,
+`scheduling/scheduling-panel.tsx`, `services/plan-page.tsx`.
 
-- **#78 — warn before a duplicate service.** New pure `findClashingPlans` /
-  `ClashCandidate` in `service-utils.ts` (Vitest) reuse the #14 `timesOverlap`
-  helper (imported from `scheduling-utils.ts`) to find existing plans on the
-  **same date** whose service-time window overlaps the new one. A shared
-  `PlanClashDialog` (soft "Create anyway" confirm, rendered as a fragment sibling
-  of the parent `Dialog`) gates creation in `new-plan-dialog.tsx`
-  (single / repeat-weekly / template / copy — `attemptCreate` checks every
-  `weeklyDates` date, de-dupes by id) and the plan-page `DuplicateDialog`
-  (`attemptDuplicate`, `excludeId: plan.id`).
-  - **Interpretation (settled with Manoj):** "use the time on the service, not the
-    service type" = dedupe by **time overlap**, not by service-type identity. The
-    *end* source stays the service type's `end_time`; the *start* now honours a
-    per-plan override (see below). **Do NOT** add an end time to `plan_times` for
-    this — Manoj explicitly declined that extension.
-- **Per-plan start time.** `plans.start_time` (and `plan_templates.start_time`),
-  both nullable `time` (migration `20260619145343_plan_start_time`); null inherits
-  `service_types.default_start_time`, so existing plans/instances are unchanged.
-  Read everywhere via `start_time ?? service_types.default_start_time` (plan page,
-  matrix, print, dashboard, My Schedule, all 5 scheduling Edge Functions).
-  `planEffectiveTimes()` in `service-utils.ts` returns `{ start, end }` — the
-  override (or default) plus the service-type end **shifted by the override delta**
-  so a moved service keeps its window length for clash checks. Editable inline on
-  the plan header (`PlanStartTime`, manager-only, with "Use default"), and as a
-  Start-time field in the New-plan and Duplicate dialogs. `useCreatePlan` precedence:
-  explicit override > source template/plan's `start_time` > null (inherit). Saving a
-  plan as a template carries `plan.start_time` onto the template.
-- **#79 — ORDER section in the Matrix.** A new top section (above the team
-  sections) lists each plan's order of service with running start times
-  (`computeItemTimes` off the service-type start) and headers. Each row is
-  draggable via the existing `useReorderPlanItems` (one `DndContext` **per
-  column**; grips gated on `canManage` = admin/leader, RLS-enforced too). Removed
-  the grid's redundant "Position" `<th>` label.
-  - **Follow-up (`ccea615`):** the song **key badge was removed** from the ORDER
-    cells (dropped the `useSongs`/`songById` plumbing); and the Matrix now uses
-    the **full width** up to the sidebar — `app/layout.tsx` toggles `max-w-none`
-    vs `max-w-5xl` via `useLocation().pathname === '/services/matrix'`. Other
-    pages keep the centred 1024px reading width.
-- **Suggest roster from the Matrix.** The **first** team heading row renders a
-  per-column **Suggest roster** button (`SuggestRosterButton` with the new
-  `compact` prop, gated on `canManage`); that row splits into a sticky team-name
-  cell + one `<td>` per plan instead of the colSpan used by later team headings.
-  Each button reuses the plan-page suggest/preview/apply flow (`useAutoScheduler`)
-  for its own plan, so one click fills that single service's roster.
-- **Matrix toolbar.** Paging buttons read **‹ Prev / Now / Next ›** (no "Weeks"
-  label); **Columns** is a compact −/+ stepper (replaced the slider; `Slider`
-  import dropped); the first column (section labels + position names) is sticky via
-  a `sticky left-0` inner element so it stays put on horizontal scroll. Plus minor
-  header polish on the plan page (centred Prev/Today/Next).
+- **Plan header nav.** Prev/Today/Next moved onto the same row as the date
+  heading, absolutely centred (`absolute left-1/2 -translate-x-1/2`); chevrons use
+  the `sm` button default size (dropped the `size-4` override) so they match the
+  Publish button; darker borders (`border-muted-foreground/40`). The back link is
+  now **← Back** and is context-aware: it reads `location.state.from` (default
+  `/services`) so a plan opened from the **Matrix** returns to the Matrix. The
+  Matrix date links pass `state={{ from: '/services/matrix' }}`.
+- **Matrix per-column action buttons.** The first team heading's VOCALS row now
+  has three compact (`size-6`), icon-only, left-justified buttons with darker
+  borders per service column: **Suggest roster** (`SuggestRosterButton` compact →
+  square icon-only, text hidden, tooltip kept), **Send** (`SendColumnButton`,
+  moved out of the column header; always shown, disabled when no unsent, tooltip
+  `Send N request(s)`), and **Cancel unsent** (`CancelUnsentColumnButton`, new —
+  `CircleX` icon, deletes pending+un-notified assignments via `useDeleteAssignment`
+  with `Promise.allSettled`, disabled + tooltip `No unsent requests to cancel`
+  when none). Unsent ids computed once per column and shared by Send + Cancel.
+  Matrix toolbar **Prev/Now/Next** shrunk `h-8` → `h-7` to match the Columns box.
+- **Plan People card — Cancel unsent.** `scheduling-panel.tsx` gained a `cancelUnsent()`
+  + a right-aligned outline button stacked under **Send N requests** (both only
+  shown when `unsentCount > 0`), deleting all pending+un-notified assignments.
+- **Person page — back link + return-to-person.** New **← People** back link
+  (Services format) passes `state={{ focusId: p.id }}`. `people-page.tsx` reads it
+  in a `useEffect`, finds the **visible** row (`data-person-row`, picking the
+  variant with a non-null `offsetParent` — the list renders BOTH a mobile card and
+  a desktop table, so a plain `id` was ambiguous), `scrollIntoView`, and flashes a
+  soft `bg-accent` tint (no ring) for 2s by toggling the class directly (avoids the
+  `react-hooks/set-state-in-effect` lint). Nav state cleared via `navigate(replace)`.
+- **Scroll-to-top on navigation.** `app/layout.tsx` `window.scrollTo(0,0)` on
+  pathname change (so detail pages open at the top), **skipping** when
+  `location.state.focusId` is set; the effect depends **only on `location.pathname`**
+  (eslint-disabled exhaustive-deps) so clearing the focus state doesn't re-fire it
+  and fight the person scroll-into-view.
+- **Person page width.** The person detail page (`/people/:id`, not `/new` or
+  `/import`) is now full-width — `app/layout.tsx` adds it to the `fullWidth` set
+  (alongside the Matrix), and `person-page.tsx` dropped its own `max-w-5xl`. The
+  Schedules-vs-detail grid is **45 / 55** (`lg:grid-cols-[45fr_55fr]`).
+- **Activity-summary stats.** `person-schedule-card.tsx` `Stat` labels darkened
+  (`text-muted-foreground` → `text-foreground/70`); added a `compact` prop
+  (value `text-sm` → `text-xs`) used for **Top positions** and **Streak**.
 
 ## Recent batches (all on `main`, all verified + deployed)
 
@@ -85,6 +81,7 @@ Newest first. Detail in `CHANGELOG.md` / `PHASES.md`; schema noted where relevan
 
 | Batch (merge) | What | Schema |
 |---|---|---|
+| **Per-plan start time + Matrix Suggest** (`f82a639`) | Per-plan `start_time` override; per-column **Suggest roster**; Matrix toolbar (Prev/Now/Next + −/+ Columns + sticky first col) | **`plan_start_time`** nullable `start_time` |
 | **#78 / #79** (`8bfac28`) | Duplicate-service time-overlap warning; Matrix ORDER section + full-width grid | none |
 | **#76 / #77** (`19c7439`) | Removed the team-exclusions feature entirely; admin-only **bulk People** actions (select → Send invitation / Archive) | **0019** drop `team_exclusions` |
 | **#44 / #45 / #60 / #73** (`a7f0ea2`) | Admin self-demotion guard; archived members lose sign-on (ban + session triggers); shared password rules (`auth/password-utils.ts`); plan **Times** saved in templates & copies | **0017** access guards, **0018** `plan_template_times` |
@@ -126,6 +123,14 @@ Earlier (#1–#37, #47, #49, #52, #54, #55) — see `PHASES.md` "Done & deployed
 - **Cross-feature import is fine** where it reads cleanly: `service-utils.ts`
   imports `timesOverlap` from `scheduling-utils.ts` (no cycle — scheduling-utils
   only imports types).
+- **The People list renders twice** (mobile cards `md:hidden` + desktop table
+  `hidden md:block`), so a plain `id` per person is ambiguous — use a
+  `data-person-row` attribute and pick the variant whose `offsetParent !== null`
+  (the hidden one is `display:none`, so `scrollIntoView` would be a no-op on it).
+- **Scroll-on-navigation vs scroll-into-view race:** the layout's
+  `window.scrollTo(0,0)` (on pathname change) must depend **only on `pathname`** and
+  skip when `location.state.focusId` is set — otherwise clearing that state
+  re-fires it and snaps back to the top after the People page scrolls to a person.
 
 ## Open backlog (GitHub, none started)
 
