@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CalendarCheck, CalendarDays, Church, CircleUser, House, LogOut, Menu, Music, Settings, Users, UsersRound } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ModeToggle } from '@/components/mode-toggle'
@@ -138,9 +138,28 @@ function UserMenu() {
 
 export function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const location = useLocation()
   // The Matrix grid wants every pixel between the sidebar and the right edge —
-  // it scrolls many columns — so it opts out of the centred reading width.
-  const fullWidth = useLocation().pathname === '/services/matrix'
+  // it scrolls many columns — so it opts out of the centred reading width. The
+  // person detail page does too, so its side-by-side cards can stretch wide.
+  const isPersonDetail =
+    /^\/people\/[^/]+$/.test(location.pathname) &&
+    location.pathname !== '/people/new' &&
+    location.pathname !== '/people/import'
+  const fullWidth =
+    location.pathname === '/services/matrix' || isPersonDetail
+
+  // Open each page at the top — without this the window keeps its previous
+  // scroll position across route changes (e.g. clicking a person near the
+  // bottom of a long list would open their page already scrolled down). We skip
+  // the People-list return navigation, which scrolls to the originating person.
+  // Depend only on pathname: clearing navigation state (same path) must not
+  // re-run this, or it would fight the People page's scroll-to-person.
+  useEffect(() => {
+    if ((location.state as { focusId?: string } | null)?.focusId) return
+    window.scrollTo(0, 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname])
 
   return (
     <div className="min-h-svh">

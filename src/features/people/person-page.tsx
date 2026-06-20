@@ -3,13 +3,14 @@ import { format } from 'date-fns'
 import {
   Archive,
   ArchiveRestore,
+  ArrowLeft,
   Camera,
   KeyRound,
   Loader2,
   Pencil,
   Trash2,
 } from 'lucide-react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FullPageError } from '@/components/full-page-error'
 import { FullPageLoader } from '@/components/full-page-loader'
@@ -154,7 +155,15 @@ export function PersonPage() {
   const showSchedule = isAdmin || isLeader || isSelf
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+    <div className="mx-auto flex w-full flex-col gap-4">
+      <div>
+        <Button variant="ghost" size="sm" className="-ml-2" asChild>
+          <Link to="/people" state={{ focusId: p.id }}>
+            <ArrowLeft className="size-4" />
+            People
+          </Link>
+        </Button>
+      </div>
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="relative">
@@ -248,7 +257,7 @@ export function PersonPage() {
       <div
         className={
           showSchedule
-            ? 'grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start'
+            ? 'grid grid-cols-1 gap-4 lg:grid-cols-[45fr_55fr] lg:items-start'
             : 'flex flex-col gap-4'
         }
       >

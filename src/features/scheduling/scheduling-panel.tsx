@@ -405,12 +405,12 @@ export function SchedulingPanel({
     [teams, plan.service_type_id],
   )
 
-  const unsentCount = useMemo(
+  const unsentAssignments = useMemo(
     () =>
-      (assignments ?? []).filter((a) => a.status === 'pending' && !a.notified_at)
-        .length,
+      (assignments ?? []).filter((a) => a.status === 'pending' && !a.notified_at),
     [assignments],
   )
+  const unsentCount = unsentAssignments.length
 
   function send() {
     sendRequests.mutate(undefined, {
@@ -444,6 +444,24 @@ export function SchedulingPanel({
         }
       },
       onError: (e) => toast.error(e.message),
+    })
+  }
+
+  // Cancel every assignment whose request email hasn't gone out yet — no email
+  // is sent since the person was never notified, so we just delete the rows.
+  function cancelUnsent() {
+    if (unsentAssignments.length === 0) return
+    Promise.allSettled(
+      unsentAssignments.map((a) => deleteAssignment.mutateAsync(a.id)),
+    ).then((results) => {
+      const failed = results.filter((r) => r.status === 'rejected').length
+      const removed = results.length - failed
+      if (removed > 0) {
+        toast.success(
+          `${removed} unsent assignment${removed === 1 ? '' : 's'} cancelled`,
+        )
+      }
+      if (failed > 0) toast.error(`${failed} could not be cancelled`)
     })
   }
 
@@ -482,16 +500,31 @@ export function SchedulingPanel({
             <CardDescription>Who's serving on this plan.</CardDescription>
           </div>
           {canManage && (
-            <div className="flex items-center gap-2">
-              <SuggestRosterButton plan={plan} />
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2">
+                <SuggestRosterButton plan={plan} />
+                {unsentCount > 0 && (
+                  <Button size="sm" onClick={send} disabled={sendRequests.isPending}>
+                    {sendRequests.isPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Send className="size-4" />
+                    )}
+                    Send {unsentCount} request{unsentCount === 1 ? '' : 's'}
+                  </Button>
+                )}
+              </div>
               {unsentCount > 0 && (
-                <Button size="sm" onClick={send} disabled={sendRequests.isPending}>
-                  {sendRequests.isPending ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={cancelUnsent}
+                  disabled={deleteAssignment.isPending}
+                >
+                  {deleteAssignment.isPending && (
                     <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Send className="size-4" />
                   )}
-                  Send {unsentCount} request{unsentCount === 1 ? '' : 's'}
+                  Cancel unsent
                 </Button>
               )}
             </div>

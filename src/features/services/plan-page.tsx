@@ -36,7 +36,7 @@ import {
   Printer,
   Trash2,
 } from 'lucide-react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FullPageError } from '@/components/full-page-error'
 import {
@@ -745,6 +745,13 @@ function PlanStartTime({
 export function PlanPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  // Where "Back" returns to — set via navigation state by the linking page
+  // (e.g. the Matrix), otherwise fall back to the main Services page.
+  const backTo =
+    typeof (location.state as { from?: string } | null)?.from === 'string'
+      ? (location.state as { from: string }).from
+      : '/services'
   const { data: me } = useCurrentPerson()
   const planQuery = usePlan(id)
   const itemsQuery = usePlanItems(id)
@@ -926,28 +933,32 @@ export function PlanPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div className="relative mb-1 flex items-center justify-center gap-2">
-          <Button variant="ghost" size="sm" className="absolute left-0 -ml-2" asChild>
-            <Link to="/services">
+        <div className="mb-1 flex items-center gap-2">
+          <Button variant="ghost" size="sm" className="-ml-2" asChild>
+            <Link to={backTo}>
               <ArrowLeft className="size-4" />
-              Services
+              Back
             </Link>
           </Button>
+        </div>
+        <div className="relative flex flex-wrap items-start justify-between gap-2">
           {/* Prev / today / next across this service type's plans (issue #69). */}
-          <div className="flex items-center gap-1">
+          <div className="absolute left-1/2 top-0 flex -translate-x-1/2 items-center gap-1">
             <Button
               variant="outline"
               size="sm"
+              className="border-muted-foreground/40"
               disabled={!prevPlan}
               onClick={() => prevPlan && navigate(`/services/plans/${prevPlan.id}`)}
               aria-label="Previous service"
             >
-              <ChevronLeft className="size-4" />
+              <ChevronLeft />
               <span className="hidden sm:inline">Prev</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
+              className="border-muted-foreground/40"
               disabled={!todayPlan || todayPlan.id === plan.id}
               onClick={() => todayPlan && navigate(`/services/plans/${todayPlan.id}`)}
               title="Jump to today or the next upcoming service"
@@ -957,16 +968,15 @@ export function PlanPage() {
             <Button
               variant="outline"
               size="sm"
+              className="border-muted-foreground/40"
               disabled={!nextPlan}
               onClick={() => nextPlan && navigate(`/services/plans/${nextPlan.id}`)}
               aria-label="Next service"
             >
               <span className="hidden sm:inline">Next</span>
-              <ChevronRight className="size-4" />
+              <ChevronRight />
             </Button>
           </div>
-        </div>
-        <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h1 className="text-2xl font-semibold">{formatPlanDate(plan.date)}</h1>
             <p className="text-muted-foreground text-sm">

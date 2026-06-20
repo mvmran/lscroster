@@ -90,11 +90,12 @@ export function SuggestRosterButton({
         size="sm"
         onClick={run}
         disabled={engine.isPending || !engine.ready}
-        className={compact ? 'h-7 w-full px-1.5 text-xs' : undefined}
+        className={compact ? 'size-6 shrink-0 border-muted-foreground/40 p-0' : undefined}
         title={compact ? 'Suggest a roster for this service' : undefined}
+        aria-label={compact ? 'Suggest a roster for this service' : undefined}
       >
         <Sparkles className={compact ? 'size-3.5' : 'size-4'} />
-        Suggest roster
+        {!compact && 'Suggest roster'}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>

@@ -157,11 +157,24 @@ function formatBlockoutRange(start: string, end: string): string {
   return `${s} – ${format(parseISO(end), 'd MMM yyyy')}`
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  compact = false,
+}: {
+  label: string
+  value: string
+  /** Smaller value text for longer, word-based values (e.g. positions, streak). */
+  compact?: boolean
+}) {
   return (
     <div className="bg-muted/40 flex flex-col gap-0.5 rounded-md p-2.5">
-      <span className="text-muted-foreground text-xs">{label}</span>
-      <span className="text-sm font-medium tabular-nums">{value}</span>
+      <span className="text-foreground/70 text-xs">{label}</span>
+      <span
+        className={`font-medium tabular-nums ${compact ? 'text-xs' : 'text-sm'}`}
+      >
+        {value}
+      </span>
     </div>
   )
 }
@@ -384,8 +397,9 @@ export function PersonScheduleCard({
                 <Stat
                   label="Top positions"
                   value={favPositions.length > 0 ? favPositions.join(', ') : '—'}
+                  compact
                 />
-                <Stat label="Streak" value={streakLabel} />
+                <Stat label="Streak" value={streakLabel} compact />
               </div>
               {percentile && (
                 <div className="mt-1 flex flex-col gap-1">
