@@ -26,6 +26,7 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
+  CircleX,
   Eye,
   EyeOff,
   GripVertical,
@@ -270,13 +271,18 @@ function MatrixCell({
 
 function SendColumnButton({ plan, unsent }: { plan: PlanWithType; unsent: number }) {
   const sendRequests = useSendRequests(plan.id)
-  if (unsent === 0) return null
+  const tooltip =
+    unsent > 0
+      ? `Send ${unsent} request${unsent === 1 ? '' : 's'}`
+      : 'No requests to send'
   return (
     <Button
-      variant="ghost"
+      variant="outline"
       size="sm"
-      className="h-6 px-1.5 text-xs"
-      disabled={sendRequests.isPending}
+      className="size-6 shrink-0 border-muted-foreground/40 p-0"
+      title={tooltip}
+      aria-label={tooltip}
+      disabled={unsent === 0 || sendRequests.isPending}
       onClick={() =>
         sendRequests.mutate(undefined, {
           onSuccess: (result) => {
@@ -290,11 +296,56 @@ function SendColumnButton({ plan, unsent }: { plan: PlanWithType; unsent: number
       }
     >
       {sendRequests.isPending ? (
-        <Loader2 className="size-3 animate-spin" />
+        <Loader2 className="size-3.5 animate-spin" />
       ) : (
-        <Send className="size-3" />
+        <Send className="size-3.5" />
       )}
-      Send {unsent}
+    </Button>
+  )
+}
+
+/** Cancel every pending, un-notified assignment for one plan from the Matrix.
+    No email is sent since nobody was notified — the rows are simply deleted. */
+function CancelUnsentColumnButton({
+  plan,
+  unsentIds,
+}: {
+  plan: PlanWithType
+  unsentIds: string[]
+}) {
+  const deleteAssignment = useDeleteAssignment(plan.id)
+  const tooltip =
+    unsentIds.length > 0
+      ? `Cancel ${unsentIds.length} unsent request${unsentIds.length === 1 ? '' : 's'}`
+      : 'No unsent requests to cancel'
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="size-6 shrink-0 border-muted-foreground/40 p-0"
+      title={tooltip}
+      aria-label={tooltip}
+      disabled={unsentIds.length === 0 || deleteAssignment.isPending}
+      onClick={() =>
+        Promise.allSettled(
+          unsentIds.map((id) => deleteAssignment.mutateAsync(id)),
+        ).then((results) => {
+          const failed = results.filter((r) => r.status === 'rejected').length
+          const removed = results.length - failed
+          if (removed > 0) {
+            toast.success(
+              `${removed} unsent assignment${removed === 1 ? '' : 's'} cancelled`,
+            )
+          }
+          if (failed > 0) toast.error(`${failed} could not be cancelled`)
+        })
+      }
+    >
+      {deleteAssignment.isPending ? (
+        <Loader2 className="size-3.5 animate-spin" />
+      ) : (
+        <CircleX className="size-3.5" />
+      )}
     </Button>
   )
 }
@@ -587,7 +638,7 @@ export function MatrixPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8"
+                  className="h-7"
                   onClick={() => setWeekOffset((o) => o - 1)}
                   disabled={startIndex <= 0}
                   aria-label="Show earlier services"
@@ -599,7 +650,7 @@ export function MatrixPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8"
+                  className="h-7"
                   onClick={() => setWeekOffset(0)}
                   disabled={weekOffset === 0}
                   aria-label="Show today's upcoming services"
@@ -609,7 +660,7 @@ export function MatrixPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8"
+                  className="h-7"
                   onClick={() => setWeekOffset((o) => o + 1)}
                   disabled={startIndex >= maxStart}
                   aria-label="Show later services"
@@ -733,6 +784,7 @@ export function MatrixPage() {
                     <div className="flex items-start justify-between gap-1">
                       <Link
                         to={`/services/plans/${plan.id}`}
+                        state={{ from: '/services/matrix' }}
                         className="font-medium hover:underline"
                       >
                         {format(parseISO(plan.date), 'EEE d MMM')}
@@ -756,14 +808,6 @@ export function MatrixPage() {
                         </Badge>
                       )}
                     </div>
-                    <SendColumnButton
-                      plan={plan}
-                      unsent={
-                        (assignmentsByPlan[plan.id] ?? []).filter(
-                          (a) => a.status === 'pending' && !a.notified_at,
-                        ).length
-                      }
-                    />
                   </th>
                 ))}
               </tr>
@@ -810,7 +854,27 @@ export function MatrixPage() {
                             key={plan.id}
                             className="bg-muted/50 border-b border-l p-1 align-middle"
                           >
-                            <SuggestRosterButton plan={plan} compact />
+                            {(() => {
+                              const unsentIds = (assignmentsByPlan[plan.id] ?? [])
+                                .filter(
+                                  (a) =>
+                                    a.status === 'pending' && !a.notified_at,
+                                )
+                                .map((a) => a.id)
+                              return (
+                                <div className="flex items-center justify-start gap-1">
+                                  <SuggestRosterButton plan={plan} compact />
+                                  <SendColumnButton
+                                    plan={plan}
+                                    unsent={unsentIds.length}
+                                  />
+                                  <CancelUnsentColumnButton
+                                    plan={plan}
+                                    unsentIds={unsentIds}
+                                  />
+                                </div>
+                              )
+                            })()}
                           </td>
                         ))}
                       </>

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Loader2, Plus, Search, Upload, Users } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FullPageError } from '@/components/full-page-error'
 import {
@@ -100,6 +100,33 @@ export function PeoplePage() {
   const { data: people, isPending, isError, error } = usePeople()
   const { data: me } = useCurrentPerson()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // When returning from a person's page (the "← People" back link passes their
+  // id as navigation state), scroll that row into view and briefly highlight it
+  // so it's easy to find again in a long list. We toggle classes on the element
+  // directly rather than via React state to keep the highlight a one-shot effect.
+  const focusId = (location.state as { focusId?: string } | null)?.focusId
+  useEffect(() => {
+    if (!focusId || isPending) return
+    // The list renders twice (mobile cards + desktop table), so there are two
+    // elements per person — pick whichever one is actually visible (the hidden
+    // variant has no offsetParent and scrollIntoView would be a no-op on it).
+    const candidates = document.querySelectorAll<HTMLElement>(
+      `[data-person-row="${focusId}"]`,
+    )
+    const el =
+      [...candidates].find((c) => c.offsetParent !== null) ?? candidates[0]
+    if (!el) return
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    // A soft background tint (no hard border) that fades out via transition-colors.
+    const flashClasses = ['bg-accent']
+    el.classList.add(...flashClasses)
+    // Drop the navigation state so a later re-render doesn't re-trigger this.
+    navigate(location.pathname, { replace: true, state: null })
+    const timer = setTimeout(() => el.classList.remove(...flashClasses), 2000)
+    return () => clearTimeout(timer)
+  }, [focusId, isPending, navigate, location.pathname])
 
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
@@ -337,7 +364,10 @@ export function PeoplePage() {
           <div className="flex flex-col gap-2 md:hidden">
             {filtered.map((person) => (
               <Link key={person.id} to={`/people/${person.id}`}>
-                <Card className="py-3 transition-colors active:bg-accent">
+                <Card
+                  data-person-row={person.id}
+                  className="py-3 transition-colors active:bg-accent"
+                >
                   <CardContent className="flex items-center gap-3 px-4">
                     <PersonAvatar
                       person={person}
@@ -399,8 +429,9 @@ export function PeoplePage() {
                   return (
                   <TableRow
                     key={person.id}
+                    data-person-row={person.id}
                     data-state={selected ? 'selected' : undefined}
-                    className="cursor-pointer"
+                    className="cursor-pointer transition-colors"
                     onClick={() => navigate(`/people/${person.id}`)}
                   >
                     <TableCell>
