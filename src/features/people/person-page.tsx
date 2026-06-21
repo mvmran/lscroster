@@ -10,7 +10,7 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FullPageError } from '@/components/full-page-error'
 import { FullPageLoader } from '@/components/full-page-loader'
@@ -157,11 +157,16 @@ export function PersonPage() {
   return (
     <div className="mx-auto flex w-full flex-col gap-4">
       <div>
-        <Button variant="ghost" size="sm" className="-ml-2" asChild>
-          <Link to="/people" state={{ focusId: p.id }}>
-            <ArrowLeft className="size-4" />
-            People
-          </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2"
+          onClick={() =>
+            window.history.length > 1 ? navigate(-1) : navigate('/people')
+          }
+        >
+          <ArrowLeft className="size-4" />
+          Back
         </Button>
       </div>
       {/* Header */}
@@ -337,15 +342,36 @@ export function PersonPage() {
             {!isSelf && (
               <div className="flex flex-wrap gap-2 border-t pt-4">
                 {p.status === 'active' ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setStatus('inactive')}
-                    disabled={updatePerson.isPending}
-                  >
-                    <Archive className="size-4" />
-                    Archive
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={updatePerson.isPending}
+                      >
+                        <Archive className="size-4" />
+                        Archive
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Archive {fullName(p)}?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          They'll be hidden from the directory and can't be
+                          scheduled, and their sign-in access is disabled. Their
+                          history is kept and you can reactivate them anytime.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => setStatus('inactive')}>
+                          Archive
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 ) : (
                   <Button
                     variant="outline"
