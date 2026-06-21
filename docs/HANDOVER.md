@@ -10,7 +10,7 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 ## Current state of the tree
 
 - Branch `main`, clean, synced with `origin/main`. Latest feature merge
-  **`MERGE_HASH`** — the **misc UI polish batch** (#83, this session, client-only)
+  **`f65402d`** — the **misc UI polish batch** (#83, this session, client-only)
   merged from `feat/misc-ui-changes`, on top of the **ad-hoc UI batch** (`6a65dd7`)
   and the **per-plan start time + Matrix Suggest** merge (`f82a639`).
 - Production (**lscroster.xyz**) is up to date; Vercel auto-deploys from `main`.
@@ -27,7 +27,7 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 
 ## What just shipped — misc UI polish batch (#83, this session)
 
-Client-only, **no schema**. Branch `feat/misc-ui-changes`, merged `MERGE_HASH`
+Client-only, **no schema**. Branch `feat/misc-ui-changes`, merged `f65402d`
 (Vercel auto-deploys). Verified on the local stack (build + lint + typecheck + 91
 Vitest) and driven **live in the browser**. Touched files: `services/plan-page.tsx`,
 `scheduling/matrix-page.tsx`, `people/person-page.tsx`, `scheduling/team-page.tsx`.
@@ -110,7 +110,7 @@ Newest first. Detail in `CHANGELOG.md` / `PHASES.md`; schema noted where relevan
 
 | Batch (merge) | What | Schema |
 |---|---|---|
-| **#83 misc UI polish** (`MERGE_HASH`) | Plan-header nav right-aligned + wraps + "Today"→"Now"; Matrix cell name-link + "…" menu trigger; person/team **← Back** = browser back; person **Archive** confirm | none |
+| **#83 misc UI polish** (`f65402d`) | Plan-header nav right-aligned + wraps + "Today"→"Now"; Matrix cell name-link + "…" menu trigger; person/team **← Back** = browser back; person **Archive** confirm | none |
 | **Ad-hoc UI batch** (`6a65dd7`) | Plan-header nav row + context-aware Back; Matrix per-column Suggest/Send/Cancel-unsent; person-page back-flash; scroll-to-top; full-width person page | none |
 | **Per-plan start time + Matrix Suggest** (`f82a639`) | Per-plan `start_time` override; per-column **Suggest roster**; Matrix toolbar (Prev/Now/Next + −/+ Columns + sticky first col) | **`plan_start_time`** nullable `start_time` |
 | **#78 / #79** (`8bfac28`) | Duplicate-service time-overlap warning; Matrix ORDER section + full-width grid | none |
