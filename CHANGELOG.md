@@ -24,6 +24,10 @@ All notable changes to LSCRoster are recorded here. The format follows
   person and briefly highlights them, which helps in a long directory.
 
 ### Changed
+- **Matrix cell menu matches the plan** (#84) — the popup on a person in the Matrix
+  now offers **Replace…** and **Send email** (re-sends that one person's request,
+  shown when they have an email), the same as the plan's People panel. **Remove** /
+  **Remove and Notify** now use the bin icon, and the cell's **…** trigger is bold.
 - **Plan header controls** (#83) — **Prev / Now / Next** are now right-aligned and
   on the same line as **Draft / Publish** (they were centred), with a gap between
   the two groups, and they wrap onto a second line on narrow screens. **Today** was
