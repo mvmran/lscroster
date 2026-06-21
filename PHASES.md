@@ -344,6 +344,20 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   grips gated on admin/leader). Removed the grid's "Position" label, and the
   Matrix opts out of the layout's `max-w-5xl` (full width up to the sidebar) via
   a `useLocation` check in `app/layout.tsx`. Client-only — no schema.
+- **#83 — misc UI polish batch.** Plan header (`plan-page.tsx`): **Prev/Now/Next**
+  moved out of the absolutely-centred wrapper into a right-aligned group sharing one
+  `flex-wrap items-center justify-end` row with **Draft/Publish/…** (`gap-x-6`
+  between the two groups, `gap-y-2` when it wraps on narrow screens); "Today"
+  renamed "Now". Matrix cell (`matrix-page.tsx`): the assignment is now a `div`
+  (not a `DropdownMenuTrigger` button) holding a name `<Link to=/people/:id>` plus a
+  separate **…** trigger button (`ml-auto`, inherits the cell's `text-xs`) that opens
+  the menu; the **View &lt;name&gt;** `DropdownMenuItem` (and the now-unused
+  `UserRound` import) were removed. Back links on `person-page.tsx` and
+  `team-page.tsx` became **← Back** buttons calling `navigate(-1)`
+  (`window.history.length > 1 ? navigate(-1) : navigate('/people'|'/teams')`),
+  dropping the person page's `focusId` nav-state and its now-unused `Link` import.
+  Person page **Archive** wrapped in an `AlertDialog` confirm mirroring Delete
+  (Reactivate stays a direct action). Client-only — no schema.
 
 **Open backlog (not started):**
 - **#3** — investigate scheduling preferences on people.

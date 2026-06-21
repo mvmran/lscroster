@@ -1,6 +1,6 @@
 # Session handover — LSCRoster
 
-_Last updated: 2026-06-20_
+_Last updated: 2026-06-21_
 
 This is a working handover note for continuing development in a fresh Claude Code
 session. Read `CLAUDE.md` first for the project rules; this file captures only the
@@ -9,10 +9,10 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 
 ## Current state of the tree
 
-- Branch `main`, clean, synced with `origin/main`. Latest commit **`6a65dd7`** —
-  the **ad-hoc UI batch** (this session, client-only) merged from
-  `feat/adhoc-2026-06-20`, on top of the **per-plan start time + Matrix Suggest**
-  merge (`f82a639`).
+- Branch `main`, clean, synced with `origin/main`. Latest feature merge
+  **`MERGE_HASH`** — the **misc UI polish batch** (#83, this session, client-only)
+  merged from `feat/misc-ui-changes`, on top of the **ad-hoc UI batch** (`6a65dd7`)
+  and the **per-plan start time + Matrix Suggest** merge (`f82a639`).
 - Production (**lscroster.xyz**) is up to date; Vercel auto-deploys from `main`.
 - Schema: migrations **0006 – `20260619145343_plan_start_time`** in
   `supabase/migrations/`. The three most recent migrations:
@@ -25,7 +25,35 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
   `https://lscroster.xyz/reset-password` in Supabase **Auth → URL Configuration →
   Redirect URLs** — was added 2026-06-19.)
 
-## What just shipped — ad-hoc UI batch (this session)
+## What just shipped — misc UI polish batch (#83, this session)
+
+Client-only, **no schema**. Branch `feat/misc-ui-changes`, merged `MERGE_HASH`
+(Vercel auto-deploys). Verified on the local stack (build + lint + typecheck + 91
+Vitest) and driven **live in the browser**. Touched files: `services/plan-page.tsx`,
+`scheduling/matrix-page.tsx`, `people/person-page.tsx`, `scheduling/team-page.tsx`.
+
+- **Plan header layout.** Prev/Now/Next moved out of the old absolutely-centred
+  wrapper into a right-aligned group that shares one
+  `flex flex-wrap items-center justify-end gap-x-6 gap-y-2` row with the
+  Draft/Publish/⋯ group — so the nav sits beside Publish (same level), with a gap
+  before Draft, and the whole control set **wraps to a second line** on narrow
+  screens. **"Today" renamed "Now".**
+- **Matrix cell.** The assignment cell is now a plain `div` (was the
+  `DropdownMenuTrigger`), holding the person name as a `<Link to=/people/:id>`
+  (hover underline) plus a separate **…** trigger button (`ml-auto`, inherits the
+  cell's `text-xs`). Clicking the cell no longer opens the menu — only the **…**
+  does. The **View &lt;name&gt;** menu item and the now-unused `UserRound` import
+  were removed.
+- **Back links → browser back.** The back link on `person-page.tsx` and
+  `team-page.tsx` now reads **← Back** and calls
+  `window.history.length > 1 ? navigate(-1) : navigate('/people'|'/teams')`, so it
+  returns to wherever you came from (People, Teams, Matrix, a plan). Dropped the
+  person page's old `focusId` nav-state (and its scroll-to/flash on the People list
+  no longer fires from this link) and the now-unused `Link` import there.
+- **Archive confirm.** The person page **Archive** button is wrapped in an
+  `AlertDialog` confirm mirroring Delete (Reactivate stays a direct action).
+
+## Previously shipped — ad-hoc UI batch
 
 Client-only, **no schema**. Branch `feat/adhoc-2026-06-20`, merged `6a65dd7`
 (Vercel auto-deploys). A set of direct UI tweaks (not GitHub issues), verified on
@@ -82,6 +110,8 @@ Newest first. Detail in `CHANGELOG.md` / `PHASES.md`; schema noted where relevan
 
 | Batch (merge) | What | Schema |
 |---|---|---|
+| **#83 misc UI polish** (`MERGE_HASH`) | Plan-header nav right-aligned + wraps + "Today"→"Now"; Matrix cell name-link + "…" menu trigger; person/team **← Back** = browser back; person **Archive** confirm | none |
+| **Ad-hoc UI batch** (`6a65dd7`) | Plan-header nav row + context-aware Back; Matrix per-column Suggest/Send/Cancel-unsent; person-page back-flash; scroll-to-top; full-width person page | none |
 | **Per-plan start time + Matrix Suggest** (`f82a639`) | Per-plan `start_time` override; per-column **Suggest roster**; Matrix toolbar (Prev/Now/Next + −/+ Columns + sticky first col) | **`plan_start_time`** nullable `start_time` |
 | **#78 / #79** (`8bfac28`) | Duplicate-service time-overlap warning; Matrix ORDER section + full-width grid | none |
 | **#76 / #77** (`19c7439`) | Removed the team-exclusions feature entirely; admin-only **bulk People** actions (select → Send invitation / Archive) | **0019** drop `team_exclusions` |
