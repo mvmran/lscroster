@@ -35,7 +35,6 @@ import {
   Music,
   Plus,
   Send,
-  UserRound,
   X,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -184,44 +183,47 @@ function MatrixCell({
           const severity = worstSeverity(results)
           const SeverityIcon = severity === 'error' ? AlertTriangle : AlertCircle
           return (
-            <DropdownMenu key={assignment.id}>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  title={results.map((r) => r.message).join('\n') || undefined}
-                  className={`flex items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-medium ${ASSIGNMENT_STATUS_CLASSES[assignment.status]}`}
-                >
-                  {severity && (
-                    <SeverityIcon
-                      className={`size-3 shrink-0 ${
-                        severity === 'error'
-                          ? 'text-red-600 dark:text-red-400'
-                          : 'text-amber-600 dark:text-amber-400'
-                      }`}
-                    />
-                  )}
-                  <span className="truncate">
-                    {assignment.people.first_name}{' '}
-                    {assignment.people.last_name.charAt(0)}.
-                  </span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuLabel>
-                  {assignment.people.first_name} {assignment.people.last_name} ·{' '}
-                  {ASSIGNMENT_STATUS_LABELS[assignment.status]}
-                  {assignment.status === 'pending' && !assignment.notified_at
-                    ? ' (not sent)'
-                    : ''}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to={`/people/${assignment.person_id}`}>
-                    <UserRound className="size-4" />
-                    View {assignment.people.first_name} {assignment.people.last_name}
-                  </Link>
-                </DropdownMenuItem>
-                {assignment.status === 'declined' && (
+            <div
+              key={assignment.id}
+              title={results.map((r) => r.message).join('\n') || undefined}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${ASSIGNMENT_STATUS_CLASSES[assignment.status]}`}
+            >
+              {severity && (
+                <SeverityIcon
+                  className={`size-3 shrink-0 ${
+                    severity === 'error'
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-amber-600 dark:text-amber-400'
+                  }`}
+                />
+              )}
+              <Link
+                to={`/people/${assignment.person_id}`}
+                className="truncate hover:underline"
+              >
+                {assignment.people.first_name}{' '}
+                {assignment.people.last_name.charAt(0)}.
+              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Assignment actions"
+                    className="ml-auto shrink-0 rounded px-1 leading-none opacity-70 hover:opacity-100"
+                  >
+                    …
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuLabel>
+                    {assignment.people.first_name} {assignment.people.last_name} ·{' '}
+                    {ASSIGNMENT_STATUS_LABELS[assignment.status]}
+                    {assignment.status === 'pending' && !assignment.notified_at
+                      ? ' (not sent)'
+                      : ''}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {assignment.status === 'declined' && (
                   <DropdownMenuItem onClick={() => onReplace(assignment.id)}>
                     Find replacement
                   </DropdownMenuItem>
@@ -246,9 +248,10 @@ function MatrixCell({
                     <X className="size-4" />
                     Remove
                   </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )
         })}
         <button

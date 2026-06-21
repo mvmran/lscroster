@@ -725,11 +725,16 @@ export function TeamPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Button variant="ghost" size="sm" className="-ml-2 mb-1" asChild>
-          <Link to="/teams">
-            <ArrowLeft className="size-4" />
-            Teams
-          </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2 mb-1"
+          onClick={() =>
+            window.history.length > 1 ? navigate(-1) : navigate('/teams')
+          }
+        >
+          <ArrowLeft className="size-4" />
+          Back
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>

@@ -6,6 +6,10 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Confirm before archiving a person** (#83) — the **Archive** button on a person's
+  page now asks for confirmation first, the same as Delete, explaining that the
+  person is hidden and their sign-in disabled but their history is kept and they
+  can be reactivated anytime.
 - **Quick send & cancel from the Matrix** — each service column in the Matrix now
   has compact icon buttons in the VOCALS row: **Suggest roster**, **Send
   requests**, and **Cancel unsent**. Send emails everyone whose request hasn't
@@ -20,6 +24,17 @@ All notable changes to LSCRoster are recorded here. The format follows
   person and briefly highlights them, which helps in a long directory.
 
 ### Changed
+- **Plan header controls** (#83) — **Prev / Now / Next** are now right-aligned and
+  on the same line as **Draft / Publish** (they were centred), with a gap between
+  the two groups, and they wrap onto a second line on narrow screens. **Today** was
+  renamed **Now**.
+- **Matrix cell tidy-up** (#83) — clicking a person's name in a Matrix cell now goes
+  straight to their profile; the cell's menu moved to a small **…** button at the
+  end of the cell (so a stray click no longer opens it), and the redundant
+  **View &lt;name&gt;** menu entry was removed.
+- **Back links go truly back** (#83) — the **← Back** link on a person's page and a
+  team's page now behaves like the browser back button, returning you to whichever
+  page you came from (People, Teams, the Matrix, or a plan).
 - **Pages open at the top** — navigating to a new page now resets the scroll
   position, so opening a person near the bottom of a long list no longer lands you
   part-way down their page.

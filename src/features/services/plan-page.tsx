@@ -941,9 +941,17 @@ export function PlanPage() {
             </Link>
           </Button>
         </div>
-        <div className="relative flex flex-wrap items-start justify-between gap-2">
-          {/* Prev / today / next across this service type's plans (issue #69). */}
-          <div className="absolute left-1/2 top-0 flex -translate-x-1/2 items-center gap-1">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h1 className="text-2xl font-semibold">{formatPlanDate(plan.date)}</h1>
+            <p className="text-muted-foreground text-sm">
+              {plan.service_types.name}
+              {plan.title ? ` — ${plan.title}` : ''}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2">
+          {/* Prev / now / next across this service type's plans (issue #69). */}
+          <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="sm"
@@ -963,7 +971,7 @@ export function PlanPage() {
               onClick={() => todayPlan && navigate(`/services/plans/${todayPlan.id}`)}
               title="Jump to today or the next upcoming service"
             >
-              Today
+              Now
             </Button>
             <Button
               variant="outline"
@@ -976,13 +984,6 @@ export function PlanPage() {
               <span className="hidden sm:inline">Next</span>
               <ChevronRight />
             </Button>
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold">{formatPlanDate(plan.date)}</h1>
-            <p className="text-muted-foreground text-sm">
-              {plan.service_types.name}
-              {plan.title ? ` — ${plan.title}` : ''}
-            </p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={plan.status === 'published' ? 'default' : 'outline'}>
@@ -1050,6 +1051,7 @@ export function PlanPage() {
                 </Link>
               </Button>
             )}
+          </div>
           </div>
         </div>
         <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-1.5 text-sm">
