@@ -31,11 +31,14 @@ import {
   EyeOff,
   GripVertical,
   Loader2,
+  Mail,
   Minus,
   Music,
   Plus,
+  Repeat,
   Send,
-  X,
+  Trash2,
+  UserPlus,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -153,6 +156,23 @@ function MatrixCell({
 }) {
   const deleteAssignment = useDeleteAssignment(plan.id)
   const cancelAssignment = useCancelAssignment(plan.id)
+  const sendRequests = useSendRequests(plan.id)
+
+  // Mirror the plan page: re-send a single person's request email (#15).
+  function sendOne(assignmentId: string) {
+    sendRequests.mutate([assignmentId], {
+      onSuccess: (result) => {
+        if (result.sent > 0) toast.success('Email sent')
+        for (const skip of result.skipped) {
+          toast.warning(`${skip.name}: ${skip.reason}`)
+        }
+        if (result.sent === 0 && result.skipped.length === 0) {
+          toast.info('Nothing to send')
+        }
+      },
+      onError: (e) => toast.error(e.message),
+    })
+  }
 
   // Mirror the plan page (issue #16/#21): removing a confirmed person notifies
   // them with a cancellation email; removing anyone else is a silent delete.
@@ -209,7 +229,7 @@ function MatrixCell({
                   <button
                     type="button"
                     aria-label="Assignment actions"
-                    className="ml-auto shrink-0 rounded px-1 leading-none opacity-70 hover:opacity-100"
+                    className="ml-auto shrink-0 rounded px-1 font-bold leading-none opacity-70 hover:opacity-100"
                   >
                     …
                   </button>
@@ -223,9 +243,21 @@ function MatrixCell({
                       : ''}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {assignment.status === 'declined' && (
+                  {assignment.status === 'declined' ? (
                   <DropdownMenuItem onClick={() => onReplace(assignment.id)}>
+                    <UserPlus className="size-4" />
                     Find replacement
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => onReplace(assignment.id)}>
+                    <Repeat className="size-4" />
+                    Replace…
+                  </DropdownMenuItem>
+                )}
+                {assignment.status !== 'declined' && assignment.people.email && (
+                  <DropdownMenuItem onClick={() => sendOne(assignment.id)}>
+                    <Mail className="size-4" />
+                    Send email
                   </DropdownMenuItem>
                 )}
                 {assignment.status === 'confirmed' ? (
@@ -233,7 +265,7 @@ function MatrixCell({
                     variant="destructive"
                     onClick={() => removeAndNotify(assignment.id)}
                   >
-                    <X className="size-4" />
+                    <Trash2 className="size-4" />
                     Remove and Notify
                   </DropdownMenuItem>
                 ) : (
@@ -245,7 +277,7 @@ function MatrixCell({
                       })
                     }
                   >
-                    <X className="size-4" />
+                    <Trash2 className="size-4" />
                     Remove
                   </DropdownMenuItem>
                   )}
