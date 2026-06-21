@@ -358,6 +358,16 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   dropping the person page's `focusId` nav-state and its now-unused `Link` import.
   Person page **Archive** wrapped in an `AlertDialog` confirm mirroring Delete
   (Reactivate stays a direct action). Client-only — no schema.
+- **#84 — Matrix cell menu parity with the plan.** `matrix-page.tsx`'s `MatrixCell`
+  gained `useSendRequests(plan.id)` + a `sendOne(assignmentId)` (mirrors
+  `scheduling-panel.tsx`, `sendRequests.mutate([id])`). The cell popup now renders
+  **Replace…** for non-declined assignments (reusing the existing `onReplace` →
+  AssignPersonDialog replace flow; declined keeps **Find replacement**) and **Send
+  email** when `assignment.status !== 'declined' && assignment.people.email`. Remove
+  / Remove and Notify switched from the `X` icon to `Trash2`; added `Repeat`/
+  `UserPlus`/`Mail` icons to the new items; the **…** trigger is `font-bold`.
+  Client-only — no schema. (The query already selects `people(*)`, so email is
+  present.)
 
 **Open backlog (not started):**
 - **#3** — investigate scheduling preferences on people.

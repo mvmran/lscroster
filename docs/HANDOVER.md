@@ -10,9 +10,10 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 ## Current state of the tree
 
 - Branch `main`, clean, synced with `origin/main`. Latest feature merge
-  **`f65402d`** — the **misc UI polish batch** (#83, this session, client-only)
-  merged from `feat/misc-ui-changes`, on top of the **ad-hoc UI batch** (`6a65dd7`)
-  and the **per-plan start time + Matrix Suggest** merge (`f82a639`).
+  **`MERGE_HASH`** — the **Matrix cell-menu parity batch** (#84, this session,
+  client-only) merged from `fix/matrix-ellipsis-bold`, on top of the **misc UI
+  polish batch** (#83, `f65402d`), the **ad-hoc UI batch** (`6a65dd7`) and the
+  **per-plan start time + Matrix Suggest** merge (`f82a639`).
 - Production (**lscroster.xyz**) is up to date; Vercel auto-deploys from `main`.
 - Schema: migrations **0006 – `20260619145343_plan_start_time`** in
   `supabase/migrations/`. The three most recent migrations:
@@ -25,7 +26,25 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
   `https://lscroster.xyz/reset-password` in Supabase **Auth → URL Configuration →
   Redirect URLs** — was added 2026-06-19.)
 
-## What just shipped — misc UI polish batch (#83, this session)
+## What just shipped — Matrix cell-menu parity batch (#84, this session)
+
+Client-only, **no schema**. Branch `fix/matrix-ellipsis-bold`, merged `MERGE_HASH`
+(Vercel auto-deploys). Verified on the local stack (build + lint + typecheck + 91
+Vitest) and driven **live in the browser**. Touched file: `scheduling/matrix-page.tsx`.
+
+- **Matrix cell popup = plan People panel.** `MatrixCell` gained
+  `useSendRequests(plan.id)` + `sendOne(assignmentId)` (`sendRequests.mutate([id])`,
+  mirroring `scheduling-panel.tsx`). The popup now shows **Replace…** for
+  non-declined assignments (reusing the existing `onReplace` →
+  AssignPersonDialog replace flow; declined keeps **Find replacement**) and **Send
+  email** when `status !== 'declined' && assignment.people.email`. The cell query
+  already selects `people(*)`, so email is present.
+- **Icons.** Remove / Remove and Notify switched from `X` to `Trash2`; added
+  `Repeat` (Replace…), `UserPlus` (Find replacement) and `Mail` (Send email); the
+  **…** trigger is now `font-bold`. Removed the now-unused `X` import, added
+  `Mail`/`Repeat`/`Trash2`/`UserPlus`.
+
+## Previously shipped — misc UI polish batch (#83)
 
 Client-only, **no schema**. Branch `feat/misc-ui-changes`, merged `f65402d`
 (Vercel auto-deploys). Verified on the local stack (build + lint + typecheck + 91
@@ -110,6 +129,7 @@ Newest first. Detail in `CHANGELOG.md` / `PHASES.md`; schema noted where relevan
 
 | Batch (merge) | What | Schema |
 |---|---|---|
+| **#84 Matrix cell-menu parity** (`MERGE_HASH`) | Matrix cell popup gains **Replace…** + **Send email** (one-person resend); Remove → bin icon; bold **…** trigger | none |
 | **#83 misc UI polish** (`f65402d`) | Plan-header nav right-aligned + wraps + "Today"→"Now"; Matrix cell name-link + "…" menu trigger; person/team **← Back** = browser back; person **Archive** confirm | none |
 | **Ad-hoc UI batch** (`6a65dd7`) | Plan-header nav row + context-aware Back; Matrix per-column Suggest/Send/Cancel-unsent; person-page back-flash; scroll-to-top; full-width person page | none |
 | **Per-plan start time + Matrix Suggest** (`f82a639`) | Per-plan `start_time` override; per-column **Suggest roster**; Matrix toolbar (Prev/Now/Next + −/+ Columns + sticky first col) | **`plan_start_time`** nullable `start_time` |
