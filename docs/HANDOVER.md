@@ -10,7 +10,7 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 ## Current state of the tree
 
 - Branch `main`, clean, synced with `origin/main`. Latest feature merge
-  **`MERGE_HASH`** — the **Matrix cell-menu parity batch** (#84, this session,
+  **`d4c3f6e`** — the **Matrix cell-menu parity batch** (#84, this session,
   client-only) merged from `fix/matrix-ellipsis-bold`, on top of the **misc UI
   polish batch** (#83, `f65402d`), the **ad-hoc UI batch** (`6a65dd7`) and the
   **per-plan start time + Matrix Suggest** merge (`f82a639`).
@@ -28,7 +28,7 @@ session. Read `CLAUDE.md` first for the project rules; this file captures only t
 
 ## What just shipped — Matrix cell-menu parity batch (#84, this session)
 
-Client-only, **no schema**. Branch `fix/matrix-ellipsis-bold`, merged `MERGE_HASH`
+Client-only, **no schema**. Branch `fix/matrix-ellipsis-bold`, merged `d4c3f6e`
 (Vercel auto-deploys). Verified on the local stack (build + lint + typecheck + 91
 Vitest) and driven **live in the browser**. Touched file: `scheduling/matrix-page.tsx`.
 
@@ -129,7 +129,7 @@ Newest first. Detail in `CHANGELOG.md` / `PHASES.md`; schema noted where relevan
 
 | Batch (merge) | What | Schema |
 |---|---|---|
-| **#84 Matrix cell-menu parity** (`MERGE_HASH`) | Matrix cell popup gains **Replace…** + **Send email** (one-person resend); Remove → bin icon; bold **…** trigger | none |
+| **#84 Matrix cell-menu parity** (`d4c3f6e`) | Matrix cell popup gains **Replace…** + **Send email** (one-person resend); Remove → bin icon; bold **…** trigger | none |
 | **#83 misc UI polish** (`f65402d`) | Plan-header nav right-aligned + wraps + "Today"→"Now"; Matrix cell name-link + "…" menu trigger; person/team **← Back** = browser back; person **Archive** confirm | none |
 | **Ad-hoc UI batch** (`6a65dd7`) | Plan-header nav row + context-aware Back; Matrix per-column Suggest/Send/Cancel-unsent; person-page back-flash; scroll-to-top; full-width person page | none |
 | **Per-plan start time + Matrix Suggest** (`f82a639`) | Per-plan `start_time` override; per-column **Suggest roster**; Matrix toolbar (Prev/Now/Next + −/+ Columns + sticky first col) | **`plan_start_time`** nullable `start_time` |
