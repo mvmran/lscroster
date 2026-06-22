@@ -115,6 +115,7 @@ export function InviteControls({ person }: { person: Person }) {
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2 rounded-md border px-3 py-2">
           <div className="min-w-0 flex-1">
+            <p className="text-muted-foreground text-xs italic">Account managed by</p>
             <p className="truncate text-sm font-medium">{managerName}</p>
             {manager.data?.email && (
               <p className="text-muted-foreground truncate text-xs">
