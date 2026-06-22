@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Copy, Loader2, Mail, UserPlus, X } from 'lucide-react'
+import { Check, Copy, Loader2, Mail, Trash2, UserPlus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -113,7 +113,7 @@ export function InviteControls({ person }: { person: Person }) {
     const managerName = manager.data ? fullName(manager.data) : '…'
     return (
       <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+        <div className="flex items-center gap-2 rounded-md px-3 py-2">
           <div className="min-w-0 flex-1">
             <p className="text-muted-foreground text-sm italic">Account managed by</p>
             <p className="truncate text-sm font-medium">{managerName}</p>
@@ -126,12 +126,12 @@ export function InviteControls({ person }: { person: Person }) {
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 shrink-0"
+            className="size-7 shrink-0 text-destructive hover:text-destructive"
             onClick={() => setDetachOpen(true)}
             disabled={updatePerson.isPending}
             aria-label="Remove managing member"
           >
-            <X className="size-4" />
+            <Trash2 className="size-4" />
           </Button>
         </div>
         <p className="text-muted-foreground text-sm">
@@ -141,27 +141,31 @@ export function InviteControls({ person }: { person: Person }) {
               ? `Waiting for ${managerName} to confirm the invitation.`
               : `Send an invitation so ${managerName} can confirm and start managing this account.`}
         </p>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={send} disabled={sendInvite.isPending}>
-            {sendInvite.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Mail className="size-4" />
-            )}
-            {pending ? 'Resend invitation' : 'Send invitation'}
-          </Button>
-          {pending && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={revoke}
-              disabled={revokeInvite.isPending}
-            >
-              <X className="size-4" />
-              Revoke
+        {/* Once the managing member has confirmed (issue #93) the invitation is
+            done — drop the Resend/Revoke buttons, they no longer apply. */}
+        {!person.managed_accepted_at && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={send} disabled={sendInvite.isPending}>
+              {sendInvite.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Mail className="size-4" />
+              )}
+              {pending ? 'Resend invitation' : 'Send invitation'}
             </Button>
-          )}
-        </div>
+            {pending && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={revoke}
+                disabled={revokeInvite.isPending}
+              >
+                <X className="size-4" />
+                Revoke
+              </Button>
+            )}
+          </div>
+        )}
 
         <AlertDialog open={detachOpen} onOpenChange={setDetachOpen}>
           <AlertDialogContent>

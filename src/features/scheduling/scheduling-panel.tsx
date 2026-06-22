@@ -691,7 +691,8 @@ export function SchedulingPanel({
                                         </DropdownMenuItem>
                                       )}
                                       {assignment.status !== 'declined' &&
-                                        assignment.people.email && (
+                                        (assignment.people.email ||
+                                          assignment.people.managed_by_person_id) && (
                                           <DropdownMenuItem
                                             onClick={() => sendOne(assignment.id)}
                                           >

@@ -409,6 +409,19 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   `managed_accepted_at`); the accept page renders a confirm-only `ManagedConfirm`.
   Scheduling emails route a person with no email to their manager via
   `resolveRecipient`, with an "on behalf of" banner.
+- **#91/#92/#93 — account-access notices + managed-account fixes.** No schema
+  change. New `account-access` Edge Function: archive/reactivate/clear-email,
+  emailing the person their sign-in was **revoked**/**reinstated** (new
+  `_shared/email-templates/account-access.ts`; logged to `email_log` as
+  `access-revoked`/`access-reinstated`). **#91** — Reactivate now confirms (matches
+  Archive); the Account & access card names the people a signed-in person manages
+  (*"…manages Sam Lee."*, `usePeopleManagedBy`). **#92** — removing the email of an
+  account with a login warns first, then deletes the auth user so the record reverts
+  to a fresh **Pending** state, notifying the old address. **#93** — managed people
+  no longer show stale Resend/Revoke once accepted; **Send email** appears for them
+  in the Matrix/Plan menus; scheduling emails routed to a manager name the managed
+  person (not "you") in subject and body. Affected functions to redeploy:
+  `account-access` (new), `send-requests`, `reminders`, `cancel-assignment`.
 
 **Open backlog (not started):**
 - **#3** — investigate scheduling preferences on people.

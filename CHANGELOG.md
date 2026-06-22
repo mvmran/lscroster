@@ -6,6 +6,12 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Sign-in change notices** (#91, #92) — when an admin archives a person, removes
+  the email of an account that had a login, or reactivates an archived person, the
+  person is now emailed that their sign-in access was **revoked** or **reinstated**
+  (with a note to contact the church if it's a mistake). Sent from a new
+  `account-access` Edge Function. The **Reactivate** button now asks for
+  confirmation first, matching Archive.
 - **Email preferences per person** (#87) — a new **Email preferences** card on each
   person's page (after Scheduling rules) lets an admin, a leader, or the person
   switch off any of four email types: **Roster changes** (added/removed from a
@@ -41,6 +47,15 @@ All notable changes to LSCRoster are recorded here. The format follows
   person and briefly highlights them, which helps in a long directory.
 
 ### Changed
+- **Removing an account's email revokes its sign-in** (#92) — clearing the email of
+  a person who has a login now warns first, then deletes their auth account so the
+  record reverts to a fresh **Pending** state (add an email or assign a managing
+  member, then re-invite). The old address is emailed that access was revoked.
+- **Account & access card** (#91) — a person with sign-in access who manages other
+  accounts now shows e.g. *"Pat has sign-in access. Pat manages Sam Lee."*
+- **Managed-account emails name the person** (#93) — scheduling emails routed to a
+  managing member now refer to the managed person **by name** in the subject and
+  body instead of "you".
 - **Notify people removed before they confirm** (#85) — on a plan and in the Matrix,
   the cell menu now hides **Replace…** for a *confirmed* person (use **Remove and
   Notify** to swap them so they're told). Anyone who has already been emailed —
@@ -343,6 +358,10 @@ All notable changes to LSCRoster are recorded here. The format follows
   Resend's throttle ([#18]).
 
 ### Fixed
+- **Managed accounts** (#93) — once a managing member accepts the invitation, the
+  managed person no longer shows stale **Resend invitation** / **Revoke** buttons,
+  and the **Send email** action now appears for managed people in the Matrix and
+  Plan cell menus.
 - An admin can no longer **demote their own role** away from admin — the role
   selector is locked on your own profile ("Another admin must change your role"),
   and the database rejects it outright, so an instance can never be left without
