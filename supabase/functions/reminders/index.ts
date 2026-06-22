@@ -8,6 +8,12 @@
 
 import { serviceClient } from '../_shared/auth.ts'
 import { jsonResponse } from '../_shared/cors.ts'
+import {
+  fetchEmailPrefs,
+  prefAllows,
+  resolveRecipient,
+  type EmailPrefKey,
+} from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
 import {
   schedulingReminderEmail,
@@ -37,6 +43,7 @@ interface ReminderRow {
     last_name: string
     email: string | null
     status: string
+    managed_by_person_id: string | null
   }
   positions: { name: string }
   teams: { name: string }
@@ -82,19 +89,9 @@ Deno.serve(async (req) => {
   ).toISOString()
 
   const selectColumns = `id, notified_at,
-    people(id, first_name, last_name, email, status),
+    people(id, first_name, last_name, email, status, managed_by_person_id),
     positions(name), teams(name),
     plans!inner(id, date, title, start_time, service_types(name, default_start_time))`
-
-  // -- nudges: pending, emailed at least nudge_days ago, never nudged --------
-  const { data: nudgeRows } = await admin
-    .from('plan_assignments')
-    .select(selectColumns)
-    .eq('status', 'pending')
-    .not('notified_at', 'is', null)
-    .lte('notified_at', nudgeCutoff)
-    .is('nudged_at', null)
-    .gte('plans.date', today)
 
   // Each pass prepares its emails (minting tokens / stamping idempotency
   // columns) first, then sends them in one Batch API call (issue #18). The DB
@@ -108,48 +105,72 @@ Deno.serve(async (req) => {
     template: string
   }
 
-  const nudgeOutbound: OutboundReminder[] = []
-  for (const row of (nudgeRows ?? []) as unknown as ReminderRow[]) {
+  // Resolves a row's recipient, honouring the person's email preference
+  // (issue #87) and routing managed people to their manager (issue #89).
+  async function recipientFor(row: ReminderRow, prefKey: EmailPrefKey) {
     const person = row.people
-    if (!person.email || person.status !== 'active') continue
+    if (person.status !== 'active') return null
+    const prefs = await fetchEmailPrefs(admin, [person.id])
+    if (!prefAllows(prefs, person.id, prefKey)) return null
+    return resolveRecipient(admin, person)
+  }
 
-    const token = randomToken()
-    const { error } = await admin
+  // -- nudges: pending, emailed at least nudge_days ago, never nudged --------
+  // request_nudge_days = 0 disables the nudge job entirely (issue #88).
+  const nudgeOutbound: OutboundReminder[] = []
+  if (church.request_nudge_days > 0) {
+    const { data: nudgeRows } = await admin
       .from('plan_assignments')
-      .update({
-        token_hash: await sha256Hex(token),
-        nudged_at: new Date().toISOString(),
-      })
-      .eq('id', row.id)
-    if (error) {
-      console.error('Nudge token update failed:', error)
-      continue
-    }
+      .select(selectColumns)
+      .eq('status', 'pending')
+      .not('notified_at', 'is', null)
+      .lte('notified_at', nudgeCutoff)
+      .is('nudged_at', null)
+      .gte('plans.date', today)
 
-    const { subject, html } = schedulingRequestEmail({
-      churchName: church.name,
-      recipientName: person.first_name,
-      planDateLong: formatPlanDateLong(row.plans.date),
-      startTime: await planTimesLine(
-        admin,
-        row.plans.id,
-        formatStartTime(row.plans.start_time ?? row.plans.service_types.default_start_time),
-      ),
-      serviceTypeName: row.plans.service_types.name,
-      planTitle: row.plans.title,
-      teamName: row.teams.name,
-      positionName: row.positions.name,
-      respondUrl: `${appUrl()}/respond/${token}`,
-      isNudge: true,
-    })
-    nudgeOutbound.push({
-      to: person.email,
-      subject,
-      html,
-      personId: person.id,
-      planId: row.plans.id,
-      template: 'scheduling-nudge',
-    })
+    for (const row of (nudgeRows ?? []) as unknown as ReminderRow[]) {
+      const recipient = await recipientFor(row, 'nudge_emails')
+      if (!recipient) continue
+
+      const token = randomToken()
+      const { error } = await admin
+        .from('plan_assignments')
+        .update({
+          token_hash: await sha256Hex(token),
+          nudged_at: new Date().toISOString(),
+        })
+        .eq('id', row.id)
+      if (error) {
+        console.error('Nudge token update failed:', error)
+        continue
+      }
+
+      const { subject, html } = schedulingRequestEmail({
+        churchName: church.name,
+        recipientName: recipient.recipientName,
+        onBehalfOf: recipient.onBehalfOf,
+        planDateLong: formatPlanDateLong(row.plans.date),
+        startTime: await planTimesLine(
+          admin,
+          row.plans.id,
+          formatStartTime(row.plans.start_time ?? row.plans.service_types.default_start_time),
+        ),
+        serviceTypeName: row.plans.service_types.name,
+        planTitle: row.plans.title,
+        teamName: row.teams.name,
+        positionName: row.positions.name,
+        respondUrl: `${appUrl()}/respond/${token}`,
+        isNudge: true,
+      })
+      nudgeOutbound.push({
+        to: recipient.email,
+        subject,
+        html,
+        personId: row.people.id,
+        planId: row.plans.id,
+        template: 'scheduling-nudge',
+      })
+    }
   }
 
   const nudgeResults = await sendEmailBatch(
@@ -175,51 +196,55 @@ Deno.serve(async (req) => {
   const nudged = nudgeResults.filter((r) => r.sent).length
 
   // -- reminders: confirmed, service within reminder_days_before -------------
-  const { data: reminderRows } = await admin
-    .from('plan_assignments')
-    .select(selectColumns)
-    .eq('status', 'confirmed')
-    .is('reminded_at', null)
-    .gte('plans.date', today)
-    .lte('plans.date', addDaysISO(today, church.reminder_days_before))
-
+  // reminder_days_before = 0 disables the reminder job entirely (issue #88).
   const reminderOutbound: OutboundReminder[] = []
-  for (const row of (reminderRows ?? []) as unknown as ReminderRow[]) {
-    const person = row.people
-    if (!person.email || person.status !== 'active') continue
-
-    const { error } = await admin
+  if (church.reminder_days_before > 0) {
+    const { data: reminderRows } = await admin
       .from('plan_assignments')
-      .update({ reminded_at: new Date().toISOString() })
-      .eq('id', row.id)
-    if (error) {
-      console.error('Reminder update failed:', error)
-      continue
-    }
+      .select(selectColumns)
+      .eq('status', 'confirmed')
+      .is('reminded_at', null)
+      .gte('plans.date', today)
+      .lte('plans.date', addDaysISO(today, church.reminder_days_before))
 
-    const { subject, html } = schedulingReminderEmail({
-      churchName: church.name,
-      recipientName: person.first_name,
-      planDateLong: formatPlanDateLong(row.plans.date),
-      startTime: await planTimesLine(
-        admin,
-        row.plans.id,
-        formatStartTime(row.plans.start_time ?? row.plans.service_types.default_start_time),
-      ),
-      serviceTypeName: row.plans.service_types.name,
-      planTitle: row.plans.title,
-      teamName: row.teams.name,
-      positionName: row.positions.name,
-      appUrl: appUrl(),
-    })
-    reminderOutbound.push({
-      to: person.email,
-      subject,
-      html,
-      personId: person.id,
-      planId: row.plans.id,
-      template: 'scheduling-reminder',
-    })
+    for (const row of (reminderRows ?? []) as unknown as ReminderRow[]) {
+      const recipient = await recipientFor(row, 'reminder_emails')
+      if (!recipient) continue
+
+      const { error } = await admin
+        .from('plan_assignments')
+        .update({ reminded_at: new Date().toISOString() })
+        .eq('id', row.id)
+      if (error) {
+        console.error('Reminder update failed:', error)
+        continue
+      }
+
+      const { subject, html } = schedulingReminderEmail({
+        churchName: church.name,
+        recipientName: recipient.recipientName,
+        onBehalfOf: recipient.onBehalfOf,
+        planDateLong: formatPlanDateLong(row.plans.date),
+        startTime: await planTimesLine(
+          admin,
+          row.plans.id,
+          formatStartTime(row.plans.start_time ?? row.plans.service_types.default_start_time),
+        ),
+        serviceTypeName: row.plans.service_types.name,
+        planTitle: row.plans.title,
+        teamName: row.teams.name,
+        positionName: row.positions.name,
+        appUrl: appUrl(),
+      })
+      reminderOutbound.push({
+        to: recipient.email,
+        subject,
+        html,
+        personId: row.people.id,
+        planId: row.plans.id,
+        template: 'scheduling-reminder',
+      })
+    }
   }
 
   const reminderResults = await sendEmailBatch(

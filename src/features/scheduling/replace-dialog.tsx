@@ -27,6 +27,8 @@ export interface ReplaceTarget {
   /** True when the person declined — shows the reason + frames it as re-suggest. */
   declined?: boolean
   declineReason?: string | null
+  /** The replaced person was already emailed — notify them on removal (#85). */
+  wasNotified?: boolean
 }
 
 /**
@@ -60,10 +62,17 @@ export function ReplaceDialog({
           team_id: target.team.id,
           position_id: target.position.id,
         },
+        // A declined person isn't notified; a pending person who was already
+        // emailed is told they're no longer needed (issue #85).
+        notifyOld: !target.declined && target.wasNotified,
       },
       {
         onSuccess: () => {
-          toast.success('Replacement scheduled — send them the request')
+          toast.success(
+            target.wasNotified && !target.declined
+              ? 'Replacement scheduled — previous person notified'
+              : 'Replacement scheduled — send them the request',
+          )
           onClose()
         },
         onError: (e) => toast.error(e.message),

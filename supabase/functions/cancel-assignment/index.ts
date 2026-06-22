@@ -1,10 +1,14 @@
-// Removes a plan assignment and, when the person had already confirmed, emails
-// them a cancellation notice (issue #16). Leader/admin only. The delete runs
-// with the service role so it succeeds regardless of who the assignee is.
+// Removes a plan assignment and, when the person has already been emailed about
+// it (confirmed, or pending with the request already sent — issue #85), emails
+// them a cancellation notice (issue #16). Honours the person's roster-email
+// preference (issue #87) and routes to a managing member when the person has no
+// email of their own (issue #89). Leader/admin only. The delete runs with the
+// service role so it succeeds regardless of who the assignee is.
 
 import { z } from 'npm:zod@4'
 import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
+import { fetchEmailPrefs, prefAllows, resolveRecipient } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
 import { schedulingCancellationEmail } from '../_shared/email-templates/scheduling.ts'
 import { sendEmail } from '../_shared/resend.ts'
@@ -21,6 +25,7 @@ const requestSchema = z.object({
 interface AssignmentRow {
   id: string
   status: string
+  notified_at: string | null
   plan_id: string
   people: {
     id: string
@@ -28,6 +33,7 @@ interface AssignmentRow {
     last_name: string
     email: string | null
     status: string
+    managed_by_person_id: string | null
   }
   positions: { name: string }
   teams: { name: string }
@@ -62,8 +68,8 @@ Deno.serve(async (req) => {
   const { data: assignment } = await admin
     .from('plan_assignments')
     .select(
-      `id, status, plan_id,
-       people(id, first_name, last_name, email, status),
+      `id, status, notified_at, plan_id,
+       people(id, first_name, last_name, email, status, managed_by_person_id),
        positions(name), teams(name),
        plans!inner(id, date, title, start_time, service_types(name, default_start_time))`,
     )
@@ -74,40 +80,53 @@ Deno.serve(async (req) => {
   const row = assignment as unknown as AssignmentRow
   const person = row.people
 
-  // Only people who had already confirmed get a cancellation notice.
-  let notified = false
-  if (row.status === 'confirmed' && person.email && person.status === 'active') {
-    const { data: church } = await admin
-      .from('church_settings')
-      .select('name, email_from_name')
-      .maybeSingle()
-    const churchName = church?.name ?? 'LSCRoster'
-    const fromName = church?.email_from_name ?? churchName
+  // Notify anyone who has already been emailed about this slot: confirmed
+  // people, and pending people whose request has gone out (issue #85). People
+  // who were never emailed are removed silently.
+  const wasEmailed =
+    row.status === 'confirmed' ||
+    (row.status === 'pending' && row.notified_at !== null)
 
-    const { subject, html } = schedulingCancellationEmail({
-      churchName,
-      recipientName: person.first_name,
-      planDateLong: formatPlanDateLong(row.plans.date),
-      startTime: await planTimesLine(
-        admin,
-        row.plans.id,
-        formatStartTime(row.plans.start_time ?? row.plans.service_types.default_start_time),
-      ),
-      serviceTypeName: row.plans.service_types.name,
-      planTitle: row.plans.title,
-      teamName: row.teams.name,
-      positionName: row.positions.name,
-    })
-    const result = await sendEmail({ to: person.email, subject, html, fromName })
-    await logEmail(admin, {
-      to: person.email,
-      template: 'scheduling-cancellation',
-      subject,
-      result,
-      personId: person.id,
-      planId: row.plan_id,
-    })
-    notified = result.sent
+  let notified = false
+  if (wasEmailed && person.status === 'active') {
+    const prefs = await fetchEmailPrefs(admin, [person.id])
+    const recipient = prefAllows(prefs, person.id, 'roster_emails')
+      ? await resolveRecipient(admin, person)
+      : null
+    if (recipient) {
+      const { data: church } = await admin
+        .from('church_settings')
+        .select('name, email_from_name')
+        .maybeSingle()
+      const churchName = church?.name ?? 'LSCRoster'
+      const fromName = church?.email_from_name ?? churchName
+
+      const { subject, html } = schedulingCancellationEmail({
+        churchName,
+        recipientName: recipient.recipientName,
+        onBehalfOf: recipient.onBehalfOf,
+        planDateLong: formatPlanDateLong(row.plans.date),
+        startTime: await planTimesLine(
+          admin,
+          row.plans.id,
+          formatStartTime(row.plans.start_time ?? row.plans.service_types.default_start_time),
+        ),
+        serviceTypeName: row.plans.service_types.name,
+        planTitle: row.plans.title,
+        teamName: row.teams.name,
+        positionName: row.positions.name,
+      })
+      const result = await sendEmail({ to: recipient.email, subject, html, fromName })
+      await logEmail(admin, {
+        to: recipient.email,
+        template: 'scheduling-cancellation',
+        subject,
+        result,
+        personId: person.id,
+        planId: row.plan_id,
+      })
+      notified = result.sent
+    }
   }
 
   const { error: deleteError } = await admin

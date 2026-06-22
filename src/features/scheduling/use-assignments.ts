@@ -227,16 +227,24 @@ export function useDeleteAssignment(planId: string) {
   })
 }
 
-/** Leader resets a declined slot to pending for a different person. */
+/**
+ * Replaces one assignment with another person: inserts the new (pending) row,
+ * then removes the old one. When `notifyOld` is set — the replaced person had
+ * already been emailed (issue #85) — the removal is routed through the
+ * cancel-assignment Edge Function so they get a "no longer needed" notice;
+ * otherwise it's a silent delete. Also used for declined "find replacement".
+ */
 export function useReplaceAssignment(planId: string) {
   const invalidate = useInvalidateAssignments()
   return useMutation({
     mutationFn: async ({
       oldAssignmentId,
       values,
+      notifyOld,
     }: {
       oldAssignmentId: string
       values: Omit<TablesInsert<'plan_assignments'>, 'plan_id'>
+      notifyOld?: boolean
     }) => {
       const { data, error } = await supabase
         .from('plan_assignments')
@@ -250,11 +258,19 @@ export function useReplaceAssignment(planId: string) {
             : error.message,
         )
       }
-      const { error: deleteError } = await supabase
-        .from('plan_assignments')
-        .delete()
-        .eq('id', oldAssignmentId)
-      if (deleteError) throw new Error(deleteError.message)
+      if (notifyOld) {
+        // cancel-assignment deletes the row server-side and emails the person.
+        await invokeFunction<{ ok: boolean; notified: boolean }>(
+          'cancel-assignment',
+          { assignmentId: oldAssignmentId },
+        )
+      } else {
+        const { error: deleteError } = await supabase
+          .from('plan_assignments')
+          .delete()
+          .eq('id', oldAssignmentId)
+        if (deleteError) throw new Error(deleteError.message)
+      }
       return data
     },
     onSuccess: () => invalidate(planId),

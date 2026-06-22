@@ -82,8 +82,10 @@ import type { PlanWithType } from '@/features/services/use-plans'
 export interface PickerTarget {
   team: Team
   position: Position
-  /** When replacing a declined assignment. */
+  /** When replacing an existing assignment. */
   replaceAssignmentId?: string
+  /** The replaced person was already emailed — notify them on removal (#85). */
+  replaceWasNotified?: boolean
 }
 
 export function AssignPersonDialog({
@@ -217,7 +219,11 @@ export function AssignPersonDialog({
     }
     if (target.replaceAssignmentId) {
       replaceAssignment.mutate(
-        { oldAssignmentId: target.replaceAssignmentId, values },
+        {
+          oldAssignmentId: target.replaceAssignmentId,
+          values,
+          notifyOld: target.replaceWasNotified,
+        },
         handlers,
       )
     } else {
@@ -664,7 +670,10 @@ export function SchedulingPanel({
                                           Find replacement
                                         </DropdownMenuItem>
                                       )}
-                                      {assignment.status !== 'declined' && (
+                                      {/* Replace only while pending — a confirmed
+                                          person should be removed-and-notified,
+                                          not silently swapped (issue #85). */}
+                                      {assignment.status === 'pending' && (
                                         <DropdownMenuItem
                                           onClick={() =>
                                             setReplaceTarget({
@@ -673,6 +682,7 @@ export function SchedulingPanel({
                                               personName: fullName(assignment.people),
                                               team,
                                               position,
+                                              wasNotified: !!assignment.notified_at,
                                             })
                                           }
                                         >
@@ -689,7 +699,9 @@ export function SchedulingPanel({
                                             Send email
                                           </DropdownMenuItem>
                                         )}
-                                      {assignment.status === 'confirmed' ? (
+                                      {assignment.status === 'confirmed' ||
+                                      (assignment.status === 'pending' &&
+                                        assignment.notified_at) ? (
                                         <DropdownMenuItem
                                           variant="destructive"
                                           onClick={() => removeAndNotify(assignment.id)}

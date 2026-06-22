@@ -152,7 +152,7 @@ function MatrixCell({
   /** person_id → that person's validation results in this plan. */
   personResultsById: Map<string, RuleResult[]>
   onAdd: () => void
-  onReplace: (assignmentId: string) => void
+  onReplace: (assignmentId: string, wasNotified: boolean) => void
 }) {
   const deleteAssignment = useDeleteAssignment(plan.id)
   const cancelAssignment = useCancelAssignment(plan.id)
@@ -243,13 +243,22 @@ function MatrixCell({
                       : ''}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {assignment.status === 'declined' ? (
-                  <DropdownMenuItem onClick={() => onReplace(assignment.id)}>
+                  {assignment.status === 'declined' && (
+                  <DropdownMenuItem
+                    onClick={() => onReplace(assignment.id, false)}
+                  >
                     <UserPlus className="size-4" />
                     Find replacement
                   </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={() => onReplace(assignment.id)}>
+                )}
+                {/* Replace only while pending — confirmed people get
+                    removed-and-notified instead (issue #85). */}
+                {assignment.status === 'pending' && (
+                  <DropdownMenuItem
+                    onClick={() =>
+                      onReplace(assignment.id, !!assignment.notified_at)
+                    }
+                  >
                     <Repeat className="size-4" />
                     Replace…
                   </DropdownMenuItem>
@@ -260,7 +269,8 @@ function MatrixCell({
                     Send email
                   </DropdownMenuItem>
                 )}
-                {assignment.status === 'confirmed' ? (
+                {assignment.status === 'confirmed' ||
+                (assignment.status === 'pending' && assignment.notified_at) ? (
                   <DropdownMenuItem
                     variant="destructive"
                     onClick={() => removeAndNotify(assignment.id)}
@@ -950,12 +960,13 @@ export function MatrixPage() {
                               planValidation?.byPerson ?? new Map()
                             }
                             onAdd={() => setPicker({ plan, team, position })}
-                            onReplace={(assignmentId) =>
+                            onReplace={(assignmentId, wasNotified) =>
                               setPicker({
                                 plan,
                                 team,
                                 position,
                                 replaceAssignmentId: assignmentId,
+                                replaceWasNotified: wasNotified,
                               })
                             }
                           />

@@ -3,12 +3,14 @@
 // service details, all the plan's times, the church name & address, the teams
 // and people serving, the order of service, and the songs with key & BPM.
 
-import { esc, footer, wrapper } from './layout.ts'
+import { esc, footer, onBehalfBanner, wrapper } from './layout.ts'
 
 export interface PlanNotificationParams {
   churchName: string
   churchAddress: string | null
   recipientName: string
+  /** Set when routed to a managing member for a managed person (issue #89). */
+  onBehalfOf?: string | null
   /** e.g. "Sunday 14 June 2026" */
   planDateLong: string
   serviceTypeName: string
@@ -133,6 +135,7 @@ export function planNotificationEmail(
           ${esc(p.churchName)}
         </td>
       </tr>
+      ${onBehalfBanner(p.onBehalfOf)}
       <tr>
         <td style="font-size:15px;line-height:1.6;color:#3f3f46;">
           Hi ${esc(p.recipientName)},
