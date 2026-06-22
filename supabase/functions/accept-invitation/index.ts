@@ -16,7 +16,9 @@ const requestSchema = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('accept'),
     token: z.string().min(32).max(128),
-    password: z.string().min(8).max(200),
+    // Omitted for a managed-account confirmation (the manager already has a
+    // login); required when the person is creating their own account.
+    password: z.string().min(8).max(200).optional(),
   }),
 ])
 
@@ -49,7 +51,7 @@ Deno.serve(async (req) => {
   const { data: invitation } = await admin
     .from('invitations')
     .select(
-      'id, expires_at, accepted_at, person:people(id, first_name, last_name, email, auth_user_id)',
+      'id, expires_at, accepted_at, person:people(id, first_name, last_name, email, auth_user_id, managed_by_person_id)',
     )
     .eq('token_hash', tokenHash)
     .maybeSingle()
@@ -60,6 +62,7 @@ Deno.serve(async (req) => {
     last_name: string
     email: string | null
     auth_user_id: string | null
+    managed_by_person_id: string | null
   } | null
 
   if (!invitation || !person) {
@@ -80,7 +83,11 @@ Deno.serve(async (req) => {
       410,
     )
   }
-  if (!person.email) {
+
+  // Managed account (issue #89): no email of their own, a managing member is
+  // attached. The manager confirms — no new login is created for this person.
+  const managed = !person.email && !!person.managed_by_person_id
+  if (!person.email && !managed) {
     return jsonResponse({ error: 'This invitation is no longer valid' }, 410)
   }
 
@@ -88,18 +95,54 @@ Deno.serve(async (req) => {
     .from('church_settings')
     .select('name')
     .maybeSingle()
+  const churchName = church?.name ?? 'LSCRoster'
 
   if (parsed.data.action === 'info') {
+    if (managed) {
+      const { data: manager } = await admin
+        .from('people')
+        .select('first_name')
+        .eq('id', person.managed_by_person_id!)
+        .maybeSingle()
+      return jsonResponse({
+        managed: true,
+        churchName,
+        managerName: manager?.first_name ?? 'You',
+        managedName: `${person.first_name} ${person.last_name}`.trim(),
+      })
+    }
     return jsonResponse({
+      managed: false,
       firstName: person.first_name,
       email: person.email,
-      churchName: church?.name ?? 'LSCRoster',
+      churchName,
     })
+  }
+
+  // -- accept ---------------------------------------------------------------
+  if (managed) {
+    const { error: stampError } = await admin
+      .from('people')
+      .update({ managed_accepted_at: new Date().toISOString() })
+      .eq('id', person.id)
+    if (stampError) {
+      console.error('Managed accept failed:', stampError)
+      return jsonResponse({ error: 'Could not finish setting up this account' }, 500)
+    }
+    await admin
+      .from('invitations')
+      .update({ accepted_at: new Date().toISOString() })
+      .eq('id', invitation.id)
+    return jsonResponse({ ok: true, managed: true })
+  }
+
+  if (!parsed.data.password) {
+    return jsonResponse({ error: 'A password is required' }, 400)
   }
 
   const { data: userData, error: userError } =
     await admin.auth.admin.createUser({
-      email: person.email,
+      email: person.email!,
       password: parsed.data.password,
       email_confirm: true,
     })

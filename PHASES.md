@@ -369,6 +369,47 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   Client-only — no schema. (The query already selects `people(*)`, so email is
   present.)
 
+- **#85 — notify people removed before they confirm.** The plan and Matrix cell
+  menus now show **Replace…** only while an assignment is `pending` (a confirmed
+  person is swapped via **Remove and Notify**, so they're told). Anyone already
+  emailed — `confirmed`, or `pending` with `notified_at` set — reads **Remove and
+  Notify** instead of a silent **Remove**, and replacing them routes the old
+  assignment's deletion through `cancel-assignment` (new `notifyOld` flag on
+  `useReplaceAssignment`, threaded via `ReplaceTarget.wasNotified` /
+  `PickerTarget.replaceWasNotified`). The `cancel-assignment` Edge Function now
+  emails when `confirmed || (pending && notified_at)`, not just confirmed.
+- **#87 — per-person email preferences.** New `person_email_prefs` table (migration
+  0020; one row per person, all flags default true, RLS = self **or** leader/admin,
+  plus the managing member via #89). A **Email preferences** card
+  (`person-email-prefs-card.tsx`, `use-email-prefs.ts`) sits after Scheduling rules
+  with four checkboxes (`roster_emails`/`nudge_emails`/`reminder_emails`/
+  `publish_emails`), each saving on toggle. The four scheduling email functions
+  consult a shared `_shared/email-prefs.ts` (`fetchEmailPrefs`/`prefAllows`,
+  missing row ⇒ all on) and skip an opted-out person.
+- **#88 — scheduled-job settings.** Migration 0020 relaxes
+  `church_settings.request_nudge_days` to 0–14 (default 3) and
+  `reminder_days_before` to 0–7 (default 1, clamping any higher existing value),
+  and adds `notify_on_publish boolean default true`. New admin-only **Scheduled
+  jobs** card (`scheduled-jobs-card.tsx`): nudge days, reminder days, and the
+  publish-email switch. `reminders` skips the nudge / reminder pass entirely when
+  its day count is 0; `send-plan-notification` returns early when
+  `notify_on_publish` is false.
+- **#89 — manage an account for someone without email.** Migration 0021 adds
+  `people.managed_by_person_id` + `managed_accepted_at`, a `manages_person()`
+  security-definer helper, and policies giving a manager **self-level** access to
+  the people they manage (people view/update, blockouts, plan_assignments
+  respond, email prefs, photo folder) — the column guards (`protect_people_columns`
+  extended to cover the two new columns; `protect_assignment_columns`) keep it
+  out of admin territory. `accountStatus` treats a confirmed managed account as
+  active, pending otherwise. UI: **InviteControls** reworked with an *"assign to
+  an existing member"* link → `ManageAccountDialog` (active members with a login),
+  a manager chip with detach confirm, and a managed **Send invitation**. The
+  `invite` function emails the manager (new `managedInvitationEmail`, privacy
+  note); `accept-invitation` gained a managed branch (no password, stamps
+  `managed_accepted_at`); the accept page renders a confirm-only `ManagedConfirm`.
+  Scheduling emails route a person with no email to their manager via
+  `resolveRecipient`, with an "on behalf of" banner.
+
 **Open backlog (not started):**
 - **#3** — investigate scheduling preferences on people.
 - **#4** — investigate more detail on the Teams screen.
@@ -376,7 +417,7 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
 - **#7** — review keyboard shortcuts throughout the app.
 - **#9** — add a rehearsal workflow.
 
-**Schema since Phase 4:** migrations 0006–0019 in `supabase/migrations/`
+**Schema since Phase 4:** migrations 0006–0021 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
 scheduling fields + `service_type_teams`; backfill+drop `teams.service_type_id`
 onto that join; add `church_settings.address`; add `song_arrangements` +
@@ -385,9 +426,13 @@ backfill Default per song + drop `songs.default_key`/`bpm`; add
 `service_type_teams.sort_order`; scheduling-rules tables + position requirement
 columns; `publish_overrides` audit table; `church_settings.logo_dark_url` + the
 public `church-logo` bucket; `account_access_guards` self-demotion +
-archive-sign-in triggers; `plan_template_times` table; drop `team_exclusions`).
-New Edge Functions:
-`cancel-assignment`, `send-plan-notification`, `request-password-reset`.
+archive-sign-in triggers; `plan_template_times` table; drop `team_exclusions`;
+`plans.start_time`/`plan_templates.start_time`; (0020) `person_email_prefs` +
+`church_settings.notify_on_publish` + relaxed nudge/reminder ranges; (0021)
+`people.managed_by_person_id`/`managed_accepted_at` + `manages_person()` /
+`manages_photo_folder()` helpers + manager RLS policies). New Edge Functions:
+`cancel-assignment`, `send-plan-notification`, `request-password-reset`; new
+shared `_shared/email-prefs.ts` (per-person opt-outs + managed-account routing).
 Regenerate `src/types/database.ts` from the local stack after pulling.
 
 ---

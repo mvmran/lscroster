@@ -2,7 +2,7 @@
 // unanswered requests, the reminder for confirmed people, and the cancellation
 // notice when a confirmed person is removed from a plan.
 
-import { esc, footer, wrapper } from './layout.ts'
+import { esc, footer, onBehalfBanner, wrapper } from './layout.ts'
 
 interface SchedulingDetails {
   churchName: string
@@ -15,6 +15,8 @@ interface SchedulingDetails {
   planTitle: string | null
   teamName: string
   positionName: string
+  /** Set when routed to a managing member for a managed person (issue #89). */
+  onBehalfOf?: string | null
 }
 
 interface RequestEmailParams extends SchedulingDetails {
@@ -48,6 +50,7 @@ export function schedulingRequestEmail(
           ${esc(p.churchName)}
         </td>
       </tr>
+      ${onBehalfBanner(p.onBehalfOf)}
       <tr>
         <td style="font-size:15px;line-height:1.6;color:#3f3f46;">
           Hi ${esc(p.recipientName)},
@@ -95,6 +98,7 @@ export function schedulingReminderEmail(
           ${esc(p.churchName)}
         </td>
       </tr>
+      ${onBehalfBanner(p.onBehalfOf)}
       <tr>
         <td style="font-size:15px;line-height:1.6;color:#3f3f46;">
           Hi ${esc(p.recipientName)},
@@ -128,6 +132,7 @@ export function schedulingCancellationEmail(
           ${esc(p.churchName)}
         </td>
       </tr>
+      ${onBehalfBanner(p.onBehalfOf)}
       <tr>
         <td style="font-size:15px;line-height:1.6;color:#3f3f46;">
           Hi ${esc(p.recipientName)},

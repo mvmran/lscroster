@@ -59,6 +59,7 @@ import {
   useUpdatePerson,
 } from '@/features/people/use-people'
 import { usePhotoUrl, useUploadPhoto } from '@/features/people/use-photos'
+import { PersonEmailPrefsCard } from '@/features/people/person-email-prefs-card'
 import { PersonScheduleCard } from '@/features/people/person-schedule-card'
 import { PersonSchedulingCard } from '@/features/scheduling/person-scheduling-card'
 import { PersonTeamsCard } from '@/features/scheduling/person-teams-card'
@@ -89,7 +90,10 @@ export function PersonPage() {
   const isAdmin = me?.role === 'admin'
   const isLeader = me?.role === 'leader'
   const isSelf = me?.id === p.id
-  const canEdit = isAdmin || isSelf
+  // A managing member (issue #89) gets self-level rights over the person they
+  // manage: edit their profile/photo and respond to rosters on their behalf.
+  const isManaging = !!me && p.managed_by_person_id === me.id
+  const canEdit = isAdmin || isSelf || isManaging
 
   async function onEditSubmit(values: PersonFormValues) {
     setEditError(null)
@@ -151,8 +155,11 @@ export function PersonPage() {
   }
 
   // The Schedules card (issue #52) lists a person's services; show it to anyone
-  // who can read their assignments — admins/leaders, or the person themselves.
-  const showSchedule = isAdmin || isLeader || isSelf
+  // who can read their assignments — admins/leaders, the person themselves, or
+  // a member who manages them (issue #89).
+  const showSchedule = isAdmin || isLeader || isSelf || isManaging
+  // Email preferences (issue #87) are visible/editable by the same set.
+  const showEmailPrefs = isAdmin || isLeader || isSelf || isManaging
 
   return (
     <div className="mx-auto flex w-full flex-col gap-4">
@@ -308,6 +315,9 @@ export function PersonPage() {
       <PersonTeamsCard personId={p.id} canManage={isAdmin || isLeader} />
 
       {(isAdmin || isLeader) && <PersonSchedulingCard personId={p.id} />}
+
+      {/* Email preferences (issue #87) — after Scheduling rules. */}
+      {showEmailPrefs && <PersonEmailPrefsCard personId={p.id} />}
 
       {/* Notes — admins and leaders only */}
       {(isAdmin || isLeader) && p.notes && (

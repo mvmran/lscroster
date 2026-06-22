@@ -5,7 +5,10 @@
 import { z } from 'npm:zod@4'
 import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
-import { invitationEmail } from '../_shared/email-templates/invitation.ts'
+import {
+  invitationEmail,
+  managedInvitationEmail,
+} from '../_shared/email-templates/invitation.ts'
 import { sendEmail } from '../_shared/resend.ts'
 
 const INVITE_EXPIRY_DAYS = 7
@@ -65,21 +68,40 @@ Deno.serve(async (req) => {
 
   const { data: person } = await admin
     .from('people')
-    .select('id, first_name, email, auth_user_id, status')
+    .select('id, first_name, last_name, email, auth_user_id, status, managed_by_person_id')
     .eq('id', personId)
     .maybeSingle()
   if (!person) return jsonResponse({ error: 'Person not found' }, 404)
-  if (!person.email) {
-    return jsonResponse(
-      { error: 'This person has no email address — add one first' },
-      400,
-    )
-  }
   if (person.auth_user_id) {
     return jsonResponse({ error: 'This person already has an account' }, 400)
   }
   if (person.status !== 'active') {
     return jsonResponse({ error: 'Cannot invite an inactive person' }, 400)
+  }
+
+  // Managed invite (issue #89): the person has no email of their own but a
+  // managing member is attached — send the confirmation to that member instead.
+  // A person with their own email always gets the standard invite.
+  const managed = !person.email && !!person.managed_by_person_id
+  let manager: { first_name: string; email: string | null; status: string } | null = null
+  if (managed) {
+    const { data: m } = await admin
+      .from('people')
+      .select('first_name, email, status')
+      .eq('id', person.managed_by_person_id!)
+      .maybeSingle()
+    manager = m as typeof manager
+    if (!manager?.email || manager.status !== 'active') {
+      return jsonResponse(
+        { error: 'The managing member needs an active email address first' },
+        400,
+      )
+    }
+  } else if (!person.email) {
+    return jsonResponse(
+      { error: 'This person has no email — add one or assign a managing member first' },
+      400,
+    )
   }
 
   const token = randomToken()
@@ -112,14 +134,22 @@ Deno.serve(async (req) => {
   )
   const inviteUrl = `${appUrl}/invite/${token}`
 
-  const { subject, html } = invitationEmail({
-    churchName,
-    recipientName: person.first_name,
-    inviteUrl,
-    expiresInDays: INVITE_EXPIRY_DAYS,
-  })
+  const { subject, html } = managed
+    ? managedInvitationEmail({
+        churchName,
+        managerName: manager!.first_name,
+        managedName: `${person.first_name} ${person.last_name}`.trim(),
+        inviteUrl,
+        expiresInDays: INVITE_EXPIRY_DAYS,
+      })
+    : invitationEmail({
+        churchName,
+        recipientName: person.first_name,
+        inviteUrl,
+        expiresInDays: INVITE_EXPIRY_DAYS,
+      })
   const result = await sendEmail({
-    to: person.email,
+    to: managed ? manager!.email! : person.email!,
     subject,
     html,
     fromName: church?.email_from_name ?? churchName,

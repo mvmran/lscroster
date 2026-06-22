@@ -81,6 +81,7 @@ export type Database = {
           logo_dark_url: string | null
           logo_url: string | null
           name: string
+          notify_on_publish: boolean
           reminder_days_before: number
           request_nudge_days: number
           singleton: boolean
@@ -95,6 +96,7 @@ export type Database = {
           logo_dark_url?: string | null
           logo_url?: string | null
           name: string
+          notify_on_publish?: boolean
           reminder_days_before?: number
           request_nudge_days?: number
           singleton?: boolean
@@ -109,6 +111,7 @@ export type Database = {
           logo_dark_url?: string | null
           logo_url?: string | null
           name?: string
+          notify_on_publish?: boolean
           reminder_days_before?: number
           request_nudge_days?: number
           singleton?: boolean
@@ -218,6 +221,8 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          managed_accepted_at: string | null
+          managed_by_person_id: string | null
           notes: string | null
           phone: string | null
           photo_url: string | null
@@ -233,6 +238,8 @@ export type Database = {
           first_name: string
           id?: string
           last_name: string
+          managed_accepted_at?: string | null
+          managed_by_person_id?: string | null
           notes?: string | null
           phone?: string | null
           photo_url?: string | null
@@ -248,6 +255,8 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
+          managed_accepted_at?: string | null
+          managed_by_person_id?: string | null
           notes?: string | null
           phone?: string | null
           photo_url?: string | null
@@ -255,7 +264,53 @@ export type Database = {
           status?: Database["public"]["Enums"]["person_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "people_managed_by_person_id_fkey"
+            columns: ["managed_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      person_email_prefs: {
+        Row: {
+          created_at: string
+          nudge_emails: boolean
+          person_id: string
+          publish_emails: boolean
+          reminder_emails: boolean
+          roster_emails: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          nudge_emails?: boolean
+          person_id: string
+          publish_emails?: boolean
+          reminder_emails?: boolean
+          roster_emails?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          nudge_emails?: boolean
+          person_id?: string
+          publish_emails?: boolean
+          reminder_emails?: boolean
+          roster_emails?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_email_prefs_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       person_pairings: {
         Row: {
@@ -1199,6 +1254,8 @@ export type Database = {
         Args: { target_plan_id: string }
         Returns: boolean
       }
+      manages_person: { Args: { target: string }; Returns: boolean }
+      manages_photo_folder: { Args: { object_name: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "leader" | "member"

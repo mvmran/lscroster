@@ -6,6 +6,23 @@ All notable changes to LSCRoster are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Email preferences per person** (#87) — a new **Email preferences** card on each
+  person's page (after Scheduling rules) lets an admin, a leader, or the person
+  switch off any of four email types: **Roster changes** (added/removed from a
+  plan), **Response reminders** (nudges), **Service reminders**, and **Published
+  plans**. Everything is on by default; the scheduling, reminder and publish
+  emails all honour these choices.
+- **Scheduled jobs settings** (#88) — Settings has a new admin-only **Scheduled
+  jobs** card to tune the automatic emails: the **nudge** cadence (0–14 days, 0
+  turns nudges off), the **pre-service reminder** lead time (0–7 days, 0 turns
+  reminders off), and an **Email on publish** master switch.
+- **Manage an account for someone without email** (#89) — a person with no email
+  (e.g. a child) can be looked after by an existing member. On their **Account &
+  access** card, *"or assign to an existing member"* opens a member picker; the
+  chosen member is shown with an **×** to detach. Sending the invitation emails
+  that member (with a privacy note) to confirm; afterwards they can view and
+  respond to the managed person's roster from their own account across the app.
+  Their scheduling-request emails are routed to the managing member.
 - **Confirm before archiving a person** (#83) — the **Archive** button on a person's
   page now asks for confirmation first, the same as Delete, explaining that the
   person is hidden and their sign-in disabled but their history is kept and they
@@ -24,6 +41,12 @@ All notable changes to LSCRoster are recorded here. The format follows
   person and briefly highlights them, which helps in a long directory.
 
 ### Changed
+- **Notify people removed before they confirm** (#85) — on a plan and in the Matrix,
+  the cell menu now hides **Replace…** for a *confirmed* person (use **Remove and
+  Notify** to swap them so they're told). Anyone who has already been emailed —
+  confirmed, or pending with the request sent — now reads **Remove and Notify**
+  (was a silent **Remove**), and replacing or removing them sends a "you're no
+  longer needed" email, just like removing a confirmed person.
 - **Matrix cell menu matches the plan** (#84) — the popup on a person in the Matrix
   now offers **Replace…** and **Send email** (re-sends that one person's request,
   shown when they have an email), the same as the plan's People panel. **Remove** /

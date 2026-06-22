@@ -5,6 +5,7 @@
 import { z } from 'npm:zod@4'
 import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
+import { fetchEmailPrefs, prefAllows, resolveRecipient } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
 import { planNotificationEmail } from '../_shared/email-templates/plan-notification.ts'
 import { sendEmailBatch } from '../_shared/resend.ts'
@@ -28,6 +29,7 @@ interface AssignmentRow {
     last_name: string
     email: string | null
     status: string
+    managed_by_person_id: string | null
   }
   teams: { name: string; sort_order: number }
   positions: { name: string; sort_order: number }
@@ -77,8 +79,12 @@ Deno.serve(async (req) => {
 
   const { data: church } = await admin
     .from('church_settings')
-    .select('name, address, email_from_name')
+    .select('name, address, email_from_name, notify_on_publish')
     .maybeSingle()
+  // Master switch: an admin can disable publish emails church-wide (issue #88).
+  if (church && church.notify_on_publish === false) {
+    return jsonResponse({ ok: true, sent: 0, skipped: [] })
+  }
   const churchName = church?.name ?? 'LSCRoster'
   const fromName = church?.email_from_name ?? churchName
 
@@ -162,7 +168,7 @@ Deno.serve(async (req) => {
   const { data: assignmentRows } = await admin
     .from('plan_assignments')
     .select(
-      'status, people(id, first_name, last_name, email, status), teams(name, sort_order), positions(name, sort_order)',
+      'status, people(id, first_name, last_name, email, status, managed_by_person_id), teams(name, sort_order), positions(name, sort_order)',
     )
     .eq('plan_id', planId)
     .neq('status', 'declined')
@@ -192,24 +198,36 @@ Deno.serve(async (req) => {
         .map((m) => ({ position: m.position, name: m.name })),
     }))
 
-  // Recipients: one email per active person with an address.
-  const recipients = new Map<string, { firstName: string; email: string }>()
-  for (const a of assignments) {
-    const p = a.people
-    if (p.status === 'active' && p.email && !recipients.has(p.id)) {
-      recipients.set(p.id, { firstName: p.first_name, email: p.email })
-    }
-  }
-
   const planDateLong = formatPlanDateLong(plan.date)
 
-  // Render one email per recipient, then send them all in one Batch API call
-  // (issue #18).
-  const outbound = [...recipients].map(([personId, recipient]) => {
+  // Recipients: one email per active person who hasn't opted out of publish
+  // emails (issue #87). A person without their own address is routed to their
+  // managing member (issue #89). Render each, then send in one Batch API call.
+  const activePersonIds = assignments
+    .filter((a) => a.people.status === 'active')
+    .map((a) => a.people.id)
+  const prefs = await fetchEmailPrefs(admin, activePersonIds)
+
+  const outbound: {
+    personId: string
+    email: string
+    firstName: string
+    subject: string
+    html: string
+  }[] = []
+  const seen = new Set<string>()
+  for (const a of assignments) {
+    const p = a.people
+    if (p.status !== 'active' || seen.has(p.id)) continue
+    seen.add(p.id)
+    if (!prefAllows(prefs, p.id, 'publish_emails')) continue
+    const recipient = await resolveRecipient(admin, p)
+    if (!recipient) continue
     const { subject, html } = planNotificationEmail({
       churchName,
       churchAddress: church?.address ?? null,
-      recipientName: recipient.firstName,
+      recipientName: recipient.recipientName,
+      onBehalfOf: recipient.onBehalfOf,
       planDateLong,
       serviceTypeName: serviceType.name,
       planTitle: plan.title,
@@ -222,12 +240,18 @@ Deno.serve(async (req) => {
       songs,
       appUrl: appUrl(),
     })
-    return { personId, recipient, subject, html }
-  })
+    outbound.push({
+      personId: p.id,
+      email: recipient.email,
+      firstName: recipient.recipientName,
+      subject,
+      html,
+    })
+  }
 
   const results = await sendEmailBatch(
     outbound.map((o) => ({
-      to: o.recipient.email,
+      to: o.email,
       subject: o.subject,
       html: o.html,
       fromName,
@@ -237,7 +261,7 @@ Deno.serve(async (req) => {
   await Promise.all(
     outbound.map((o, idx) =>
       logEmail(admin, {
-        to: o.recipient.email,
+        to: o.email,
         template: 'plan-notification',
         subject: o.subject,
         result: results[idx],
@@ -255,7 +279,7 @@ Deno.serve(async (req) => {
       sent++
     } else {
       skipped.push({
-        name: o.recipient.firstName,
+        name: o.firstName,
         reason:
           result.reason === 'not_configured'
             ? 'email not configured'
