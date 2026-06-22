@@ -99,6 +99,46 @@ export function useUpdatePerson() {
   })
 }
 
+/** People whose account this person manages (issue #91 card text). */
+export function usePeopleManagedBy(personId: string | undefined) {
+  return useQuery({
+    queryKey: ['people-managed-by', personId ?? ''],
+    enabled: !!personId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('people')
+        .select('id, first_name, last_name, managed_accepted_at')
+        .eq('managed_by_person_id', personId!)
+        .order('first_name')
+      if (error) throw new Error(error.message)
+      return data
+    },
+  })
+}
+
+/**
+ * Archive, reactivate, or clear the email of an account via the account-access
+ * Edge Function (issues #91/#92): it makes the change AND emails the person
+ * about the resulting sign-in change, which the browser can't do.
+ */
+export function useAccountAccess() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: {
+      personId: string
+      action: 'archive' | 'reactivate' | 'clear-email'
+    }) =>
+      invokeFunction<{ ok: boolean }>('account-access', {
+        personId: vars.personId,
+        action: vars.action,
+      }),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: peopleKeys.all })
+      queryClient.invalidateQueries({ queryKey: peopleKeys.detail(vars.personId) })
+    },
+  })
+}
+
 export function useDeletePerson() {
   const invalidate = useInvalidatePeople()
   return useMutation({

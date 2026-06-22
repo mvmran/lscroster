@@ -36,12 +36,17 @@ const detailsBlock = (d: SchedulingDetails) => `
 export function schedulingRequestEmail(
   p: RequestEmailParams,
 ): { subject: string; html: string } {
+  // When routed to a managing member, the email speaks about the managed person
+  // by name rather than "you" (issue #93). `subjectWho` is the plain-text name
+  // for the subject; `who` is the HTML-escaped name for the body.
+  const subjectWho = p.onBehalfOf ?? 'you'
+  const who = p.onBehalfOf ? esc(p.onBehalfOf) : 'you'
   const subject = p.isNudge
-    ? `Reminder: can you serve on ${p.planDateLong}?`
-    : `Can you serve on ${p.planDateLong}?`
+    ? `Reminder: can ${subjectWho} serve on ${p.planDateLong}?`
+    : `Can ${subjectWho} serve on ${p.planDateLong}?`
   const intro = p.isNudge
-    ? `Just checking in — ${esc(p.churchName)} is still waiting to hear if you can serve:`
-    : `${esc(p.churchName)} would like to schedule you to serve:`
+    ? `Just checking in — ${esc(p.churchName)} is still waiting to hear if ${who} can serve:`
+    : `${esc(p.churchName)} would like to schedule ${who} to serve:`
   return {
     subject,
     html: wrapper(`
@@ -57,7 +62,7 @@ export function schedulingRequestEmail(
           <br /><br />
           ${intro}
           ${detailsBlock(p)}
-          Can you make it? No login needed — just tap a button.
+          ${p.onBehalfOf ? `Can ${who} make it?` : 'Can you make it?'} No login needed — just tap a button.
         </td>
       </tr>
       <tr>
@@ -90,8 +95,11 @@ interface ReminderEmailParams extends SchedulingDetails {
 export function schedulingReminderEmail(
   p: ReminderEmailParams,
 ): { subject: string; html: string } {
+  const who = p.onBehalfOf ? esc(p.onBehalfOf) : 'you'
   return {
-    subject: `You're serving on ${p.planDateLong}`,
+    subject: p.onBehalfOf
+      ? `${p.onBehalfOf} is serving on ${p.planDateLong}`
+      : `You're serving on ${p.planDateLong}`,
     html: wrapper(`
       <tr>
         <td style="font-size:20px;font-weight:700;color:#18181b;padding-bottom:16px;">
@@ -103,7 +111,7 @@ export function schedulingReminderEmail(
         <td style="font-size:15px;line-height:1.6;color:#3f3f46;">
           Hi ${esc(p.recipientName)},
           <br /><br />
-          A quick reminder that you're confirmed to serve:
+          A quick reminder that ${p.onBehalfOf ? `${who} is` : `you're`} confirmed to serve:
           ${detailsBlock(p)}
           See you there! You can view the full plan in LSCRoster.
         </td>
@@ -124,8 +132,11 @@ export function schedulingReminderEmail(
 export function schedulingCancellationEmail(
   p: SchedulingDetails,
 ): { subject: string; html: string } {
+  const who = p.onBehalfOf ? esc(p.onBehalfOf) : 'you'
   return {
-    subject: `Schedule change: you're no longer needed on ${p.planDateLong}`,
+    subject: p.onBehalfOf
+      ? `Schedule change: ${p.onBehalfOf} is no longer needed on ${p.planDateLong}`
+      : `Schedule change: you're no longer needed on ${p.planDateLong}`,
     html: wrapper(`
       <tr>
         <td style="font-size:20px;font-weight:700;color:#18181b;padding-bottom:16px;">
@@ -137,7 +148,7 @@ export function schedulingCancellationEmail(
         <td style="font-size:15px;line-height:1.6;color:#3f3f46;">
           Hi ${esc(p.recipientName)},
           <br /><br />
-          Plans have changed and you're no longer scheduled to serve at this
+          Plans have changed and ${p.onBehalfOf ? `${who} is` : `you're`} no longer scheduled to serve at this
           service. You don't need to do anything.
           ${detailsBlock(p)}
           Thank you — we'll be in touch about future opportunities to serve.

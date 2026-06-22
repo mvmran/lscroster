@@ -54,7 +54,9 @@ import {
   ROLE_LABELS,
 } from '@/features/people/person-utils'
 import {
+  useAccountAccess,
   useDeletePerson,
+  usePeopleManagedBy,
   usePerson,
   useUpdatePerson,
 } from '@/features/people/use-people'
@@ -72,11 +74,17 @@ export function PersonPage() {
   const { data: me } = useCurrentPerson()
   const updatePerson = useUpdatePerson()
   const deletePerson = useDeletePerson()
+  const accountAccess = useAccountAccess()
   const uploadPhoto = useUploadPhoto()
   const navigate = useNavigate()
+  const managed = usePeopleManagedBy(id)
 
   const [editOpen, setEditOpen] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
+  // Holds the form values while the admin confirms removing an account's email
+  // (issue #92), which revokes its sign-in and resets it to a fresh record.
+  const [pendingEmailRemoval, setPendingEmailRemoval] =
+    useState<PersonFormValues | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const photoUrl = usePhotoUrl(person.data?.photo_url)
 
@@ -96,6 +104,18 @@ export function PersonPage() {
   const canEdit = isAdmin || isSelf || isManaging
 
   async function onEditSubmit(values: PersonFormValues) {
+    // #92: removing the email of an account that already has a login revokes its
+    // sign-in and resets it to a fresh, invitable record — confirm first.
+    const removingEmail =
+      isAdmin && !!p.email && !values.email.trim() && !!p.auth_user_id
+    if (removingEmail) {
+      setPendingEmailRemoval(values)
+      return
+    }
+    await saveEdit(values)
+  }
+
+  async function saveEdit(values: PersonFormValues, opts?: { skipEmail?: boolean }) {
     setEditError(null)
     const update = formValuesToPerson(values)
     if (!isAdmin) {
@@ -108,12 +128,29 @@ export function PersonPage() {
       // locked, but drop it from the payload too so the DB guard never fires.
       delete update.role
     }
+    // The account-access function already cleared the email; don't re-send it.
+    if (opts?.skipEmail) delete update.email
     try {
       await updatePerson.mutateAsync({ id: p.id, values: update })
       toast.success('Saved')
       setEditOpen(false)
     } catch (error) {
       setEditError(error instanceof Error ? error.message : 'Save failed')
+    }
+  }
+
+  async function confirmEmailRemoval() {
+    const values = pendingEmailRemoval
+    setPendingEmailRemoval(null)
+    if (!values) return
+    try {
+      // Clears the email, revokes sign-in and notifies the old address, then
+      // saves any other field edits from the same form (without the email).
+      await accountAccess.mutateAsync({ personId: p.id, action: 'clear-email' })
+      await saveEdit(values, { skipEmail: true })
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : 'Could not remove email')
+      setEditOpen(true)
     }
   }
 
@@ -137,7 +174,12 @@ export function PersonPage() {
 
   async function setStatus(status: 'active' | 'inactive') {
     try {
-      await updatePerson.mutateAsync({ id: p.id, values: { status } })
+      // Via the account-access function so the person is emailed about the
+      // sign-in change (issue #91), which the browser can't send.
+      await accountAccess.mutateAsync({
+        personId: p.id,
+        action: status === 'active' ? 'reactivate' : 'archive',
+      })
       toast.success(status === 'active' ? 'Reactivated' : 'Archived')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Update failed')
@@ -160,6 +202,10 @@ export function PersonPage() {
   const showSchedule = isAdmin || isLeader || isSelf || isManaging
   // Email preferences (issue #87) are visible/editable by the same set.
   const showEmailPrefs = isAdmin || isLeader || isSelf || isManaging
+  // Members this person manages, named in the Account & access card (issue #91).
+  const managedNames = (managed.data ?? [])
+    .filter((m) => m.managed_accepted_at)
+    .map((m) => fullName(m))
 
   return (
     <div className="mx-auto flex w-full flex-col gap-4">
@@ -344,6 +390,9 @@ export function PersonPage() {
                 {p.status === 'inactive'
                   ? `${p.first_name} is archived — sign-in is disabled until reactivated.`
                   : `${p.first_name} has sign-in access.`}
+                {p.status !== 'inactive' && managedNames.length > 0 && (
+                  <> {p.first_name} manages {formatList(managedNames)}.</>
+                )}
               </p>
             ) : (
               <InviteControls person={p} />
@@ -357,7 +406,7 @@ export function PersonPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={updatePerson.isPending}
+                        disabled={accountAccess.isPending}
                       >
                         <Archive className="size-4" />
                         Archive
@@ -370,8 +419,12 @@ export function PersonPage() {
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                           They'll be hidden from the directory and can't be
-                          scheduled, and their sign-in access is disabled. Their
-                          history is kept and you can reactivate them anytime.
+                          scheduled, and their sign-in access is disabled.
+                          {p.auth_user_id
+                            ? ` ${p.first_name} will be emailed that their sign-in access has been revoked.`
+                            : ''}{' '}
+                          Their history is kept and you can reactivate them
+                          anytime.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -383,15 +436,38 @@ export function PersonPage() {
                     </AlertDialogContent>
                   </AlertDialog>
                 ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setStatus('active')}
-                    disabled={updatePerson.isPending}
-                  >
-                    <ArchiveRestore className="size-4" />
-                    Reactivate
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={accountAccess.isPending}
+                      >
+                        <ArchiveRestore className="size-4" />
+                        Reactivate
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Reactivate {fullName(p)}?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          They'll reappear in the directory and can be scheduled
+                          again
+                          {p.auth_user_id
+                            ? `, and their sign-in access is restored. ${p.first_name} will be emailed that their access has been reinstated.`
+                            : '.'}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => setStatus('active')}>
+                          Reactivate
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -429,6 +505,41 @@ export function PersonPage() {
       )}
         </div>
       </div>
+
+      {/* #92 — removing an account's email revokes its sign-in. */}
+      <AlertDialog
+        open={!!pendingEmailRemoval}
+        onOpenChange={(open) => !open && setPendingEmailRemoval(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {p.first_name}'s email?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Removing the email revokes {p.first_name}'s sign-in access — their
+              account becomes a fresh, pending record. They'll be emailed that
+              their access has been revoked, and you'll need to add an email (or
+              assign a managing member) and send a new invitation for them to sign
+              in again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmEmailRemoval}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              Remove email &amp; revoke access
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
+}
+
+/** Joins names as "A", "A and B", or "A, B and C". */
+function formatList(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  if (names.length === 2) return `${names[0]} and ${names[1]}`
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }

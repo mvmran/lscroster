@@ -263,7 +263,9 @@ function MatrixCell({
                     Replace…
                   </DropdownMenuItem>
                 )}
-                {assignment.status !== 'declined' && assignment.people.email && (
+                {assignment.status !== 'declined' &&
+                  (assignment.people.email ||
+                    assignment.people.managed_by_person_id) && (
                   <DropdownMenuItem onClick={() => sendOne(assignment.id)}>
                     <Mail className="size-4" />
                     Send email
