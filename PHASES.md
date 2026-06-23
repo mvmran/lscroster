@@ -422,6 +422,32 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   in the Matrix/Plan menus; scheduling emails routed to a manager name the managed
   person (not "you") in subject and body. Affected functions to redeploy:
   `account-access` (new), `send-requests`, `reminders`, `cancel-assignment`.
+- **#95/#96/#97/#98 — managed-account polish batch.** **#95** (client-only) — the
+  **Send email** action on a plan (`scheduling-panel.tsx`) and in the Matrix cell
+  menu (`matrix-page.tsx`) now shows only while an assignment is `pending`
+  (`status === 'pending'`, was `!== 'declined'`); a **confirmed** person is no
+  longer re-emailable from there (swap them via **Remove and Notify** per #85).
+  **#96** (client-only) — the person page's **Account & access** card
+  (`person-page.tsx`) lists the people a signed-in member manages and warns
+  *"… manages Kid Child. Revoke that before Archive or Delete."*; **Archive** and
+  **Delete** are disabled while they manage anyone (any link, accepted or
+  pending — `managesAnyone` over `usePeopleManagedBy`), so the managed accounts
+  can't be orphaned. **#97** (migration 0022 `managed_plan_visibility`) — a
+  managing member's **Home** and **My Schedule** now surface the managed person's
+  roster: `useMyAssignments` takes `[me, ...managed ids]` (via `usePeopleManagedBy`)
+  and joins `people`, and each managed row reads `date (`*for*` <name>)` via a
+  shared `ForWhom` (italic "for"). The real blocker was RLS — a managed person's
+  **draft** plan was invisible to the manager because `is_assigned_to_plan()` only
+  matched the caller; the migration widens that security-definer helper with
+  `or manages_person(person_id)`, so the manager sees the plan (and order of
+  service) exactly as the member would, mirroring how a member sees their own
+  draft plans. **#98** (Edge Function `account-access`, no schema) — removing the
+  managing member now routes through a new `detach-manager` action that clears the
+  managed link, **deletes the stale managed invitation** (so re-assigning reads
+  "Send invitation", not "Resend"), and **emails the former manager** (new
+  `managerRemovedEmail` template, logged as `manager-removed`); `useAccountAccess`
+  gained the action + invitation-cache invalidation. Affected function to
+  redeploy: `account-access`.
 
 **Open backlog (not started):**
 - **#3** — investigate scheduling preferences on people.
@@ -514,7 +540,7 @@ native value setter + `input`/`change` events; a programmatic `/auth` fetch
 does **not** log the SPA in, use the sign-in form. Radix `Select` isn't a
 native `<select>` — `preview_fill` can't set it; click by text via eval.
 
-**Schema since Phase 4:** migrations 0006–0021 in `supabase/migrations/`
+**Schema since Phase 4:** migrations 0006–0022 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
 scheduling fields + `service_type_teams`; backfill+drop `teams.service_type_id`
 onto that join; add `church_settings.address`; add `song_arrangements` +
@@ -527,7 +553,9 @@ archive-sign-in triggers; `plan_template_times` table; drop `team_exclusions`;
 `plans.start_time`/`plan_templates.start_time`; (0020) `person_email_prefs` +
 `church_settings.notify_on_publish` + relaxed nudge/reminder ranges; (0021)
 `people.managed_by_person_id`/`managed_accepted_at` + `manages_person()` /
-`manages_photo_folder()` helpers + manager RLS policies). New Edge Functions:
+`manages_photo_folder()` helpers + manager RLS policies; (0022)
+`managed_plan_visibility` widens `is_assigned_to_plan()` so a manager sees the
+plans their managed people are rostered onto). New Edge Functions:
 `cancel-assignment`, `send-plan-notification`, `request-password-reset`; new
 shared `_shared/email-prefs.ts` (per-person opt-outs + managed-account routing).
 Regenerate `src/types/database.ts` from the local stack after pulling.

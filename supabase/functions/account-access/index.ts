@@ -10,13 +10,14 @@ import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import {
   accessReinstatedEmail,
   accessRevokedEmail,
+  managerRemovedEmail,
 } from '../_shared/email-templates/account-access.ts'
 import { logEmail } from '../_shared/email-log.ts'
 import { sendEmail } from '../_shared/resend.ts'
 
 const schema = z.object({
   personId: z.uuid(),
-  action: z.enum(['archive', 'reactivate', 'clear-email']),
+  action: z.enum(['archive', 'reactivate', 'clear-email', 'detach-manager']),
 })
 
 Deno.serve(async (req) => {
@@ -44,7 +45,9 @@ Deno.serve(async (req) => {
 
   const { data: person } = await admin
     .from('people')
-    .select('id, first_name, last_name, email, auth_user_id, status')
+    .select(
+      'id, first_name, last_name, email, auth_user_id, status, managed_by_person_id',
+    )
     .eq('id', personId)
     .maybeSingle()
   if (!person) return jsonResponse({ error: 'Person not found' }, 404)
@@ -55,6 +58,55 @@ Deno.serve(async (req) => {
     .maybeSingle()
   const churchName = church?.name ?? 'LSCRoster'
   const fromName = church?.email_from_name ?? churchName
+
+  // detach-manager: remove the managing member from this managed account, reset
+  // it to a fresh pending state (drop any pending invitation), and email the
+  // former manager that they no longer manage it. Self-contained — returns early.
+  if (action === 'detach-manager') {
+    if (!person.managed_by_person_id) {
+      return jsonResponse({ error: 'This account has no manager' }, 400)
+    }
+    const { data: manager } = await admin
+      .from('people')
+      .select('first_name, email')
+      .eq('id', person.managed_by_person_id)
+      .maybeSingle()
+
+    const { error } = await admin
+      .from('people')
+      .update({ managed_by_person_id: null, managed_accepted_at: null })
+      .eq('id', personId)
+    if (error) {
+      console.error('detach manager failed:', error)
+      return jsonResponse({ error: 'Failed to remove the managing member' }, 500)
+    }
+    // Clear the stale managed invitation so the account reads "Send invitation"
+    // (not "Resend") if another manager is assigned later.
+    await admin.from('invitations').delete().eq('person_id', personId)
+
+    if (manager?.email) {
+      const managerNotice = managerRemovedEmail({
+        churchName,
+        recipientName: manager.first_name,
+        managedName: `${person.first_name} ${person.last_name}`.trim(),
+      })
+      const result = await sendEmail({
+        to: manager.email,
+        subject: managerNotice.subject,
+        html: managerNotice.html,
+        fromName,
+      })
+      await logEmail(admin, {
+        to: manager.email,
+        template: 'manager-removed',
+        subject: managerNotice.subject,
+        result,
+        personId,
+      })
+    }
+
+    return jsonResponse({ ok: true })
+  }
 
   // Build the status/auth change and the notice to send before doing the work.
   let notice: { subject: string; html: string } | null = null

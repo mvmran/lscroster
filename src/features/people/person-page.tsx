@@ -203,9 +203,10 @@ export function PersonPage() {
   // Email preferences (issue #87) are visible/editable by the same set.
   const showEmailPrefs = isAdmin || isLeader || isSelf || isManaging
   // Members this person manages, named in the Account & access card (issue #91).
-  const managedNames = (managed.data ?? [])
-    .filter((m) => m.managed_accepted_at)
-    .map((m) => fullName(m))
+  // Any managed link (accepted or pending) blocks Archive/Delete until detached.
+  const managedPeople = managed.data ?? []
+  const managedNames = managedPeople.map((m) => fullName(m))
+  const managesAnyone = managedPeople.length > 0
 
   return (
     <div className="mx-auto flex w-full flex-col gap-4">
@@ -390,8 +391,12 @@ export function PersonPage() {
                 {p.status === 'inactive'
                   ? `${p.first_name} is archived — sign-in is disabled until reactivated.`
                   : `${p.first_name} has sign-in access.`}
-                {p.status !== 'inactive' && managedNames.length > 0 && (
-                  <> {p.first_name} manages {formatList(managedNames)}.</>
+                {managesAnyone && (
+                  <>
+                    {' '}
+                    {p.first_name} manages {formatList(managedNames)}. Revoke
+                    that before Archive or Delete.
+                  </>
                 )}
               </p>
             ) : (
@@ -406,7 +411,7 @@ export function PersonPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={accountAccess.isPending}
+                        disabled={accountAccess.isPending || managesAnyone}
                       >
                         <Archive className="size-4" />
                         Archive
@@ -471,7 +476,11 @@ export function PersonPage() {
                 )}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={managesAnyone}
+                    >
                       <Trash2 className="size-4" />
                       Delete
                     </Button>

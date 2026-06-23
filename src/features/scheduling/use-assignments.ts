@@ -9,6 +9,10 @@ export type AssignmentWithPerson = Tables<'plan_assignments'> & {
 }
 
 export type MyAssignment = Tables<'plan_assignments'> & {
+  // The person this assignment is for — usually the signed-in user, but for a
+  // managed account (issue #89) it's the managed member, so the manager's
+  // My Schedule / Home can show "(for <name>)".
+  people: Tables<'people'>
   plans: Tables<'plans'> & {
     service_types: Tables<'service_types'>
     plan_times: Tables<'plan_times'>[]
@@ -151,16 +155,25 @@ export function useAssignmentsOnDate(date: string | undefined) {
   })
 }
 
-/** The signed-in person's assignments with full plan context (My Schedule). */
-export function useMyAssignments(personId: string | undefined) {
+/**
+ * Assignments with full plan context for My Schedule / Home. Pass the signed-in
+ * person plus anyone they manage (issue #89) so a manager sees the managed
+ * member's requests and dates too; RLS already grants a manager read access via
+ * `manages_person`. The query key folds in the ids so it refetches if the
+ * managed list changes; invalidation still matches on the `mine` prefix.
+ */
+export function useMyAssignments(personIds: string[] | undefined) {
+  const ids = (personIds ?? []).filter(Boolean)
   return useQuery({
-    queryKey: assignmentKeys.mine,
-    enabled: !!personId,
+    queryKey: [...assignmentKeys.mine, ...[...ids].sort()],
+    enabled: ids.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('plan_assignments')
-        .select('*, plans(*, service_types(*), plan_times(*)), teams(*), positions(*)')
-        .eq('person_id', personId!)
+        .select(
+          '*, people(*), plans(*, service_types(*), plan_times(*)), teams(*), positions(*)',
+        )
+        .in('person_id', ids)
       if (error) throw new Error(error.message)
       // plans should always be visible for own assignments (RLS grants it),
       // but never let a missing embed crash the page.
