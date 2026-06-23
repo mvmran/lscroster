@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, Grid3x3, Plus, Settings2 } from 'lucide-react'
+import { CalendarDays, Grid3x3, Plus } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { FullPageError } from '@/components/full-page-error'
 import { Badge } from '@/components/ui/badge'
@@ -85,14 +85,6 @@ export function ServicesPage() {
         <h1 className="text-2xl font-semibold">Services</h1>
         {canManage && (
           <div className="flex gap-2">
-            {isAdmin && (
-              <Button variant="outline" asChild>
-                <Link to="/settings/service-types">
-                  <Settings2 className="size-4" />
-                  <span className="hidden sm:inline">Service types</span>
-                </Link>
-              </Button>
-            )}
             <Button variant="outline" asChild>
               <Link to="/services/matrix">
                 <Grid3x3 className="size-4" />
