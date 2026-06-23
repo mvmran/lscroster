@@ -8,7 +8,7 @@ import {
   makeValidationPerson,
   useSchedulingRulesData,
 } from '@/features/scheduling/use-service-state'
-import { teamServesType } from '@/features/scheduling/use-teams'
+import { serviceTypeTeamSort, teamServesType } from '@/features/scheduling/use-teams'
 import {
   autoSchedule,
   rankCandidates,
@@ -119,6 +119,17 @@ export function useAutoScheduler(plan: PlanWithType | undefined) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan?.id, plan?.date, plan?.service_type_id, isPending, assignmentsQuery.isPending, assignmentsQuery.data, data])
 
+  // Teams in the same order they appear on the plan (#31's per-service-type sort),
+  // so the suggestion dialog can group rows to match.
+  const orderedTeamIds = useMemo<string[]>(() => {
+    if (!plan) return []
+    return (data.teams ?? [])
+      .filter((t) => teamServesType(t, plan.service_type_id))
+      .sort((a, b) => serviceTypeTeamSort(a, plan.service_type_id) - serviceTypeTeamSort(b, plan.service_type_id))
+      .map((t) => t.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan?.id, plan?.service_type_id, data.teams])
+
   return {
     isPending: isPending || assignmentsQuery.isPending,
     ready: !!state,
@@ -128,6 +139,7 @@ export function useAutoScheduler(plan: PlanWithType | undefined) {
     /** Ranked substitutes for a position (replace / re-suggest), P4/P5. */
     rank: (positionId: string, exclude?: string[]): RankedCandidate[] =>
       state ? rankCandidates(state, positionId, { exclude }) : [],
+    orderedTeamIds,
     apply,
   }
 }

@@ -336,6 +336,38 @@ export function useSendRequests(planId: string) {
   })
 }
 
+/** One plan's slice of a bulk send: which outstanding assignments to email. */
+export interface BulkSendGroup {
+  planId: string
+  assignmentIds: string[]
+}
+
+/**
+ * Bulk "send requests" across several plans at once (Matrix bulk-email): calls
+ * the send-requests Edge Function once per plan with that plan's chosen
+ * assignment ids, then aggregates the per-plan results.
+ */
+export function useBulkSendRequests() {
+  const invalidate = useInvalidateAssignments()
+  return useMutation({
+    mutationFn: async (groups: BulkSendGroup[]): Promise<SendRequestsResult> => {
+      let sent = 0
+      const skipped: { name: string; reason: string }[] = []
+      for (const { planId, assignmentIds } of groups) {
+        if (assignmentIds.length === 0) continue
+        const res = await invokeFunction<SendRequestsResult>('send-requests', {
+          planId,
+          assignmentIds,
+        })
+        sent += res.sent
+        skipped.push(...res.skipped)
+      }
+      return { ok: true, sent, skipped }
+    },
+    onSuccess: () => invalidate(),
+  })
+}
+
 /**
  * Remove an assignment, emailing a cancellation notice when the person had
  * confirmed (issue #16). Routed through the cancel-assignment Edge Function so

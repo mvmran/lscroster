@@ -85,6 +85,7 @@ import {
 import { worstSeverity, type RuleResult } from '@/features/scheduling/validate-service'
 import { fillMatrixWindow } from '@/features/scheduling/matrix-utils'
 import { SuggestRosterButton } from '@/features/scheduling/auto-schedule-dialog'
+import { BulkEmailButton } from '@/features/scheduling/bulk-email-dialog'
 import { MatrixTeamOrderDialog } from '@/features/scheduling/matrix-team-order-dialog'
 import {
   applyTeamOrder,
@@ -670,12 +671,21 @@ export function MatrixPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Button variant="ghost" size="sm" className="-ml-2 mb-1" asChild>
-          <Link to="/services">
-            <ArrowLeft className="size-4" />
-            Services
-          </Link>
-        </Button>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <Button variant="ghost" size="sm" className="-ml-2" asChild>
+            <Link to="/services">
+              <ArrowLeft className="size-4" />
+              Services
+            </Link>
+          </Button>
+          {canManage && !loading && (
+            <BulkEmailButton
+              plans={matrixPlans}
+              assignmentsByPlan={assignmentsByPlan}
+              teams={teams ?? []}
+            />
+          )}
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold">Matrix</h1>
           <div className="flex flex-wrap items-center gap-x-12 gap-y-2">
@@ -685,19 +695,19 @@ export function MatrixPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7"
+                  className="h-6 px-2 text-xs"
                   onClick={() => setWeekOffset((o) => o - 1)}
                   disabled={startIndex <= 0}
                   aria-label="Show earlier services"
                 >
-                  <ChevronLeft className="size-4" />
+                  <ChevronLeft className="size-3" />
                   Prev
                 </Button>
                 {/* Jump back to the next-upcoming service (window default). */}
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7"
+                  className="h-6 px-2 text-xs"
                   onClick={() => setWeekOffset(0)}
                   disabled={weekOffset === 0}
                   aria-label="Show today's upcoming services"
@@ -707,32 +717,32 @@ export function MatrixPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7"
+                  className="h-6 px-2 text-xs"
                   onClick={() => setWeekOffset((o) => o + 1)}
                   disabled={startIndex >= maxStart}
                   aria-label="Show later services"
                 >
                   Next
-                  <ChevronRight className="size-4" />
+                  <ChevronRight className="size-3" />
                 </Button>
               </div>
             </div>
             {/* Services-shown slider (issue #57): default 4, clamped 2–9. */}
-            <div className="flex items-center gap-1.5 rounded-md border px-2 py-1">
+            <div className="flex items-center gap-1.5 rounded-md border px-2 py-0.5">
               <span className="text-muted-foreground text-xs font-medium">Columns</span>
               <div className="flex items-center gap-1">
                 <Button
                   variant="outline"
                   size="icon"
-                  className="size-5"
+                  className="size-4"
                   onClick={() => setPlanCount(planCount - 1)}
                   disabled={planCount <= MATRIX_PLAN_COUNT_MIN}
                   aria-label="Show fewer services"
                 >
-                  <Minus className="size-3" />
+                  <Minus className="size-2.5" />
                 </Button>
                 <span
-                  className="w-4 text-center text-sm tabular-nums"
+                  className="w-4 text-center text-xs tabular-nums"
                   aria-live="polite"
                 >
                   {planCount}
@@ -740,12 +750,12 @@ export function MatrixPage() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="size-5"
+                  className="size-4"
                   onClick={() => setPlanCount(planCount + 1)}
                   disabled={planCount >= MATRIX_PLAN_COUNT_MAX}
                   aria-label="Show more services"
                 >
-                  <Plus className="size-3" />
+                  <Plus className="size-2.5" />
                 </Button>
               </div>
             </div>

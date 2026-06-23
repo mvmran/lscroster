@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { CircleSlash, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,29 @@ import type { PlanWithType } from '@/features/services/use-plans'
 /** Stable id for a suggestion row (one person → one position). */
 function suggestionKey(s: Suggestion): string {
   return `${s.positionId}-${s.personId}`
+}
+
+interface TeamGroup {
+  teamId: string
+  teamName: string
+  items: Suggestion[]
+}
+
+/** Group suggestions by team, ordered to match the team order on the plan. */
+function groupByTeam(suggestions: Suggestion[], orderedTeamIds: string[]): TeamGroup[] {
+  const byTeam = new Map<string, Suggestion[]>()
+  for (const s of suggestions) {
+    const arr = byTeam.get(s.teamId) ?? []
+    arr.push(s)
+    byTeam.set(s.teamId, arr)
+  }
+  const extraIds = [...byTeam.keys()].filter((id) => !orderedTeamIds.includes(id))
+  return [...orderedTeamIds, ...extraIds]
+    .filter((id) => byTeam.has(id))
+    .map((id) => {
+      const items = byTeam.get(id)!
+      return { teamId: id, teamName: items[0].teamName, items }
+    })
 }
 
 /**
@@ -49,7 +72,7 @@ export function SuggestRosterButton({
     setOpen(true)
   }
 
-  const suggestions = result?.suggestions ?? []
+  const suggestions = useMemo(() => result?.suggestions ?? [], [result])
   const allSelected = suggestions.length > 0 && selected.size === suggestions.length
   const headerState: boolean | 'indeterminate' = allSelected
     ? true
@@ -69,6 +92,22 @@ export function SuggestRosterButton({
   function toggleAll() {
     setSelected(allSelected ? new Set() : new Set(suggestions.map(suggestionKey)))
   }
+
+  function toggleGroup(keys: string[], groupAllSelected: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      for (const k of keys) {
+        if (groupAllSelected) next.delete(k)
+        else next.add(k)
+      }
+      return next
+    })
+  }
+
+  const teamGroups = useMemo(
+    () => groupByTeam(suggestions, engine.orderedTeamIds),
+    [suggestions, engine.orderedTeamIds],
+  )
 
   function applySelected() {
     const chosen = suggestions.filter((s) => selected.has(suggestionKey(s)))
@@ -126,28 +165,53 @@ export function SuggestRosterButton({
                   </label>
                 </div>
 
-                <ul className="space-y-1.5">
-                  {suggestions.map((s) => {
-                    const key = suggestionKey(s)
+                <ul className="space-y-3">
+                  {teamGroups.map((group) => {
+                    const groupKeys = group.items.map(suggestionKey)
+                    const groupSelectedCount = groupKeys.filter((k) => selected.has(k)).length
+                    const groupAllSelected = groupSelectedCount === groupKeys.length
+                    const groupState: boolean | 'indeterminate' = groupAllSelected
+                      ? true
+                      : groupSelectedCount > 0
+                        ? 'indeterminate'
+                        : false
+                    const groupCheckboxId = `team-group-${group.teamId}`
                     return (
-                      <li key={key} className="flex items-start gap-2 text-sm">
-                        <Checkbox
-                          id={key}
-                          checked={selected.has(key)}
-                          onCheckedChange={() => toggle(key)}
-                          className="mt-0.5"
-                          aria-label={`Accept ${s.personName} for ${s.positionName}`}
-                        />
-                        <label htmlFor={key} className="min-w-0 cursor-pointer">
-                          <span className="font-medium">{s.personName}</span>
-                          <span className="text-muted-foreground">
-                            {' '}
-                            → {s.positionName} · {s.teamName}
-                          </span>
-                          <span className="text-muted-foreground block text-xs">
-                            {s.reason}
-                          </span>
-                        </label>
+                      <li key={group.teamId}>
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <Checkbox
+                            id={groupCheckboxId}
+                            checked={groupState}
+                            onCheckedChange={() => toggleGroup(groupKeys, groupAllSelected)}
+                            aria-label={`${groupAllSelected ? 'Deselect' : 'Select'} all for ${group.teamName}`}
+                          />
+                          <label htmlFor={groupCheckboxId} className="cursor-pointer">
+                            {group.teamName}
+                          </label>
+                        </div>
+                        <ul className="mt-1.5 space-y-1.5 pl-6">
+                          {group.items.map((s) => {
+                            const key = suggestionKey(s)
+                            return (
+                              <li key={key} className="flex items-start gap-2 text-sm">
+                                <Checkbox
+                                  id={key}
+                                  checked={selected.has(key)}
+                                  onCheckedChange={() => toggle(key)}
+                                  className="mt-0.5"
+                                  aria-label={`Accept ${s.personName} for ${s.positionName}`}
+                                />
+                                <label htmlFor={key} className="min-w-0 cursor-pointer">
+                                  <span className="font-medium">{s.personName}</span>
+                                  <span className="text-muted-foreground"> → {s.positionName}</span>
+                                  <span className="text-muted-foreground block text-xs">
+                                    {s.reason}
+                                  </span>
+                                </label>
+                              </li>
+                            )
+                          })}
+                        </ul>
                       </li>
                     )
                   })}
