@@ -928,7 +928,10 @@ export function PlanPage() {
   }
 
   const startTime = plan.start_time ?? plan.service_types.default_start_time
-  const startLabel = timed.length > 0 && timed[0].startsAt ? formatClock(timed[0].startsAt) : null
+  // Label the plan's effective start (override or service-type default) — not the
+  // first order-of-service item, which is absent while the order is empty. The
+  // first item always begins at this same base, so the two agree once items exist.
+  const startLabel = startTime ? formatClock(parseISO(`${plan.date}T${startTime}`)) : null
 
   return (
     <div className="flex flex-col gap-4">
