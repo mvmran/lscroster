@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { Loader2 } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
@@ -15,6 +15,16 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { usePeopleManagedBy } from '@/features/people/use-people'
+import { fullName } from '@/features/people/person-utils'
 import { useCreateBlockout } from '@/features/scheduling/use-blockouts'
 
 /** Add a blockout: pick a date range on the calendar, optional reason. */
@@ -31,11 +41,24 @@ export function BlockoutDialog({
   const [range, setRange] = useState<DateRange | undefined>()
   const [reason, setReason] = useState('')
 
+  const { data: me } = useCurrentPerson()
+  const { data: managed = [] } = usePeopleManagedBy(me?.id)
+
+  const [targetId, setTargetId] = useState(personId)
+
+  const accounts = useMemo(() => {
+    if (!me) return []
+    return [
+      { id: me.id, name: fullName(me) },
+      ...managed.map((p) => ({ id: p.id, name: fullName(p) })),
+    ]
+  }, [me, managed])
+
   async function save() {
     if (!range?.from) return
     try {
       await createBlockout.mutateAsync({
-        person_id: personId,
+        person_id: targetId,
         start_date: format(range.from, 'yyyy-MM-dd'),
         end_date: format(range.to ?? range.from, 'yyyy-MM-dd'),
         reason: reason.trim() || null,
@@ -59,6 +82,22 @@ export function BlockoutDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4">
+          {accounts.length > 1 && (
+            <div className="w-full max-w-[240px]">
+              <Select value={targetId} onValueChange={setTargetId}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <Calendar
             mode="range"
             selected={range}

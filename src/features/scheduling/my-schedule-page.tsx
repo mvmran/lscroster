@@ -44,8 +44,8 @@ import {
   type MyAssignment,
 } from '@/features/scheduling/use-assignments'
 import {
+  useBlockouts,
   useDeleteBlockout,
-  usePersonBlockouts,
 } from '@/features/scheduling/use-blockouts'
 import {
   formatPlanDate,
@@ -175,7 +175,7 @@ export function MySchedulePage() {
     [me, managed],
   )
   const { data: assignments, isPending } = useMyAssignments(personIds)
-  const { data: blockouts, isPending: blockoutsPending } = usePersonBlockouts(me?.id)
+  const { data: allBlockouts, isPending: blockoutsPending } = useBlockouts()
   const respond = useRespondInApp()
   const deleteBlockout = useDeleteBlockout()
   const [declining, setDeclining] = useState<MyAssignment | null>(null)
@@ -190,10 +190,22 @@ export function MySchedulePage() {
     }
   }, [assignments, today])
 
+  const relevantBlockouts = useMemo(() => {
+    const ids = new Set(personIds ?? [])
+    return (allBlockouts ?? []).filter((b) => ids.has(b.person_id))
+  }, [allBlockouts, personIds])
+
   const currentBlockouts = useMemo(
-    () => (blockouts ?? []).filter((b) => b.end_date >= today),
-    [blockouts, today],
+    () => relevantBlockouts.filter((b) => b.end_date >= today),
+    [relevantBlockouts, today],
   )
+
+  const personNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    if (me) map.set(me.id, fullName(me))
+    ;(managed ?? []).forEach((p) => map.set(p.id, fullName(p)))
+    return map
+  }, [me, managed])
 
   const loading = mePending || isPending
 
@@ -301,7 +313,7 @@ export function MySchedulePage() {
                 <div>
                   <CardTitle>Blockouts</CardTitle>
                   <CardDescription>
-                    Dates you're unavailable to be scheduled.
+                    Dates not available to be scheduled.
                   </CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setBlockoutOpen(true)}>
@@ -329,6 +341,11 @@ export function MySchedulePage() {
                         {blockout.start_date === blockout.end_date
                           ? formatPlanDateShort(blockout.start_date)
                           : `${formatPlanDateShort(blockout.start_date)} – ${formatPlanDateShort(blockout.end_date)}`}
+                        {blockout.person_id !== me?.id && (
+                          <span className="text-muted-foreground ml-1 text-xs italic">
+                            ({personNameById.get(blockout.person_id)})
+                          </span>
+                        )}
                       </p>
                       {blockout.reason && (
                         <p className="text-muted-foreground truncate text-xs">
