@@ -429,6 +429,90 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
 - **#6** — define what "Team Leader" should actually do (gates whether #2 returns).
 - **#7** — review keyboard shortcuts throughout the app.
 - **#9** — add a rehearsal workflow.
+- **#19** — member level access (scope TBD).
+- **#27** — service-assignment acceptance email changes.
+- **#40** — accounts for minors without an email.
+- **#41** — SMS integration.
+- **#48** — session expiry.
+- **#59** — position pairings per member (allow the same person in multiple
+  positions without double-booking); labelled *non-issue* — confirm scope
+  with Manoj before starting.
+
+**Decisions still in force (don't relitigate without Manoj):**
+- **Single-tenant per instance.** No `tenant_id`, no shared multi-tenant DB —
+  see CLAUDE.md's core architectural decision. Push back if asked to add
+  multi-tenancy.
+- **No per-team `is_leader`.** Added then reverted (#10); blocked on **#6**
+  ("what does Team Leader do"). Role lives on `people.role` only.
+- **#32 scheduling-rules epic:** proficiency is **2 levels**
+  (qualified/trainee), `requires_level` = `qualified` only; trainees count
+  toward `min_count` (`TRAINEE_UNSUPERVISED` fires only for an all-trainee
+  team); `MULTI_POSITION` always hard-errors; cadence is **hard** in the
+  auto-fill engine but a **warning** on a manual edit; `BELOW_REQUIRED_LEVEL`
+  folds into `NO_REQUIRED_LEVEL`.
+- **`plan_times` has no end time** and stays that way (the #78 clash check
+  derives its window from the service type's start/end instead).
+- **#89 managed accounts:** a managed account CAN later get its own login
+  (the manager is a stand-in, not permanent); the manager gets **self-level**
+  access (edit profile, accept/decline on their behalf) — never admin rights.
+
+**Gotchas worth remembering:**
+- **shadcn `Checkbox` / radix nested-interactive:** pair a Checkbox (or a
+  `DropdownMenuItem`'s sibling button) with a sibling `<label htmlFor>` — do
+  **not** nest the radix button inside the label; the label re-forwards the
+  click and cancels the toggle.
+- **shadcn `Card` has no `forwardRef`** — for dnd, wrap it in a
+  `<div ref={…}>`, don't pass `ref` to `Card`.
+- **`detectSessionInUrl` runs only at client init** — the reset-password page
+  needs a full page load with the recovery hash present; changing only the
+  hash on the same path won't trigger it.
+- **Optimistic position edits:** validation reads positions from the
+  `['positions']` query (`useAllPositions`); invalidating that prefix also
+  refreshes `['positions', teamId]`.
+- **The People list renders twice** (mobile cards `md:hidden` + desktop table
+  `hidden md:block`), so a plain `id` per person is ambiguous when scrolling
+  to a row — use a `data-person-row` attribute and pick the variant whose
+  `offsetParent !== null`.
+- **Scroll-on-navigation vs scroll-into-view race:** a layout-level
+  `window.scrollTo(0,0)` on pathname change must depend **only on
+  `pathname`** and skip when nav state carries a target to scroll to —
+  otherwise clearing that state re-fires the effect and snaps back to the top.
+- **Edge Functions aren't observable in the Vite/browser preview** — to
+  exercise an email-sending path (invites, account-access, reminders) locally,
+  run `npx supabase functions serve --env-file .env.functions.local` alongside
+  `npm run dev`.
+
+**Local verification quickstart:**
+```
+npx supabase start                 # Docker Desktop must be up; retry once if it wedges
+npx supabase db reset --local      # rebuild from migrations
+npx supabase gen types typescript --local > src/types/database.ts   # bash only
+npm run build && npm run lint && npm run typecheck && npm test
+npm run dev                        # then drive the UI via preview_* tools
+```
+The local DB has no `seed.sql` — after a reset it's empty (no users, no
+`church_settings`, so the app routes to `/setup`). To drive the UI, reseed:
+1. Keys: `npx supabase status` (Publishable `sb_publishable_…`, Secret
+   `sb_secret_…`).
+2. Create a confirmed admin via the GoTrue admin API:
+   `curl -s -X POST http://127.0.0.1:54321/auth/v1/admin/users` with
+   `apikey` + `Authorization: Bearer` = the **secret** key and body
+   `{"email":…,"password":…,"email_confirm":true}`; grab the returned `id`.
+3. One psql batch: insert a `church_settings` row (else `/setup`), a `people`
+   row (role `admin`, `auth_user_id` = that id), and whatever domain data is
+   needed. Pipe SQL via
+   `MSYS_NO_PATHCONV=1 docker exec -i supabase_db_lscroster psql -U postgres -d postgres < file.sql`
+   — Git Bash mangles container paths for `-f` / `docker cp`.
+
+**RLS probe:** seed a member JWT and confirm member writes to new rule tables
+→ 403, reads → 200, admin writes → success. Hidden buttons are not security.
+
+**preview_* tool notes:** `preview_eval` arg is `expression` (no top-level
+`await`); `preview_click` needs a CSS `selector` (no `:has-text`/`ref`) —
+click a button by text via eval; set a React-controlled input with the
+native value setter + `input`/`change` events; a programmatic `/auth` fetch
+does **not** log the SPA in, use the sign-in form. Radix `Select` isn't a
+native `<select>` — `preview_fill` can't set it; click by text via eval.
 
 **Schema since Phase 4:** migrations 0006–0021 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
