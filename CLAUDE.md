@@ -132,7 +132,7 @@ production database that lacks its tables.
 5. Mobile-first responsiveness is mandatory — most members will open plans and respond to requests on their phones.
 6. Keep dependencies minimal; prefer the locked stack over adding libraries.
 7. Conventional commits (`feat:`, `fix:`, `chore:`, `db:`); small commits; `build` + `typecheck` must pass before pushing.
-8. Anything that would break an existing church instance on upgrade (renamed columns, changed email links) needs a migration path and a note in `CHANGELOG.md`.
+8. Anything that would break an existing church instance on upgrade (renamed columns, changed email links) needs a migration path and a note in that issue's `PHASES.md` entry.
 9. UI language: modern, clean, fast. Sunday-morning-proof: big touch targets, obvious states, minimal clicks for the common tasks (view this week's plan, respond to a request).
 10. Verify on the local stack before deploying: `npx supabase db reset --local`, seed test users (local auth admin API + `docker exec supabase_db_lscroster psql`), drive the UI in a browser, and probe RLS at the API level with a member JWT — hidden buttons are not security.
 

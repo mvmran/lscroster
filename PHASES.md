@@ -678,7 +678,7 @@ blockouts, and email accept/decline.
 - [ ] `docs/SETUP.md`: step-by-step — fork repo → create Supabase project → run migrations (`supabase db push`) → set secrets → deploy to Vercel → first-run wizard. Include screenshots.
 - [ ] "Deploy with Vercel" button in README
 - [ ] Seed script with demo data (sample service type, songs, team) for evaluation, plus a wipe-demo-data command
-- [ ] `docs/UPGRADE.md`: pull latest → `supabase db push` → redeploy; versioned releases (git tags) + `CHANGELOG.md`
+- [ ] `docs/UPGRADE.md`: pull latest → `supabase db push` → redeploy; versioned releases (git tags), per-release notes in `PHASES.md`
 - [ ] Branding configurable per instance: church name, logo, colour accent, email sender — all via Settings, no code edits
 - [ ] Resend setup guide including custom domain/DNS for good email deliverability
 - [ ] Backup guidance (Supabase backups; manual `pg_dump` instructions)
