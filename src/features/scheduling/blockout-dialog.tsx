@@ -83,19 +83,22 @@ export function BlockoutDialog({
         </DialogHeader>
         <div className="flex flex-col items-center gap-4">
           {accounts.length > 1 && (
-            <div className="w-full max-w-[240px]">
-              <Select value={targetId} onValueChange={setTargetId}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts.map((acc) => (
-                    <SelectItem key={acc.id} value={acc.id}>
-                      {acc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="w-full flex items-center justify-start gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">Blockout for</span>
+              <div className="flex-1 max-w-[240px]">
+                <Select value={targetId} onValueChange={setTargetId}>
+                  <SelectTrigger className="h-8 text-sm w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((acc) => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                        {acc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
           <Calendar
