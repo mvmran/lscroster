@@ -3,7 +3,7 @@
 Solo developer, vibe-coded with Claude Code. Each phase ends with a **usable release**
 deployed to the live Life Sanctuary Church instance. Tick boxes as work completes.
 **Phases 0–4 are deployed to production.** Phase 3's real-user parallel run
-continues alongside. Two Phase-4 acceptance items remain open: (a) the worship
+continues alongside. Two Phase-4 acceptance items is now closed: (a) the worship
 pastor rosters a month in one sitting via the matrix view on prod, and (b) a
 call on whether to chase the Lighthouse performance target (production mobile:
 accessibility 98 ✓, performance 64). The perf gap is dominated by simulated
