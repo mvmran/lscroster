@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invokeFunction } from '@/lib/functions'
+import { invitationKeys } from '@/features/people/use-invitations'
 import { supabase } from '@/lib/supabase'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
@@ -117,16 +118,19 @@ export function usePeopleManagedBy(personId: string | undefined) {
 }
 
 /**
- * Archive, reactivate, or clear the email of an account via the account-access
- * Edge Function (issues #91/#92): it makes the change AND emails the person
- * about the resulting sign-in change, which the browser can't do.
+ * Archive, reactivate, clear the email of, or detach the managing member from an
+ * account via the account-access Edge Function (issues #91/#92, #89 follow-up):
+ * it makes the change AND emails the affected person (the account holder, or for
+ * detach-manager the former manager), which the browser can't do. detach-manager
+ * also clears any stale managed invitation so the record returns to a fresh
+ * pending state.
  */
 export function useAccountAccess() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (vars: {
       personId: string
-      action: 'archive' | 'reactivate' | 'clear-email'
+      action: 'archive' | 'reactivate' | 'clear-email' | 'detach-manager'
     }) =>
       invokeFunction<{ ok: boolean }>('account-access', {
         personId: vars.personId,
@@ -135,6 +139,11 @@ export function useAccountAccess() {
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: peopleKeys.all })
       queryClient.invalidateQueries({ queryKey: peopleKeys.detail(vars.personId) })
+      // The managed invitation was dropped server-side — refresh so the button
+      // reads "Send invitation" again rather than "Resend".
+      queryClient.invalidateQueries({
+        queryKey: invitationKeys.person(vars.personId),
+      })
     },
   })
 }

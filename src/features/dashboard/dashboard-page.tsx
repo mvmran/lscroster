@@ -14,7 +14,11 @@ import {
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
-import { DeclineDialog } from '@/features/scheduling/my-schedule-page'
+import { usePeopleManagedBy } from '@/features/people/use-people'
+import {
+  DeclineDialog,
+  ForWhom,
+} from '@/features/scheduling/my-schedule-page'
 import {
   useMyAssignments,
   useRespondInApp,
@@ -30,7 +34,12 @@ import { usePlans } from '@/features/services/use-plans'
 export function DashboardPage() {
   const { data: me, isPending: mePending } = useCurrentPerson()
   const { data: plans, isPending: plansPending } = usePlans()
-  const { data: assignments } = useMyAssignments(me?.id)
+  const { data: managed } = usePeopleManagedBy(me?.id)
+  const personIds = useMemo(
+    () => (me ? [me.id, ...(managed ?? []).map((m) => m.id)] : undefined),
+    [me, managed],
+  )
+  const { data: assignments } = useMyAssignments(personIds)
   const respond = useRespondInApp()
   const [declining, setDeclining] = useState<MyAssignment | null>(null)
 
@@ -92,7 +101,10 @@ export function DashboardPage() {
                 className="flex flex-col gap-2 rounded-md border px-3 py-2.5 sm:flex-row sm:items-center"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{formatPlanDate(assignment.plans.date)}</p>
+                  <p className="font-medium">
+                    {formatPlanDate(assignment.plans.date)}
+                    <ForWhom assignment={assignment} meId={me?.id} />
+                  </p>
                   <p className="text-muted-foreground truncate text-sm">
                     {assignment.positions.name} · {assignment.teams.name}
                   </p>
@@ -199,7 +211,10 @@ export function DashboardPage() {
                 className="hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-2"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{formatPlanDate(assignment.plans.date)}</p>
+                  <p className="font-medium">
+                    {formatPlanDate(assignment.plans.date)}
+                    <ForWhom assignment={assignment} meId={me?.id} />
+                  </p>
                   <p className="text-muted-foreground truncate text-sm">
                     {assignment.positions.name} · {assignment.teams.name}
                   </p>

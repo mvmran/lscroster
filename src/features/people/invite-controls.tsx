@@ -27,7 +27,12 @@ import {
   useRevokeInvite,
   useSendInvite,
 } from '@/features/people/use-invitations'
-import { usePerson, useUpdatePerson, type Person } from '@/features/people/use-people'
+import {
+  useAccountAccess,
+  usePerson,
+  useUpdatePerson,
+  type Person,
+} from '@/features/people/use-people'
 
 /**
  * Admin-only sign-in controls for a person without their own login: email
@@ -39,6 +44,7 @@ export function InviteControls({ person }: { person: Person }) {
   const sendInvite = useSendInvite()
   const revokeInvite = useRevokeInvite()
   const updatePerson = useUpdatePerson()
+  const accountAccess = useAccountAccess()
   const manager = usePerson(person.managed_by_person_id ?? undefined)
   const [manualLink, setManualLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -84,9 +90,11 @@ export function InviteControls({ person }: { person: Person }) {
 
   async function detach() {
     try {
-      await updatePerson.mutateAsync({
-        id: person.id,
-        values: { managed_by_person_id: null, managed_accepted_at: null },
+      // Routed through the Edge Function so the former manager is emailed and the
+      // stale managed invitation is cleared (the browser can't do either).
+      await accountAccess.mutateAsync({
+        personId: person.id,
+        action: 'detach-manager',
       })
       toast.success('Managing member removed')
     } catch (error) {
@@ -128,7 +136,7 @@ export function InviteControls({ person }: { person: Person }) {
             size="icon"
             className="size-7 shrink-0 text-destructive hover:text-destructive"
             onClick={() => setDetachOpen(true)}
-            disabled={updatePerson.isPending}
+            disabled={accountAccess.isPending}
             aria-label="Remove managing member"
           >
             <Trash2 className="size-4" />
@@ -173,13 +181,19 @@ export function InviteControls({ person }: { person: Person }) {
               <AlertDialogTitle>Remove {managerName}?</AlertDialogTitle>
               <AlertDialogDescription>
                 {managerName} will no longer be able to view or respond on behalf
-                of {person.first_name}. The account returns to pending — you can
-                assign another member or send an email invitation instead.
+                of {person.first_name}, and will be emailed about the change. The
+                account returns to pending — you can assign another member or send
+                an email invitation instead.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={detach}>Remove</AlertDialogAction>
+              <AlertDialogAction
+                onClick={detach}
+                disabled={accountAccess.isPending}
+              >
+                Remove
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

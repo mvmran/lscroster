@@ -31,6 +31,8 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { usePeopleManagedBy } from '@/features/people/use-people'
+import { fullName } from '@/features/people/person-utils'
 import { BlockoutDialog } from '@/features/scheduling/blockout-dialog'
 import {
   ASSIGNMENT_STATUS_CLASSES,
@@ -52,7 +54,34 @@ import {
   todayISODate,
 } from '@/features/services/service-utils'
 
-function AssignmentSummary({ assignment }: { assignment: MyAssignment }) {
+/**
+ * For a managed account (issue #89) the row belongs to the managed member, not
+ * the signed-in manager — append "(for <name>)" with an italic "for". Returns
+ * null for the manager's own rows.
+ */
+export function ForWhom({
+  assignment,
+  meId,
+}: {
+  assignment: MyAssignment
+  meId: string | undefined
+}) {
+  if (!assignment.people || assignment.person_id === meId) return null
+  return (
+    <span className="text-muted-foreground font-normal">
+      {' '}
+      (<i>for</i> {fullName(assignment.people)})
+    </span>
+  )
+}
+
+function AssignmentSummary({
+  assignment,
+  meId,
+}: {
+  assignment: MyAssignment
+  meId: string | undefined
+}) {
   // The plan's own labelled times (rehearsal + service) win over the
   // service type's default start time.
   const planTimes = [...assignment.plans.plan_times].sort((a, b) =>
@@ -69,7 +98,10 @@ function AssignmentSummary({ assignment }: { assignment: MyAssignment }) {
         )
   return (
     <div className="min-w-0 flex-1">
-      <p className="font-medium">{formatPlanDate(assignment.plans.date)}</p>
+      <p className="font-medium">
+        {formatPlanDate(assignment.plans.date)}
+        <ForWhom assignment={assignment} meId={meId} />
+      </p>
       <p className="text-muted-foreground truncate text-sm">
         {time ? `${time} · ` : ''}
         {assignment.positions.name} · {assignment.teams.name}
@@ -137,7 +169,12 @@ export function DeclineDialog({
 
 export function MySchedulePage() {
   const { data: me, isPending: mePending } = useCurrentPerson()
-  const { data: assignments, isPending } = useMyAssignments(me?.id)
+  const { data: managed } = usePeopleManagedBy(me?.id)
+  const personIds = useMemo(
+    () => (me ? [me.id, ...(managed ?? []).map((m) => m.id)] : undefined),
+    [me, managed],
+  )
+  const { data: assignments, isPending } = useMyAssignments(personIds)
   const { data: blockouts, isPending: blockoutsPending } = usePersonBlockouts(me?.id)
   const respond = useRespondInApp()
   const deleteBlockout = useDeleteBlockout()
@@ -192,7 +229,7 @@ export function MySchedulePage() {
                     key={assignment.id}
                     className="flex flex-col gap-2 rounded-md border px-3 py-2.5 sm:flex-row sm:items-center"
                   >
-                    <AssignmentSummary assignment={assignment} />
+                    <AssignmentSummary assignment={assignment} meId={me.id} />
                     <div className="flex gap-2">
                       <Button
                         size="sm"
@@ -246,7 +283,7 @@ export function MySchedulePage() {
                     to={`/services/plans/${assignment.plan_id}`}
                     className="hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-2"
                   >
-                    <AssignmentSummary assignment={assignment} />
+                    <AssignmentSummary assignment={assignment} meId={me.id} />
                     <Badge className={ASSIGNMENT_STATUS_CLASSES[assignment.status]}>
                       {assignment.status === 'pending'
                         ? 'Not sent yet'
