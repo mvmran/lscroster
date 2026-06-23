@@ -49,17 +49,6 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   run `npx supabase functions serve --env-file .env.functions.local` alongside
   `npm run dev`.
 
-**Matrix toolbar + bulk email (client-only, no schema):** Prev/Now/Next and the
-Columns stepper were shrunk to free header space; "Suggest roster" groups its
-suggestions by team (matching the plan's team order, via
-`useAutoScheduler().orderedTeamIds`) with a per-team select-all checkbox above
-the indented per-person rows. New **Bulk email** button (top-right of the
-Matrix) opens a dialog listing only the displayed services with ≥1 outstanding
-request email (assigned, `notified_at` still null); pick services, then narrow
-by Team or Member via a searchable checklist, and send — reuses `send-requests`
-per plan through the new `useBulkSendRequests` hook
-(`use-assignments.ts`/`bulk-email-dialog.tsx`).
-
 **Local verification quickstart:**
 ```
 npx supabase start                 # Docker Desktop must be up; retry once if it wedges
