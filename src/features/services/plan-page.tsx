@@ -1143,7 +1143,7 @@ export function PlanPage() {
         </div>
       )}
 
-      <SchedulingPanel plan={plan} canManage={canManage} />
+      <SchedulingPanel plan={plan} />
 
       <PlanTimesCard planId={plan.id} canManage={canManage} />
       <PlanMediaCard

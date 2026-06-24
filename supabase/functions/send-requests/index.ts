@@ -1,9 +1,9 @@
 // Sends scheduling request emails for a plan's pending assignments (or a
-// specific subset, for resends). Leader/admin only. Generates a fresh response
-// token per email; only the hash is stored.
+// specific subset, for resends). Admins + the assignment's Team Leader only.
+// Generates a fresh response token per email; only the hash is stored.
 
 import { z } from 'npm:zod@4'
-import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
+import { getCallerPerson, serviceClient, teamScopeFor } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { fetchEmailPrefs, prefAllows, resolveRecipient } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
@@ -28,6 +28,7 @@ interface AssignmentRow {
   id: string
   status: string
   notified_at: string | null
+  team_id: string
   people: {
     id: string
     first_name: string
@@ -51,8 +52,9 @@ Deno.serve(async (req) => {
   const admin = serviceClient()
   const caller = await getCallerPerson(req, admin)
   if (!caller) return jsonResponse({ error: 'Not authenticated' }, 401)
-  if (caller.role !== 'admin' && caller.role !== 'leader') {
-    return jsonResponse({ error: 'Only leaders can send requests' }, 403)
+  const scope = await teamScopeFor(admin, caller)
+  if (!scope) {
+    return jsonResponse({ error: 'You do not manage any team' }, 403)
   }
 
   const parsed = requestSchema.safeParse(await req.json().catch(() => null))
@@ -69,7 +71,7 @@ Deno.serve(async (req) => {
   let query = admin
     .from('plan_assignments')
     .select(
-      'id, status, notified_at, people(id, first_name, last_name, email, status, managed_by_person_id), positions(name), teams(name)',
+      'id, status, notified_at, team_id, people(id, first_name, last_name, email, status, managed_by_person_id), positions(name), teams(name)',
     )
     .eq('plan_id', planId)
   // For an explicit "send email" on one person (issue #15) we don't restrict to
@@ -124,6 +126,11 @@ Deno.serve(async (req) => {
   for (const assignment of assignments as unknown as AssignmentRow[]) {
     const person = assignment.people
     const fullName = `${person.first_name} ${person.last_name}`.trim()
+    // A Team Leader can only email their own teams' assignments (admins: all).
+    if (!scope.canManageTeam(assignment.team_id)) {
+      skipped.push({ name: fullName, reason: 'not your team' })
+      continue
+    }
     if (person.status !== 'active') {
       skipped.push({ name: fullName, reason: 'inactive' })
       continue

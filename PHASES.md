@@ -96,10 +96,25 @@ archive-sign-in triggers; `plan_template_times` table; drop `team_exclusions`;
 `people.managed_by_person_id`/`managed_accepted_at` + `manages_person()` /
 `manages_photo_folder()` helpers + manager RLS policies; (0022)
 `managed_plan_visibility` widens `is_assigned_to_plan()` so a manager sees the
-plans their managed people are rostered onto). New Edge Functions:
+plans their managed people are rostered onto; (0023) `team_access_grants`:
+per-team `team_leaders` + `team_viewers` tables with `leads_team()` /
+`can_manage_team()` / `views_team()` / `is_viewer_of_plan()` helpers — re-points
+the team/position/membership/assignment **write** policies from blanket
+`is_admin_or_leader()` to per-team `can_manage_team()`, and extends the
+plan/items/times/attachments/assignment **read** policies so Team Viewers get a
+read-only view of their teams' rosters incl. drafts). New Edge Functions:
 `cancel-assignment`, `send-plan-notification`, `request-password-reset`; new
-shared `_shared/email-prefs.ts` (per-person opt-outs + managed-account routing).
+shared `_shared/email-prefs.ts` (per-person opt-outs + managed-account routing);
+`_shared/auth.ts` gains `teamScopeFor()` so `send-requests`/`cancel-assignment`
+enforce the same per-team boundary as RLS.
 Regenerate `src/types/database.ts` from the local stack after pulling.
+
+**Upgrade note (0023 — per-team access grants):** management is no longer
+global. After `db push`, an existing global **Leader** keeps governance (create
+teams, appoint Team Leaders/Viewers on any team) and broad read, but can no
+longer edit a team's positions/members/assignments unless appointed that team's
+**Team Leader**. Admins are unaffected. No data migration needed — appoint Team
+Leaders via each team's page.
 
 ---
 

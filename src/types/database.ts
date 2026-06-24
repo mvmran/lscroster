@@ -1117,6 +1117,45 @@ export type Database = {
         }
         Relationships: []
       }
+      team_leaders: {
+        Row: {
+          created_at: string
+          id: string
+          person_id: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          person_id: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          person_id?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_leaders_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_leaders_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_member_positions: {
         Row: {
           created_at: string
@@ -1198,6 +1237,45 @@ export type Database = {
           },
         ]
       }
+      team_viewers: {
+        Row: {
+          created_at: string
+          id: string
+          person_id: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          person_id: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          person_id?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_viewers_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_viewers_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
           created_at: string
@@ -1243,6 +1321,7 @@ export type Database = {
       }
     }
     Functions: {
+      can_manage_team: { Args: { target_team_id: string }; Returns: boolean }
       current_person_id: { Args: never; Returns: string }
       current_person_role: {
         Args: never
@@ -1254,8 +1333,12 @@ export type Database = {
         Args: { target_plan_id: string }
         Returns: boolean
       }
+      is_viewer_of_plan: { Args: { target_plan_id: string }; Returns: boolean }
+      leads_team: { Args: { target_team_id: string }; Returns: boolean }
       manages_person: { Args: { target: string }; Returns: boolean }
       manages_photo_folder: { Args: { object_name: string }; Returns: boolean }
+      team_of_member: { Args: { target_member_id: string }; Returns: string }
+      views_team: { Args: { target_team_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "leader" | "member"

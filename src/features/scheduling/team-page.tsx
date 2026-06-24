@@ -51,11 +51,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
-import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { fullName } from '@/features/people/person-utils'
 import { usePeople } from '@/features/people/use-people'
 import { PositionLevelPill } from '@/features/scheduling/position-level-pill'
 import { ServiceTypePicker } from '@/features/scheduling/service-type-picker'
+import { TeamGrantCard } from '@/features/scheduling/team-grants-card'
+import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import { otherProficiency, type Position } from '@/features/scheduling/scheduling-utils'
 import {
   useDeleteTeam,
@@ -641,7 +642,7 @@ function MembersCard({
 export function TeamPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data: me } = useCurrentPerson()
+  const perms = useTeamPermissions()
   const { data: team, isPending, isError, error } = useTeam(id)
   const { data: serviceTypes } = useServiceTypes()
   const updateTeam = useUpdateTeam()
@@ -653,7 +654,9 @@ export function TeamPage() {
   const [name, setName] = useState('')
   const [serviceTypeIds, setServiceTypeIds] = useState<string[]>([])
 
-  const canManage = me?.role === 'admin' || me?.role === 'leader'
+  // Governance (admins + global leaders) edit the team and appoint grants;
+  // content management (positions, members) is scoped to this team's leaders.
+  const canGovern = perms.canGovern
   const savingEdit = updateTeam.isPending || setTeamServiceTypes.isPending
 
   if (isError) return <FullPageError message={error.message} />
@@ -685,6 +688,7 @@ export function TeamPage() {
     team.service_type_teams.length === 0
       ? 'All services'
       : typeNames.join(', ') || 'All services'
+  const canManageContent = perms.canManageTeam(team.id)
 
   function openEdit() {
     setName(team!.name)
@@ -741,7 +745,7 @@ export function TeamPage() {
             <h1 className="text-2xl font-semibold">{team.name}</h1>
             <p className="text-muted-foreground text-sm">{typeName}</p>
           </div>
-          {canManage && (
+          {canGovern && (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={openEdit}>
                 <Pencil className="size-4" />
@@ -756,8 +760,10 @@ export function TeamPage() {
         </div>
       </div>
 
-      <PositionsCard teamId={team.id} canManage={canManage} />
-      <MembersCard teamId={team.id} canManage={canManage} />
+      <PositionsCard teamId={team.id} canManage={canManageContent} />
+      <MembersCard teamId={team.id} canManage={canManageContent} />
+      <TeamGrantCard teamId={team.id} kind="leader" canManage={canGovern} />
+      <TeamGrantCard teamId={team.id} kind="viewer" canManage={canGovern} />
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-md">

@@ -60,6 +60,8 @@ import {
   type AssignmentWithPerson,
 } from '@/features/scheduling/use-assignments'
 import { useBlockouts } from '@/features/scheduling/use-blockouts'
+import { useTeamPermissions } from '@/features/scheduling/use-team-access'
+import { useCurrentPerson } from '@/features/auth/use-current-person'
 import {
   serviceTypeTeamSort,
   teamServesType,
@@ -378,16 +380,12 @@ function PositionMinCount({ position }: { position: Position }) {
   )
 }
 
-export function SchedulingPanel({
-  plan,
-  canManage,
-}: {
-  plan: PlanWithType
-  canManage: boolean
-}) {
+export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
   const { data: teams, isPending: teamsPending } = useTeams()
   const { data: positions } = useAllPositions()
   const { data: assignments, isPending: assignmentsPending } = usePlanAssignments(plan.id)
+  const perms = useTeamPermissions()
+  const { data: me } = useCurrentPerson()
   const deleteAssignment = useDeleteAssignment(plan.id)
   const cancelAssignment = useCancelAssignment(plan.id)
   const sendRequests = useSendRequests(plan.id)
@@ -411,15 +409,60 @@ export function SchedulingPanel({
     [teams, plan.service_type_id],
   )
 
+  const { canManageTeam, canViewTeam, isAdmin } = perms
+
+  // Teams on this plan the signed-in person may manage (admin or Team Leader).
+  const manageablePlanTeamIds = useMemo(
+    () => new Set(planTeams.filter((t) => canManageTeam(t.id)).map((t) => t.id)),
+    [planTeams, canManageTeam],
+  )
+  const manageAny = manageablePlanTeamIds.size > 0
+
+  // Teams whose blocks render at all: managed, on a published plan (everyone),
+  // viewed (read-only Team Viewers), or the member's own assigned team on a draft.
+  const assignedTeamIds = useMemo(
+    () =>
+      new Set(
+        (assignments ?? [])
+          .filter((a) => a.person_id === me?.id)
+          .map((a) => a.team_id),
+      ),
+    [assignments, me?.id],
+  )
+  const visibleTeams = useMemo(
+    () =>
+      planTeams.filter(
+        (t) =>
+          canManageTeam(t.id) ||
+          plan.status === 'published' ||
+          canViewTeam(t.id) ||
+          assignedTeamIds.has(t.id),
+      ),
+    [planTeams, canManageTeam, canViewTeam, plan.status, assignedTeamIds],
+  )
+
+  // Suggest-roster covers only the teams this person manages (auto-fills theirs).
+  const excludeTeamIds = useMemo(
+    () => (isAdmin ? [] : planTeams.filter((t) => !canManageTeam(t.id)).map((t) => t.id)),
+    [isAdmin, planTeams, canManageTeam],
+  )
+
   const unsentAssignments = useMemo(
     () =>
-      (assignments ?? []).filter((a) => a.status === 'pending' && !a.notified_at),
-    [assignments],
+      (assignments ?? []).filter(
+        (a) =>
+          a.status === 'pending' &&
+          !a.notified_at &&
+          manageablePlanTeamIds.has(a.team_id),
+      ),
+    [assignments, manageablePlanTeamIds],
   )
   const unsentCount = unsentAssignments.length
 
   function send() {
-    sendRequests.mutate(undefined, {
+    const ids = unsentAssignments.map((a) => a.id)
+    if (ids.length === 0) return
+    sendRequests.mutate(ids, {
       onSuccess: (result) => {
         if (result.sent > 0) {
           toast.success(
@@ -483,7 +526,7 @@ export function SchedulingPanel({
   }
 
   if (planTeams.length === 0 && !teamsPending) {
-    if (!canManage) return null
+    if (!manageAny) return null
     return (
       <Card>
         <CardHeader>
@@ -505,10 +548,10 @@ export function SchedulingPanel({
             <CardTitle>People</CardTitle>
             <CardDescription>Who's serving on this plan.</CardDescription>
           </div>
-          {canManage && (
+          {manageAny && (
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-2">
-                <SuggestRosterButton plan={plan} />
+                <SuggestRosterButton plan={plan} excludeTeamIds={excludeTeamIds} />
                 {unsentCount > 0 && (
                   <Button size="sm" onClick={send} disabled={sendRequests.isPending}>
                     {sendRequests.isPending ? (
@@ -541,7 +584,8 @@ export function SchedulingPanel({
         {teamsPending || assignmentsPending ? (
           <Skeleton className="h-24 w-full" />
         ) : (
-          planTeams.map((team) => {
+          visibleTeams.map((team) => {
+            const teamManage = canManageTeam(team.id)
             const teamPositions = (positions ?? []).filter(
               (p) => p.team_id === team.id,
             )
@@ -573,7 +617,7 @@ export function SchedulingPanel({
                             <span className="text-sm font-medium">{position.name}</span>
                             <RuleBadges results={posResults} />
                           </div>
-                          {canManage && (
+                          {teamManage && (
                             <div className="flex items-center gap-1">
                               <PositionMinCount position={position} />
                               <Button
@@ -596,7 +640,7 @@ export function SchedulingPanel({
                                 : 'text-muted-foreground text-sm'
                             }
                           >
-                            {canManage ? 'Nobody scheduled yet.' : '—'}
+                            {teamManage ? 'Nobody scheduled yet.' : '—'}
                           </p>
                         ) : (
                           slotAssignments.map((assignment) => {
@@ -639,7 +683,7 @@ export function SchedulingPanel({
                                 >
                                   {ASSIGNMENT_STATUS_LABELS[assignment.status]}
                                 </Badge>
-                                {canManage && (
+                                {teamManage && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button

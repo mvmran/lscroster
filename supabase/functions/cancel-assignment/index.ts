@@ -2,11 +2,12 @@
 // it (confirmed, or pending with the request already sent — issue #85), emails
 // them a cancellation notice (issue #16). Honours the person's roster-email
 // preference (issue #87) and routes to a managing member when the person has no
-// email of their own (issue #89). Leader/admin only. The delete runs with the
-// service role so it succeeds regardless of who the assignee is.
+// email of their own (issue #89). Admins + the assignment's Team Leader only.
+// The delete runs with the service role so it succeeds regardless of who the
+// assignee is.
 
 import { z } from 'npm:zod@4'
-import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
+import { getCallerPerson, serviceClient, teamScopeFor } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { fetchEmailPrefs, prefAllows, resolveRecipient } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
@@ -27,6 +28,7 @@ interface AssignmentRow {
   status: string
   notified_at: string | null
   plan_id: string
+  team_id: string
   people: {
     id: string
     first_name: string
@@ -57,8 +59,9 @@ Deno.serve(async (req) => {
   const admin = serviceClient()
   const caller = await getCallerPerson(req, admin)
   if (!caller) return jsonResponse({ error: 'Not authenticated' }, 401)
-  if (caller.role !== 'admin' && caller.role !== 'leader') {
-    return jsonResponse({ error: 'Only leaders can remove people' }, 403)
+  const scope = await teamScopeFor(admin, caller)
+  if (!scope) {
+    return jsonResponse({ error: 'You do not manage any team' }, 403)
   }
 
   const parsed = requestSchema.safeParse(await req.json().catch(() => null))
@@ -68,7 +71,7 @@ Deno.serve(async (req) => {
   const { data: assignment } = await admin
     .from('plan_assignments')
     .select(
-      `id, status, notified_at, plan_id,
+      `id, status, notified_at, plan_id, team_id,
        people(id, first_name, last_name, email, status, managed_by_person_id),
        positions(name), teams(name),
        plans!inner(id, date, title, start_time, service_types(name, default_start_time))`,
@@ -78,6 +81,10 @@ Deno.serve(async (req) => {
   if (!assignment) return jsonResponse({ error: 'Assignment not found' }, 404)
 
   const row = assignment as unknown as AssignmentRow
+  // A Team Leader can only remove people from their own teams (admins: any).
+  if (!scope.canManageTeam(row.team_id)) {
+    return jsonResponse({ error: 'Not your team' }, 403)
+  }
   const person = row.people
 
   // Notify anyone who has already been emailed about this slot: confirmed

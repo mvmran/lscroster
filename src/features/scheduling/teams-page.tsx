@@ -17,8 +17,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { ServiceTypePicker } from '@/features/scheduling/service-type-picker'
+import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import {
   useCreateTeam,
   useSetTeamServiceTypes,
@@ -112,10 +112,10 @@ function NewTeamDialog({
 export function TeamsPage() {
   const { data: teams, isPending, isError, error } = useTeams()
   const { data: serviceTypes } = useServiceTypes()
-  const { data: me } = useCurrentPerson()
+  const { canGovern } = useTeamPermissions()
   const [newTeamOpen, setNewTeamOpen] = useState(false)
 
-  const canManage = me?.role === 'admin' || me?.role === 'leader'
+  const canManage = canGovern
   const typeLabel = (team: TeamWithCounts) => {
     if (team.service_type_teams.length === 0) return 'All services'
     const names = team.service_type_teams

@@ -46,3 +46,32 @@ export async function getCallerPerson(
     .maybeSingle()
   return (person as CallerPerson | null) ?? null
 }
+
+/** team_ids the person is a Team Leader of (empty for non-leaders). */
+export async function getLedTeamIds(
+  admin: SupabaseClient,
+  personId: string,
+): Promise<Set<string>> {
+  const { data } = await admin
+    .from('team_leaders')
+    .select('team_id')
+    .eq('person_id', personId)
+  return new Set((data ?? []).map((r) => r.team_id as string))
+}
+
+/**
+ * Authorises a caller to manage plan assignments for a set of teams. Admins may
+ * manage any team; everyone else only the teams they are a Team Leader of. The
+ * returned predicate mirrors the `can_manage_team()` RLS helper so Edge
+ * Functions (which run with the service role and bypass RLS) enforce the same
+ * per-team boundary. Returns null when the caller manages no team at all.
+ */
+export async function teamScopeFor(
+  admin: SupabaseClient,
+  caller: CallerPerson,
+): Promise<{ canManageTeam: (teamId: string) => boolean } | null> {
+  if (caller.role === 'admin') return { canManageTeam: () => true }
+  const ledTeamIds = await getLedTeamIds(admin, caller.id)
+  if (ledTeamIds.size === 0) return null
+  return { canManageTeam: (teamId: string) => ledTeamIds.has(teamId) }
+}

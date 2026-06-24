@@ -102,6 +102,7 @@ import {
   useAllPositions,
   useTeams,
 } from '@/features/scheduling/use-teams'
+import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import { supabase } from '@/lib/supabase'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import {
@@ -140,6 +141,7 @@ function MatrixCell({
   plan,
   assignments,
   teamServesPlan,
+  canManage,
   positionResults,
   personResultsById,
   onAdd,
@@ -148,6 +150,8 @@ function MatrixCell({
   plan: PlanWithType
   assignments: AssignmentWithPerson[]
   teamServesPlan: boolean
+  /** Whether the signed-in person manages this cell's team (per-team). */
+  canManage: boolean
   /** Coverage results for this position in this plan (issue #34). */
   positionResults: RuleResult[]
   /** person_id → that person's validation results in this plan. */
@@ -187,7 +191,7 @@ function MatrixCell({
     })
   }
 
-  if (!teamServesPlan) {
+  if (!teamServesPlan || (!canManage && assignments.length === 0)) {
     return <td className="text-muted-foreground/40 border-l p-2 text-center">—</td>
   }
 
@@ -225,6 +229,7 @@ function MatrixCell({
                 {assignment.people.first_name}{' '}
                 {assignment.people.last_name.charAt(0)}.
               </Link>
+              {canManage && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -296,22 +301,25 @@ function MatrixCell({
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
+              )}
             </div>
           )
         })}
-        <button
-          type="button"
-          onClick={onAdd}
-          title={understaffed ? positionResults.map((r) => r.message).join('\n') : undefined}
-          className={
-            understaffed
-              ? 'flex items-center justify-center rounded-md border border-dashed border-red-500/60 px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40'
-              : 'text-muted-foreground/60 hover:bg-accent hover:text-foreground flex items-center justify-center rounded-md border border-dashed px-2 py-1 text-xs'
-          }
-          aria-label={understaffed ? 'Understaffed — schedule someone' : 'Schedule someone'}
-        >
-          <Plus className="size-3.5" />
-        </button>
+        {canManage && (
+          <button
+            type="button"
+            onClick={onAdd}
+            title={understaffed ? positionResults.map((r) => r.message).join('\n') : undefined}
+            className={
+              understaffed
+                ? 'flex items-center justify-center rounded-md border border-dashed border-red-500/60 px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40'
+                : 'text-muted-foreground/60 hover:bg-accent hover:text-foreground flex items-center justify-center rounded-md border border-dashed px-2 py-1 text-xs'
+            }
+            aria-label={understaffed ? 'Understaffed — schedule someone' : 'Schedule someone'}
+          >
+            <Plus className="size-3.5" />
+          </button>
+        )}
       </div>
     </td>
   )
@@ -548,12 +556,15 @@ function MatrixOrderCell({
 export function MatrixPage() {
   const plansQuery = usePlans()
   const { data: me } = useCurrentPerson()
+  const perms = useTeamPermissions()
   const { data: teams, isPending: teamsPending } = useTeams()
   const { data: positions } = useAllPositions()
 
   // Only admins/leaders can reorder a plan's order of service (issue #79); RLS
   // enforces it too, so members see the list read-only (no drag handles).
-  const canManage = me?.role === 'admin' || me?.role === 'leader'
+  const canEditOrder = me?.role === 'admin' || me?.role === 'leader'
+  // Cell editing is per-team: admins + this team's Team Leaders.
+  const canManageAny = perms.isAdmin || perms.ledTeamIds.size > 0
 
   const [typeFilter, setTypeFilter] = useState('all')
   const [picker, setPicker] = useState<(PickerTarget & { plan: PlanWithType }) | null>(null)
@@ -654,6 +665,14 @@ export function MatrixPage() {
     [sortedTeams, positions],
   )
 
+  // Teams the signed-in person can't manage — excluded from "Suggest roster" so
+  // a Team Leader only auto-fills their own teams (admins fill everything).
+  const { canManageTeam, isAdmin } = perms
+  const nonManageableTeamIds = useMemo(
+    () => (isAdmin ? [] : (teams ?? []).filter((t) => !canManageTeam(t.id)).map((t) => t.id)),
+    [isAdmin, teams, canManageTeam],
+  )
+
   const planIds = useMemo(() => matrixPlans.map((p) => p.id), [matrixPlans])
   const assignmentsQuery = useMatrixAssignments(planIds)
   const assignmentsByPlan = assignmentsQuery.data ?? {}
@@ -697,7 +716,7 @@ export function MatrixPage() {
               Services
             </Link>
           </Button>
-          {canManage && !loading && (
+          {(canEditOrder || canManageAny) && !loading && (
             <BulkEmailButton
               plans={matrixPlans}
               assignmentsByPlan={assignmentsByPlan}
@@ -902,7 +921,7 @@ export function MatrixPage() {
               <tr className="border-b">
                 <td className="bg-card sticky left-0 z-10 p-2 align-top" />
                 {matrixPlans.map((plan) => (
-                  <MatrixOrderCell key={plan.id} plan={plan} canManage={canManage} />
+                  <MatrixOrderCell key={plan.id} plan={plan} canManage={canEditOrder} />
                 ))}
               </tr>
               {sortedTeams.map((team, teamIndex) => {
@@ -912,7 +931,7 @@ export function MatrixPage() {
                 if (teamPositions.length === 0) return null
                 // The first team heading carries a per-column "Suggest roster"
                 // button that auto-fills that service's visible roster.
-                const showSuggest = teamIndex === 0 && canManage
+                const showSuggest = teamIndex === 0 && canManageAny
                 const teamCollapsed = collapsedTeamIds.has(team.id)
                 return [
                   <tr key={team.id}>
@@ -952,13 +971,15 @@ export function MatrixPage() {
                       >
                         {showSuggest &&
                           (() => {
-                            // Only count/act on assignments in visible teams (#68).
+                            // Only count/act on assignments in visible teams the
+                            // person manages (#68 + per-team leaders).
                             const unsentIds = (assignmentsByPlan[plan.id] ?? [])
                               .filter(
                                 (a) =>
                                   a.status === 'pending' &&
                                   !a.notified_at &&
-                                  !collapsedTeamIds.has(a.team_id),
+                                  !collapsedTeamIds.has(a.team_id) &&
+                                  canManageTeam(a.team_id),
                               )
                               .map((a) => a.id)
                             return (
@@ -966,7 +987,12 @@ export function MatrixPage() {
                                 <SuggestRosterButton
                                   plan={plan}
                                   compact
-                                  excludeTeamIds={[...collapsedTeamIds]}
+                                  excludeTeamIds={[
+                                    ...new Set([
+                                      ...collapsedTeamIds,
+                                      ...nonManageableTeamIds,
+                                    ]),
+                                  ]}
                                 />
                                 <SendColumnButton plan={plan} unsentIds={unsentIds} />
                                 <CancelUnsentColumnButton
@@ -994,6 +1020,7 @@ export function MatrixPage() {
                               (a) => a.position_id === position.id,
                             )}
                             teamServesPlan={teamServesType(team, plan.service_type_id)}
+                            canManage={canManageTeam(team.id)}
                             positionResults={
                               planValidation?.byPosition.get(position.id) ?? []
                             }
