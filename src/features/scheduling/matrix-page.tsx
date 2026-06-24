@@ -317,11 +317,17 @@ function MatrixCell({
   )
 }
 
-function SendColumnButton({ plan, unsent }: { plan: PlanWithType; unsent: number }) {
+function SendColumnButton({
+  plan,
+  unsentIds,
+}: {
+  plan: PlanWithType
+  unsentIds: string[]
+}) {
   const sendRequests = useSendRequests(plan.id)
   const tooltip =
-    unsent > 0
-      ? `Send ${unsent} request${unsent === 1 ? '' : 's'}`
+    unsentIds.length > 0
+      ? `Send ${unsentIds.length} request${unsentIds.length === 1 ? '' : 's'}`
       : 'No requests to send'
   return (
     <Button
@@ -330,9 +336,9 @@ function SendColumnButton({ plan, unsent }: { plan: PlanWithType; unsent: number
       className="size-6 shrink-0 border-muted-foreground/40 p-0"
       title={tooltip}
       aria-label={tooltip}
-      disabled={unsent === 0 || sendRequests.isPending}
+      disabled={unsentIds.length === 0 || sendRequests.isPending}
       onClick={() =>
-        sendRequests.mutate(undefined, {
+        sendRequests.mutate(unsentIds, {
           onSuccess: (result) => {
             if (result.sent > 0) toast.success(`${result.sent} sent`)
             for (const skip of result.skipped) {
@@ -558,6 +564,10 @@ export function MatrixPage() {
   // Collapsed (hidden) plan columns (issue #68); the window fills the next plan
   // in to keep the column count steady.
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
+  // Collapsed (hidden) team sections: their position rows are hidden, leaving
+  // only the team header. The per-column plan-level actions (suggest / send /
+  // cancel) then act only on the teams still visible.
+  const [collapsedTeamIds, setCollapsedTeamIds] = useState<Set<string>>(new Set())
   const { order, saveOrder } = useMatrixTeamOrder()
   const { count: planCount, setCount: setPlanCount } = useMatrixPlanCount()
 
@@ -601,6 +611,15 @@ export function MatrixPage() {
     setCollapsedIds((prev) => {
       const next = new Set(prev)
       next.delete(id)
+      return next
+    })
+  }
+
+  function toggleTeamCollapse(id: string) {
+    setCollapsedTeamIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -892,65 +911,75 @@ export function MatrixPage() {
                 )
                 if (teamPositions.length === 0) return null
                 // The first team heading carries a per-column "Suggest roster"
-                // button that auto-fills that service's whole roster.
+                // button that auto-fills that service's visible roster.
                 const showSuggest = teamIndex === 0 && canManage
+                const teamCollapsed = collapsedTeamIds.has(team.id)
                 return [
                   <tr key={team.id}>
-                    {showSuggest ? (
-                      <>
-                        <td className="bg-muted/50 text-muted-foreground sticky left-0 z-10 border-b p-0 text-xs font-semibold tracking-wide uppercase">
-                          <Link
-                            to={`/teams/${team.id}`}
-                            className="inline-block px-2 py-1 hover:underline"
-                          >
-                            {team.name}
-                          </Link>
-                        </td>
-                        {matrixPlans.map((plan) => (
-                          <td
-                            key={plan.id}
-                            className="bg-muted/50 border-b border-l p-1 align-middle"
-                          >
-                            {(() => {
-                              const unsentIds = (assignmentsByPlan[plan.id] ?? [])
-                                .filter(
-                                  (a) =>
-                                    a.status === 'pending' && !a.notified_at,
-                                )
-                                .map((a) => a.id)
-                              return (
-                                <div className="flex items-center justify-start gap-1">
-                                  <SuggestRosterButton plan={plan} compact />
-                                  <SendColumnButton
-                                    plan={plan}
-                                    unsent={unsentIds.length}
-                                  />
-                                  <CancelUnsentColumnButton
-                                    plan={plan}
-                                    unsentIds={unsentIds}
-                                  />
-                                </div>
-                              )
-                            })()}
-                          </td>
-                        ))}
-                      </>
-                    ) : (
-                      <td
-                        colSpan={matrixPlans.length + 1}
-                        className="bg-muted/50 text-muted-foreground border-b p-0 text-xs font-semibold tracking-wide uppercase"
-                      >
-                        {/* Team name links to the team view (issue #74). */}
+                    {/* Sticky team-name cell with a hide toggle (right-justified)
+                        that collapses this team's position rows. */}
+                    <td className="bg-muted/50 text-muted-foreground sticky left-0 z-10 border-b p-0 text-xs font-semibold tracking-wide uppercase">
+                      <div className="flex items-center justify-between gap-2 px-2 py-1">
                         <Link
                           to={`/teams/${team.id}`}
-                          className="sticky left-0 inline-block px-2 py-1 hover:underline"
+                          className="hover:underline"
                         >
                           {team.name}
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => toggleTeamCollapse(team.id)}
+                          className="text-muted-foreground/60 hover:text-foreground shrink-0 p-0.5"
+                          title={teamCollapsed ? 'Show positions' : 'Hide positions'}
+                          aria-label={
+                            teamCollapsed
+                              ? `Show ${team.name} positions`
+                              : `Hide ${team.name} positions`
+                          }
+                        >
+                          {teamCollapsed ? (
+                            <Eye className="size-3.5" />
+                          ) : (
+                            <EyeOff className="size-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                    {matrixPlans.map((plan) => (
+                      <td
+                        key={plan.id}
+                        className="bg-muted/50 border-b border-l p-1 align-middle"
+                      >
+                        {showSuggest &&
+                          (() => {
+                            // Only count/act on assignments in visible teams (#68).
+                            const unsentIds = (assignmentsByPlan[plan.id] ?? [])
+                              .filter(
+                                (a) =>
+                                  a.status === 'pending' &&
+                                  !a.notified_at &&
+                                  !collapsedTeamIds.has(a.team_id),
+                              )
+                              .map((a) => a.id)
+                            return (
+                              <div className="flex items-center justify-start gap-1">
+                                <SuggestRosterButton
+                                  plan={plan}
+                                  compact
+                                  excludeTeamIds={[...collapsedTeamIds]}
+                                />
+                                <SendColumnButton plan={plan} unsentIds={unsentIds} />
+                                <CancelUnsentColumnButton
+                                  plan={plan}
+                                  unsentIds={unsentIds}
+                                />
+                              </div>
+                            )
+                          })()}
                       </td>
-                    )}
+                    ))}
                   </tr>,
-                  ...teamPositions.map((position) => (
+                  ...(teamCollapsed ? [] : teamPositions).map((position) => (
                     <tr key={position.id} className="border-b last:border-b-0">
                       <td className="bg-card sticky left-0 z-10 p-2 align-top font-medium">
                         {position.name}

@@ -53,10 +53,13 @@ function groupByTeam(suggestions: Suggestion[], orderedTeamIds: string[]): TeamG
 export function SuggestRosterButton({
   plan,
   compact = false,
+  excludeTeamIds,
 }: {
   plan: PlanWithType
   /** Compact, full-width rendering for the Matrix's per-column header cells. */
   compact?: boolean
+  /** Teams to leave out of the suggestion — the Matrix's collapsed teams (#68). */
+  excludeTeamIds?: string[]
 }) {
   const engine = useAutoScheduler(plan)
   const [open, setOpen] = useState(false)
@@ -65,7 +68,7 @@ export function SuggestRosterButton({
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   function run() {
-    const r = engine.suggest()
+    const r = engine.suggest(excludeTeamIds ? { excludeTeamIds } : undefined)
     setResult(r)
     // Default to accepting everything — unticking is the exception.
     setSelected(new Set(r.suggestions.map(suggestionKey)))

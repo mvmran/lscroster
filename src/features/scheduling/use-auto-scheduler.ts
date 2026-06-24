@@ -135,7 +135,21 @@ export function useAutoScheduler(plan: PlanWithType | undefined) {
     ready: !!state,
     /** Any serving position has a mandatory minimum — auto-fill has work to do. */
     hasMandatory: !!state && state.positions.some((p) => p.minCount >= 1),
-    suggest: (): EngineResult => (state ? autoSchedule(state) : EMPTY_RESULT),
+    /**
+     * Run the engine. `excludeTeamIds` drops those teams' positions first — the
+     * Matrix passes its collapsed (hidden) teams so a suggestion only fills the
+     * teams currently visible.
+     */
+    suggest: (opts?: { excludeTeamIds?: string[] }): EngineResult => {
+      if (!state) return EMPTY_RESULT
+      const exclude = opts?.excludeTeamIds
+      if (!exclude || exclude.length === 0) return autoSchedule(state)
+      const hidden = new Set(exclude)
+      return autoSchedule({
+        ...state,
+        positions: state.positions.filter((p) => !hidden.has(p.teamId)),
+      })
+    },
     /** Ranked substitutes for a position (replace / re-suggest), P4/P5. */
     rank: (positionId: string, exclude?: string[]): RankedCandidate[] =>
       state ? rankCandidates(state, positionId, { exclude }) : [],
