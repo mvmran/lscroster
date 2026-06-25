@@ -363,9 +363,10 @@ export function PersonPage() {
       <PersonTeamsCard personId={p.id} canManage={isAdmin || isLeader} />
 
       {/* Per-team access grants (Team Leader / Team Viewer). Governance — admins
-          + global leaders — can grant several teams at once; everyone with
-          access to the profile can see the grants. */}
-      {(isAdmin || isLeader) && (
+          + global leaders — can grant several teams at once; the person
+          themselves and anyone managing them (issue #89) see the grants
+          read-only. */}
+      {(isAdmin || isLeader || isSelf || isManaging) && (
         <>
           <PersonTeamGrantsCard
             personId={p.id}
