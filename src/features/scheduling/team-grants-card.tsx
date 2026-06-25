@@ -1,6 +1,16 @@
 import { useMemo, useState } from 'react'
 import { UserPlus, X } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -77,6 +87,10 @@ export function TeamGrantCard({
   const { data: people } = usePeople()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
+  // Confirm before removing a grant (issue #106).
+  const [grantToRemove, setGrantToRemove] = useState<
+    NonNullable<typeof grants>[number] | null
+  >(null)
 
   const candidates = useMemo(() => {
     const granted = new Set((grants ?? []).map((g) => g.person_id))
@@ -110,12 +124,7 @@ export function TeamGrantCard({
                     variant="ghost"
                     size="icon"
                     className="size-8"
-                    onClick={() =>
-                      remove.mutate(
-                        { teamId, personId: grant.person_id },
-                        { onError: (e) => toast.error(e.message) },
-                      )
-                    }
+                    onClick={() => setGrantToRemove(grant)}
                     aria-label={`Remove ${fullName(grant.people)}`}
                   >
                     <X className="size-4" />
@@ -182,6 +191,42 @@ export function TeamGrantCard({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm before removing a team leader/viewer (issue #106). */}
+      <AlertDialog
+        open={!!grantToRemove}
+        onOpenChange={(open) => !open && setGrantToRemove(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Remove {grantToRemove ? fullName(grantToRemove.people) : 'this person'}{' '}
+              as {kind === 'leader' ? 'team leader' : 'team viewer'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {kind === 'leader'
+                ? "They'll lose the ability to manage this team — its positions, members and plan assignments. You can appoint them again at any time."
+                : "They'll lose read-only access to this team's roster. You can grant it again at any time."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (!grantToRemove) return
+                remove.mutate(
+                  { teamId, personId: grantToRemove.person_id },
+                  { onError: (e) => toast.error(e.message) },
+                )
+                setGrantToRemove(null)
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }

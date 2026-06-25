@@ -44,6 +44,11 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   `window.scrollTo(0,0)` on pathname change must depend **only on
   `pathname`** and skip when nav state carries a target to scroll to —
   otherwise clearing that state re-fires the effect and snaps back to the top.
+- **`aria-label="Remove <name>"` collides** — both the team-page member-remove
+  button (#66) and the team-grant remove button (#106) use the same label, so a
+  document-wide query hits the member one first; scope to the grant card when
+  testing. The Matrix add-cell now also has a sibling "…" menu (#109,
+  `aria-label="Cell actions"`) beside the "Schedule someone" "+".
 - **Edge Functions aren't observable in the Vite/browser preview** — to
   exercise an email-sending path (invites, account-access, reminders) locally,
   run `npx supabase functions serve --env-file .env.functions.local` alongside

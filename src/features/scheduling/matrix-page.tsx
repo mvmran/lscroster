@@ -101,7 +101,9 @@ import {
   teamServesType,
   useAllPositions,
   useTeams,
+  useUpdatePositionMinCount,
 } from '@/features/scheduling/use-teams'
+import type { Position } from '@/features/scheduling/scheduling-utils'
 import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import { supabase } from '@/lib/supabase'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
@@ -137,8 +139,56 @@ function useMatrixAssignments(planIds: string[]) {
   })
 }
 
+/**
+ * Inline minimum-required stepper for a position, rendered inside the Matrix
+ * add-cell's "…" menu (issue #109). Mirrors the plan page's PositionMinCount —
+ * edits the position's global `min_count` with an optimistic cache update.
+ */
+function MatrixMinCount({ position }: { position: Position }) {
+  const update = useUpdatePositionMinCount()
+  const value = position.min_count
+
+  function set(next: number) {
+    if (next < 0 || next > 99 || next === value) return
+    update.mutate(
+      { id: position.id, min_count: next },
+      { onError: (e) => toast.error(e.message) },
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-1 px-2 py-1.5">
+      <span className="text-muted-foreground mr-auto text-xs">Min required</span>
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-6"
+        disabled={value <= 0 || update.isPending}
+        onClick={() => set(value - 1)}
+        aria-label={`Decrease minimum for ${position.name}`}
+      >
+        <Minus className="size-3" />
+      </Button>
+      <span className="w-4 text-center text-sm tabular-nums" aria-live="polite">
+        {value}
+      </span>
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-6"
+        disabled={update.isPending}
+        onClick={() => set(value + 1)}
+        aria-label={`Increase minimum for ${position.name}`}
+      >
+        <Plus className="size-3" />
+      </Button>
+    </div>
+  )
+}
+
 function MatrixCell({
   plan,
+  position,
   assignments,
   teamServesPlan,
   canManage,
@@ -148,6 +198,8 @@ function MatrixCell({
   onReplace,
 }: {
   plan: PlanWithType
+  /** The position this cell schedules — its min_count is editable here (#109). */
+  position: Position
   assignments: AssignmentWithPerson[]
   teamServesPlan: boolean
   /** Whether the signed-in person manages this cell's team (per-team). */
@@ -306,19 +358,43 @@ function MatrixCell({
           )
         })}
         {canManage && (
-          <button
-            type="button"
-            onClick={onAdd}
-            title={understaffed ? positionResults.map((r) => r.message).join('\n') : undefined}
-            className={
-              understaffed
-                ? 'flex items-center justify-center rounded-md border border-dashed border-red-500/60 px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40'
-                : 'text-muted-foreground/60 hover:bg-accent hover:text-foreground flex items-center justify-center rounded-md border border-dashed px-2 py-1 text-xs'
-            }
-            aria-label={understaffed ? 'Understaffed — schedule someone' : 'Schedule someone'}
-          >
-            <Plus className="size-3.5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onAdd}
+              title={understaffed ? positionResults.map((r) => r.message).join('\n') : undefined}
+              className={
+                understaffed
+                  ? 'flex flex-1 items-center justify-center rounded-md border border-dashed border-red-500/60 px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40'
+                  : 'text-muted-foreground/60 hover:bg-accent hover:text-foreground flex flex-1 items-center justify-center rounded-md border border-dashed px-2 py-1 text-xs'
+              }
+              aria-label={understaffed ? 'Understaffed — schedule someone' : 'Schedule someone'}
+            >
+              <Plus className="size-3.5" />
+            </button>
+            {/* "…" menu beside the + (issue #109): Min stepper + Add. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Cell actions"
+                  className="text-muted-foreground/60 hover:bg-accent hover:text-foreground shrink-0 rounded-md border border-dashed px-1.5 py-1 text-xs font-bold leading-none"
+                >
+                  …
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>{position.name}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <MatrixMinCount position={position} />
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onAdd}>
+                  <UserPlus className="size-4" />
+                  Add
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
       </div>
     </td>
@@ -579,6 +655,8 @@ export function MatrixPage() {
   // only the team header. The per-column plan-level actions (suggest / send /
   // cancel) then act only on the teams still visible.
   const [collapsedTeamIds, setCollapsedTeamIds] = useState<Set<string>>(new Set())
+  // Collapse (hide) the ORDER section's rows, leaving only its header (issue #107).
+  const [orderCollapsed, setOrderCollapsed] = useState(false)
   const { order, saveOrder } = useMatrixTeamOrder()
   const { count: planCount, setCount: setPlanCount } = useMatrixPlanCount()
 
@@ -909,21 +987,43 @@ export function MatrixPage() {
             </thead>
             <tbody>
               {/* ORDER section (issue #79): each plan's order of service,
-                  reorderable inline. Sits before the team sections. */}
+                  reorderable inline. Sits before the team sections. The header
+                  carries a hide toggle (issue #107) mirroring the team rows. */}
               <tr>
-                <td
-                  colSpan={matrixPlans.length + 1}
-                  className="bg-muted/50 text-muted-foreground border-b p-0 text-xs font-semibold tracking-wide uppercase"
-                >
-                  <div className="sticky left-0 inline-block px-2 py-1">Order</div>
+                <td className="bg-muted/50 text-muted-foreground sticky left-0 z-10 border-b p-0 text-xs font-semibold tracking-wide uppercase">
+                  <div className="flex items-center justify-between gap-2 px-2 py-1">
+                    <span>Order</span>
+                    <button
+                      type="button"
+                      onClick={() => setOrderCollapsed((c) => !c)}
+                      className="text-muted-foreground/60 hover:text-foreground shrink-0 p-0.5"
+                      title={orderCollapsed ? 'Show order of service' : 'Hide order of service'}
+                      aria-label={
+                        orderCollapsed
+                          ? 'Show order of service'
+                          : 'Hide order of service'
+                      }
+                    >
+                      {orderCollapsed ? (
+                        <Eye className="size-3.5" />
+                      ) : (
+                        <EyeOff className="size-3.5" />
+                      )}
+                    </button>
+                  </div>
                 </td>
-              </tr>
-              <tr className="border-b">
-                <td className="bg-card sticky left-0 z-10 p-2 align-top" />
                 {matrixPlans.map((plan) => (
-                  <MatrixOrderCell key={plan.id} plan={plan} canManage={canEditOrder} />
+                  <td key={plan.id} className="bg-muted/50 border-b border-l" />
                 ))}
               </tr>
+              {!orderCollapsed && (
+                <tr className="border-b">
+                  <td className="bg-card sticky left-0 z-10 p-2 align-top" />
+                  {matrixPlans.map((plan) => (
+                    <MatrixOrderCell key={plan.id} plan={plan} canManage={canEditOrder} />
+                  ))}
+                </tr>
+              )}
               {sortedTeams.map((team, teamIndex) => {
                 const teamPositions = (positions ?? []).filter(
                   (p) => p.team_id === team.id,
@@ -1016,6 +1116,7 @@ export function MatrixPage() {
                           <MatrixCell
                             key={plan.id}
                             plan={plan}
+                            position={position}
                             assignments={(assignmentsByPlan[plan.id] ?? []).filter(
                               (a) => a.position_id === position.id,
                             )}

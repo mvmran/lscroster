@@ -9,6 +9,7 @@ import {
   Plus,
   Repeat,
   Send,
+  Sparkles,
   Trash2,
   UserPlus,
 } from 'lucide-react'
@@ -76,6 +77,7 @@ import {
   usePlanValidation,
 } from '@/features/scheduling/use-service-state'
 import { SuggestRosterButton } from '@/features/scheduling/auto-schedule-dialog'
+import { useAutoScheduler } from '@/features/scheduling/use-auto-scheduler'
 import { ReplaceDialog, type ReplaceTarget } from '@/features/scheduling/replace-dialog'
 import { RuleBadges } from '@/features/scheduling/validation-badges'
 import { planEffectiveTimes } from '@/features/services/service-utils'
@@ -107,9 +109,22 @@ export function AssignPersonDialog({
   const { data: onDate } = useAssignmentsOnDate(plan.date)
   const createAssignment = useCreateAssignment(plan.id)
   const replaceAssignment = useReplaceAssignment(plan.id)
+  const { rank } = useAutoScheduler(plan)
   const [search, setSearch] = useState('')
 
   const pending = createAssignment.isPending || replaceAssignment.isPending
+
+  // The single best candidate for this slot per the auto-scheduler (issue #108).
+  // Highlighted with a green "Suggested roster" badge on exactly one person.
+  const suggestedPersonId = useMemo(() => {
+    if (!target) return null
+    const exclude = target.replaceAssignmentId
+      ? assignments
+          .filter((a) => a.id === target.replaceAssignmentId)
+          .map((a) => a.person_id)
+      : []
+    return rank(target.position.id, exclude)[0]?.personId ?? null
+  }, [target, assignments, rank])
 
   const { preferred, members, others, traineeIds } = useMemo(() => {
     if (!target)
@@ -245,6 +260,15 @@ export function AssignPersonDialog({
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {fullName(person)}
         </span>
+        {person.id === suggestedPersonId && (
+          <Badge
+            variant="outline"
+            className="shrink-0 border-green-500/50 bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400"
+          >
+            <Sparkles className="size-3" />
+            Suggested roster
+          </Badge>
+        )}
         {traineeIds.has(person.id) && (
           <Badge
             variant="outline"
