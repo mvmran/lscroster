@@ -8,6 +8,9 @@ export type PlanTemplate = Tables<'plan_templates'>
 /** Times saved alongside a template's order of service (issue #73). */
 export type TemplateTime = { label: string; start_time: string; sort_order: number }
 
+/** Per-position minimum-required overrides saved on a template (issue #110). */
+export type TemplateMinCount = { position_id: string; min_count: number }
+
 async function replaceTemplateTimes(templateId: string, times: TemplateTime[]) {
   const { error: clearError } = await supabase
     .from('plan_template_times')
@@ -18,6 +21,23 @@ async function replaceTemplateTimes(templateId: string, times: TemplateTime[]) {
     const { error } = await supabase
       .from('plan_template_times')
       .insert(times.map((t) => ({ ...t, template_id: templateId })))
+    if (error) throw new Error(error.message)
+  }
+}
+
+async function replaceTemplateMinCounts(
+  templateId: string,
+  minCounts: TemplateMinCount[],
+) {
+  const { error: clearError } = await supabase
+    .from('plan_template_position_min_counts')
+    .delete()
+    .eq('template_id', templateId)
+  if (clearError) throw new Error(clearError.message)
+  if (minCounts.length > 0) {
+    const { error } = await supabase
+      .from('plan_template_position_min_counts')
+      .insert(minCounts.map((m) => ({ ...m, template_id: templateId })))
     if (error) throw new Error(error.message)
   }
 }
@@ -53,6 +73,7 @@ export function useSaveAsTemplate() {
       startTime = null,
       items,
       times = [],
+      minCounts = [],
     }: {
       name: string
       serviceTypeId: string
@@ -60,6 +81,8 @@ export function useSaveAsTemplate() {
       startTime?: string | null
       items: PlanItem[]
       times?: TemplateTime[]
+      /** Per-position minimum overrides on the source plan (issue #110). */
+      minCounts?: TemplateMinCount[]
     }) => {
       const { data: template, error } = await supabase
         .from('plan_templates')
@@ -86,6 +109,7 @@ export function useSaveAsTemplate() {
           if (itemsError) throw new Error(itemsError.message)
         }
         await replaceTemplateTimes(template.id, times)
+        await replaceTemplateMinCounts(template.id, minCounts)
       } catch (e) {
         await supabase.from('plan_templates').delete().eq('id', template.id)
         throw e
@@ -108,12 +132,14 @@ export function useUpdateTemplate() {
       startTime = null,
       items,
       times = [],
+      minCounts = [],
     }: {
       id: string
       name: string
       startTime?: string | null
       items: PlanItem[]
       times?: TemplateTime[]
+      minCounts?: TemplateMinCount[]
     }) => {
       const { error: nameError } = await supabase
         .from('plan_templates')
@@ -147,6 +173,8 @@ export function useUpdateTemplate() {
 
       // Times follow the same wholesale-replace as items (issue #73).
       await replaceTemplateTimes(id, times)
+      // Per-position minimum overrides too (issue #110).
+      await replaceTemplateMinCounts(id, minCounts)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planTemplatesKey })

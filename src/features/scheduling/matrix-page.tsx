@@ -101,8 +101,11 @@ import {
   teamServesType,
   useAllPositions,
   useTeams,
-  useUpdatePositionMinCount,
 } from '@/features/scheduling/use-teams'
+import {
+  useAllPlanMinCounts,
+  useSetPlanMinCount,
+} from '@/features/scheduling/use-scheduling-rules'
 import type { Position } from '@/features/scheduling/scheduling-utils'
 import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import { supabase } from '@/lib/supabase'
@@ -142,16 +145,21 @@ function useMatrixAssignments(planIds: string[]) {
 /**
  * Inline minimum-required stepper for a position, rendered inside the Matrix
  * add-cell's "…" menu (issue #109). Mirrors the plan page's PositionMinCount —
- * edits the position's global `min_count` with an optimistic cache update.
+ * edits the **per-plan** override (issue #110), falling back to the position's
+ * team-wide `min_count` default, with an optimistic cache update.
  */
-function MatrixMinCount({ position }: { position: Position }) {
-  const update = useUpdatePositionMinCount()
-  const value = position.min_count
+function MatrixMinCount({ planId, position }: { planId: string; position: Position }) {
+  const { data: overrides } = useAllPlanMinCounts()
+  const setMin = useSetPlanMinCount()
+  const override = overrides?.find(
+    (o) => o.plan_id === planId && o.position_id === position.id,
+  )?.min_count
+  const value = override ?? position.min_count
 
   function set(next: number) {
     if (next < 0 || next > 99 || next === value) return
-    update.mutate(
-      { id: position.id, min_count: next },
+    setMin.mutate(
+      { planId, positionId: position.id, minCount: next },
       { onError: (e) => toast.error(e.message) },
     )
   }
@@ -163,7 +171,7 @@ function MatrixMinCount({ position }: { position: Position }) {
         variant="outline"
         size="icon"
         className="size-6"
-        disabled={value <= 0 || update.isPending}
+        disabled={value <= 0 || setMin.isPending}
         onClick={() => set(value - 1)}
         aria-label={`Decrease minimum for ${position.name}`}
       >
@@ -176,7 +184,7 @@ function MatrixMinCount({ position }: { position: Position }) {
         variant="outline"
         size="icon"
         className="size-6"
-        disabled={update.isPending}
+        disabled={setMin.isPending}
         onClick={() => set(value + 1)}
         aria-label={`Increase minimum for ${position.name}`}
       >
@@ -386,7 +394,7 @@ function MatrixCell({
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>{position.name}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <MatrixMinCount position={position} />
+                <MatrixMinCount planId={plan.id} position={position} />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onAdd}>
                   <UserPlus className="size-4" />

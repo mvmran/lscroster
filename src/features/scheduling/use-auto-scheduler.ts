@@ -6,6 +6,7 @@ import { assignmentKeys, usePlanAssignments } from '@/features/scheduling/use-as
 import {
   buildPersonContextMaps,
   makeValidationPerson,
+  planMinCountMap,
   useSchedulingRulesData,
 } from '@/features/scheduling/use-service-state'
 import { serviceTypeTeamSort, teamServesType } from '@/features/scheduling/use-teams'
@@ -37,6 +38,9 @@ function buildEngineState(
     teams.filter((t) => teamServesType(t, plan.service_type_id)).map((t) => t.id),
   )
 
+  // Per-plan minimum overrides win over the team default (issue #110), so the
+  // auto-scheduler fills to the same target the badges show.
+  const minOverrides = planMinCountMap(plan.id, data.minCounts)
   const positions: EnginePosition[] = (data.positions ?? [])
     .filter((p) => servingTeamIds.has(p.team_id))
     .map((p) => ({
@@ -44,7 +48,7 @@ function buildEngineState(
       name: p.name,
       teamId: p.team_id,
       teamName: teamNameById.get(p.team_id) ?? '',
-      minCount: p.min_count,
+      minCount: minOverrides.get(p.id) ?? p.min_count,
       maxCount: p.max_count,
       requiresLevel: p.requires_level as ValidationProficiency | null,
       fillPriority: p.fill_priority,

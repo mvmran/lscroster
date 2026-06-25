@@ -73,7 +73,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { useSendPlanNotification } from '@/features/scheduling/use-assignments'
-import { useRecordPublishOverrides } from '@/features/scheduling/use-scheduling-rules'
+import {
+  useAllPlanMinCounts,
+  useRecordPublishOverrides,
+} from '@/features/scheduling/use-scheduling-rules'
 import { usePlanValidation } from '@/features/scheduling/use-service-state'
 import { SchedulingPanel } from '@/features/scheduling/scheduling-panel'
 import { PublishGateDialog } from '@/features/services/publish-gate-dialog'
@@ -435,6 +438,7 @@ function SaveTemplateDialog({
 }) {
   const { data: allTemplates } = usePlanTemplates()
   const { data: planTimes } = usePlanTimes(plan.id)
+  const { data: allMinCounts } = useAllPlanMinCounts()
   const saveTemplate = useSaveAsTemplate()
   const updateTemplate = useUpdateTemplate()
   const deleteTemplate = useDeleteTemplate()
@@ -461,6 +465,11 @@ function SaveTemplateDialog({
     sort_order: t.sort_order ?? index,
   }))
 
+  // Capture the plan's per-position minimum-required overrides (issue #110).
+  const minCounts = (allMinCounts ?? [])
+    .filter((m) => m.plan_id === plan.id)
+    .map((m) => ({ position_id: m.position_id, min_count: m.min_count }))
+
   async function save() {
     if (!trimmed) return
     try {
@@ -471,6 +480,7 @@ function SaveTemplateDialog({
           startTime: plan.start_time,
           items,
           times,
+          minCounts,
         })
         toast.success(`Template “${trimmed}” updated`)
       } else {
@@ -480,6 +490,7 @@ function SaveTemplateDialog({
           startTime: plan.start_time,
           items,
           times,
+          minCounts,
         })
         toast.success(`Template “${trimmed}” saved`)
       }

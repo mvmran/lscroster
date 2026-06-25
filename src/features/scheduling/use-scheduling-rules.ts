@@ -18,6 +18,72 @@ export const schedulingRuleKeys = {
   allRecurring: ['recurring-unavailability-all'] as const,
   allPairings: ['person-pairings-all'] as const,
   rosteredDates: ['rostered-dates'] as const,
+  allPlanMinCounts: ['plan-min-counts-all'] as const,
+}
+
+export type PlanPositionMinCount = Tables<'plan_position_min_counts'>
+
+// --- per-plan minimum-required overrides (issue #110) ------------------------
+// The "Min required" steppers store an override here per (plan, position); the
+// validator/engine fall back to `positions.min_count` when no row exists. One
+// small whole-table read powers validation for every plan in the matrix.
+
+export function useAllPlanMinCounts() {
+  return useQuery({
+    queryKey: schedulingRuleKeys.allPlanMinCounts,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('plan_position_min_counts')
+        .select('plan_id, position_id, min_count')
+      if (error) throw new Error(error.message)
+      return data as Pick<PlanPositionMinCount, 'plan_id' | 'position_id' | 'min_count'>[]
+    },
+    staleTime: 60 * 1000,
+  })
+}
+
+/**
+ * Set (or clear) a per-plan minimum for one position. Upserts on
+ * (plan_id, position_id); optimistically patches the shared all-overrides cache
+ * so the stepper value and the understaffed badge update instantly.
+ */
+export function useSetPlanMinCount() {
+  const queryClient = useQueryClient()
+  type Vars = { planId: string; positionId: string; minCount: number }
+  return useMutation({
+    mutationFn: async ({ planId, positionId, minCount }: Vars) => {
+      const { error } = await supabase
+        .from('plan_position_min_counts')
+        .upsert(
+          { plan_id: planId, position_id: positionId, min_count: minCount },
+          { onConflict: 'plan_id,position_id' },
+        )
+      if (error) throw new Error(error.message)
+    },
+    onMutate: async ({ planId, positionId, minCount }: Vars) => {
+      await queryClient.cancelQueries({ queryKey: schedulingRuleKeys.allPlanMinCounts })
+      const previous = queryClient.getQueryData<
+        Pick<PlanPositionMinCount, 'plan_id' | 'position_id' | 'min_count'>[]
+      >(schedulingRuleKeys.allPlanMinCounts)
+      queryClient.setQueryData<
+        Pick<PlanPositionMinCount, 'plan_id' | 'position_id' | 'min_count'>[]
+      >(schedulingRuleKeys.allPlanMinCounts, (rows) => {
+        const next = (rows ?? []).filter(
+          (r) => !(r.plan_id === planId && r.position_id === positionId),
+        )
+        next.push({ plan_id: planId, position_id: positionId, min_count: minCount })
+        return next
+      })
+      return { previous }
+    },
+    onError: (_e, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(schedulingRuleKeys.allPlanMinCounts, context.previous)
+      }
+    },
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.allPlanMinCounts }),
+  })
 }
 
 /** A person's non-declined assignment date for workload/cadence checks. */

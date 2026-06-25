@@ -5,6 +5,7 @@ import { useBlockouts } from '@/features/scheduling/use-blockouts'
 import {
   useAllPairings,
   useAllPersonPrefs,
+  useAllPlanMinCounts,
   useAllRecurringUnavailability,
   useRosteredDates,
 } from '@/features/scheduling/use-scheduling-rules'
@@ -50,6 +51,8 @@ export interface SchedulingRulesData {
     recurring: ReturnType<typeof useAllRecurringUnavailability>['data']
     pairings: ReturnType<typeof useAllPairings>['data']
     history: ReturnType<typeof useRosteredDates>['data']
+    /** Per-plan minimum-required overrides (issue #110). */
+    minCounts: ReturnType<typeof useAllPlanMinCounts>['data']
   }
 }
 
@@ -62,6 +65,7 @@ export function useSchedulingRulesData(): SchedulingRulesData {
   const recurring = useAllRecurringUnavailability()
   const pairings = useAllPairings()
   const history = useRosteredDates()
+  const minCounts = useAllPlanMinCounts()
 
   const isPending =
     teams.isPending ||
@@ -71,7 +75,8 @@ export function useSchedulingRulesData(): SchedulingRulesData {
     prefs.isPending ||
     recurring.isPending ||
     pairings.isPending ||
-    history.isPending
+    history.isPending ||
+    minCounts.isPending
 
   return {
     isPending,
@@ -84,8 +89,24 @@ export function useSchedulingRulesData(): SchedulingRulesData {
       recurring: recurring.data,
       pairings: pairings.data,
       history: history.data,
+      minCounts: minCounts.data,
     },
   }
+}
+
+/**
+ * The effective minimum-required per position for one plan: the per-plan
+ * override (issue #110) when present, else the team-wide `positions.min_count`.
+ */
+export function planMinCountMap(
+  planId: string,
+  minCounts: SchedulingRulesData['data']['minCounts'],
+): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const m of minCounts ?? []) {
+    if (m.plan_id === planId) map.set(m.position_id, m.min_count)
+  }
+  return map
 }
 
 /**
@@ -179,6 +200,8 @@ export function buildPlanValidation(
     teams.filter((t) => teamServesType(t, plan.service_type_id)).map((t) => t.id),
   )
 
+  // Per-plan minimum overrides win over the team default (issue #110).
+  const minOverrides = planMinCountMap(plan.id, data.minCounts)
   const positions: ValidationPosition[] = (data.positions ?? [])
     .filter((p) => servingTeamIds.has(p.team_id))
     .map((p) => ({
@@ -186,7 +209,7 @@ export function buildPlanValidation(
       name: p.name,
       teamId: p.team_id,
       teamName: teamNameById.get(p.team_id) ?? '',
-      minCount: p.min_count,
+      minCount: minOverrides.get(p.id) ?? p.min_count,
       maxCount: p.max_count,
       requiresLevel: p.requires_level as ValidationProficiency | null,
     }))

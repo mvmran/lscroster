@@ -44,6 +44,16 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   `window.scrollTo(0,0)` on pathname change must depend **only on
   `pathname`** and skip when nav state carries a target to scroll to —
   otherwise clearing that state re-fires the effect and snaps back to the top.
+- **Local stack can lose table DML grants after `db reset --local`** — some CLI
+  versions set the `public` default privileges for the `postgres` owner to only
+  `Dxtm` (TRUNCATE/REFERENCES/TRIGGER/MAINTAIN), so `authenticated`/`anon` get NO
+  SELECT/INSERT on **any** table (every REST call 401/403, `has_table_privilege`
+  false even for `positions`). It's environment-wide, not a migration bug — prod
+  grants are fine. Fix locally before probing/driving the UI:
+  `grant all on all tables in schema public to anon, authenticated, service_role;
+  alter default privileges in schema public grant all on tables to anon,
+  authenticated, service_role;` (also do sequences). Migrations must NOT add
+  grants — that diverges from the rest of the schema and the platform handles it.
 - **`aria-label="Remove <name>"` collides** — both the team-page member-remove
   button (#66) and the team-grant remove button (#106) use the same label, so a
   document-wide query hits the member one first; scope to the grant card when
@@ -107,11 +117,18 @@ per-team `team_leaders` + `team_viewers` tables with `leads_team()` /
 the team/position/membership/assignment **write** policies from blanket
 `is_admin_or_leader()` to per-team `can_manage_team()`, and extends the
 plan/items/times/attachments/assignment **read** policies so Team Viewers get a
-read-only view of their teams' rosters incl. drafts). New Edge Functions:
-`cancel-assignment`, `send-plan-notification`, `request-password-reset`; new
-shared `_shared/email-prefs.ts` (per-person opt-outs + managed-account routing);
-`_shared/auth.ts` gains `teamScopeFor()` so `send-requests`/`cancel-assignment`
-enforce the same per-team boundary as RLS.
+read-only view of their teams' rosters incl. drafts). (0025)
+`plan_position_min_counts` + `plan_template_position_min_counts` (issue #110):
+per-(plan, position) and per-(template, position) **minimum-required overrides**.
+The "Min required" steppers now write these instead of the team-wide
+`positions.min_count`; the validator/engine read
+`coalesce(override, positions.min_count)` via `planMinCountMap()` +
+`useAllPlanMinCounts`. Plan write policy is per-team (`can_manage_team(position's
+team)`); template policy is `is_admin_or_leader()` (mirrors `plan_template_items`).
+New Edge Functions: `cancel-assignment`, `send-plan-notification`,
+`request-password-reset`; new shared `_shared/email-prefs.ts` (per-person opt-outs
++ managed-account routing); `_shared/auth.ts` gains `teamScopeFor()` so
+`send-requests`/`cancel-assignment` enforce the same per-team boundary as RLS.
 Regenerate `src/types/database.ts` from the local stack after pulling.
 
 **Upgrade note (0023 — per-team access grants):** management is no longer

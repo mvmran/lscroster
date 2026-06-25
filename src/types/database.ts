@@ -611,6 +611,48 @@ export type Database = {
           },
         ]
       }
+      plan_position_min_counts: {
+        Row: {
+          created_at: string
+          id: string
+          min_count: number
+          plan_id: string
+          position_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_count?: number
+          plan_id: string
+          position_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_count?: number
+          plan_id?: string
+          position_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_position_min_counts_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_position_min_counts_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_template_items: {
         Row: {
           created_at: string
@@ -661,6 +703,48 @@ export type Database = {
           },
           {
             foreignKeyName: "plan_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "plan_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_template_position_min_counts: {
+        Row: {
+          created_at: string
+          id: string
+          min_count: number
+          position_id: string
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_count?: number
+          position_id: string
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_count?: number
+          position_id?: string
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_template_position_min_counts_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_template_position_min_counts_template_id_fkey"
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "plan_templates"

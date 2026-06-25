@@ -119,6 +119,27 @@ async function fetchSourceTimes(
   return data
 }
 
+/** Per-position minimum overrides carried into a new plan (issue #110). */
+type CopiedMinCount = { position_id: string; min_count: number }
+
+async function fetchSourceMinCounts(
+  source: NonNullable<CreatePlanInput['source']>,
+): Promise<CopiedMinCount[]> {
+  const query =
+    source.kind === 'template'
+      ? supabase
+          .from('plan_template_position_min_counts')
+          .select('position_id, min_count')
+          .eq('template_id', source.id)
+      : supabase
+          .from('plan_position_min_counts')
+          .select('position_id, min_count')
+          .eq('plan_id', source.id)
+  const { data, error } = await query
+  if (error) throw new Error(error.message)
+  return data
+}
+
 /** The start-time override carried from a source template or plan (issue: per-plan start). */
 async function fetchSourceStart(
   source: NonNullable<CreatePlanInput['source']>,
@@ -135,15 +156,17 @@ async function fetchSourceStart(
 
 export function useCreatePlan() {
   const invalidate = useInvalidatePlans()
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ source, start_time, ...values }: CreatePlanInput) => {
-      const [items, times, sourceStart] = source
+      const [items, times, minCounts, sourceStart] = source
         ? await Promise.all([
             fetchSourceItems(source),
             fetchSourceTimes(source),
+            fetchSourceMinCounts(source),
             fetchSourceStart(source),
           ])
-        : [[], [], null]
+        : [[], [], [], null]
       // An explicit override wins; otherwise inherit the source's start.
       const startTime = start_time !== undefined ? start_time : sourceStart
       const { data: plan, error } = await supabase
@@ -165,13 +188,23 @@ export function useCreatePlan() {
             .insert(times.map((time) => ({ ...time, plan_id: plan.id })))
           if (timesError) throw new Error(timesError.message)
         }
+        if (minCounts.length > 0) {
+          const { error: minCountsError } = await supabase
+            .from('plan_position_min_counts')
+            .insert(minCounts.map((m) => ({ ...m, plan_id: plan.id })))
+          if (minCountsError) throw new Error(minCountsError.message)
+        }
       } catch (e) {
         await supabase.from('plans').delete().eq('id', plan.id)
         throw e
       }
       return plan
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      invalidate()
+      // Copied per-plan minimum overrides (#110) land in the shared cache.
+      queryClient.invalidateQueries({ queryKey: ['plan-min-counts-all'] })
+    },
   })
 }
 

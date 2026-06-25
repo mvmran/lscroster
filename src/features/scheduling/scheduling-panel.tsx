@@ -69,8 +69,11 @@ import {
   useAllPositions,
   useAllTeamMembers,
   useTeams,
-  useUpdatePositionMinCount,
 } from '@/features/scheduling/use-teams'
+import {
+  useAllPlanMinCounts,
+  useSetPlanMinCount,
+} from '@/features/scheduling/use-scheduling-rules'
 import {
   resultsByPerson,
   resultsByPosition,
@@ -356,17 +359,29 @@ export function AssignPersonDialog({
 
 /**
  * Inline minimum-required stepper beside a position on the plan (issue #71).
- * Edits the position's global `min_count`; the optimistic cache update makes the
- * value and the understaffed badge respond immediately. min_count 0 = optional.
+ * Edits the **per-plan** override (issue #110), falling back to the position's
+ * team-wide `min_count` default when no override is set — so changing it here
+ * only affects this plan. The optimistic cache update makes the value and the
+ * understaffed badge respond immediately. min_count 0 = optional.
  */
-function PositionMinCount({ position }: { position: Position }) {
-  const update = useUpdatePositionMinCount()
-  const value = position.min_count
+function PositionMinCount({
+  planId,
+  position,
+}: {
+  planId: string
+  position: Position
+}) {
+  const { data: overrides } = useAllPlanMinCounts()
+  const setMin = useSetPlanMinCount()
+  const override = overrides?.find(
+    (o) => o.plan_id === planId && o.position_id === position.id,
+  )?.min_count
+  const value = override ?? position.min_count
 
   function set(next: number) {
     if (next < 0 || next > 99 || next === value) return
-    update.mutate(
-      { id: position.id, min_count: next },
+    setMin.mutate(
+      { planId, positionId: position.id, minCount: next },
       { onError: (e) => toast.error(e.message) },
     )
   }
@@ -381,7 +396,7 @@ function PositionMinCount({ position }: { position: Position }) {
         variant="ghost"
         size="icon"
         className="size-6"
-        disabled={value <= 0 || update.isPending}
+        disabled={value <= 0 || setMin.isPending}
         onClick={() => set(value - 1)}
         aria-label={`Decrease minimum for ${position.name}`}
       >
@@ -394,7 +409,7 @@ function PositionMinCount({ position }: { position: Position }) {
         variant="ghost"
         size="icon"
         className="size-6"
-        disabled={update.isPending}
+        disabled={setMin.isPending}
         onClick={() => set(value + 1)}
         aria-label={`Increase minimum for ${position.name}`}
       >
@@ -643,7 +658,7 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                           </div>
                           {teamManage && (
                             <div className="flex items-center gap-1">
-                              <PositionMinCount position={position} />
+                              <PositionMinCount planId={plan.id} position={position} />
                               <Button
                                 variant="outline"
                                 size="sm"
