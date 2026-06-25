@@ -44,6 +44,14 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   `window.scrollTo(0,0)` on pathname change must depend **only on
   `pathname`** and skip when nav state carries a target to scroll to —
   otherwise clearing that state re-fires the effect and snaps back to the top.
+- **Plan People-panel visibility is client-gated on top of RLS** (issue #105):
+  `scheduling-panel.tsx` `visibleTeams` + per-team `visiblePositions` decide what
+  a viewer sees, but RLS is the real boundary. A manager sees their managed
+  people's teams because `assignedTeamIds` now includes managed person_ids
+  (`usePeopleManagedBy`), matching the "Managers view managed assignments" RLS
+  policy (migration 0021 — still live, not dropped by 0024). A read-only viewer
+  (`!canManageTeam`) only sees positions with ≥1 readable assignment, so
+  RLS-hidden rosters on a draft don't render as falsely empty.
 - **Local stack can lose table DML grants after `db reset --local`** — some CLI
   versions set the `public` default privileges for the `postgres` owner to only
   `Dxtm` (TRUNCATE/REFERENCES/TRIGGER/MAINTAIN), so `authenticated`/`anon` get NO

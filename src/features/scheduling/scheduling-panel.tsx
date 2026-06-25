@@ -40,7 +40,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { fullName } from '@/features/people/person-utils'
-import { usePeople, type Person } from '@/features/people/use-people'
+import {
+  usePeople,
+  usePeopleManagedBy,
+  type Person,
+} from '@/features/people/use-people'
 import {
   ASSIGNMENT_STATUS_CLASSES,
   ASSIGNMENT_STATUS_LABELS,
@@ -457,17 +461,25 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
   )
   const manageAny = manageablePlanTeamIds.size > 0
 
+  // The signed-in person plus anyone whose account they manage (issue #105 pt 1)
+  // — a manager sees the teams their managed people are rostered onto, mirroring
+  // Home / My Schedule (#97), not just their own.
+  const meId = me?.id
+  const { data: managed } = usePeopleManagedBy(meId)
+
   // Teams whose blocks render at all: managed, on a published plan (everyone),
-  // viewed (read-only Team Viewers), or the member's own assigned team on a draft.
-  const assignedTeamIds = useMemo(
-    () =>
-      new Set(
-        (assignments ?? [])
-          .filter((a) => a.person_id === me?.id)
-          .map((a) => a.team_id),
-      ),
-    [assignments, me?.id],
-  )
+  // viewed (read-only Team Viewers), or a team the signed-in person or someone
+  // they manage is assigned to on a draft.
+  const assignedTeamIds = useMemo(() => {
+    const myPersonIds = new Set<string>()
+    if (meId) myPersonIds.add(meId)
+    for (const m of managed ?? []) myPersonIds.add(m.id)
+    return new Set(
+      (assignments ?? [])
+        .filter((a) => myPersonIds.has(a.person_id))
+        .map((a) => a.team_id),
+    )
+  }, [assignments, meId, managed])
   const visibleTeams = useMemo(
     () =>
       planTeams.filter(
@@ -628,17 +640,27 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
             const teamPositions = (positions ?? []).filter(
               (p) => p.team_id === team.id,
             )
+            // A read-only viewer (not this team's manager) only sees positions
+            // that actually have someone scheduled — empty positions are hidden
+            // so RLS-hidden rosters don't look falsely empty (issue #105 pt 2).
+            const visiblePositions = teamManage
+              ? teamPositions
+              : teamPositions.filter((p) =>
+                  (assignments ?? []).some((a) => a.position_id === p.id),
+                )
+            // Don't render a team that has nothing to show a read-only viewer.
+            if (!teamManage && visiblePositions.length === 0) return null
             return (
               <div key={team.id} className="flex flex-col gap-1">
                 <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
                   {team.name}
                 </h3>
-                {teamPositions.length === 0 ? (
+                {visiblePositions.length === 0 ? (
                   <p className="text-muted-foreground px-2 py-1 text-sm">
                     No positions in this team yet.
                   </p>
                 ) : (
-                  teamPositions.map((position) => {
+                  visiblePositions.map((position) => {
                     const slotAssignments = (assignments ?? []).filter(
                       (a) => a.position_id === position.id,
                     )
