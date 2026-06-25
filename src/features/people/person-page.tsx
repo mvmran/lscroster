@@ -65,6 +65,7 @@ import { PersonEmailPrefsCard } from '@/features/people/person-email-prefs-card'
 import { PersonScheduleCard } from '@/features/people/person-schedule-card'
 import { PersonSchedulingCard } from '@/features/scheduling/person-scheduling-card'
 import { PersonTeamsCard } from '@/features/scheduling/person-teams-card'
+import { PersonTeamGrantsCard } from '@/features/scheduling/person-team-grants-card'
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 
@@ -360,6 +361,24 @@ export function PersonPage() {
       </Card>
 
       <PersonTeamsCard personId={p.id} canManage={isAdmin || isLeader} />
+
+      {/* Per-team access grants (Team Leader / Team Viewer). Governance — admins
+          + global leaders — can grant several teams at once; everyone with
+          access to the profile can see the grants. */}
+      {(isAdmin || isLeader) && (
+        <>
+          <PersonTeamGrantsCard
+            personId={p.id}
+            kind="leader"
+            canManage={isAdmin || isLeader}
+          />
+          <PersonTeamGrantsCard
+            personId={p.id}
+            kind="viewer"
+            canManage={isAdmin || isLeader}
+          />
+        </>
+      )}
 
       {(isAdmin || isLeader) && <PersonSchedulingCard personId={p.id} />}
 

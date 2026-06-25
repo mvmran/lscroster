@@ -13,6 +13,14 @@ export type TeamGrantWithPerson = {
   people: Tables<'people'>
 }
 
+/** A per-team grant row with the team embedded (for the person-profile cards). */
+export type TeamGrantWithTeam = {
+  id: string
+  team_id: string
+  person_id: string
+  teams: Tables<'teams'>
+}
+
 type GrantTable = 'team_leaders' | 'team_viewers'
 
 const accessKeys = {
@@ -20,6 +28,8 @@ const accessKeys = {
   viewers: (teamId: string) => ['team-viewers', teamId] as const,
   myLed: ['my-led-teams'] as const,
   myViewed: ['my-viewed-teams'] as const,
+  personLed: ['person-led-teams'] as const,
+  personViewed: ['person-viewed-teams'] as const,
 }
 
 function useGrantList(table: GrantTable, teamId: string | undefined) {
@@ -79,14 +89,47 @@ export function useMyViewedTeams() {
   return useMyGrantSet('team_viewers', accessKeys.myViewed)
 }
 
+function usePersonGrantList(table: GrantTable, personId: string | undefined) {
+  const key =
+    table === 'team_leaders' ? accessKeys.personLed : accessKeys.personViewed
+  return useQuery({
+    queryKey: [...key, personId ?? ''],
+    enabled: !!personId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from(table)
+        .select('id, team_id, person_id, teams(*)')
+        .eq('person_id', personId!)
+      if (error) throw new Error(error.message)
+      return (data as TeamGrantWithTeam[]).sort((a, b) =>
+        a.teams.name.localeCompare(b.teams.name),
+      )
+    },
+  })
+}
+
+/** The teams one person is a Team Leader of (person-profile card). */
+export function usePersonLedTeams(personId: string | undefined) {
+  return usePersonGrantList('team_leaders', personId)
+}
+
+/** The teams one person is a Team Viewer of (person-profile card). */
+export function usePersonViewedTeams(personId: string | undefined) {
+  return usePersonGrantList('team_viewers', personId)
+}
+
 function useGrantMutations(table: GrantTable) {
   const queryClient = useQueryClient()
   const listKey = table === 'team_leaders' ? 'team-leaders' : 'team-viewers'
   const mineKey = table === 'team_leaders' ? accessKeys.myLed : accessKeys.myViewed
+  const personKey =
+    table === 'team_leaders' ? accessKeys.personLed : accessKeys.personViewed
   const invalidate = (teamId: string) => {
     queryClient.invalidateQueries({ queryKey: [listKey, teamId] })
     // A person can grant/revoke their own access, so refresh the "mine" sets too.
     queryClient.invalidateQueries({ queryKey: mineKey })
+    // Refresh the person-profile cards (keyed by person) — prefix match.
+    queryClient.invalidateQueries({ queryKey: personKey })
   }
   const add = useMutation({
     mutationFn: async ({ teamId, personId }: { teamId: string; personId: string }) => {
