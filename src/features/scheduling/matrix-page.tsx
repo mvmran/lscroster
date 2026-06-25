@@ -91,6 +91,7 @@ import {
   applyTeamOrder,
   useMatrixTeamOrder,
 } from '@/features/scheduling/use-matrix-team-order'
+import { useMatrixCollapse } from '@/features/scheduling/use-matrix-collapse'
 import {
   MATRIX_PLAN_COUNT_MAX,
   MATRIX_PLAN_COUNT_MIN,
@@ -659,12 +660,11 @@ export function MatrixPage() {
   // Collapsed (hidden) plan columns (issue #68); the window fills the next plan
   // in to keep the column count steady.
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
-  // Collapsed (hidden) team sections: their position rows are hidden, leaving
-  // only the team header. The per-column plan-level actions (suggest / send /
-  // cancel) then act only on the teams still visible.
-  const [collapsedTeamIds, setCollapsedTeamIds] = useState<Set<string>>(new Set())
-  // Collapse (hide) the ORDER section's rows, leaving only its header (issue #107).
-  const [orderCollapsed, setOrderCollapsed] = useState(false)
+  // Collapsed (hidden) team sections + the ORDER section (issues #107/#68); the
+  // per-column plan-level actions (suggest / send / cancel) then act only on the
+  // teams still visible. Persisted per login on this browser (issue #112).
+  const { collapsedTeamIds, toggleTeamCollapse, orderCollapsed, toggleOrderCollapsed } =
+    useMatrixCollapse()
   const { order, saveOrder } = useMatrixTeamOrder()
   const { count: planCount, setCount: setPlanCount } = useMatrixPlanCount()
 
@@ -708,15 +708,6 @@ export function MatrixPage() {
     setCollapsedIds((prev) => {
       const next = new Set(prev)
       next.delete(id)
-      return next
-    })
-  }
-
-  function toggleTeamCollapse(id: string) {
-    setCollapsedTeamIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
       return next
     })
   }
@@ -1003,7 +994,7 @@ export function MatrixPage() {
                     <span>Order</span>
                     <button
                       type="button"
-                      onClick={() => setOrderCollapsed((c) => !c)}
+                      onClick={() => toggleOrderCollapsed()}
                       className="text-muted-foreground/60 hover:text-foreground shrink-0 p-0.5"
                       title={orderCollapsed ? 'Show order of service' : 'Hide order of service'}
                       aria-label={

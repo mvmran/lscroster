@@ -1419,6 +1419,7 @@ export type Database = {
       }
       is_viewer_of_plan: { Args: { target_plan_id: string }; Returns: boolean }
       leads_team: { Args: { target_team_id: string }; Returns: boolean }
+      leads_team_on_plan: { Args: { target_plan_id: string }; Returns: boolean }
       manages_person: { Args: { target: string }; Returns: boolean }
       manages_photo_folder: { Args: { object_name: string }; Returns: boolean }
       team_of_member: { Args: { target_member_id: string }; Returns: string }

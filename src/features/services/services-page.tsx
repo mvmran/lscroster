@@ -15,6 +15,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import { NewPlanDialog } from '@/features/services/new-plan-dialog'
 import { formatPlanDate } from '@/features/services/service-utils'
 import { splitUpcomingPast, usePlans, type PlanWithType } from '@/features/services/use-plans'
@@ -59,12 +60,16 @@ export function ServicesPage() {
   const { data: plans, isPending, isError, error } = usePlans()
   const { data: serviceTypes } = useServiceTypes()
   const { data: me } = useCurrentPerson()
+  const perms = useTeamPermissions()
 
   const [typeFilter, setTypeFilter] = useState('all')
   const [newPlanOpen, setNewPlanOpen] = useState(false)
 
   const canManage = me?.role === 'admin' || me?.role === 'leader'
   const isAdmin = me?.role === 'admin'
+  // Per-team Team Leaders can roster via the Matrix even as a plain member
+  // (issue #111), so the entry button shows for them too.
+  const canMatrix = canManage || perms.ledTeamIds.size > 0
 
   const filtered = useMemo(
     () =>
@@ -83,18 +88,22 @@ export function ServicesPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Services</h1>
-        {canManage && (
+        {(canMatrix || canManage) && (
           <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link to="/services/matrix">
-                <Grid3x3 className="size-4" />
-                <span className="hidden sm:inline">Matrix</span>
-              </Link>
-            </Button>
-            <Button onClick={() => setNewPlanOpen(true)} disabled={noServiceTypes}>
-              <Plus className="size-4" />
-              New plan
-            </Button>
+            {canMatrix && (
+              <Button variant="outline" asChild>
+                <Link to="/services/matrix">
+                  <Grid3x3 className="size-4" />
+                  <span className="hidden sm:inline">Matrix</span>
+                </Link>
+              </Button>
+            )}
+            {canManage && (
+              <Button onClick={() => setNewPlanOpen(true)} disabled={noServiceTypes}>
+                <Plus className="size-4" />
+                New plan
+              </Button>
+            )}
           </div>
         )}
       </div>
