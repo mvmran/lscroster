@@ -122,7 +122,7 @@ export function AssignPersonDialog({
   const pending = createAssignment.isPending || replaceAssignment.isPending
 
   // The single best candidate for this slot per the auto-scheduler (issue #108).
-  // Highlighted with a green "Suggested roster" badge on exactly one person.
+  // Highlighted with a green "Suggested" badge on exactly one person.
   const suggestedPersonId = useMemo(() => {
     if (!target) return null
     const exclude = target.replaceAssignmentId
@@ -273,7 +273,7 @@ export function AssignPersonDialog({
             className="shrink-0 border-green-500/50 bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400"
           >
             <Sparkles className="size-3" />
-            Suggested roster
+            Suggested
           </Badge>
         )}
         {traineeIds.has(person.id) && (
