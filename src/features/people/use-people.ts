@@ -12,6 +12,19 @@ export const peopleKeys = {
 }
 
 /**
+ * The columns of `people` every authenticated user may read. Migration 0027
+ * (issue #119) locked email/phone/birthday away from the client roles, so
+ * `select('*')` on the base table now fails — embeds and write-backs must list
+ * these instead. Contact details are read through the masked `people_directory`
+ * view (see usePeople/usePerson). `has_email` is the non-sensitive
+ * "is this person emailable?" flag for the scheduling UI.
+ */
+export const PERSON_SAFE_COLUMNS =
+  'id, first_name, last_name, role, status, photo_url, notes, ' +
+  'auth_user_id, managed_by_person_id, managed_accepted_at, has_email, ' +
+  'created_at, updated_at'
+
+/**
  * Turn a Postgres error into a human message. A unique-violation (23505) on the
  * email index means another person already uses that address (issue #38) —
  * surface that instead of the raw `people_email_unique` constraint text.
@@ -27,14 +40,17 @@ export function usePeople() {
   return useQuery({
     queryKey: peopleKeys.all,
     queryFn: async () => {
+      // Read through the masked view (issue #119): contact details come back
+      // only for people this viewer is allowed to see; everyone else's
+      // email/phone/birthday are null.
       const { data, error } = await supabase
-        .from('people')
+        .from('people_directory')
         .select('*')
         .order('first_name')
         .order('last_name')
         .limit(2000)
       if (error) throw new Error(error.message)
-      return data
+      return data as unknown as Person[]
     },
     staleTime: 60 * 1000,
   })
@@ -46,12 +62,12 @@ export function usePerson(id: string | undefined) {
     enabled: !!id,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('people')
+        .from('people_directory')
         .select('*')
         .eq('id', id!)
         .maybeSingle()
       if (error) throw new Error(error.message)
-      return data
+      return data as unknown as Person | null
     },
   })
 }
@@ -65,13 +81,15 @@ export function useCreatePerson() {
   const invalidate = useInvalidatePeople()
   return useMutation({
     mutationFn: async (values: TablesInsert<'people'>) => {
+      // Write to the base table, but read back only the non-sensitive columns —
+      // the contact columns are no longer SELECT-able by the client (issue #119).
       const { data, error } = await supabase
         .from('people')
         .insert(values)
-        .select()
+        .select(PERSON_SAFE_COLUMNS)
         .single()
       if (error) throw new Error(personErrorMessage(error))
-      return data
+      return data as unknown as Person
     },
     onSuccess: invalidate,
   })
@@ -91,10 +109,10 @@ export function useUpdatePerson() {
         .from('people')
         .update(values)
         .eq('id', id)
-        .select()
+        .select(PERSON_SAFE_COLUMNS)
         .single()
       if (error) throw new Error(personErrorMessage(error))
-      return data
+      return data as unknown as Person
     },
     onSuccess: invalidate,
   })

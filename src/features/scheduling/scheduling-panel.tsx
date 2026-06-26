@@ -796,7 +796,7 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                                         </DropdownMenuItem>
                                       )}
                                       {assignment.status === 'pending' &&
-                                        (assignment.people.email ||
+                                        (assignment.people.has_email ||
                                           assignment.people.managed_by_person_id) && (
                                           <DropdownMenuItem
                                             onClick={() => sendOne(assignment.id)}

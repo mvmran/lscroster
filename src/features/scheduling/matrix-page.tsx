@@ -109,6 +109,7 @@ import {
 } from '@/features/scheduling/use-scheduling-rules'
 import type { Position } from '@/features/scheduling/scheduling-utils'
 import { useTeamPermissions } from '@/features/scheduling/use-team-access'
+import { PERSON_SAFE_COLUMNS } from '@/features/people/use-people'
 import { supabase } from '@/lib/supabase'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import {
@@ -131,7 +132,7 @@ function useMatrixAssignments(planIds: string[]) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('plan_assignments')
-        .select('*, people(*)')
+        .select(`*, people(${PERSON_SAFE_COLUMNS})`)
         .in('plan_id', planIds)
       if (error) throw new Error(error.message)
       const byPlan: Record<string, AssignmentWithPerson[]> = {}
@@ -331,7 +332,7 @@ function MatrixCell({
                   </DropdownMenuItem>
                 )}
                 {assignment.status === 'pending' &&
-                  (assignment.people.email ||
+                  (assignment.people.has_email ||
                     assignment.people.managed_by_person_id) && (
                   <DropdownMenuItem onClick={() => sendOne(assignment.id)}>
                     <Mail className="size-4" />

@@ -70,6 +70,13 @@ export type Database = {
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "blockout_dates_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       church_settings: {
@@ -166,6 +173,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "email_log_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "email_log_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
@@ -210,6 +224,13 @@ export type Database = {
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "invitations_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       people: {
@@ -219,6 +240,7 @@ export type Database = {
           created_at: string
           email: string | null
           first_name: string
+          has_email: boolean
           id: string
           last_name: string
           managed_accepted_at: string | null
@@ -236,6 +258,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           first_name: string
+          has_email?: boolean
           id?: string
           last_name: string
           managed_accepted_at?: string | null
@@ -253,6 +276,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           first_name?: string
+          has_email?: boolean
           id?: string
           last_name?: string
           managed_accepted_at?: string | null
@@ -270,6 +294,13 @@ export type Database = {
             columns: ["managed_by_person_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_managed_by_person_id_fkey"
+            columns: ["managed_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -308,6 +339,13 @@ export type Database = {
             columns: ["person_id"]
             isOneToOne: true
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_email_prefs_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -352,10 +390,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "person_pairings_person_a_fkey"
+            columns: ["person_a"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "person_pairings_person_b_fkey"
             columns: ["person_b"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_pairings_person_b_fkey"
+            columns: ["person_b"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -394,6 +446,13 @@ export type Database = {
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_recurring_unavailability_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -435,6 +494,13 @@ export type Database = {
             columns: ["person_id"]
             isOneToOne: true
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_scheduling_prefs_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -494,6 +560,13 @@ export type Database = {
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_assignments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
             referencedColumns: ["id"]
           },
           {
@@ -997,6 +1070,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "publish_overrides_overridden_by_fkey"
+            columns: ["overridden_by"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "publish_overrides_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
@@ -1232,6 +1312,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "team_leaders_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "team_leaders_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -1313,6 +1400,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "team_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "team_members_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -1352,6 +1446,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "team_viewers_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "team_viewers_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -1386,6 +1487,78 @@ export type Database = {
       }
     }
     Views: {
+      people_directory: {
+        Row: {
+          auth_user_id: string | null
+          birthday: string | null
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          has_email: boolean | null
+          id: string | null
+          last_name: string | null
+          managed_accepted_at: string | null
+          managed_by_person_id: string | null
+          notes: string | null
+          phone: string | null
+          photo_url: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          status: Database["public"]["Enums"]["person_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          auth_user_id?: string | null
+          birthday?: never
+          created_at?: string | null
+          email?: never
+          first_name?: string | null
+          has_email?: boolean | null
+          id?: string | null
+          last_name?: string | null
+          managed_accepted_at?: string | null
+          managed_by_person_id?: string | null
+          notes?: string | null
+          phone?: never
+          photo_url?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          status?: Database["public"]["Enums"]["person_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          auth_user_id?: string | null
+          birthday?: never
+          created_at?: string | null
+          email?: never
+          first_name?: string | null
+          has_email?: boolean | null
+          id?: string | null
+          last_name?: string | null
+          managed_accepted_at?: string | null
+          managed_by_person_id?: string | null
+          notes?: string | null
+          phone?: never
+          photo_url?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          status?: Database["public"]["Enums"]["person_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "people_managed_by_person_id_fkey"
+            columns: ["managed_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_managed_by_person_id_fkey"
+            columns: ["managed_by_person_id"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       song_usage: {
         Row: {
           last_used: string | null
@@ -1406,6 +1579,7 @@ export type Database = {
     }
     Functions: {
       can_manage_team: { Args: { target_team_id: string }; Returns: boolean }
+      can_view_contact: { Args: { target: string }; Returns: boolean }
       current_person_id: { Args: never; Returns: string }
       current_person_role: {
         Args: never

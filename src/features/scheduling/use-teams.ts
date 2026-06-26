@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { PERSON_SAFE_COLUMNS } from '@/features/people/use-people'
 import type { Proficiency } from '@/features/scheduling/scheduling-utils'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
@@ -146,7 +147,9 @@ export function useAllTeamMembers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('team_members')
-        .select('*, people(*), team_member_positions(position_id, proficiency)')
+        .select(
+          `*, people(${PERSON_SAFE_COLUMNS}), team_member_positions(position_id, proficiency)`,
+        )
       if (error) throw new Error(error.message)
       return data as TeamMemberWithPositionIds[]
     },
@@ -161,7 +164,9 @@ export function useTeamMembers(teamId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('team_members')
-        .select('*, people(*), team_member_positions(position_id, proficiency, positions(*))')
+        .select(
+          `*, people(${PERSON_SAFE_COLUMNS}), team_member_positions(position_id, proficiency, positions(*))`,
+        )
         .eq('team_id', teamId!)
       if (error) throw new Error(error.message)
       return (data as TeamMemberWithPositions[]).sort((a, b) =>

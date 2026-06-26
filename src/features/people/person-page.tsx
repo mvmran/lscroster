@@ -103,6 +103,13 @@ export function PersonPage() {
   // manage: edit their profile/photo and respond to rosters on their behalf.
   const isManaging = !!me && p.managed_by_person_id === me.id
   const canEdit = isAdmin || isSelf || isManaging
+  // Contact details (email/phone/birthday) are masked server-side by the
+  // people_directory view (issue #119): they come back null unless this viewer
+  // is allowed to see them (admin/leader, self, a manager, or a Team Leader of
+  // a team the person is on). If any value is present, or this viewer is clearly
+  // privileged, show the card; otherwise show a "private" note.
+  const canSeeContact =
+    isAdmin || isLeader || isSelf || isManaging || !!(p.email || p.phone || p.birthday)
 
   async function onEditSubmit(values: PersonFormValues) {
     // #92: removing the email of an account that already has a login revokes its
@@ -334,22 +341,30 @@ export function PersonPage() {
             </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-muted-foreground">Email</dt>
-              <dd className="font-medium break-all">{p.email ?? '—'}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Phone</dt>
-              <dd className="font-medium">
-                {p.phone ? formatPhone(p.phone) : '—'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Birthday</dt>
-              <dd className="font-medium">
-                {p.birthday ? format(new Date(p.birthday), 'd MMMM yyyy') : '—'}
-              </dd>
-            </div>
+            {canSeeContact ? (
+              <>
+                <div>
+                  <dt className="text-muted-foreground">Email</dt>
+                  <dd className="font-medium break-all">{p.email ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Phone</dt>
+                  <dd className="font-medium">
+                    {p.phone ? formatPhone(p.phone) : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Birthday</dt>
+                  <dd className="font-medium">
+                    {p.birthday ? format(new Date(p.birthday), 'd MMMM yyyy') : '—'}
+                  </dd>
+                </div>
+              </>
+            ) : (
+              <div className="text-muted-foreground sm:col-span-2">
+                Email, phone and birthday are private.
+              </div>
+            )}
             <div>
               <dt className="text-muted-foreground">Added</dt>
               <dd className="font-medium">

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { fullName } from '@/features/people/person-utils'
+import { PERSON_SAFE_COLUMNS } from '@/features/people/use-people'
 import type { Tables } from '@/types/database'
 
 /** A per-team grant row (leader or viewer) with the granted person embedded. */
@@ -42,7 +43,7 @@ function useGrantList(table: GrantTable, teamId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from(table)
-        .select('id, team_id, person_id, people(*)')
+        .select(`id, team_id, person_id, people(${PERSON_SAFE_COLUMNS})`)
         .eq('team_id', teamId!)
       if (error) throw new Error(error.message)
       return (data as TeamGrantWithPerson[]).sort((a, b) =>

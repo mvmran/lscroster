@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invokeFunction } from '@/lib/functions'
 import { supabase } from '@/lib/supabase'
 import type { Tables, TablesInsert } from '@/types/database'
+import { PERSON_SAFE_COLUMNS } from '@/features/people/use-people'
 import type { AssignmentStatus } from '@/features/scheduling/scheduling-utils'
 
 export type AssignmentWithPerson = Tables<'plan_assignments'> & {
@@ -125,7 +126,7 @@ export function usePlanAssignments(planId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('plan_assignments')
-        .select('*, people(*)')
+        .select(`*, people(${PERSON_SAFE_COLUMNS})`)
         .eq('plan_id', planId!)
       if (error) throw new Error(error.message)
       return data as AssignmentWithPerson[]
@@ -171,7 +172,7 @@ export function useMyAssignments(personIds: string[] | undefined) {
       const { data, error } = await supabase
         .from('plan_assignments')
         .select(
-          '*, people(*), plans(*, service_types(*), plan_times(*)), teams(*), positions(*)',
+          `*, people(${PERSON_SAFE_COLUMNS}), plans(*, service_types(*), plan_times(*)), teams(*), positions(*)`,
         )
         .in('person_id', ids)
       if (error) throw new Error(error.message)
