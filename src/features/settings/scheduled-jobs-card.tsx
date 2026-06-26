@@ -17,27 +17,61 @@ import {
   useChurchSettings,
   useUpdateChurchSettings,
 } from '@/features/settings/use-church-settings'
+import {
+  useRunScheduledJob,
+  type ScheduledJob,
+} from '@/features/settings/use-run-scheduled-job'
 
 type ChurchSettings = NonNullable<ReturnType<typeof useChurchSettings>['data']>
 
 const NUDGE_MAX = 14
 const REMINDER_MAX = 7
+const ROSTER_STATUS_MAX = 52
+
+/** The small italic "(send now)" link after each job (issue #117). */
+function SendNow({ job, label }: { job: ScheduledJob; label: string }) {
+  const run = useRunScheduledJob()
+  return (
+    <button
+      type="button"
+      disabled={run.isPending}
+      onClick={() =>
+        run.mutate(job, {
+          onSuccess: () =>
+            toast.success(`Sending ${label} now — emails will go out shortly.`),
+          onError: (e) => toast.error(e.message),
+        })
+      }
+      className="text-muted-foreground hover:text-foreground ml-1 inline-flex items-center gap-1 text-xs italic underline-offset-2 hover:underline disabled:opacity-50"
+    >
+      {run.isPending && <Loader2 className="size-3 animate-spin" />}
+      (send now)
+    </button>
+  )
+}
 
 function JobsForm({ settings }: { settings: ChurchSettings }) {
   const update = useUpdateChurchSettings()
   const [nudge, setNudge] = useState(String(settings.request_nudge_days))
   const [reminder, setReminder] = useState(String(settings.reminder_days_before))
+  const [rosterWeeks, setRosterWeeks] = useState(
+    String(settings.roster_status_weeks),
+  )
   const [notifyOnPublish, setNotifyOnPublish] = useState(settings.notify_on_publish)
 
   const nudgeNum = Number.parseInt(nudge, 10)
   const reminderNum = Number.parseInt(reminder, 10)
+  const rosterNum = Number.parseInt(rosterWeeks, 10)
   const nudgeValid = Number.isInteger(nudgeNum) && nudgeNum >= 0 && nudgeNum <= NUDGE_MAX
   const reminderValid =
     Number.isInteger(reminderNum) && reminderNum >= 0 && reminderNum <= REMINDER_MAX
+  const rosterValid =
+    Number.isInteger(rosterNum) && rosterNum >= 0 && rosterNum <= ROSTER_STATUS_MAX
 
   const dirty =
     nudgeNum !== settings.request_nudge_days ||
     reminderNum !== settings.reminder_days_before ||
+    rosterNum !== settings.roster_status_weeks ||
     notifyOnPublish !== settings.notify_on_publish
 
   function save() {
@@ -47,6 +81,7 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
         values: {
           request_nudge_days: nudgeNum,
           reminder_days_before: reminderNum,
+          roster_status_weeks: rosterNum,
           notify_on_publish: notifyOnPublish,
         },
       },
@@ -60,7 +95,10 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="job-nudge">Nudge unanswered requests</Label>
+        <Label htmlFor="job-nudge">
+          Nudge unanswered requests
+          <SendNow job="nudge" label="nudges" />
+        </Label>
         <p className="text-muted-foreground text-xs">
           Days between follow-up emails to people who haven't responded, until
           they do. Set to <strong>0</strong> to turn nudges off.
@@ -84,7 +122,10 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="job-reminder">Pre-service reminders</Label>
+        <Label htmlFor="job-reminder">
+          Pre-service reminders
+          <SendNow job="reminder" label="reminders" />
+        </Label>
         <p className="text-muted-foreground text-xs">
           Days before a service to remind confirmed people. Set to{' '}
           <strong>0</strong> to turn reminders off.
@@ -109,6 +150,38 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
         )}
       </div>
 
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="job-roster-status">
+          Upcoming roster status
+          <SendNow job="roster-status" label="roster status" />
+        </Label>
+        <p className="text-muted-foreground text-xs">
+          Weeks ahead the nightly (8pm) roster-status digest covers, emailed to
+          Team Leaders, Team Viewers and admins. Set to <strong>0</strong> to
+          turn it off.
+        </p>
+        <div className="flex items-center gap-2">
+          <Input
+            id="job-roster-status"
+            type="number"
+            min={0}
+            max={ROSTER_STATUS_MAX}
+            inputMode="numeric"
+            className="w-24"
+            value={rosterWeeks}
+            onChange={(e) => setRosterWeeks(e.target.value)}
+          />
+          <span className="text-muted-foreground text-sm">
+            weeks (0–{ROSTER_STATUS_MAX})
+          </span>
+        </div>
+        {!rosterValid && (
+          <p className="text-destructive text-xs">
+            Enter a whole number from 0 to {ROSTER_STATUS_MAX}.
+          </p>
+        )}
+      </div>
+
       <div className="flex items-start gap-3">
         <Checkbox
           id="job-publish"
@@ -129,7 +202,9 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
         <div className="flex justify-end">
           <Button
             size="sm"
-            disabled={update.isPending || !nudgeValid || !reminderValid}
+            disabled={
+              update.isPending || !nudgeValid || !reminderValid || !rosterValid
+            }
             onClick={save}
           >
             {update.isPending && <Loader2 className="size-4 animate-spin" />}
@@ -142,9 +217,11 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
 }
 
 /**
- * Admin controls for the recurring email jobs (issue #88): the nudge cadence,
- * the pre-service reminder lead time, and the publish-email master switch — all
- * stored on church_settings and read by the reminders / publish Edge Functions.
+ * Admin controls for the recurring email jobs (issues #88, #117): the nudge
+ * cadence, the pre-service reminder lead time, the upcoming-roster-status
+ * look-ahead, and the publish-email master switch — all stored on
+ * church_settings and read by the reminders / publish Edge Functions. Each job
+ * also has a "(send now)" link to run it on demand.
  */
 export function ScheduledJobsCard() {
   const { data: settings, isPending } = useChurchSettings()

@@ -12,12 +12,14 @@ export type EmailPrefKey =
   | 'nudge_emails'
   | 'reminder_emails'
   | 'publish_emails'
+  | 'roster_status_emails'
 
 export const EMAIL_PREF_DEFAULTS: Record<EmailPrefKey, boolean> = {
   roster_emails: true,
   nudge_emails: true,
   reminder_emails: true,
   publish_emails: true,
+  roster_status_emails: true,
 }
 
 export const emailPrefKeys = {

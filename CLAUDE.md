@@ -59,8 +59,10 @@ Church-specific configuration (name, logo, timezone, email sender) lives in a si
 /supabase
   /migrations     # ALL schema changes live here (timestamped SQL)
   /functions      # setup, invite, accept-invitation, delete-person,
-                  # send-email, send-requests, respond-to-request, reminders
-                  # (_shared/: resend, auth, email-log, scheduling, templates)
+                  # send-email, send-requests, respond-to-request, reminders,
+                  # run-scheduled-job (admin "send now")
+                  # (_shared/: resend, auth, email-log, scheduling,
+                  #  roster-status, templates)
 /docs             # SETUP.md, UPGRADE.md, screenshots
 ```
 
@@ -83,7 +85,7 @@ Storage buckets (all private, served via signed URLs): `photos`,
 - Supabase Auth, email + password, **invite-only** (public signups disabled). Admin invites a person → invitation email (Resend) → person sets password → account linked to their `people` row.
 - All outbound email goes through the shared Resend helper in `supabase/functions/_shared/resend.ts`; every send attempt is logged to `email_log` (admin-viewable at Settings → Email log). HTML templates live in `supabase/functions/_shared/email-templates/`.
 - Scheduling requests are answerable **without logging in**: emails link to `APP_URL/respond/<token>` (raw token only ever in the email; sha-256 hash in `plan_assignments.token_hash`), and that public page calls the `respond-to-request` Edge Function (verify_jwt off — the token is the credential). Answers can be changed until the service date passes.
-- Reminders: an hourly `pg_cron` job (`lscroster-reminders`, created in migration 0004) calls the `reminders` Edge Function via `pg_net`, reading the function URL and a shared secret from **Vault** (`reminders_function_url`, `reminders_cron_secret`); the function checks the `x-cron-secret` header against its `CRON_SECRET` env and only sends during the 9am hour in the church timezone. It nudges unanswered requests after `church_settings.request_nudge_days` and reminds confirmed people `reminder_days_before` days out, idempotently via `nudged_at`/`reminded_at`.
+- Reminders: an hourly `pg_cron` job (`lscroster-reminders`, created in migration 0004) calls the `reminders` Edge Function via `pg_net`, reading the function URL and a shared secret from **Vault** (`reminders_function_url`, `reminders_cron_secret`); the function checks the `x-cron-secret` header against its `CRON_SECRET` env. It runs three jobs off the one hourly schedule: at the **9am** hour (church timezone) it nudges unanswered requests after `church_settings.request_nudge_days` and reminds confirmed people `reminder_days_before` days out (idempotent via `nudged_at`/`reminded_at`); at the **8pm** hour it emails the "upcoming roster status" digest (issue #117) to Team Leaders, Team Viewers and admins (a plain `leader` only qualifies if also a TL/TV), covering `church_settings.roster_status_weeks` weeks ahead and scoped to each recipient's teams (admins see all). A `0` setting disables that job. An admin can run any job on demand from Settings → Scheduled jobs ("(send now)"), which calls the `run-scheduled-job` function (admin-only); it POSTs the `reminders` function `{ force: true, only: <job> }` in the background. No new cron/Vault secret — it reuses the existing hourly job and `CRON_SECRET`. The digest's pie chart is rendered by **QuickChart.io** (an `<img>` whose URL encodes only the aggregate category counts — no personal data — because email clients can't render inline SVG reliably); the RAG-coloured table is the authoritative data and stands alone if the image is blocked.
 
 ## Environment variables
 

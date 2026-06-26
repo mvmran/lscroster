@@ -37,6 +37,12 @@ const OPTIONS: { key: EmailPrefKey; label: string; description: string }[] = [
     label: 'Published plans',
     description: 'The full plan summary when a plan they are on is published.',
   },
+  {
+    key: 'roster_status_emails',
+    label: 'Upcoming roster status',
+    description:
+      'A digest of rostering progress for the teams they lead or view (Team Leaders, Team Viewers and admins).',
+  },
 ]
 
 function PrefsForm({
@@ -52,6 +58,8 @@ function PrefsForm({
     nudge_emails: prefs?.nudge_emails ?? EMAIL_PREF_DEFAULTS.nudge_emails,
     reminder_emails: prefs?.reminder_emails ?? EMAIL_PREF_DEFAULTS.reminder_emails,
     publish_emails: prefs?.publish_emails ?? EMAIL_PREF_DEFAULTS.publish_emails,
+    roster_status_emails:
+      prefs?.roster_status_emails ?? EMAIL_PREF_DEFAULTS.roster_status_emails,
   })
 
   function toggle(key: EmailPrefKey, next: boolean) {

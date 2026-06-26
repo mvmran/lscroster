@@ -1,10 +1,13 @@
-// Cron-driven reminder emails, invoked hourly by pg_cron (see migration 0004).
-// Secured by a shared secret header, not a JWT. Two jobs in one pass, both
-// idempotent via nudged_at/reminded_at:
+// Cron-driven scheduled emails, invoked hourly by pg_cron (see migration 0004).
+// Secured by a shared secret header, not a JWT. Three idempotent jobs in one
+// pass:
 //   1. Nudge people who haven't answered a request after N days (new token).
 //   2. Remind confirmed people N days before the service.
-// Emails only go out during the 9am hour in the church's timezone, so the
-// hourly schedule lands correctly across timezones and DST.
+//   3. Email Team Leaders/Viewers/admins an "upcoming roster status" digest.
+// Nudges + reminders go out during the 9am hour in the church's timezone; the
+// roster-status digest at 8pm. The hourly schedule lands each correctly across
+// timezones and DST. A `{ force, only }` body lets an admin trigger one job on
+// demand (issue #117 "send now"), bypassing the hour gate.
 
 import { serviceClient } from '../_shared/auth.ts'
 import { jsonResponse } from '../_shared/cors.ts'
@@ -20,6 +23,7 @@ import {
   schedulingRequestEmail,
 } from '../_shared/email-templates/scheduling.ts'
 import { sendEmailBatch } from '../_shared/resend.ts'
+import { runRosterStatus } from '../_shared/roster-status.ts'
 import {
   addDaysISO,
   appUrl,
@@ -32,7 +36,10 @@ import {
   todayInTimezone,
 } from '../_shared/scheduling.ts'
 
-const SEND_HOUR = 9
+const NUDGE_REMINDER_HOUR = 9
+const ROSTER_STATUS_HOUR = 20
+
+type JobName = 'nudge' | 'reminder' | 'roster-status'
 
 interface ReminderRow {
   id: string
@@ -67,18 +74,31 @@ Deno.serve(async (req) => {
   if (req.headers.get('x-cron-secret') !== secret) {
     return jsonResponse({ error: 'Unauthorized' }, 401)
   }
-  // { force: true } skips the send-hour gate — used for manual testing.
-  const body = (await req.json().catch(() => ({}))) as { force?: boolean }
+  // `force` skips the send-hour gate; `only` runs a single job — both used by
+  // the admin "send now" links (issue #117). The cron passes neither.
+  const body = (await req.json().catch(() => ({}))) as {
+    force?: boolean
+    only?: JobName
+  }
 
   const admin = serviceClient()
   const { data: church } = await admin
     .from('church_settings')
-    .select('name, email_from_name, timezone, request_nudge_days, reminder_days_before')
+    .select(
+      'name, email_from_name, timezone, request_nudge_days, reminder_days_before, roster_status_weeks',
+    )
     .maybeSingle()
   if (!church) return jsonResponse({ ok: true, skipped: 'no church settings' })
 
   const timezone = church.timezone || 'Australia/Sydney'
-  if (!body.force && hourInTimezone(timezone) !== SEND_HOUR) {
+  const hour = hourInTimezone(timezone)
+  const wants = (job: JobName) => !body.only || body.only === job
+  const runNudge = wants('nudge') && (body.force || hour === NUDGE_REMINDER_HOUR)
+  const runReminder =
+    wants('reminder') && (body.force || hour === NUDGE_REMINDER_HOUR)
+  const runRoster =
+    wants('roster-status') && (body.force || hour === ROSTER_STATUS_HOUR)
+  if (!runNudge && !runReminder && !runRoster) {
     return jsonResponse({ ok: true, skipped: 'outside send hour' })
   }
 
@@ -118,7 +138,7 @@ Deno.serve(async (req) => {
   // -- nudges: pending, emailed at least nudge_days ago, never nudged --------
   // request_nudge_days = 0 disables the nudge job entirely (issue #88).
   const nudgeOutbound: OutboundReminder[] = []
-  if (church.request_nudge_days > 0) {
+  if (runNudge && church.request_nudge_days > 0) {
     const { data: nudgeRows } = await admin
       .from('plan_assignments')
       .select(selectColumns)
@@ -198,7 +218,7 @@ Deno.serve(async (req) => {
   // -- reminders: confirmed, service within reminder_days_before -------------
   // reminder_days_before = 0 disables the reminder job entirely (issue #88).
   const reminderOutbound: OutboundReminder[] = []
-  if (church.reminder_days_before > 0) {
+  if (runReminder && church.reminder_days_before > 0) {
     const { data: reminderRows } = await admin
       .from('plan_assignments')
       .select(selectColumns)
@@ -269,5 +289,12 @@ Deno.serve(async (req) => {
   )
   const reminded = reminderResults.filter((r) => r.sent).length
 
-  return jsonResponse({ ok: true, nudged, reminded })
+  // -- roster status: digest to Team Leaders/Viewers/admins (issue #117) ------
+  // roster_status_weeks = 0 disables it. The whole job lives in a shared module.
+  const rosterStatus =
+    runRoster && church.roster_status_weeks > 0
+      ? await runRosterStatus(admin, church, today)
+      : 0
+
+  return jsonResponse({ ok: true, nudged, reminded, rosterStatus })
 })

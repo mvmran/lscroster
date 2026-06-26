@@ -91,6 +91,7 @@ export type Database = {
           notify_on_publish: boolean
           reminder_days_before: number
           request_nudge_days: number
+          roster_status_weeks: number
           singleton: boolean
           timezone: string
           updated_at: string
@@ -106,6 +107,7 @@ export type Database = {
           notify_on_publish?: boolean
           reminder_days_before?: number
           request_nudge_days?: number
+          roster_status_weeks?: number
           singleton?: boolean
           timezone?: string
           updated_at?: string
@@ -121,6 +123,7 @@ export type Database = {
           notify_on_publish?: boolean
           reminder_days_before?: number
           request_nudge_days?: number
+          roster_status_weeks?: number
           singleton?: boolean
           timezone?: string
           updated_at?: string
@@ -313,6 +316,7 @@ export type Database = {
           publish_emails: boolean
           reminder_emails: boolean
           roster_emails: boolean
+          roster_status_emails: boolean
           updated_at: string
         }
         Insert: {
@@ -322,6 +326,7 @@ export type Database = {
           publish_emails?: boolean
           reminder_emails?: boolean
           roster_emails?: boolean
+          roster_status_emails?: boolean
           updated_at?: string
         }
         Update: {
@@ -331,6 +336,7 @@ export type Database = {
           publish_emails?: boolean
           reminder_emails?: boolean
           roster_emails?: boolean
+          roster_status_emails?: boolean
           updated_at?: string
         }
         Relationships: [

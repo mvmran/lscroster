@@ -435,6 +435,9 @@ verify_jwt = false
 [functions.reminders]
 verify_jwt = false
 
+[functions.run-scheduled-job]
+verify_jwt = true
+
 [analytics]
 # Disabled: not needed locally, and on Windows it requires exposing the
 # Docker daemon over TCP.

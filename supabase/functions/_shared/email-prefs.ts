@@ -8,12 +8,14 @@ export type EmailPrefKey =
   | 'nudge_emails'
   | 'reminder_emails'
   | 'publish_emails'
+  | 'roster_status_emails'
 
 export interface EmailPrefs {
   roster_emails: boolean
   nudge_emails: boolean
   reminder_emails: boolean
   publish_emails: boolean
+  roster_status_emails: boolean
 }
 
 const ALL_ON: EmailPrefs = {
@@ -21,6 +23,7 @@ const ALL_ON: EmailPrefs = {
   nudge_emails: true,
   reminder_emails: true,
   publish_emails: true,
+  roster_status_emails: true,
 }
 
 /**
@@ -36,7 +39,9 @@ export async function fetchEmailPrefs(
   if (ids.length === 0) return map
   const { data } = await admin
     .from('person_email_prefs')
-    .select('person_id, roster_emails, nudge_emails, reminder_emails, publish_emails')
+    .select(
+      'person_id, roster_emails, nudge_emails, reminder_emails, publish_emails, roster_status_emails',
+    )
     .in('person_id', ids)
   for (const row of data ?? []) {
     map.set(row.person_id as string, {
@@ -44,6 +49,7 @@ export async function fetchEmailPrefs(
       nudge_emails: row.nudge_emails as boolean,
       reminder_emails: row.reminder_emails as boolean,
       publish_emails: row.publish_emails as boolean,
+      roster_status_emails: row.roster_status_emails as boolean,
     })
   }
   return map

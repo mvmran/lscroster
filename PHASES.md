@@ -133,10 +133,26 @@ The "Min required" steppers now write these instead of the team-wide
 `coalesce(override, positions.min_count)` via `planMinCountMap()` +
 `useAllPlanMinCounts`. Plan write policy is per-team (`can_manage_team(position's
 team)`); template policy is `is_admin_or_leader()` (mirrors `plan_template_items`).
+(0024) `people_contact_visibility` (issue #119): hides `email`/`phone`/`birthday`
+from members who shouldn't see them — `revoke`s SELECT on those three columns
+from `authenticated`/`anon` (granting back only the safe columns) and exposes a
+masked `people_directory` view (the app's read path) that blanks them per a new
+`can_view_contact()` helper (admin/leader · self · manager · Team Leader of the
+target's team). A generated `people.has_email` boolean keeps "is this person
+emailable?" available to scheduling without exposing the address. (0026)
+`team_leader_plan_visibility` — `leads_team_on_plan()` so a Team Leader sees the
+plans their team serves. (0028) `roster_status_job` (issue #117):
+`church_settings.roster_status_weeks` (0–52, 0 = off) + `person_email_prefs
+.roster_status_emails` for the nightly upcoming-roster-status digest.
 New Edge Functions: `cancel-assignment`, `send-plan-notification`,
-`request-password-reset`; new shared `_shared/email-prefs.ts` (per-person opt-outs
-+ managed-account routing); `_shared/auth.ts` gains `teamScopeFor()` so
+`request-password-reset`, `run-scheduled-job` (admin "send now" for the
+scheduled email jobs); new shared `_shared/email-prefs.ts` (per-person opt-outs
++ managed-account routing) and `_shared/roster-status.ts` (the #117 digest
+builder); `_shared/auth.ts` gains `teamScopeFor()` so
 `send-requests`/`cancel-assignment` enforce the same per-team boundary as RLS.
+The `reminders` function now runs three jobs off the one hourly cron (nudges +
+reminders at 9am, the roster-status digest at 8pm) and accepts
+`{ force, only }` so an admin can trigger one on demand.
 Regenerate `src/types/database.ts` from the local stack after pulling.
 
 **Upgrade note (0023 — per-team access grants):** management is no longer
