@@ -113,7 +113,7 @@ export function schedulingReminderEmail(
           <br /><br />
           A quick reminder that ${p.onBehalfOf ? `${who} is` : `you're`} confirmed to serve:
           ${detailsBlock(p)}
-          See you there! You can view the full plan in LSCRoster.
+          See you there! You can view the full plan in LSCroster.
         </td>
       </tr>
       <tr>

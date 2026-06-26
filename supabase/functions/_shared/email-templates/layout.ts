@@ -1,5 +1,5 @@
 // Shared HTML email chrome: the outer responsive card wrapper and the footer.
-// Every LSCRoster template renders its body inside `wrapper(...)` so the look
+// Every LSCroster template renders its body inside `wrapper(...)` so the look
 // stays consistent across requests, reminders, cancellations and plan notices.
 
 export const wrapper = (inner: string) => `<!doctype html>
@@ -20,7 +20,7 @@ export const wrapper = (inner: string) => `<!doctype html>
 export const footer = (churchName: string) => `
   <tr>
     <td style="padding-top:24px;font-size:12px;color:#a1a1aa;">
-      Sent by LSCRoster on behalf of ${churchName}.
+      Sent by LSCroster on behalf of ${churchName}.
     </td>
   </tr>`
 

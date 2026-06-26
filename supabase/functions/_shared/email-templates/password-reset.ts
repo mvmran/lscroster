@@ -22,7 +22,7 @@ export function passwordResetEmail({
       <tr>
         <td style="font-size:15px;line-height:1.6;color:#3f3f46;">
           We received a request to reset the password for your ${name} account
-          on LSCRoster. Tap the button below to choose a new password.
+          on LSCroster. Tap the button below to choose a new password.
           This link expires in 1 hour.
         </td>
       </tr>

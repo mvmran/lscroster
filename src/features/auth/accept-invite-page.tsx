@@ -223,7 +223,7 @@ function ManagedConfirm({
             Confirm &amp; continue
           </Button>
           <Button asChild variant="ghost" className="w-full">
-            <Link to="/">Go to LSCRoster</Link>
+            <Link to="/">Go to LSCroster</Link>
           </Button>
         </CardContent>
       </Card>

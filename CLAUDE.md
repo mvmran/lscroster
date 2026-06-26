@@ -1,8 +1,8 @@
-# CLAUDE.md — LSCRoster
+# CLAUDE.md — LSCroster
 
 ## What this project is
 
-LSCRoster is an open-source worship & service planning web app for churches, replicating the
+LSCroster is an open-source worship & service planning web app for churches, replicating the
 core functionality of Planning Center **Services** plus a lightweight **People** module.
 First deployment is for Life Sanctuary Church (Sydney, ~50 users), but the app is designed to
 be **distributable**: any church can deploy its own independent instance.

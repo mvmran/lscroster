@@ -8,7 +8,7 @@ export function testEmail({ churchName, recipientName }: TestEmailParams): {
   html: string
 } {
   return {
-    subject: `${churchName} — test email from LSCRoster`,
+    subject: `${churchName} — test email from LSCroster`,
     html: `<!doctype html>
 <html>
   <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -25,13 +25,13 @@ export function testEmail({ churchName, recipientName }: TestEmailParams): {
               <td style="font-size:15px;line-height:1.6;color:#3f3f46;">
                 Hi ${recipientName},
                 <br /><br />
-                This is a test email from your LSCRoster instance. If you are
+                This is a test email from your LSCroster instance. If you are
                 reading this, outbound email via Resend is working correctly. 🎉
               </td>
             </tr>
             <tr>
               <td style="padding-top:24px;font-size:12px;color:#a1a1aa;">
-                Sent by LSCRoster on behalf of ${churchName}.
+                Sent by LSCroster on behalf of ${churchName}.
               </td>
             </tr>
           </table>

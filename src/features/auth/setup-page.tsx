@@ -94,7 +94,7 @@ export function SetupPage() {
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
           <Church className="mx-auto mb-2 size-8" />
-          <CardTitle className="text-xl">Welcome to LSCRoster</CardTitle>
+          <CardTitle className="text-xl">Welcome to LSCroster</CardTitle>
           <CardDescription>
             Set up your church and create the first admin account. This only
             happens once.

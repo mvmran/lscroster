@@ -1,4 +1,4 @@
-# PHASES.md — LSCRoster Build Plan
+# PHASES.md — LSCroster Build Plan
 
 Solo developer, vibe-coded with Claude Code. Each phase ends with a **usable release**
 deployed to the live Life Sanctuary Church instance. Tick boxes as work completes.

@@ -75,7 +75,7 @@ export function SignInPage() {
             fallback={<Church className="mx-auto mb-2 size-8" />}
           />
           <CardTitle className="text-xl">
-            {settings.data?.name ?? 'LSCRoster'}
+            {settings.data?.name ?? 'LSCroster'}
           </CardTitle>
           <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>

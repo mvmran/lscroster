@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
 
   return jsonResponse({
     ok: true,
-    churchName: church?.name ?? 'LSCRoster',
+    churchName: church?.name ?? 'LSCroster',
     firstName: assignment.people.first_name,
     planDateLong: formatPlanDateLong(assignment.plans.date),
     startTime: await planTimesLine(

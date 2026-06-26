@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
   if (church && church.notify_on_publish === false) {
     return jsonResponse({ ok: true, sent: 0, skipped: [] })
   }
-  const churchName = church?.name ?? 'LSCRoster'
+  const churchName = church?.name ?? 'LSCroster'
   const fromName = church?.email_from_name ?? churchName
 
   // -- the plan's labelled times -------------------------------------------

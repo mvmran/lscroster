@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
     .from('church_settings')
     .select('name, email_from_name')
     .maybeSingle()
-  const churchName = church?.name ?? 'LSCRoster'
+  const churchName = church?.name ?? 'LSCroster'
   const appUrl = (Deno.env.get('APP_URL') ?? 'http://localhost:5173').replace(
     /\/$/,
     '',

@@ -8,7 +8,7 @@ import { addDays, differenceInCalendarDays, getDate, getDay, parseISO } from 'da
  * publish gate, and later (c) the auto-scheduler's post-fill check. Callers
  * hydrate the data (TanStack Query) and pass it in; never duplicate rule logic.
  *
- * Maps the spec's constraint taxonomy onto LSCRoster's actual schema. Decisions
+ * Maps the spec's constraint taxonomy onto LSCroster's actual schema. Decisions
  * baked in for this church's two-level proficiency model:
  *  - Trainees DO count toward `min_count`; `TRAINEE_UNSUPERVISED` fires only when
  *    *all* of a team's assignees in the service are trainees.

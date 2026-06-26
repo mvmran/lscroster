@@ -28,7 +28,7 @@ export function managedInvitationEmail({
   expiresInDays,
 }: ManagedInvitationEmailParams): { subject: string; html: string } {
   return {
-    subject: `Manage ${managedName}'s roster at ${churchName} on LSCRoster`,
+    subject: `Manage ${managedName}'s roster at ${churchName} on LSCroster`,
     html: `<!doctype html>
 <html>
   <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -46,7 +46,7 @@ export function managedInvitationEmail({
                 Hi ${managerName},
                 <br /><br />
                 An admin at <strong>${churchName}</strong> has asked you to manage
-                <strong>${managedName}</strong>'s roster on LSCRoster — for
+                <strong>${managedName}</strong>'s roster on LSCroster — for
                 example a child or family member who doesn't have their own email.
                 Once you confirm, you'll be able to view and respond to
                 ${managedName}'s scheduling requests from your own account, and
@@ -92,7 +92,7 @@ export function invitationEmail({
   expiresInDays,
 }: InvitationEmailParams): { subject: string; html: string } {
   return {
-    subject: `You're invited to ${churchName} on LSCRoster`,
+    subject: `You're invited to ${churchName} on LSCroster`,
     html: `<!doctype html>
 <html>
   <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -110,7 +110,7 @@ export function invitationEmail({
                 Hi ${recipientName},
                 <br /><br />
                 You've been invited to join <strong>${churchName}</strong> on
-                LSCRoster — the app we use to plan services and rosters.
+                LSCroster — the app we use to plan services and rosters.
                 Tap the button below to set your password and get started.
               </td>
             </tr>
@@ -132,7 +132,7 @@ export function invitationEmail({
             </tr>
             <tr>
               <td style="padding-top:24px;font-size:12px;color:#a1a1aa;">
-                Sent by LSCRoster on behalf of ${churchName}. If you weren't
+                Sent by LSCroster on behalf of ${churchName}. If you weren't
                 expecting this invitation you can safely ignore it.
               </td>
             </tr>

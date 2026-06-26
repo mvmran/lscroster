@@ -1,4 +1,4 @@
-# LSCRoster
+# LSCroster
 
 Open-source worship & service planning for churches — a lightweight,
 self-hosted alternative to Planning Center **Services** with a built-in

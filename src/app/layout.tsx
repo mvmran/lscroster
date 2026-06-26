@@ -78,7 +78,7 @@ function Brand({ className }: { className?: string }) {
         fallback={<Church className="size-6 shrink-0" />}
       />
       <span className="truncate text-base font-semibold">
-        {settings?.name ?? 'LSCRoster'}
+        {settings?.name ?? 'LSCroster'}
       </span>
     </div>
   )

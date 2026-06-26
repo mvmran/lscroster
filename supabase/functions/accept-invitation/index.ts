@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
     .from('church_settings')
     .select('name')
     .maybeSingle()
-  const churchName = church?.name ?? 'LSCRoster'
+  const churchName = church?.name ?? 'LSCroster'
 
   if (parsed.data.action === 'info') {
     if (managed) {

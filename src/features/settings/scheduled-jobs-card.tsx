@@ -154,7 +154,7 @@ export function ScheduledJobsCard() {
       <CardHeader>
         <CardTitle>Scheduled jobs</CardTitle>
         <CardDescription>
-          The automatic emails LSCRoster sends, and when. Members can still opt
+          The automatic emails LSCroster sends, and when. Members can still opt
           out individually from their own profile.
         </CardDescription>
       </CardHeader>

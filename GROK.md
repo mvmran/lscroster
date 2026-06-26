@@ -1,10 +1,10 @@
-# GROK.md — LSCRoster
+# GROK.md — LSCroster
 
 This is the project instruction file for Grok (xAI). It mirrors CLAUDE.md for compatibility when working with Grok Build / Grok CLI.
 
 ## What this project is
 
-LSCRoster is an open-source worship & service planning web app for churches, replicating the
+LSCroster is an open-source worship & service planning web app for churches, replicating the
 core functionality of Planning Center **Services** plus a lightweight **People** module.
 First deployment is for Life Sanctuary Church (Sydney, ~50 users), but the app is designed to
 be **distributable**: any church can deploy its own independent instance.

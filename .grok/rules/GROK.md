@@ -1,4 +1,4 @@
-# GROK.md — LSCRoster (project rules)
+# GROK.md — LSCroster (project rules)
 
 This file is placed in `.grok/rules/` so it is always discovered and loaded by Grok for this project (every *.md in the rules dir is loaded).
 

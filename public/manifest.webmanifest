@@ -1,6 +1,6 @@
 {
-  "name": "LSCRoster",
-  "short_name": "LSCRoster",
+  "name": "LSCroster",
+  "short_name": "LSCroster",
   "description": "Worship & service planning for your church",
   "start_url": "/",
   "display": "standalone",
