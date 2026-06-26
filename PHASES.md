@@ -154,7 +154,7 @@ Leaders via each team's page.
 Vercel, Supabase migrations) before writing features.
 
 ### Deliverables
-- [x] GitHub repo `lscroster` with MIT licence, README stub, `.gitignore`, `.env.example`
+- [x] GitHub repo `lscroster` with GPLv3 licence, README stub, `.gitignore`, `.env.example`
 - [x] Vite + React + TS (strict) scaffold; Tailwind + shadcn/ui installed; base theme (light/dark)
 - [x] App shell: responsive sidebar/topbar layout, route placeholders for People / Services / My Schedule / Settings
 - [x] Supabase project (Sydney region) created and linked; local stack runs via `supabase start`
@@ -296,7 +296,7 @@ blockouts, and email accept/decline.
 - [ ] Branding configurable per instance: church name, logo, colour accent, email sender — all via Settings, no code edits
 - [ ] Resend setup guide including custom domain/DNS for good email deliverability
 - [ ] Backup guidance (Supabase backups; manual `pg_dump` instructions)
-- [ ] README: screenshots, feature list, comparison scope vs Planning Center, licence (MIT)
+- [ ] README: screenshots, feature list, comparison scope vs Planning Center, licence (GPLv3)
 - [ ] Dry run: deploy a second clean instance from the docs alone, timing it; fix every friction point found
 
 ### Acceptance criteria

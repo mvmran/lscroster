@@ -84,4 +84,4 @@ and the first admin account.
 
 ## Licence
 
-[MIT](LICENSE)
+[GPLv3](LICENSE)
