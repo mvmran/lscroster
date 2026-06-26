@@ -1,11 +1,14 @@
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { format } from 'date-fns'
-import { ArrowLeft, Mail } from 'lucide-react'
+import { format, subDays } from 'date-fns'
+import { ArrowLeft, Mail, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { FullPageError } from '@/components/full-page-error'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -16,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { supabase } from '@/lib/supabase'
+import { cn } from '@/lib/utils'
 
 function useEmailLog() {
   return useQuery({
@@ -32,9 +36,78 @@ function useEmailLog() {
   })
 }
 
+/**
+ * Headline counts for the last 30 days (issue #118). Two exact head-counts keep
+ * the payload tiny regardless of volume. "Failed" is any row not marked sent —
+ * a provider rejection or a not-configured send.
+ */
+function useEmailStats() {
+  return useQuery({
+    queryKey: ['email-log-stats'],
+    queryFn: async () => {
+      const since = subDays(new Date(), 30).toISOString()
+      const [total, failed] = await Promise.all([
+        supabase
+          .from('email_log')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', since),
+        supabase
+          .from('email_log')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', since)
+          .neq('status', 'sent'),
+      ])
+      if (total.error) throw new Error(total.error.message)
+      if (failed.error) throw new Error(failed.error.message)
+      const totalCount = total.count ?? 0
+      const failedCount = failed.count ?? 0
+      return { totalCount, failedCount, sentCount: totalCount - failedCount }
+    },
+  })
+}
+
+function StatCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number
+  tone?: 'danger'
+}) {
+  return (
+    <Card className="py-0">
+      <CardContent className="flex flex-col gap-1 px-4 py-3">
+        <span className="text-muted-foreground text-xs">{label}</span>
+        <span
+          className={cn(
+            'text-2xl font-semibold tabular-nums',
+            tone === 'danger' && value > 0 && 'text-destructive',
+          )}
+        >
+          {value}
+        </span>
+      </CardContent>
+    </Card>
+  )
+}
+
 /** Admin-only: the last 200 outbound emails, for troubleshooting delivery. */
 export function EmailLogPage() {
   const { data: log, isPending, isError, error } = useEmailLog()
+  const { data: stats } = useEmailStats()
+
+  const [search, setSearch] = useState('')
+  const [errorsOnly, setErrorsOnly] = useState(false)
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    return (log ?? []).filter((entry) => {
+      if (errorsOnly && entry.status === 'sent') return false
+      if (term && !entry.to_email.toLowerCase().includes(term)) return false
+      return true
+    })
+  }, [log, search, errorsOnly])
 
   if (isError) return <FullPageError message={error.message} />
 
@@ -53,6 +126,34 @@ export function EmailLogPage() {
         </p>
       </div>
 
+      {/* Last-30-days summary (issue #118). */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard label="Sent · 30 days" value={stats?.totalCount ?? 0} />
+        <StatCard label="Delivered" value={stats?.sentCount ?? 0} />
+        <StatCard label="Failed" value={stats?.failedCount ?? 0} tone="danger" />
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by email address…"
+            className="pl-9"
+            aria-label="Search email log by address"
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm whitespace-nowrap select-none">
+          <Checkbox
+            checked={errorsOnly}
+            onCheckedChange={(c) => setErrorsOnly(c === true)}
+            aria-label="Show only errors"
+          />
+          Show only errors
+        </label>
+      </div>
+
       {isPending ? (
         <Skeleton className="h-48 w-full" />
       ) : !log || log.length === 0 ? (
@@ -61,6 +162,13 @@ export function EmailLogPage() {
             <Mail className="size-8" />
             No emails logged yet. Scheduling requests, nudges and reminders
             appear here once they start going out.
+          </CardContent>
+        </Card>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center text-sm">
+            <Mail className="size-8" />
+            No emails match these filters.
           </CardContent>
         </Card>
       ) : (
@@ -75,7 +183,7 @@ export function EmailLogPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {log.map((entry) => (
+              {filtered.map((entry) => (
                 <TableRow key={entry.id}>
                   <TableCell className="text-muted-foreground whitespace-nowrap">
                     {format(new Date(entry.created_at), 'd MMM h:mmaaa')}
