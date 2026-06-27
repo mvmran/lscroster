@@ -151,7 +151,14 @@ export function useAllTeamMembers() {
           `*, people(${PERSON_SAFE_COLUMNS}), team_member_positions(position_id, proficiency)`,
         )
       if (error) throw new Error(error.message)
-      return data as TeamMemberWithPositionIds[]
+      // The `people` embed is null when the viewer can't read that person's row
+      // (a non-admin can only read *active* people), so an archived person who is
+      // still a team member comes back with no person. Drop those rows: they can't
+      // be rostered, and leaving them in crashes every consumer that reads
+      // `m.people` (e.g. the auto-scheduler's name map, the team roster).
+      return (data as (TeamMemberWithPositionIds & {
+        people: TeamMemberWithPositionIds['people'] | null
+      })[]).filter((m) => m.people != null) as TeamMemberWithPositionIds[]
     },
     staleTime: 60 * 1000,
   })
@@ -169,11 +176,18 @@ export function useTeamMembers(teamId: string | undefined) {
         )
         .eq('team_id', teamId!)
       if (error) throw new Error(error.message)
-      return (data as TeamMemberWithPositions[]).sort((a, b) =>
-        `${a.people.first_name} ${a.people.last_name}`.localeCompare(
-          `${b.people.first_name} ${b.people.last_name}`,
-        ),
-      )
+      // Skip members whose person row the viewer can't read (archived people are
+      // hidden from non-admins) — see useAllTeamMembers; sorting by their name
+      // would otherwise dereference a null `people`.
+      return (data as (TeamMemberWithPositions & {
+        people: TeamMemberWithPositions['people'] | null
+      })[])
+        .filter((m) => m.people != null)
+        .sort((a, b) =>
+          `${a.people.first_name} ${a.people.last_name}`.localeCompare(
+            `${b.people.first_name} ${b.people.last_name}`,
+          ),
+        ) as TeamMemberWithPositions[]
     },
   })
 }

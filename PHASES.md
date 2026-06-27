@@ -100,16 +100,24 @@ The local DB has no `seed.sql` — after a reset it's empty (no users, no
   columns + a snapshotted name label, **not** an FK to `people`: an AFTER DELETE
   trigger inserts the audit row after the referenced row is gone, so an FK would
   violate. The label also keeps the log readable after renames/deletes.
-- **A joined `people` embed can be `null` even when the row exists** — members
-  see every assignment on a *published* plan (`plan_assignments` RLS) but base
-  `people` RLS only lets non-admins read **active** people, so an archived person
-  still on the roster comes back with a `null` `people` embed. Rendering
-  `assignment.people.first_name` then throws and blanks the whole page (the
-  Matrix "disappears on loading" for members). Filter out null-`people` rows at
-  the fetch (`useMatrixAssignments`, `usePlanAssignments`) — it's a no-op for
-  admins/leaders (who read inactive people) and keeps the non-null type honest.
-  Archiving/deleting doesn't remove a person's future assignments, so the
-  person page + bulk-archive now warn when someone is still rostered.
+- **Any joined `people` embed can be `null` even when the parent row exists** —
+  base `people` RLS only lets non-admins read **active** people, so for a member
+  the embedded person comes back `null` for anyone archived. This bites *every*
+  query that embeds people, not just one: an archived person still on a published
+  plan's roster (`plan_assignments`, seen by members via RLS) **and** an archived
+  person still in `team_members`. Dereffing the null (`assignment.people.first_name`,
+  or `fullName(m.people)` in the auto-scheduler's name map at
+  `buildEngineState`) throws and blanks the whole page (no error boundary, so the
+  React root unmounts → white screen). It's member-only (admins/leaders read
+  inactive people) and the team-member path fires on the **plan page** the moment
+  `AssignPersonDialog` mounts (it calls `useAutoScheduler` → `buildEngineState`
+  unconditionally) — so it's independent of any assignment, which is why removing
+  the archived person's *assignment* doesn't fix it. Fix once, at each fetch:
+  filter null-`people` rows in `useMatrixAssignments`, `usePlanAssignments`,
+  `useAllTeamMembers` and `useTeamMembers`. No-op for admins; keeps the non-null
+  type honest. Archiving/deleting doesn't remove a person's future assignments or
+  team memberships, so the person page + bulk-archive also warn when someone is
+  still rostered.
 
 **preview_* tool notes:** `preview_eval` arg is `expression` (no top-level
 `await`); `preview_click` needs a CSS `selector` (no `:has-text`/`ref`) —
