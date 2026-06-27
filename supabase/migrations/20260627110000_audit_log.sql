@@ -38,15 +38,10 @@ create index audit_log_action_idx on public.audit_log (action, created_at desc);
 
 alter table public.audit_log enable row level security;
 
--- Base table privilege: signed-in users may SELECT (RLS narrows this to admins
--- below). Granted explicitly so the log is readable regardless of which role
--- runs the migration, rather than relying on platform default privileges. No
--- insert/update/delete grant — writes happen only via the security-definer
--- triggers (which run as the table owner and bypass both grants and RLS), so
--- the log cannot be forged or tampered with from a client.
-grant select on public.audit_log to authenticated;
-
--- Admin-readable only.
+-- Admin-readable only. Writes happen solely through the security-definer
+-- triggers below (which run as the table owner and bypass both grants and RLS),
+-- so even though the platform grants DML to authenticated, the absence of any
+-- insert/update/delete policy means the log cannot be forged from a client.
 create policy "Admins read audit log"
   on public.audit_log for select
   to authenticated
