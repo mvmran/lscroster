@@ -196,12 +196,6 @@ longer edit a team's positions/members/assignments unless appointed that team's
 **Team Leader**. Admins are unaffected. No data migration needed — appoint Team
 Leaders via each team's page.
 
-**Upgrade note (issue #126 — active-only email):** scheduling email now goes
-only to people whose account is **active** (has accepted a login, or is a
-confirmed managed member). People still in **Pending** (e.g. imported via CSV but
-not yet invited/accepted) no longer receive scheduling requests, nudges,
-reminders or publish emails until they accept. Invite them first.
-
 ---
 
 ## Phase 0 — Foundation & deployment pipeline
