@@ -34,6 +34,9 @@ Deno.serve(async (req) => {
   if (caller.role !== 'admin') {
     return jsonResponse({ error: 'Only admins can change account access' }, 403)
   }
+  // Attributes the archive/reactivate writes to this admin in the audit log
+  // (issue #116) via the x-audit-actor header.
+  const auditAdmin = serviceClient(caller.id)
 
   const parsed = schema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return jsonResponse({ error: 'Invalid request' }, 400)
@@ -116,7 +119,7 @@ Deno.serve(async (req) => {
     if (person.status === 'inactive') {
       return jsonResponse({ error: 'Already archived' }, 400)
     }
-    const { error } = await admin
+    const { error } = await auditAdmin
       .from('people')
       .update({ status: 'inactive' })
       .eq('id', personId)
@@ -132,7 +135,7 @@ Deno.serve(async (req) => {
     if (person.status === 'active') {
       return jsonResponse({ error: 'Already active' }, 400)
     }
-    const { error } = await admin
+    const { error } = await auditAdmin
       .from('people')
       .update({ status: 'active' })
       .eq('id', personId)

@@ -34,6 +34,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          actor_label: string | null
+          actor_person_id: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          summary: string
+          target_label: string | null
+          target_person_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_label?: string | null
+          actor_person_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          summary: string
+          target_label?: string | null
+          target_person_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_label?: string | null
+          actor_person_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          summary?: string
+          target_label?: string | null
+          target_person_id?: string | null
+        }
+        Relationships: []
+      }
       blockout_dates: {
         Row: {
           created_at: string

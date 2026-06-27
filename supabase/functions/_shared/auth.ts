@@ -3,11 +3,22 @@
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 
-export function serviceClient(): SupabaseClient {
+/**
+ * Service-role client (bypasses RLS). Pass `actorPersonId` to attribute any
+ * audited writes (people/team changes) to that person: it travels as an
+ * `x-audit-actor` header that the audit triggers trust *only* for service-role
+ * requests (issue #116). Browser writes are attributed via the JWT instead.
+ */
+export function serviceClient(actorPersonId?: string): SupabaseClient {
   return createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    { auth: { persistSession: false } },
+    {
+      auth: { persistSession: false },
+      ...(actorPersonId
+        ? { global: { headers: { 'x-audit-actor': actorPersonId } } }
+        : {}),
+    },
   )
 }
 

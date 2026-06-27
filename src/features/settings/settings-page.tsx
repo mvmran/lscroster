@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { CalendarDays, Loader2, Mail, X } from 'lucide-react'
+import { CalendarDays, Loader2, Mail, ScrollText, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -315,6 +315,28 @@ function ServiceTypesLinkCard() {
   )
 }
 
+function AuditLogCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Audit log</CardTitle>
+        <CardDescription>
+          A record of who added, archived, deleted or re-roled people, and team
+          membership and leader/viewer changes.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button asChild variant="outline">
+          <Link to="/settings/audit">
+            <ScrollText className="size-4" />
+            View audit log
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function SettingsPage() {
   const { data: person } = useCurrentPerson()
   const isAdmin = person?.role === 'admin'
@@ -329,6 +351,7 @@ export function SettingsPage() {
       {canManageServiceTypes && <ServiceTypesLinkCard />}
       {isAdmin && <ScheduledJobsCard />}
       {canSendEmail && <TestEmailCard isAdmin={isAdmin} />}
+      {isAdmin && <AuditLogCard />}
     </div>
   )
 }

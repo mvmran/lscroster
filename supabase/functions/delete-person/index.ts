@@ -52,7 +52,8 @@ Deno.serve(async (req) => {
     await admin.storage.from('photos').remove([person.photo_url])
   }
 
-  const { error: deleteError } = await admin
+  // Attribute the audit-log deletion event to this admin (issue #116).
+  const { error: deleteError } = await serviceClient(caller.id)
     .from('people')
     .delete()
     .eq('id', personId)

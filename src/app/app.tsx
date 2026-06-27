@@ -82,6 +82,10 @@ const EmailLogPage = lazyPage(
   () => import('@/features/settings/email-log-page'),
   'EmailLogPage',
 )
+const AuditLogPage = lazyPage(
+  () => import('@/features/settings/audit-log-page'),
+  'AuditLogPage',
+)
 
 export function App() {
   return (
@@ -118,6 +122,7 @@ export function App() {
                   <Route path="/people/import" element={<ImportPage />} />
                   <Route path="/settings/users" element={<UsersPage />} />
                   <Route path="/settings/email-log" element={<EmailLogPage />} />
+                  <Route path="/settings/audit" element={<AuditLogPage />} />
                 </Route>
                 <Route element={<RequireAdminOrLeader />}>
                   {/* Leaders manage service types too (issue #125). */}
