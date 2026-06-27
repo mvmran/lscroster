@@ -96,13 +96,6 @@ The local DB has no `seed.sql` — after a reset it's empty (no users, no
 
 **RLS probe:** seed a member JWT and confirm member writes to new rule tables
 → 403, reads → 200, admin writes → success. Hidden buttons are not security.
-- **Local stack lacks base DML grants for `postgres`-created tables:** tables
-  created by a CLI migration only get `Dxtm` (no SELECT/INSERT) for
-  `authenticated` locally — `supabase_admin`-created tables get full DML. So an
-  RLS read test fails with "permission denied for table …" *before* RLS is even
-  evaluated (this hits `email_log`, `service_types`, etc. too). Either add an
-  explicit `grant select … to authenticated` in the migration (preferred — makes
-  it portable, RLS still restricts) or `grant` in-session to isolate the policy.
 - **Append-only audit/log tables that record deletions** must use plain `uuid`
   columns + a snapshotted name label, **not** an FK to `people`: an AFTER DELETE
   trigger inserts the audit row after the referenced row is gone, so an FK would
