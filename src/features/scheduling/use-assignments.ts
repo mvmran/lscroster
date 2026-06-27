@@ -119,6 +119,29 @@ export function useRosterWorkload(enabled: boolean) {
   })
 }
 
+/**
+ * The set of person_ids who have at least one future-dated, non-declined
+ * assignment — used to warn before bulk-archiving people who are still rostered
+ * (their assignments aren't removed on archive). Admin/leader only under RLS.
+ */
+export function usePeopleWithUpcomingAssignments(enabled: boolean) {
+  return useQuery({
+    queryKey: ['people-with-upcoming-assignments'],
+    enabled,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10)
+      const { data, error } = await supabase
+        .from('plan_assignments')
+        .select('person_id, plans!inner(date)')
+        .neq('status', 'declined')
+        .gte('plans.date', today)
+      if (error) throw new Error(error.message)
+      return new Set((data as unknown as RosterWorkloadRow[]).map((r) => r.person_id))
+    },
+  })
+}
+
 export function usePlanAssignments(planId: string | undefined) {
   return useQuery({
     queryKey: assignmentKeys.plan(planId ?? ''),
@@ -129,7 +152,12 @@ export function usePlanAssignments(planId: string | undefined) {
         .select(`*, people(${PERSON_SAFE_COLUMNS})`)
         .eq('plan_id', planId!)
       if (error) throw new Error(error.message)
-      return data as AssignmentWithPerson[]
+      // The `people` embed is null when the viewer can't read that person's row
+      // — a member sees every assignment on a published plan (RLS), but can only
+      // read *active* people, so an archived person who is still rostered comes
+      // back with no person. Drop those rows so consumers keep a non-null embed.
+      return (data as (AssignmentWithPerson & { people: AssignmentWithPerson['people'] | null })[])
+        .filter((a) => a.people != null) as AssignmentWithPerson[]
     },
   })
 }

@@ -44,6 +44,7 @@ import {
 import { PersonAvatar } from '@/features/people/person-avatar'
 import { formatPhone } from '@/features/people/phone-utils'
 import { useSendInvite } from '@/features/people/use-invitations'
+import { usePeopleWithUpcomingAssignments } from '@/features/scheduling/use-assignments'
 import {
   accountStatus,
   fullName,
@@ -197,6 +198,17 @@ export function PeoplePage() {
   }
 
   const { eligible, skipped } = partitionBulk(bulkAction, selectedPeople, me?.id)
+
+  // Of the people about to be archived, how many are still rostered on upcoming
+  // services — archiving leaves those assignments in place, so warn first.
+  const upcoming = usePeopleWithUpcomingAssignments(isAdmin)
+  const rosteredCount = useMemo(
+    () =>
+      bulkAction === 'archive'
+        ? eligible.filter((p) => upcoming.data?.has(p.id)).length
+        : 0,
+    [bulkAction, eligible, upcoming.data],
+  )
 
   function onGo() {
     if (eligible.length === 0) {
@@ -508,6 +520,15 @@ export function PeoplePage() {
                   skipped.length === 1 ? 'person' : 'people'
                 } will be skipped.`}
             </AlertDialogDescription>
+            {rosteredCount > 0 && (
+              <div className="rounded-md border border-amber-500/50 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                {rosteredCount === 1
+                  ? '1 of these people is still rostered on an upcoming service.'
+                  : `${rosteredCount} of these people are still rostered on upcoming services.`}{' '}
+                Archiving won't remove those assignments — review and re-roster
+                them first, or those slots will be left unfilled.
+              </div>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

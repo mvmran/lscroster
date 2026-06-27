@@ -136,8 +136,15 @@ function useMatrixAssignments(planIds: string[]) {
         .in('plan_id', planIds)
       if (error) throw new Error(error.message)
       const byPlan: Record<string, AssignmentWithPerson[]> = {}
-      for (const row of data as AssignmentWithPerson[]) {
-        ;(byPlan[row.plan_id] ??= []).push(row)
+      // Skip rows whose `people` embed is null: a member sees every assignment on
+      // a published plan (RLS) but can only read *active* people, so an archived
+      // person still on the roster has no readable person. Without this, rendering
+      // `assignment.people.first_name` throws and the whole Matrix blanks out.
+      for (const row of data as (AssignmentWithPerson & {
+        people: AssignmentWithPerson['people'] | null
+      })[]) {
+        if (row.people == null) continue
+        ;(byPlan[row.plan_id] ??= []).push(row as AssignmentWithPerson)
       }
       return byPlan
     },

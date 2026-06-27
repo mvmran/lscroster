@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import {
   Archive,
@@ -71,6 +71,8 @@ import { PersonScheduleCard } from '@/features/people/person-schedule-card'
 import { PersonSchedulingCard } from '@/features/scheduling/person-scheduling-card'
 import { PersonTeamsCard } from '@/features/scheduling/person-teams-card'
 import { PersonTeamGrantsCard } from '@/features/scheduling/person-team-grants-card'
+import { usePersonSchedule } from '@/features/scheduling/use-assignments'
+import { todayISODate } from '@/features/services/service-utils'
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 
@@ -85,6 +87,21 @@ export function PersonPage() {
   const removePhoto = useRemovePhoto()
   const navigate = useNavigate()
   const managed = usePeopleManagedBy(id)
+  // Future-dated, non-declined assignments — surfaced as a warning before an
+  // admin archives or deletes someone, since neither removes those rosters and
+  // they'd be left silently understaffed (and, for archive, unreadable to
+  // members, see the matrix null-embed guard).
+  const schedule = usePersonSchedule(id)
+  const upcomingCount = useMemo(() => {
+    const today = todayISODate()
+    const planIds = new Set<string>()
+    for (const r of schedule.data ?? []) {
+      if (r.plans && r.plans.date >= today) planIds.add(r.plans.id)
+    }
+    return planIds.size
+  }, [schedule.data])
+  const upcomingLabel =
+    upcomingCount === 1 ? '1 upcoming service' : `${upcomingCount} upcoming services`
 
   const [editOpen, setEditOpen] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
@@ -497,6 +514,14 @@ export function PersonPage() {
                           Their history is kept and you can reactivate them
                           anytime.
                         </AlertDialogDescription>
+                        {upcomingCount > 0 && (
+                          <div className="rounded-md border border-amber-500/50 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                            {p.first_name} is still rostered on {upcomingLabel}.
+                            Archiving won't remove those assignments — review and
+                            re-roster them first, or those slots will be left
+                            unfilled.
+                          </div>
+                        )}
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -561,6 +586,13 @@ export function PersonPage() {
                         access. Usually archiving is better — it keeps history
                         but hides them from the directory.
                       </AlertDialogDescription>
+                      {upcomingCount > 0 && (
+                        <div className="rounded-md border border-amber-500/50 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                          {p.first_name} is still rostered on {upcomingLabel}.
+                          Deleting removes those assignments and leaves the slots
+                          unfilled — re-roster them first.
+                        </div>
+                      )}
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
