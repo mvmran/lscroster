@@ -96,6 +96,17 @@ The local DB has no `seed.sql` — after a reset it's empty (no users, no
 
 **RLS probe:** seed a member JWT and confirm member writes to new rule tables
 → 403, reads → 200, admin writes → success. Hidden buttons are not security.
+- **Local stack lacks base DML grants for `postgres`-created tables:** tables
+  created by a CLI migration only get `Dxtm` (no SELECT/INSERT) for
+  `authenticated` locally — `supabase_admin`-created tables get full DML. So an
+  RLS read test fails with "permission denied for table …" *before* RLS is even
+  evaluated (this hits `email_log`, `service_types`, etc. too). Either add an
+  explicit `grant select … to authenticated` in the migration (preferred — makes
+  it portable, RLS still restricts) or `grant` in-session to isolate the policy.
+- **Append-only audit/log tables that record deletions** must use plain `uuid`
+  columns + a snapshotted name label, **not** an FK to `people`: an AFTER DELETE
+  trigger inserts the audit row after the referenced row is gone, so an FK would
+  violate. The label also keeps the log readable after renames/deletes.
 
 **preview_* tool notes:** `preview_eval` arg is `expression` (no top-level
 `await`); `preview_click` needs a CSS `selector` (no `:has-text`/`ref`) —
@@ -104,7 +115,7 @@ native value setter + `input`/`change` events; a programmatic `/auth` fetch
 does **not** log the SPA in, use the sign-in form. Radix `Select` isn't a
 native `<select>` — `preview_fill` can't set it; click by text via eval.
 
-**Schema since Phase 4:** migrations 0006–0022 in `supabase/migrations/`
+**Schema since Phase 4:** migrations 0006–0032 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
 scheduling fields + `service_type_teams`; backfill+drop `teams.service_type_id`
 onto that join; add `church_settings.address`; add `song_arrangements` +
@@ -144,15 +155,38 @@ emailable?" available to scheduling without exposing the address. (0026)
 plans their team serves. (0028) `roster_status_job` (issue #117):
 `church_settings.roster_status_weeks` (0–52, 0 = off) + `person_email_prefs
 .roster_status_emails` for the nightly upcoming-roster-status digest.
+(0030) `scheduled_job_send_times` (issue #120):
+`church_settings.nudge_hour`/`reminder_hour`/`roster_status_hour` (smallint 0–23,
+defaults 9/9/20) — admin-set send hour per scheduled job; the `reminders`
+function gates each job on its configured hour instead of hard-coded 9am/8pm.
+(0031) `leaders_manage_service_types` (issue #125): widens the `service_types`
+manage policy from admin-only to `is_admin_or_leader()` (the `service_type_teams`
+join was already widened in 0008); UI adds a `RequireAdminOrLeader` route guard
+and shows the service-types card to leaders. (0032) `audit_log` (issue #116):
+append-only audit trail (admin-read RLS + explicit `grant select to
+authenticated`; **no** write grant — rows written solely by security-definer
+AFTER-row triggers on `people`/`team_members`/`team_leaders`/`team_viewers`, so
+the log is unforgeable). Records when/who/what for person add·archive·reactivate·
+delete·role-change and team member/leader/viewer add·remove. `actor_person_id`/
+`target_person_id` are plain uuids (no FK) with snapshotted `*_label` so the log
+survives renames/deletes and is insertable *during* a person delete. Actor =
+`current_actor_person_id()`: browser writes via the JWT person; service-role Edge
+Functions pass the caller in an `x-audit-actor` header trusted **only** for
+`service_role` (anti-spoof). `serviceClient(actorPersonId?)` injects that header;
+`account-access` (archive/reactivate) and `delete-person` pass `caller.id`.
+Admin-only Settings → Audit log screen (after Email delivery) with date-range
+(default 3 days)/event/person/changed-by filters, 200-row cap. Issue #126
+(no schema) gates all scheduling email on a shared `isEmailableActive()` so
+pending (not-yet-accepted) and inactive people are never emailed.
 New Edge Functions: `cancel-assignment`, `send-plan-notification`,
 `request-password-reset`, `run-scheduled-job` (admin "send now" for the
 scheduled email jobs); new shared `_shared/email-prefs.ts` (per-person opt-outs
 + managed-account routing) and `_shared/roster-status.ts` (the #117 digest
 builder); `_shared/auth.ts` gains `teamScopeFor()` so
 `send-requests`/`cancel-assignment` enforce the same per-team boundary as RLS.
-The `reminders` function now runs three jobs off the one hourly cron (nudges +
-reminders at 9am, the roster-status digest at 8pm) and accepts
-`{ force, only }` so an admin can trigger one on demand.
+The `reminders` function now runs three jobs off the one hourly cron (nudges,
+reminders and the roster-status digest, each at its admin-configured hour —
+issue #120) and accepts `{ force, only }` so an admin can trigger one on demand.
 Regenerate `src/types/database.ts` from the local stack after pulling.
 
 **Upgrade note (0023 — per-team access grants):** management is no longer
@@ -161,6 +195,12 @@ teams, appoint Team Leaders/Viewers on any team) and broad read, but can no
 longer edit a team's positions/members/assignments unless appointed that team's
 **Team Leader**. Admins are unaffected. No data migration needed — appoint Team
 Leaders via each team's page.
+
+**Upgrade note (issue #126 — active-only email):** scheduling email now goes
+only to people whose account is **active** (has accepted a login, or is a
+confirmed managed member). People still in **Pending** (e.g. imported via CSV but
+not yet invited/accepted) no longer receive scheduling requests, nudges,
+reminders or publish emails until they accept. Invite them first.
 
 ---
 
