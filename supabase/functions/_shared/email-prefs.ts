@@ -2,6 +2,7 @@
 // (issue #89), shared by every scheduling email function.
 
 import { type SupabaseClient } from 'npm:@supabase/supabase-js@2'
+import { isEmailableActive } from './person-status.ts'
 
 export type EmailPrefKey =
   | 'roster_emails'
@@ -96,10 +97,10 @@ export async function resolveRecipient(
   if (person.managed_by_person_id) {
     const { data: manager } = await admin
       .from('people')
-      .select('first_name, email, status')
+      .select('first_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at')
       .eq('id', person.managed_by_person_id)
       .maybeSingle()
-    if (manager?.email && manager.status === 'active') {
+    if (manager?.email && isEmailableActive(manager)) {
       return {
         email: manager.email as string,
         recipientName: manager.first_name as string,

@@ -1020,7 +1020,11 @@ export function MatrixPage() {
                 <tr className="border-b">
                   <td className="bg-card sticky left-0 z-10 p-2 align-top" />
                   {matrixPlans.map((plan) => (
-                    <MatrixOrderCell key={plan.id} plan={plan} canManage={canEditOrder} />
+                    <MatrixOrderCell
+                      key={plan.id}
+                      plan={plan}
+                      canManage={canEditOrder && plan.status !== 'published'}
+                    />
                   ))}
                 </tr>
               )}

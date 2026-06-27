@@ -21,15 +21,20 @@ import {
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
+/** How many days of email history the log and stats cover (issue #122). */
+const LOG_WINDOW_DAYS = 14
+
 function useEmailLog() {
   return useQuery({
     queryKey: ['email-log'],
     queryFn: async () => {
+      const since = subDays(new Date(), LOG_WINDOW_DAYS).toISOString()
       const { data, error } = await supabase
         .from('email_log')
         .select('*')
+        .gte('created_at', since)
         .order('created_at', { ascending: false })
-        .limit(200)
+        .limit(500)
       if (error) throw new Error(error.message)
       return data
     },
@@ -37,15 +42,15 @@ function useEmailLog() {
 }
 
 /**
- * Headline counts for the last 30 days (issue #118). Two exact head-counts keep
- * the payload tiny regardless of volume. "Failed" is any row not marked sent —
- * a provider rejection or a not-configured send.
+ * Headline counts for the last 14 days (issues #118/#122). Two exact
+ * head-counts keep the payload tiny regardless of volume. "Failed" is any row
+ * not marked sent — a provider rejection or a not-configured send.
  */
 function useEmailStats() {
   return useQuery({
     queryKey: ['email-log-stats'],
     queryFn: async () => {
-      const since = subDays(new Date(), 30).toISOString()
+      const since = subDays(new Date(), LOG_WINDOW_DAYS).toISOString()
       const [total, failed] = await Promise.all([
         supabase
           .from('email_log')
@@ -122,13 +127,16 @@ export function EmailLogPage() {
         </Button>
         <h1 className="text-2xl font-semibold">Email log</h1>
         <p className="text-muted-foreground text-sm">
-          The most recent emails sent by this instance.
+          Emails sent by this instance in the last {LOG_WINDOW_DAYS} days.
         </p>
       </div>
 
       {/* Last-30-days summary (issue #118). */}
       <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Sent · 30 days" value={stats?.totalCount ?? 0} />
+        <StatCard
+          label={`Sent · ${LOG_WINDOW_DAYS} days`}
+          value={stats?.totalCount ?? 0}
+        />
         <StatCard label="Delivered" value={stats?.sentCount ?? 0} />
         <StatCard label="Failed" value={stats?.failedCount ?? 0} tone="danger" />
       </div>

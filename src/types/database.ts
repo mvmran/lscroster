@@ -89,8 +89,11 @@ export type Database = {
           logo_url: string | null
           name: string
           notify_on_publish: boolean
+          nudge_hour: number
           reminder_days_before: number
+          reminder_hour: number
           request_nudge_days: number
+          roster_status_hour: number
           roster_status_weeks: number
           singleton: boolean
           timezone: string
@@ -105,8 +108,11 @@ export type Database = {
           logo_url?: string | null
           name: string
           notify_on_publish?: boolean
+          nudge_hour?: number
           reminder_days_before?: number
+          reminder_hour?: number
           request_nudge_days?: number
+          roster_status_hour?: number
           roster_status_weeks?: number
           singleton?: boolean
           timezone?: string
@@ -121,8 +127,11 @@ export type Database = {
           logo_url?: string | null
           name?: string
           notify_on_publish?: boolean
+          nudge_hour?: number
           reminder_days_before?: number
+          reminder_hour?: number
           request_nudge_days?: number
+          roster_status_hour?: number
           roster_status_weeks?: number
           singleton?: boolean
           timezone?: string

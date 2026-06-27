@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { fetchEmailPrefs, prefAllows, resolveRecipient } from './email-prefs.ts'
+import { isEmailableActive } from './person-status.ts'
 import { logEmail } from './email-log.ts'
 import {
   rosterStatusEmail,
@@ -43,7 +44,9 @@ interface PersonRow {
   last_name: string
   email: string | null
   status: string
+  auth_user_id: string | null
   managed_by_person_id: string | null
+  managed_accepted_at: string | null
   role: 'admin' | 'leader' | 'member'
 }
 
@@ -132,19 +135,23 @@ export async function runRosterStatus(
   const grantPersonIds = [...teamsByPerson.keys()]
   const { data: adminsData } = await admin
     .from('people')
-    .select('id, first_name, last_name, email, status, managed_by_person_id, role')
+    .select(
+      'id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at, role',
+    )
     .eq('role', 'admin')
     .eq('status', 'active')
-  const admins = (adminsData ?? []) as PersonRow[]
+  const admins = ((adminsData ?? []) as PersonRow[]).filter(isEmailableActive)
 
   let grantPeople: PersonRow[] = []
   if (grantPersonIds.length > 0) {
     const { data } = await admin
       .from('people')
-      .select('id, first_name, last_name, email, status, managed_by_person_id, role')
+      .select(
+        'id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at, role',
+      )
       .in('id', grantPersonIds)
       .eq('status', 'active')
-    grantPeople = (data ?? []) as PersonRow[]
+    grantPeople = ((data ?? []) as PersonRow[]).filter(isEmailableActive)
   }
 
   // Dedup by person; admins get the all-teams scope regardless of any grants.

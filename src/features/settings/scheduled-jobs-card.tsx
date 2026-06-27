@@ -12,6 +12,13 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   useChurchSettings,
@@ -27,6 +34,47 @@ type ChurchSettings = NonNullable<ReturnType<typeof useChurchSettings>['data']>
 const NUDGE_MAX = 14
 const REMINDER_MAX = 7
 const ROSTER_STATUS_MAX = 52
+
+/** Format an hour-of-day (0–23) as a friendly local time, e.g. "9:00 AM". */
+function formatHour(h: number): string {
+  const period = h < 12 ? 'AM' : 'PM'
+  const hour12 = h % 12 === 0 ? 12 : h % 12
+  return `${hour12}:00 ${period}`
+}
+
+const HOURS = Array.from({ length: 24 }, (_, h) => h)
+
+/**
+ * Hour-of-day picker for when a job sends, in the church's timezone (issue
+ * #120). Sits to the right of each job's number field.
+ */
+function HourSelect({
+  id,
+  value,
+  onChange,
+}: {
+  id: string
+  value: number
+  onChange: (h: number) => void
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-muted-foreground text-sm">at</span>
+      <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+        <SelectTrigger id={id} className="w-28">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {HOURS.map((h) => (
+            <SelectItem key={h} value={String(h)}>
+              {formatHour(h)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
 
 /** The small italic "(send now)" link after each job (issue #117). */
 function SendNow({ job, label }: { job: ScheduledJob; label: string }) {
@@ -57,6 +105,9 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
   const [rosterWeeks, setRosterWeeks] = useState(
     String(settings.roster_status_weeks),
   )
+  const [nudgeHour, setNudgeHour] = useState(settings.nudge_hour)
+  const [reminderHour, setReminderHour] = useState(settings.reminder_hour)
+  const [rosterHour, setRosterHour] = useState(settings.roster_status_hour)
   const [notifyOnPublish, setNotifyOnPublish] = useState(settings.notify_on_publish)
 
   const nudgeNum = Number.parseInt(nudge, 10)
@@ -72,6 +123,9 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
     nudgeNum !== settings.request_nudge_days ||
     reminderNum !== settings.reminder_days_before ||
     rosterNum !== settings.roster_status_weeks ||
+    nudgeHour !== settings.nudge_hour ||
+    reminderHour !== settings.reminder_hour ||
+    rosterHour !== settings.roster_status_hour ||
     notifyOnPublish !== settings.notify_on_publish
 
   function save() {
@@ -82,6 +136,9 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
           request_nudge_days: nudgeNum,
           reminder_days_before: reminderNum,
           roster_status_weeks: rosterNum,
+          nudge_hour: nudgeHour,
+          reminder_hour: reminderHour,
+          roster_status_hour: rosterHour,
           notify_on_publish: notifyOnPublish,
         },
       },
@@ -115,6 +172,7 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
             onChange={(e) => setNudge(e.target.value)}
           />
           <span className="text-muted-foreground text-sm">days (0–{NUDGE_MAX})</span>
+          <HourSelect id="job-nudge-hour" value={nudgeHour} onChange={setNudgeHour} />
         </div>
         {!nudgeValid && (
           <p className="text-destructive text-xs">Enter a whole number from 0 to {NUDGE_MAX}.</p>
@@ -142,6 +200,11 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
             onChange={(e) => setReminder(e.target.value)}
           />
           <span className="text-muted-foreground text-sm">days (0–{REMINDER_MAX})</span>
+          <HourSelect
+            id="job-reminder-hour"
+            value={reminderHour}
+            onChange={setReminderHour}
+          />
         </div>
         {!reminderValid && (
           <p className="text-destructive text-xs">
@@ -156,9 +219,8 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
           <SendNow job="roster-status" label="roster status" />
         </Label>
         <p className="text-muted-foreground text-xs">
-          Weeks ahead the nightly (8pm) roster-status digest covers, emailed to
-          Team Leaders, Team Viewers and admins. Set to <strong>0</strong> to
-          turn it off.
+          Weeks ahead the roster-status digest covers, emailed to Team Leaders,
+          Team Viewers and admins. Set to <strong>0</strong> to turn it off.
         </p>
         <div className="flex items-center gap-2">
           <Input
@@ -174,6 +236,11 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
           <span className="text-muted-foreground text-sm">
             weeks (0–{ROSTER_STATUS_MAX})
           </span>
+          <HourSelect
+            id="job-roster-status-hour"
+            value={rosterHour}
+            onChange={setRosterHour}
+          />
         </div>
         {!rosterValid && (
           <p className="text-destructive text-xs">

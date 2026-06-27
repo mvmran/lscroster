@@ -7,6 +7,7 @@ import { getCallerPerson, serviceClient, teamScopeFor } from '../_shared/auth.ts
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { fetchEmailPrefs, prefAllows, resolveRecipient } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
+import { isEmailableActive } from '../_shared/person-status.ts'
 import { schedulingRequestEmail } from '../_shared/email-templates/scheduling.ts'
 import { sendEmailBatch } from '../_shared/resend.ts'
 import {
@@ -35,7 +36,9 @@ interface AssignmentRow {
     last_name: string
     email: string | null
     status: string
+    auth_user_id: string | null
     managed_by_person_id: string | null
+    managed_accepted_at: string | null
   }
   positions: { name: string }
   teams: { name: string }
@@ -71,7 +74,7 @@ Deno.serve(async (req) => {
   let query = admin
     .from('plan_assignments')
     .select(
-      'id, status, notified_at, team_id, people(id, first_name, last_name, email, status, managed_by_person_id), positions(name), teams(name)',
+      'id, status, notified_at, team_id, people(id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at), positions(name), teams(name)',
     )
     .eq('plan_id', planId)
   // For an explicit "send email" on one person (issue #15) we don't restrict to
@@ -131,8 +134,8 @@ Deno.serve(async (req) => {
       skipped.push({ name: fullName, reason: 'not your team' })
       continue
     }
-    if (person.status !== 'active') {
-      skipped.push({ name: fullName, reason: 'inactive' })
+    if (!isEmailableActive(person)) {
+      skipped.push({ name: fullName, reason: 'not an active account' })
       continue
     }
     if (!prefAllows(prefs, person.id, 'roster_emails')) {

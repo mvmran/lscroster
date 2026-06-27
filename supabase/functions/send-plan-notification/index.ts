@@ -7,6 +7,7 @@ import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { fetchEmailPrefs, prefAllows, resolveRecipient } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
+import { isEmailableActive } from '../_shared/person-status.ts'
 import { planNotificationEmail } from '../_shared/email-templates/plan-notification.ts'
 import { sendEmailBatch } from '../_shared/resend.ts'
 import {
@@ -29,7 +30,9 @@ interface AssignmentRow {
     last_name: string
     email: string | null
     status: string
+    auth_user_id: string | null
     managed_by_person_id: string | null
+    managed_accepted_at: string | null
   }
   teams: { name: string; sort_order: number }
   positions: { name: string; sort_order: number }
@@ -168,7 +171,7 @@ Deno.serve(async (req) => {
   const { data: assignmentRows } = await admin
     .from('plan_assignments')
     .select(
-      'status, people(id, first_name, last_name, email, status, managed_by_person_id), teams(name, sort_order), positions(name, sort_order)',
+      'status, people(id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at), teams(name, sort_order), positions(name, sort_order)',
     )
     .eq('plan_id', planId)
     .neq('status', 'declined')
@@ -204,7 +207,7 @@ Deno.serve(async (req) => {
   // emails (issue #87). A person without their own address is routed to their
   // managing member (issue #89). Render each, then send in one Batch API call.
   const activePersonIds = assignments
-    .filter((a) => a.people.status === 'active')
+    .filter((a) => isEmailableActive(a.people))
     .map((a) => a.people.id)
   const prefs = await fetchEmailPrefs(admin, activePersonIds)
 
@@ -218,7 +221,7 @@ Deno.serve(async (req) => {
   const seen = new Set<string>()
   for (const a of assignments) {
     const p = a.people
-    if (p.status !== 'active' || seen.has(p.id)) continue
+    if (!isEmailableActive(p) || seen.has(p.id)) continue
     seen.add(p.id)
     if (!prefAllows(prefs, p.id, 'publish_emails')) continue
     const recipient = await resolveRecipient(admin, p)

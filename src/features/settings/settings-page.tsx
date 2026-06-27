@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { CalendarDays, Loader2, Mail, Users as UsersIcon, X } from 'lucide-react'
+import { CalendarDays, Loader2, Mail, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -315,38 +315,18 @@ function ServiceTypesLinkCard() {
   )
 }
 
-function UsersLinkCard() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Users &amp; roles</CardTitle>
-        <CardDescription>
-          Change who is an admin, leader or member, and deactivate people.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button asChild variant="outline">
-          <Link to="/settings/users">
-            <UsersIcon className="size-4" />
-            Manage users
-          </Link>
-        </Button>
-      </CardContent>
-    </Card>
-  )
-}
-
 export function SettingsPage() {
   const { data: person } = useCurrentPerson()
   const isAdmin = person?.role === 'admin'
+  // Leaders can manage service types too (issue #125) and send email.
+  const canManageServiceTypes = isAdmin || person?.role === 'leader'
   const canSendEmail = isAdmin || person?.role === 'leader'
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">Settings</h1>
       <ChurchSettingsCard canEdit={isAdmin} />
-      {isAdmin && <ServiceTypesLinkCard />}
-      {isAdmin && <UsersLinkCard />}
+      {canManageServiceTypes && <ServiceTypesLinkCard />}
       {isAdmin && <ScheduledJobsCard />}
       {canSendEmail && <TestEmailCard isAdmin={isAdmin} />}
     </div>

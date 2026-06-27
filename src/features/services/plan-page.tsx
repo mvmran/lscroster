@@ -850,6 +850,10 @@ export function PlanPage() {
     )
   }
 
+  // The order of service is locked once a plan is published (issue #123) — no
+  // reordering, adding, editing or deleting items in plan or matrix view.
+  const canEditOrder = canManage && plan.status !== 'published'
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -1093,7 +1097,7 @@ export function PlanPage() {
           ) : items.length === 0 ? (
             <div className="text-muted-foreground flex flex-col items-center gap-2 py-10 text-center text-sm">
               <Music className="size-6" />
-              {canManage
+              {canEditOrder
                 ? 'The order of service is empty. Add a header, song or item below.'
                 : 'The order of service hasn’t been added yet.'}
             </div>
@@ -1115,7 +1119,7 @@ export function PlanPage() {
                       item={item}
                       startsAt={startsAt}
                       offsetSeconds={offsetSeconds}
-                      canManage={canManage}
+                      canManage={canEditOrder}
                       songTitle={item.song_id ? songById.get(item.song_id)?.title : undefined}
                       defaultKey={
                         item.song_id ? songById.get(item.song_id)?.default_key : undefined
@@ -1131,7 +1135,7 @@ export function PlanPage() {
         </CardContent>
       </Card>
 
-      {canManage && (
+      {canEditOrder && (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setSongPickerOpen(true)}>
             <Music className="size-4" />

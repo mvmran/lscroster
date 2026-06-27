@@ -4,9 +4,10 @@
 //   1. Nudge people who haven't answered a request after N days (new token).
 //   2. Remind confirmed people N days before the service.
 //   3. Email Team Leaders/Viewers/admins an "upcoming roster status" digest.
-// Nudges + reminders go out during the 9am hour in the church's timezone; the
-// roster-status digest at 8pm. The hourly schedule lands each correctly across
-// timezones and DST. A `{ force, only }` body lets an admin trigger one job on
+// Each job fires during its configured hour in the church's timezone (issue
+// #120: church_settings.nudge_hour / reminder_hour / roster_status_hour). The
+// hourly schedule lands each correctly across timezones and DST. A
+// `{ force, only }` body lets an admin trigger one job on
 // demand (issue #117 "send now"), bypassing the hour gate.
 
 import { serviceClient } from '../_shared/auth.ts'
@@ -18,6 +19,7 @@ import {
   type EmailPrefKey,
 } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
+import { isEmailableActive } from '../_shared/person-status.ts'
 import {
   schedulingReminderEmail,
   schedulingRequestEmail,
@@ -36,8 +38,11 @@ import {
   todayInTimezone,
 } from '../_shared/scheduling.ts'
 
-const NUDGE_REMINDER_HOUR = 9
-const ROSTER_STATUS_HOUR = 20
+// Default send hours (church local time) if church_settings has none — kept in
+// sync with the column defaults in migration 0030 (issue #120).
+const DEFAULT_NUDGE_HOUR = 9
+const DEFAULT_REMINDER_HOUR = 9
+const DEFAULT_ROSTER_STATUS_HOUR = 20
 
 type JobName = 'nudge' | 'reminder' | 'roster-status'
 
@@ -50,7 +55,9 @@ interface ReminderRow {
     last_name: string
     email: string | null
     status: string
+    auth_user_id: string | null
     managed_by_person_id: string | null
+    managed_accepted_at: string | null
   }
   positions: { name: string }
   teams: { name: string }
@@ -85,19 +92,21 @@ Deno.serve(async (req) => {
   const { data: church } = await admin
     .from('church_settings')
     .select(
-      'name, email_from_name, timezone, request_nudge_days, reminder_days_before, roster_status_weeks',
+      'name, email_from_name, timezone, request_nudge_days, reminder_days_before, roster_status_weeks, nudge_hour, reminder_hour, roster_status_hour',
     )
     .maybeSingle()
   if (!church) return jsonResponse({ ok: true, skipped: 'no church settings' })
 
   const timezone = church.timezone || 'Australia/Sydney'
   const hour = hourInTimezone(timezone)
+  const nudgeHour = church.nudge_hour ?? DEFAULT_NUDGE_HOUR
+  const reminderHour = church.reminder_hour ?? DEFAULT_REMINDER_HOUR
+  const rosterHour = church.roster_status_hour ?? DEFAULT_ROSTER_STATUS_HOUR
   const wants = (job: JobName) => !body.only || body.only === job
-  const runNudge = wants('nudge') && (body.force || hour === NUDGE_REMINDER_HOUR)
-  const runReminder =
-    wants('reminder') && (body.force || hour === NUDGE_REMINDER_HOUR)
+  const runNudge = wants('nudge') && (body.force || hour === nudgeHour)
+  const runReminder = wants('reminder') && (body.force || hour === reminderHour)
   const runRoster =
-    wants('roster-status') && (body.force || hour === ROSTER_STATUS_HOUR)
+    wants('roster-status') && (body.force || hour === rosterHour)
   if (!runNudge && !runReminder && !runRoster) {
     return jsonResponse({ ok: true, skipped: 'outside send hour' })
   }
@@ -109,7 +118,7 @@ Deno.serve(async (req) => {
   ).toISOString()
 
   const selectColumns = `id, notified_at,
-    people(id, first_name, last_name, email, status, managed_by_person_id),
+    people(id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at),
     positions(name), teams(name),
     plans!inner(id, date, title, start_time, service_types(name, default_start_time))`
 
@@ -129,7 +138,7 @@ Deno.serve(async (req) => {
   // (issue #87) and routing managed people to their manager (issue #89).
   async function recipientFor(row: ReminderRow, prefKey: EmailPrefKey) {
     const person = row.people
-    if (person.status !== 'active') return null
+    if (!isEmailableActive(person)) return null
     const prefs = await fetchEmailPrefs(admin, [person.id])
     if (!prefAllows(prefs, person.id, prefKey)) return null
     return resolveRecipient(admin, person)

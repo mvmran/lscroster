@@ -75,3 +75,27 @@ export function useUploadPhoto() {
     },
   })
 }
+
+/**
+ * Remove a person's photo (issue #121): clear photo_url so the avatar reverts
+ * to initials, then best-effort delete the stored file.
+ */
+export function useRemovePhoto() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ person }: { person: Person }) => {
+      const { error } = await supabase
+        .from('people')
+        .update({ photo_url: null })
+        .eq('id', person.id)
+      if (error) throw new Error(error.message)
+      if (person.photo_url) {
+        await supabase.storage.from(PHOTOS_BUCKET).remove([person.photo_url])
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: peopleKeys.all })
+      queryClient.invalidateQueries({ queryKey: ['photo-urls'] })
+    },
+  })
+}

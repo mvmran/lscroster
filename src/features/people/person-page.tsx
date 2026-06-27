@@ -9,6 +9,7 @@ import {
   Loader2,
   Pencil,
   Trash2,
+  X,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -60,7 +61,11 @@ import {
   usePerson,
   useUpdatePerson,
 } from '@/features/people/use-people'
-import { usePhotoUrl, useUploadPhoto } from '@/features/people/use-photos'
+import {
+  usePhotoUrl,
+  useRemovePhoto,
+  useUploadPhoto,
+} from '@/features/people/use-photos'
 import { PersonEmailPrefsCard } from '@/features/people/person-email-prefs-card'
 import { PersonScheduleCard } from '@/features/people/person-schedule-card'
 import { PersonSchedulingCard } from '@/features/scheduling/person-scheduling-card'
@@ -77,6 +82,7 @@ export function PersonPage() {
   const deletePerson = useDeletePerson()
   const accountAccess = useAccountAccess()
   const uploadPhoto = useUploadPhoto()
+  const removePhoto = useRemovePhoto()
   const navigate = useNavigate()
   const managed = usePeopleManagedBy(id)
 
@@ -180,6 +186,15 @@ export function PersonPage() {
     }
   }
 
+  async function onPhotoRemove() {
+    try {
+      await removePhoto.mutateAsync({ person: p })
+      toast.success('Photo removed')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Remove failed')
+    }
+  }
+
   async function setStatus(status: 'active' | 'inactive') {
     try {
       // Via the account-access function so the person is emailed about the
@@ -262,6 +277,22 @@ export function PersonPage() {
                   <Camera className="size-3.5" />
                 )}
               </Button>
+              {p.photo_url && (
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="absolute -top-1 -right-1 size-6 rounded-full border shadow-sm"
+                  onClick={onPhotoRemove}
+                  disabled={removePhoto.isPending || uploadPhoto.isPending}
+                  aria-label="Remove photo"
+                >
+                  {removePhoto.isPending ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <X className="size-3" />
+                  )}
+                </Button>
+              )}
             </>
           )}
         </div>
