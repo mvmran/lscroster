@@ -30,6 +30,12 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   click and cancels the toggle.
 - **shadcn `Card` has no `forwardRef`** — for dnd, wrap it in a
   `<div ref={…}>`, don't pass `ref` to `Card`.
+- **`tailwind-merge` drops `bg-primary` when a `bg-gradient-to-*` class is also
+  present** — it classes the legacy v3 gradient name as a background *color*
+  conflict and keeps only the gradient, leaving the element transparent. Use
+  Tailwind v4's canonical `bg-linear-to-*` (and `bg-radial`/`bg-conic`) so a
+  solid `bg-*` and a gradient sheen coexist (bit the primary button in the 3D
+  depth pass).
 - **`detectSessionInUrl` runs only at client init** — the reset-password page
   needs a full page load with the recovery hash present; changing only the
   hash on the same path won't trigger it.
@@ -125,6 +131,26 @@ click a button by text via eval; set a React-controlled input with the
 native value setter + `input`/`change` events; a programmatic `/auth` fetch
 does **not** log the SPA in, use the sign-in form. Radix `Select` isn't a
 native `<select>` — `preview_fill` can't set it; click by text via eval.
+
+**Design system (2026-07-04 modernization, client-only, NO schema):** the
+whole theme is parameterised on one `--brand-hue` var in `src/index.css`
+(278 = deep indigo; every branded token — primary/ring/accent/sidebar — derives
+from it, so re-hueing the app is a one-line edit). The old issue-#8 pastel
+pink→blue chrome gradient is gone: a flat near-white tinted sidebar with an
+accent-highlighted active nav pill (Linear/Notion style), dark-mode parity
+throughout. Four **depth tokens** (`--shadow-raised`/`-btn`/`-well`/`-float`)
+give the 3D feel — raised cards/outline buttons (inset white hairline top-lights
+edges in dark mode), tactile primary buttons (top-highlight `bg-linear-to-b`
+sheen + pressed `active:` state), inset form fields, floating dialogs/menus.
+Shared page chrome lives in three new components — `PageHeader`
+(title/count/back-link/actions), `EmptyState` (icon/title/hint/action, `card`
+vs `plain`) and `StatusBadge` — plus `src/lib/status.ts` (`STATUS_SOFT`/
+`STATUS_OUTLINE` = canonical semantic red/amber/green class strings, kept
+Tailwind-palette-based, NOT brand-derived); `ASSIGNMENT_STATUS_CLASSES` and the
+validation badges now reference them. All ~20 screens adopt `PageHeader`/
+`EmptyState`; the print run-sheet + PDF and the public `/respond` page were left
+untouched. eslint now ignores `.claude` (stale agent worktrees there broke
+`eslint .` with tsconfigRootDir errors).
 
 **Schema since Phase 4:** migrations 0006–0032 in `supabase/migrations/`
 (`team_member_positions`; drop `team_members.is_leader`; service-type
