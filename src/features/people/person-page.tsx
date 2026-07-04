@@ -15,6 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FullPageError } from '@/components/full-page-error'
 import { FullPageLoader } from '@/components/full-page-loader'
+import { STATUS_OUTLINE } from '@/lib/status'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -314,17 +315,14 @@ export function PersonPage() {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-2xl font-semibold">{fullName(p)}</h1>
+          <h1 className="font-heading truncate text-2xl font-semibold tracking-tight">{fullName(p)}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <Badge variant={p.role === 'member' ? 'secondary' : 'default'}>
               {ROLE_LABELS[p.role]}
             </Badge>
             {p.status === 'inactive' && <Badge variant="outline">Inactive</Badge>}
             {accountStatus(p) === 'pending' && (
-              <Badge
-                variant="outline"
-                className="border-amber-300 text-amber-700 dark:border-amber-700/60 dark:text-amber-400"
-              >
+              <Badge variant="outline" className={STATUS_OUTLINE.warning}>
                 Pending invite
               </Badge>
             )}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/page-header'
 import {
   Card,
   CardContent,
@@ -32,7 +33,7 @@ export function CreatePersonPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Add person</h1>
+      <PageHeader title="Add person" backTo="/people" backLabel="People" />
       <Card>
         <CardHeader>
           <CardTitle>New person</CardTitle>

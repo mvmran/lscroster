@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Loader2, Plus, Search, Upload, Users } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { EmptyState } from '@/components/empty-state'
 import { FullPageError } from '@/components/full-page-error'
+import { PageHeader } from '@/components/page-header'
+import { STATUS_OUTLINE } from '@/lib/status'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -86,10 +89,7 @@ function StatusBadge({ person }: { person: Person }) {
   }
   if (status === 'pending') {
     return (
-      <Badge
-        variant="outline"
-        className="border-amber-300 text-amber-700 dark:border-amber-700/60 dark:text-amber-400"
-      >
+      <Badge variant="outline" className={STATUS_OUTLINE.warning}>
         Pending
       </Badge>
     )
@@ -249,33 +249,29 @@ export function PeoplePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">
-          People
-          {people && (
-            <span className="text-muted-foreground ml-2 text-base font-normal">
-              {filtered.length}
-            </span>
-          )}
-        </h1>
-        {isAdmin && (
-          <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link to="/people/import">
-                <Upload className="size-4" />
-                <span className="hidden sm:inline">Import CSV</span>
-                <span className="sm:hidden">Import</span>
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link to="/people/new">
-                <Plus className="size-4" />
-                Add person
-              </Link>
-            </Button>
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title="People"
+        count={people ? filtered.length : undefined}
+        actions={
+          isAdmin && (
+            <>
+              <Button variant="outline" asChild>
+                <Link to="/people/import">
+                  <Upload className="size-4" />
+                  <span className="hidden sm:inline">Import CSV</span>
+                  <span className="sm:hidden">Import</span>
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link to="/people/new">
+                  <Plus className="size-4" />
+                  Add person
+                </Link>
+              </Button>
+            </>
+          )
+        }
+      />
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
@@ -362,14 +358,14 @@ export function PeoplePage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center text-sm">
-            <Users className="size-8" />
-            {people?.length === 0
+        <EmptyState
+          icon={Users}
+          title={
+            people?.length === 0
               ? 'No people yet. Add your first person or import a CSV.'
-              : 'No people match your search.'}
-          </CardContent>
-        </Card>
+              : 'No people match your search.'
+          }
+        />
       ) : (
         <>
           {/* Mobile cards */}

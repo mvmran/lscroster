@@ -5,6 +5,7 @@ import Papa from 'papaparse'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -224,7 +225,7 @@ export function ImportPage() {
   if (result) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-        <h1 className="text-2xl font-semibold">Import people</h1>
+        <PageHeader title="Import people" backTo="/people" backLabel="People" />
         <Card>
           <CardHeader>
             <CardTitle>Import complete</CardTitle>
@@ -258,7 +259,7 @@ export function ImportPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Import people</h1>
+      <PageHeader title="Import people" backTo="/people" backLabel="People" />
 
       {!rows ? (
         <Card>
