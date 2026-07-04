@@ -29,6 +29,7 @@ import {
   CircleX,
   Eye,
   EyeOff,
+  Grid3x3,
   GripVertical,
   Loader2,
   Mail,
@@ -42,10 +43,11 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { EmptyState } from '@/components/empty-state'
 import { FullPageError } from '@/components/full-page-error'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -810,7 +812,7 @@ export function MatrixPage() {
           )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-semibold">Matrix</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Matrix</h1>
           <div className="flex flex-wrap items-center gap-x-12 gap-y-2">
             {/* Week paging (issue #67): shift the window one service earlier/later. */}
             <div className="flex items-center justify-center gap-1.5 [&_button]:border-foreground/30">
@@ -946,11 +948,10 @@ export function MatrixPage() {
       {loading ? (
         <Skeleton className="h-64 w-full" />
       ) : matrixPlans.length === 0 ? (
-        <Card>
-          <CardContent className="text-muted-foreground py-12 text-center text-sm">
-            No upcoming plans. Create some from the Services page first.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Grid3x3}
+          title="No upcoming plans. Create some from the Services page first."
+        />
       ) : (
         <Card className="overflow-x-auto py-0">
           <table className="w-full border-collapse text-sm">

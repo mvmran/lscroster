@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { Loader2, Plus, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { EmptyState } from '@/components/empty-state'
 import { FullPageError } from '@/components/full-page-error'
+import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -129,15 +131,17 @@ export function TeamsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Teams</h1>
-        {canManage && (
-          <Button onClick={() => setNewTeamOpen(true)}>
-            <Plus className="size-4" />
-            New team
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Teams"
+        actions={
+          canManage && (
+            <Button onClick={() => setNewTeamOpen(true)}>
+              <Plus className="size-4" />
+              New team
+            </Button>
+          )
+        }
+      />
 
       {isPending ? (
         <div className="flex flex-col gap-2">
@@ -146,14 +150,14 @@ export function TeamsPage() {
           ))}
         </div>
       ) : !teams || teams.length === 0 ? (
-        <Card>
-          <CardContent className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center text-sm">
-            <UsersRound className="size-8" />
-            {canManage
+        <EmptyState
+          icon={UsersRound}
+          title={
+            canManage
               ? 'No teams yet. Create one to start scheduling people.'
-              : 'No teams have been set up yet.'}
-          </CardContent>
-        </Card>
+              : 'No teams have been set up yet.'
+          }
+        />
       ) : (
         <div className="flex flex-col gap-2">
           {teams.map((team) => (

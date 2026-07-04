@@ -742,7 +742,7 @@ export function TeamPage() {
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h1 className="text-2xl font-semibold">{team.name}</h1>
+            <h1 className="font-heading text-2xl font-semibold tracking-tight">{team.name}</h1>
             <p className="text-muted-foreground text-sm">{typeName}</p>
           </div>
           {canGovern && (

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -211,7 +212,7 @@ export function MySchedulePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">My Schedule</h1>
+      <PageHeader title="My Schedule" />
 
       {loading ? (
         <div className="flex flex-col gap-2">
