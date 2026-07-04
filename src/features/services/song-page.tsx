@@ -615,7 +615,7 @@ export function SongPage() {
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold">{song.title}</h1>
+              <h1 className="font-heading text-2xl font-semibold tracking-tight">{song.title}</h1>
               {song.status === 'archived' && <Badge variant="outline">Archived</Badge>}
             </div>
             {song.author && <p className="text-muted-foreground text-sm">{song.author}</p>}

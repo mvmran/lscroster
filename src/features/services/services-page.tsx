@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { CalendarDays, Grid3x3, Plus } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { EmptyState } from '@/components/empty-state'
 import { FullPageError } from '@/components/full-page-error'
+import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -23,14 +25,7 @@ import { useServiceTypes } from '@/features/services/use-service-types'
 
 function PlanList({ plans, emptyText }: { plans: PlanWithType[]; emptyText: string }) {
   if (plans.length === 0) {
-    return (
-      <Card>
-        <CardContent className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center text-sm">
-          <CalendarDays className="size-8" />
-          {emptyText}
-        </CardContent>
-      </Card>
-    )
+    return <EmptyState icon={CalendarDays} title={emptyText} />
   }
   return (
     <div className="flex flex-col gap-2">
@@ -86,27 +81,29 @@ export function ServicesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Services</h1>
-        {(canMatrix || canManage) && (
-          <div className="flex gap-2">
-            {canMatrix && (
-              <Button variant="outline" asChild>
-                <Link to="/services/matrix">
-                  <Grid3x3 className="size-4" />
-                  <span className="hidden sm:inline">Matrix</span>
-                </Link>
-              </Button>
-            )}
-            {canManage && (
-              <Button onClick={() => setNewPlanOpen(true)} disabled={noServiceTypes}>
-                <Plus className="size-4" />
-                New plan
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title="Services"
+        actions={
+          (canMatrix || canManage) && (
+            <>
+              {canMatrix && (
+                <Button variant="outline" asChild>
+                  <Link to="/services/matrix">
+                    <Grid3x3 className="size-4" />
+                    <span className="hidden sm:inline">Matrix</span>
+                  </Link>
+                </Button>
+              )}
+              {canManage && (
+                <Button onClick={() => setNewPlanOpen(true)} disabled={noServiceTypes}>
+                  <Plus className="size-4" />
+                  New plan
+                </Button>
+              )}
+            </>
+          )
+        }
+      />
 
       {noServiceTypes && (
         <Card>

@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react'
 import { ChartColumn, Loader2, Music, Plus, Search } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { EmptyState } from '@/components/empty-state'
 import { FullPageError } from '@/components/full-page-error'
+import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -166,30 +168,26 @@ export function SongsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">
-          Songs
-          {songs && (
-            <span className="text-muted-foreground ml-2 text-base font-normal">
-              {filtered.length}
-            </span>
-          )}
-        </h1>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link to="/songs/reports">
-              <ChartColumn className="size-4" />
-              <span className="hidden sm:inline">Usage</span>
-            </Link>
-          </Button>
-          {canManage && (
-            <Button onClick={() => setNewSongOpen(true)}>
-              <Plus className="size-4" />
-              Add song
+      <PageHeader
+        title="Songs"
+        count={songs ? filtered.length : undefined}
+        actions={
+          <>
+            <Button variant="outline" asChild>
+              <Link to="/songs/reports">
+                <ChartColumn className="size-4" />
+                <span className="hidden sm:inline">Usage</span>
+              </Link>
             </Button>
-          )}
-        </div>
-      </div>
+            {canManage && (
+              <Button onClick={() => setNewSongOpen(true)}>
+                <Plus className="size-4" />
+                Add song
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
@@ -238,14 +236,14 @@ export function SongsPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center text-sm">
-            <Music className="size-8" />
-            {songs?.length === 0
+        <EmptyState
+          icon={Music}
+          title={
+            songs?.length === 0
               ? 'No songs yet. Add your first song to start building the library.'
-              : 'No songs match your search.'}
-          </CardContent>
-        </Card>
+              : 'No songs match your search.'
+          }
+        />
       ) : (
         <>
           {/* Mobile cards */}

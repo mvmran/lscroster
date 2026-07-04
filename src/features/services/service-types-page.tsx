@@ -29,6 +29,8 @@ import {
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { EmptyState } from '@/components/empty-state'
+import { PageHeader } from '@/components/page-header'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -575,31 +577,31 @@ export function ServiceTypesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Service types</h1>
-        <Button
-          onClick={() => {
-            setEditing(null)
-            setDialogOpen(true)
-          }}
-        >
-          <Plus className="size-4" />
-          Add service type
-        </Button>
-      </div>
-      <p className="text-muted-foreground text-sm">
-        Recurring gatherings you plan services for, e.g. “Sunday 10am”.
-      </p>
+      <PageHeader
+        title="Service types"
+        backTo="/settings"
+        backLabel="Settings"
+        description="Recurring gatherings you plan services for, e.g. “Sunday 10am”."
+        actions={
+          <Button
+            onClick={() => {
+              setEditing(null)
+              setDialogOpen(true)
+            }}
+          >
+            <Plus className="size-4" />
+            Add service type
+          </Button>
+        }
+      />
 
       {isPending ? (
         <Skeleton className="h-32 w-full" />
       ) : !serviceTypes || serviceTypes.length === 0 ? (
-        <Card>
-          <CardContent className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center text-sm">
-            <CalendarDays className="size-8" />
-            No service types yet. Add one to start planning services.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={CalendarDays}
+          title="No service types yet. Add one to start planning services."
+        />
       ) : (
         <DndContext
           sensors={sensors}

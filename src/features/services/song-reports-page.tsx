@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, subMonths } from 'date-fns'
-import { ArrowLeft, Music } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Music } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { EmptyState } from '@/components/empty-state'
 import { FullPageError } from '@/components/full-page-error'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { PageHeader } from '@/components/page-header'
+import { Card } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -106,15 +107,12 @@ export function SongReportsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <Button variant="ghost" size="sm" className="-ml-2 mb-1" asChild>
-          <Link to="/songs">
-            <ArrowLeft className="size-4" />
-            Songs
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-semibold">Song usage</h1>
+      <PageHeader
+        title="Song usage"
+        backTo="/songs"
+        backLabel="Songs"
+        description="How often each song has been played, and where."
+        actions={
           <Select value={window_} onValueChange={setWindow}>
             <SelectTrigger className="w-40" aria-label="Report window">
               <SelectValue />
@@ -126,21 +124,13 @@ export function SongReportsPage() {
               <SelectItem value="all">All time</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-        <p className="text-muted-foreground text-sm">
-          How often each song has been played, and where.
-        </p>
-      </div>
+        }
+      />
 
       {isPending || songsPending ? (
         <Skeleton className="h-64 w-full" />
       ) : report.length === 0 ? (
-        <Card>
-          <CardContent className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center text-sm">
-            <Music className="size-8" />
-            No songs were played in this period.
-          </CardContent>
-        </Card>
+        <EmptyState icon={Music} title="No songs were played in this period." />
       ) : (
         <Card className="overflow-x-auto py-0">
           <Table>
