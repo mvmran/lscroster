@@ -1,9 +1,10 @@
 import { AlertCircle, AlertTriangle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { RULE_SHORT_LABELS, type RuleResult } from '@/features/scheduling/validate-service'
+import { STATUS_OUTLINE } from '@/lib/status'
 
-const ERROR_CLASS = 'border-red-500/50 text-red-700 dark:text-red-400'
-const WARNING_CLASS = 'border-amber-500/50 text-amber-700 dark:text-amber-400'
+const ERROR_CLASS = STATUS_OUTLINE.danger
+const WARNING_CLASS = STATUS_OUTLINE.warning
 
 /**
  * Render a small badge per validation result — red for errors, amber for

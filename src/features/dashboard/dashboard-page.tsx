@@ -3,6 +3,7 @@ import { addDays, format } from 'date-fns'
 import { ArrowRight, CalendarCheck, CalendarDays, Check, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -80,9 +81,7 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">
-        {firstName ? `G'day, ${firstName}` : 'Home'}
-      </h1>
+      <PageHeader title={firstName ? `G'day, ${firstName}` : 'Home'} />
 
       {myPending.length > 0 && (
         <Card className="border-amber-500/40">

@@ -1,3 +1,4 @@
+import { STATUS_SOFT } from '@/lib/status'
 import type { Enums, Tables } from '@/types/database'
 
 export type Team = Tables<'teams'>
@@ -83,11 +84,9 @@ export function normalizePair(a: string, b: string): [string, string] {
 
 /** Badge classes per status — the at-a-glance colour coding on plans. */
 export const ASSIGNMENT_STATUS_CLASSES: Record<AssignmentStatus, string> = {
-  pending:
-    'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
-  confirmed:
-    'bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200',
-  declined: 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200',
+  pending: STATUS_SOFT.warning,
+  confirmed: STATUS_SOFT.success,
+  declined: STATUS_SOFT.danger,
 }
 
 export function isBlockedOut(
