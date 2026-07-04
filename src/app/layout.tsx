@@ -55,7 +55,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             cn(
               'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
               isActive
-                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
                 : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
             )
           }
@@ -77,7 +77,7 @@ function Brand({ className }: { className?: string }) {
         className="h-7 w-auto max-w-[120px]"
         fallback={<Church className="size-6 shrink-0" />}
       />
-      <span className="truncate text-base font-semibold">
+      <span className="font-heading truncate text-base font-semibold tracking-tight">
         {settings?.name ?? 'LSCroster'}
       </span>
     </div>
@@ -166,13 +166,13 @@ export function AppLayout() {
       {/* Desktop sidebar */}
       {/* pt aligns the first nav item's text with the page heading: header
           (h-14) + main top padding (md:p-6) − the nav link's own py-2.5. */}
-      <aside className="bg-sidebar border-sidebar-border bg-gradient-to-b from-[var(--chrome-from)] to-[var(--chrome-to)] dark:bg-none fixed inset-y-0 left-0 z-30 hidden w-48 flex-col gap-6 border-r pt-[70px] pb-5 shadow-lg md:flex">
+      <aside className="bg-sidebar border-sidebar-border fixed inset-y-0 left-0 z-30 hidden w-48 flex-col gap-6 border-r pt-[70px] pb-5 md:flex">
         <NavLinks />
       </aside>
 
       <div className="flex min-h-svh flex-col md:pl-48">
         {/* Topbar */}
-        <header className="bg-gradient-to-r from-[var(--chrome-from)] to-[var(--chrome-to)] dark:bg-none dark:bg-background/95 dark:supports-[backdrop-filter]:bg-background/60 sticky top-0 z-20 flex h-14 items-center gap-2 border-b px-4 backdrop-blur">
+        <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-20 flex h-14 items-center gap-2 border-b px-4 backdrop-blur">
           <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
             <SheetTrigger asChild>
               <Button
@@ -184,7 +184,7 @@ export function AppLayout() {
                 <Menu className="size-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="bg-sidebar bg-gradient-to-b from-[var(--chrome-from)] to-[var(--chrome-to)] dark:bg-none w-64 p-0">
+            <SheetContent side="left" className="bg-sidebar w-64 p-0">
               <SheetHeader className="px-2 pt-5 pb-0">
                 <SheetTitle asChild>
                   <Brand className="px-4" />
