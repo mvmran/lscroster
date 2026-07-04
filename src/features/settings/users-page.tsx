@@ -1,6 +1,7 @@
 import { KeyRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/page-header'
 import { FullPageError } from '@/components/full-page-error'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -115,7 +116,7 @@ export function UsersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Users &amp; roles</h1>
+      <PageHeader title="Users & roles" backTo="/settings" backLabel="Settings" />
       <Card>
         <CardHeader>
           <CardTitle>Everyone in the directory</CardTitle>

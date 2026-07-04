@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, subDays } from 'date-fns'
-import { ArrowLeft, Mail, Search } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Mail, Search } from 'lucide-react'
+import { PageHeader } from '@/components/page-header'
 import { FullPageError } from '@/components/full-page-error'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -118,18 +117,12 @@ export function EmailLogPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <Button variant="ghost" size="sm" className="-ml-2 mb-1" asChild>
-          <Link to="/settings">
-            <ArrowLeft className="size-4" />
-            Settings
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold">Email log</h1>
-        <p className="text-muted-foreground text-sm">
-          Emails sent by this instance in the last {LOG_WINDOW_DAYS} days.
-        </p>
-      </div>
+      <PageHeader
+        title="Email log"
+        backTo="/settings"
+        backLabel="Settings"
+        description={`Emails sent by this instance in the last ${LOG_WINDOW_DAYS} days.`}
+      />
 
       {/* Last-30-days summary (issue #118). */}
       <div className="grid grid-cols-3 gap-3">

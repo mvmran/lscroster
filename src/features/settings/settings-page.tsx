@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { CalendarDays, Loader2, Mail, ScrollText, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -346,7 +347,7 @@ export function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+      <PageHeader title="Settings" />
       <ChurchSettingsCard canEdit={isAdmin} />
       {canManageServiceTypes && <ServiceTypesLinkCard />}
       {isAdmin && <ScheduledJobsCard />}

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
-import { ArrowLeft, ScrollText } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { ScrollText } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -23,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { PageHeader } from '@/components/page-header'
 import { FullPageError } from '@/components/full-page-error'
 import {
   AUDIT_ACTIONS,
@@ -80,18 +80,12 @@ export function AuditLogPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <Button variant="ghost" size="sm" className="-ml-2 mb-1" asChild>
-          <Link to="/settings">
-            <ArrowLeft className="size-4" />
-            Settings
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold">Audit log</h1>
-        <p className="text-muted-foreground text-sm">
-          Who changed what, newest first. Covers people and team changes.
-        </p>
-      </div>
+      <PageHeader
+        title="Audit log"
+        backTo="/settings"
+        backLabel="Settings"
+        description="Who changed what, newest first. Covers people and team changes."
+      />
 
       <Card className="py-0">
         <CardContent className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
