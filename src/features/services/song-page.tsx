@@ -41,8 +41,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { LyricsStructureEditor } from '@/features/services/lyrics-structure-editor'
 import {
   formatPlanDate,
   formatPlanDateShort,
@@ -163,13 +163,7 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="sd-lyrics">Lyrics / chord chart (optional)</Label>
-          <Textarea
-            id="sd-lyrics"
-            rows={6}
-            value={lyrics}
-            onChange={(e) => setLyrics(e.target.value)}
-            className="font-mono text-sm"
-          />
+          <LyricsStructureEditor id="sd-lyrics" value={lyrics} onChange={setLyrics} />
         </div>
         {dirty && (
           <div className="flex justify-end">
