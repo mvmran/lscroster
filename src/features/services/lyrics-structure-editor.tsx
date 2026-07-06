@@ -273,7 +273,7 @@ function SectionChevron({
       }}
       style={{ top: rect.top - 2 }}
       className={cn(
-        'absolute right-[-26px] z-10 flex h-[25px] w-max items-center drop-shadow-sm',
+        'absolute left-0 z-10 flex h-[25px] w-[54px] items-center drop-shadow-sm',
         CHEVRON_CLIP,
         tint.chip,
         isDragging && 'opacity-40',
@@ -293,7 +293,7 @@ function SectionChevron({
         <button
           type="button"
           title={section.label}
-          className="py-1.5 pr-3.5 pl-0.5 text-xs font-medium"
+          className="flex-1 py-1.5 pr-3.5 pl-0.5 text-left text-xs font-medium"
         >
           {section.short}
         </button>
@@ -458,7 +458,7 @@ export function LyricsStructureEditor({
           ))}
         </div>
         <div className="flex items-start gap-2">
-          <div className="relative w-10 shrink-0 self-stretch">
+          <div className="relative w-7 shrink-0 self-stretch">
             {sections.map((section, index) =>
               rects[index] === undefined ? null : (
                 <div key={`c-${index}-${section.label}`}>
