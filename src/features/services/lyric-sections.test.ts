@@ -9,21 +9,21 @@ import {
 
 describe('matchLyricSectionHeader', () => {
   it('matches bracketed, bare, parenthesized and colon styles', () => {
-    expect(matchLyricSectionHeader('[Verse 1]')).toEqual({ label: 'Verse 1', kind: 'verse' })
-    expect(matchLyricSectionHeader('Chorus:')).toEqual({ label: 'Chorus', kind: 'chorus' })
-    expect(matchLyricSectionHeader('(Bridge)')).toEqual({ label: 'Bridge', kind: 'bridge' })
-    expect(matchLyricSectionHeader('  Intro  ')).toEqual({ label: 'Intro', kind: 'intro' })
+    expect(matchLyricSectionHeader('[Verse 1]')).toEqual({ label: 'Verse 1', short: 'V1', kind: 'verse' })
+    expect(matchLyricSectionHeader('Chorus:')).toEqual({ label: 'Chorus', short: 'C', kind: 'chorus' })
+    expect(matchLyricSectionHeader('(Bridge)')).toEqual({ label: 'Bridge', short: 'B', kind: 'bridge' })
+    expect(matchLyricSectionHeader('  Intro  ')).toEqual({ label: 'Intro', short: 'I', kind: 'intro' })
   })
 
   it('is case-insensitive and normalises the label', () => {
-    expect(matchLyricSectionHeader('VERSE 2')).toEqual({ label: 'Verse 2', kind: 'verse' })
-    expect(matchLyricSectionHeader('pre chorus')).toEqual({ label: 'Pre-Chorus', kind: 'pre-chorus' })
-    expect(matchLyricSectionHeader('PRE-CHORUS 2:')).toEqual({ label: 'Pre-Chorus 2', kind: 'pre-chorus' })
+    expect(matchLyricSectionHeader('VERSE 2')).toEqual({ label: 'Verse 2', short: 'V2', kind: 'verse' })
+    expect(matchLyricSectionHeader('pre chorus')).toEqual({ label: 'Pre-Chorus', short: 'PC', kind: 'pre-chorus' })
+    expect(matchLyricSectionHeader('PRE-CHORUS 2:')).toEqual({ label: 'Pre-Chorus 2', short: 'PC2', kind: 'pre-chorus' })
   })
 
   it('supports numeric and lettered designators', () => {
-    expect(matchLyricSectionHeader('Verse1')).toEqual({ label: 'Verse 1', kind: 'verse' })
-    expect(matchLyricSectionHeader('Verse a')).toEqual({ label: 'Verse A', kind: 'verse' })
+    expect(matchLyricSectionHeader('Verse1')).toEqual({ label: 'Verse 1', short: 'V1', kind: 'verse' })
+    expect(matchLyricSectionHeader('Verse a')).toEqual({ label: 'Verse A', short: 'VA', kind: 'verse' })
   })
 
   it('rejects lyric lines that merely contain a keyword', () => {
@@ -34,7 +34,7 @@ describe('matchLyricSectionHeader', () => {
   })
 
   it('tolerates a trailing carriage return (CRLF text)', () => {
-    expect(matchLyricSectionHeader('[Chorus]\r')).toEqual({ label: 'Chorus', kind: 'chorus' })
+    expect(matchLyricSectionHeader('[Chorus]\r')).toEqual({ label: 'Chorus', short: 'C', kind: 'chorus' })
   })
 })
 

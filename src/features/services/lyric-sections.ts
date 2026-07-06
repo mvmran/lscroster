@@ -13,6 +13,8 @@
 export interface LyricSection {
   /** Normalised display label, e.g. "Verse 1" or "Unlabeled". */
   label: string
+  /** Compact 1–3 char label for tight UI, e.g. "V1", "PC", "C". */
+  short: string
   /** Lower-case section keyword ("verse", "chorus", …) or "unlabeled". */
   kind: string
   /** Offset of the section's first character (its header line, if any). */
@@ -65,17 +67,40 @@ function titleCase(kind: string): string {
     .join('-')
 }
 
+const KIND_ABBREVIATIONS: Record<string, string> = {
+  verse: 'V',
+  chorus: 'C',
+  'pre-chorus': 'PC',
+  bridge: 'B',
+  intro: 'I',
+  outro: 'O',
+  tag: 'T',
+  refrain: 'R',
+  interlude: 'IL',
+  instrumental: 'IN',
+  ending: 'E',
+  vamp: 'VA',
+  turnaround: 'TU',
+  coda: 'CO',
+  hook: 'H',
+  reprise: 'RE',
+  breakdown: 'BR',
+  channel: 'CH',
+  descant: 'DS',
+}
+
 /** Match one line against the header grammar; null when it's lyric content. */
 export function matchLyricSectionHeader(
   line: string,
-): { label: string; kind: string } | null {
+): { label: string; short: string; kind: string } | null {
   const m = HEADER_RE.exec(line)
   if (!m) return null
   let kind = m[1].toLowerCase()
   if (/^pre[\s-]?chorus$/.test(kind)) kind = 'pre-chorus'
   const designator = m[2] ?? m[3]?.toUpperCase()
   const label = designator ? `${titleCase(kind)} ${designator}` : titleCase(kind)
-  return { label, kind }
+  const short = `${KIND_ABBREVIATIONS[kind] ?? kind.charAt(0).toUpperCase()}${designator ?? ''}`
+  return { label, short, kind }
 }
 
 /**
@@ -112,6 +137,7 @@ export function parseLyricSections(text: string): LyricSection[] {
   if (sections[0].start > 0 && text.slice(0, sections[0].start).trim()) {
     sections.unshift({
       label: 'Unlabeled',
+      short: '•',
       kind: 'unlabeled',
       start: 0,
       bodyStart: 0,

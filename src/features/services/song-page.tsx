@@ -77,14 +77,12 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
   const [author, setAuthor] = useState(song.author ?? '')
   const [ccli, setCcli] = useState(song.ccli_number ?? '')
   const [tags, setTags] = useState(song.tags.join(', '))
-  const [lyrics, setLyrics] = useState(song.lyrics ?? '')
 
   const dirty =
     title !== song.title ||
     author !== (song.author ?? '') ||
     ccli !== (song.ccli_number ?? '') ||
-    tags !== song.tags.join(', ') ||
-    lyrics !== (song.lyrics ?? '')
+    tags !== song.tags.join(', ')
 
   async function save() {
     if (!title.trim()) return
@@ -96,7 +94,6 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
           author: author.trim() || null,
           ccli_number: ccli.trim() || null,
           tags: parseTagsInput(tags),
-          lyrics: lyrics.trim() || null,
         },
       })
       toast.success('Song saved')
@@ -122,11 +119,6 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
               <dd className="font-medium">{song.tags.join(', ') || '—'}</dd>
             </div>
           </dl>
-          {song.lyrics && (
-            <pre className="text-muted-foreground mt-4 font-sans text-sm whitespace-pre-wrap">
-              {song.lyrics}
-            </pre>
-          )}
         </CardContent>
       </Card>
     )
@@ -160,10 +152,6 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
             onChange={(e) => setTags(e.target.value)}
             placeholder="fast, opener, christmas — comma separated"
           />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="sd-lyrics">Lyrics / chord chart (optional)</Label>
-          <LyricsStructureEditor id="sd-lyrics" value={lyrics} onChange={setLyrics} />
         </div>
         {dirty && (
           <div className="flex justify-end">
@@ -317,7 +305,55 @@ function ArrangementForm({
   )
 }
 
-function ArrangementsCard({ songId, canManage }: { songId: string; canManage: boolean }) {
+/**
+ * The song's lyrics / chord chart, edited inside the Arrangements card. The
+ * text lives on the song itself (one canonical copy); arrangements will later
+ * reference its parsed sections by label, which is why it's housed here.
+ */
+function SongLyricsSection({ song, canManage }: { song: Song; canManage: boolean }) {
+  const updateSong = useUpdateSong()
+  const [lyrics, setLyrics] = useState(song.lyrics ?? '')
+  const dirty = lyrics !== (song.lyrics ?? '')
+
+  async function save() {
+    try {
+      await updateSong.mutateAsync({
+        id: song.id,
+        values: { lyrics: lyrics.trim() || null },
+      })
+      toast.success('Lyrics saved')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not save lyrics')
+    }
+  }
+
+  if (!canManage) {
+    if (!song.lyrics) return null
+    return (
+      <pre className="text-muted-foreground border-t pt-4 font-sans text-sm whitespace-pre-wrap">
+        {song.lyrics}
+      </pre>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2 border-t pt-4">
+      <Label htmlFor="sd-lyrics">Lyrics / chord chart (optional)</Label>
+      <LyricsStructureEditor id="sd-lyrics" value={lyrics} onChange={setLyrics} />
+      {dirty && (
+        <div className="flex justify-end">
+          <Button onClick={save} disabled={updateSong.isPending}>
+            {updateSong.isPending && <Loader2 className="size-4 animate-spin" />}
+            Save changes
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ArrangementsCard({ song, canManage }: { song: Song; canManage: boolean }) {
+  const songId = song.id
   const { data: arrangements, isPending } = useArrangements(songId)
   const create = useCreateArrangement(songId)
   const [active, setActive] = useState<string | undefined>(undefined)
@@ -343,10 +379,11 @@ function ArrangementsCard({ songId, canManage }: { songId: string; canManage: bo
       <CardHeader>
         <CardTitle>Arrangements</CardTitle>
         <CardDescription>
-          Key, BPM and meter per arrangement. Every song has a Default.
+          Key, BPM and meter per arrangement, plus the lyrics / chord chart.
+          Every song has a Default.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-4">
         {isPending || !arrangements ? (
           <Skeleton className="h-24 w-full" />
         ) : (
@@ -382,6 +419,7 @@ function ArrangementsCard({ songId, canManage }: { songId: string; canManage: bo
             ))}
           </Tabs>
         )}
+        <SongLyricsSection key={song.updated_at} song={song} canManage={canManage} />
       </CardContent>
     </Card>
   )
@@ -671,7 +709,7 @@ export function SongPage() {
       </div>
 
       <DetailsCard key={song.updated_at} song={song} canManage={canManage} />
-      <ArrangementsCard songId={song.id} canManage={canManage} />
+      <ArrangementsCard song={song} canManage={canManage} />
       <AttachmentsCard songId={song.id} canManage={canManage} />
       <UsageCard songId={song.id} />
 

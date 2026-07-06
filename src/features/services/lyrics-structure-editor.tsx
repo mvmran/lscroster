@@ -273,7 +273,7 @@ function SectionChevron({
       }}
       style={{ top: rect.top - 2 }}
       className={cn(
-        'absolute left-0 z-10 flex h-[25px] w-[calc(100%_+_26px)] items-center drop-shadow-sm',
+        'absolute right-[-26px] z-10 flex h-[25px] w-max items-center drop-shadow-sm',
         CHEVRON_CLIP,
         tint.chip,
         isDragging && 'opacity-40',
@@ -283,7 +283,7 @@ function SectionChevron({
       <button
         type="button"
         aria-label={`Drag to move ${section.label}`}
-        className="shrink-0 cursor-grab touch-none py-1.5 pl-1 opacity-70 hover:opacity-100 active:cursor-grabbing"
+        className="shrink-0 cursor-grab touch-none py-1.5 pl-0.5 opacity-70 hover:opacity-100 active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >
@@ -292,9 +292,10 @@ function SectionChevron({
       <SectionMenu index={index} count={count} {...actions}>
         <button
           type="button"
-          className="min-w-0 flex-1 truncate py-1.5 pr-4 text-left text-xs font-medium"
+          title={section.label}
+          className="py-1.5 pr-3.5 pl-0.5 text-xs font-medium"
         >
-          {section.label}
+          {section.short}
         </button>
       </SectionMenu>
     </div>
@@ -457,7 +458,7 @@ export function LyricsStructureEditor({
           ))}
         </div>
         <div className="flex items-start gap-2">
-          <div className="relative w-24 shrink-0 self-stretch sm:w-28">
+          <div className="relative w-10 shrink-0 self-stretch">
             {sections.map((section, index) =>
               rects[index] === undefined ? null : (
                 <div key={`c-${index}-${section.label}`}>
