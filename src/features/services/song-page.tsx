@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Archive,
   ArchiveRestore,
@@ -51,6 +51,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { useUnsavedChangesWarning } from '@/lib/use-unsaved-changes-warning'
 import { LyricsStructureEditor } from '@/features/services/lyrics-structure-editor'
 import {
   formatPlanDate,
@@ -86,6 +87,9 @@ import {
 } from '@/features/services/use-songs'
 
 const MAX_ATTACHMENT_MB = 25
+
+const UNSAVED_SWITCH_MESSAGE =
+  'You have unsaved lyrics changes. Switch arrangement and discard them?'
 
 function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
   const updateSong = useUpdateSong()
@@ -456,10 +460,14 @@ function ArrangementLyricsBlock({
   song,
   arrangement,
   canManage,
+  onDirtyChange,
 }: {
   song: Song
   arrangement: ArrangementWithSongs
   canManage: boolean
+  /** Reports whether the lyrics editor has unsaved edits, so the parent can
+   *  guard arrangement-tab switches (tabs aren't links). */
+  onDirtyChange?: (dirty: boolean) => void
 }) {
   const { data: current, isPending: lyricsPending } = useArrangementLyrics(arrangement.id)
   const save = useSaveArrangementLyrics(arrangement.id)
@@ -475,6 +483,14 @@ function ArrangementLyricsBlock({
   const value = lyrics ?? current?.lyrics ?? ''
   const dirty = value !== (current?.lyrics ?? '')
   const linkedSongs = arrangement.linked_songs
+
+  // Warn before navigating away (page unload or an in-app link) with unsaved
+  // lyrics, and surface the dirty state so the parent can guard tab switches.
+  useUnsavedChangesWarning(dirty)
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+  }, [dirty, onDirtyChange])
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   async function onSaveClick() {
     setCheckingPin(true)
@@ -833,10 +849,24 @@ function ArrangementsCard({ song, canManage }: { song: Song; canManage: boolean 
   const { data: arrangements, isPending } = useArrangements(songId)
   const create = useCreateArrangement(songId)
   const [active, setActive] = useState<string | undefined>(undefined)
+  // Whether the mounted arrangement's lyrics editor has unsaved edits. Only the
+  // active tab's editor is mounted, so a single flag is enough to guard against
+  // discarding those edits by switching to another arrangement.
+  const [activeDirty, setActiveDirty] = useState(false)
 
   const activeId = active ?? arrangements?.[0]?.id
 
+  // Confirm before leaving an arrangement whose lyrics have unsaved edits — the
+  // tab triggers are buttons, so the link/unload guard can't catch them.
+  function switchArrangement(next: string) {
+    if (next === activeId) return
+    if (activeDirty && !window.confirm(UNSAVED_SWITCH_MESSAGE)) return
+    setActiveDirty(false)
+    setActive(next)
+  }
+
   function addArrangement() {
+    if (activeDirty && !window.confirm(UNSAVED_SWITCH_MESSAGE)) return
     const existing = new Set(
       (arrangements ?? []).map((a) => a.name.toLowerCase()),
     )
@@ -846,6 +876,7 @@ function ArrangementsCard({ song, canManage }: { song: Song; canManage: boolean 
       { name: `Arrangement ${n}`, is_default: false, sort_order: n },
       {
         onSuccess: (created) => {
+          setActiveDirty(false)
           setActive(created.id)
           toast.success('Arrangement added')
         },
@@ -868,7 +899,7 @@ function ArrangementsCard({ song, canManage }: { song: Song; canManage: boolean 
         {isPending || !arrangements ? (
           <Skeleton className="h-24 w-full" />
         ) : (
-          <Tabs value={activeId} onValueChange={setActive} className="gap-4">
+          <Tabs value={activeId} onValueChange={switchArrangement} className="gap-4">
             <div className="flex flex-wrap items-center gap-2">
               <TabsList>
                 {arrangements.map((a) => (
@@ -907,7 +938,12 @@ function ArrangementsCard({ song, canManage }: { song: Song; canManage: boolean 
                     .map((s) => s.name)}
                   canManage={canManage}
                 />
-                <ArrangementLyricsBlock song={song} arrangement={a} canManage={canManage} />
+                <ArrangementLyricsBlock
+                  song={song}
+                  arrangement={a}
+                  canManage={canManage}
+                  onDirtyChange={setActiveDirty}
+                />
                 <AttachmentsSection arrangementId={a.id} canManage={canManage} />
               </TabsContent>
             ))}

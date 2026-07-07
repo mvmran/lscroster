@@ -77,6 +77,19 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   exercise an email-sending path (invites, account-access, reminders) locally,
   run `npx supabase functions serve --env-file .env.functions.local` alongside
   `npm run dev`.
+- **No `useBlocker` — the app uses a declarative `<BrowserRouter>`, not a data
+  router**, so React Router's `useBlocker`/`unstable_usePrompt` throw. The
+  unsaved-lyrics warning (`useUnsavedChangesWarning`, `src/lib/`) instead pairs a
+  `beforeunload` listener (browser refresh/close) with a **capture-phase document
+  click interceptor** that catches in-app `<Link>`/`<NavLink>` clicks (rendered
+  as `<a href>`) and `window.confirm`s before React Router's bubble-phase handler
+  runs — capture is essential (React 18 attaches its listeners to the root
+  container, a descendant of `document`). It can't see same-page buttons, so the
+  Arrangements card guards **tab switches** (another arrangement) separately by
+  lifting the editor's `dirty` flag up. Gaps by design: programmatic `navigate()`
+  (e.g. sign-out) and the browser Back button aren't intercepted. Migrating to
+  `createBrowserRouter` would let `useBlocker` cover those uniformly — deferred as
+  too broad a change for a single editor's guard.
 
 **Local verification quickstart:**
 ```
