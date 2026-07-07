@@ -250,18 +250,6 @@ reminders and the roster-status digest, each at its admin-configured hour —
 issue #120) and accepts `{ force, only }` so an admin can trigger one on demand.
 Regenerate `src/types/database.ts` from the local stack after pulling.
 
-**Follow-up fixes after #130 (no schema):** #131 — creating an arrangement via
-"+Add arrangement" now seeds its lyrics from the song's Default (a v1 copy),
-matching how linking a medley song appends lyrics; it used to open blank
-(`useCreateArrangement` in `use-songs.ts`, reusing `fetchDefaultLyrics`). #129 —
-the publish email (`send-plan-notification`) now orders teams by the plan's
-service type's stored order (`service_type_teams.sort_order`, a port of the
-frontend `serviceTypeTeamSort`), not the global team sort that fell back to
-alphabetical. #128 — closed as already-implemented: the "Send N requests" count
-(plan panel + Matrix) and the `send-requests` function already scope strictly to
-teams the caller *leads* (`canManageTeam`/`teamScopeFor`), so a Team Viewer of
-one team + Team Leader of another only counts/sends their led team's emails.
-
 **Upgrade note (0023 — per-team access grants):** management is no longer
 global. After `db push`, an existing global **Leader** keeps governance (create
 teams, appoint Team Leaders/Viewers on any team) and broad read, but can no
