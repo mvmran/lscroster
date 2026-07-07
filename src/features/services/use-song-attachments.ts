@@ -7,18 +7,19 @@ export type SongAttachment = Tables<'song_attachments'>
 const BUCKET = 'song-attachments'
 const SIGNED_URL_TTL_SECONDS = 60 * 60
 
-export const songAttachmentsKey = (songId: string) =>
-  ['song-attachments', songId] as const
+/** Attachments hang off an arrangement since #130 (per-arrangement charts). */
+export const songAttachmentsKey = (arrangementId: string) =>
+  ['song-attachments', arrangementId] as const
 
-export function useSongAttachments(songId: string | undefined) {
+export function useSongAttachments(arrangementId: string | undefined) {
   return useQuery({
-    queryKey: songAttachmentsKey(songId ?? ''),
-    enabled: !!songId,
+    queryKey: songAttachmentsKey(arrangementId ?? ''),
+    enabled: !!arrangementId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('song_attachments')
         .select('*')
-        .eq('song_id', songId!)
+        .eq('arrangement_id', arrangementId!)
         .order('label')
       if (error) throw new Error(error.message)
       return data
@@ -26,12 +27,12 @@ export function useSongAttachments(songId: string | undefined) {
   })
 }
 
-export function useUploadSongAttachment(songId: string) {
+export function useUploadSongAttachment(arrangementId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (file: File) => {
       const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
-      const path = `${songId}/${crypto.randomUUID()}.${ext}`
+      const path = `${arrangementId}/${crypto.randomUUID()}.${ext}`
 
       const { error: uploadError } = await supabase.storage
         .from(BUCKET)
@@ -40,7 +41,7 @@ export function useUploadSongAttachment(songId: string) {
 
       const { data, error } = await supabase
         .from('song_attachments')
-        .insert({ song_id: songId, storage_path: path, label: file.name })
+        .insert({ arrangement_id: arrangementId, storage_path: path, label: file.name })
         .select()
         .single()
       if (error) {
@@ -50,12 +51,12 @@ export function useUploadSongAttachment(songId: string) {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: songAttachmentsKey(songId) })
+      queryClient.invalidateQueries({ queryKey: songAttachmentsKey(arrangementId) })
     },
   })
 }
 
-export function useDeleteSongAttachment(songId: string) {
+export function useDeleteSongAttachment(arrangementId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (attachment: SongAttachment) => {
@@ -68,7 +69,7 @@ export function useDeleteSongAttachment(songId: string) {
       await supabase.storage.from(BUCKET).remove([attachment.storage_path])
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: songAttachmentsKey(songId) })
+      queryClient.invalidateQueries({ queryKey: songAttachmentsKey(arrangementId) })
     },
   })
 }

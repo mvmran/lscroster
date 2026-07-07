@@ -29,21 +29,19 @@ import { supabase } from '@/lib/supabase'
 
 interface UsageRow {
   song_id: string | null
-  plans: {
-    date: string
-    service_type_id: string
-    service_types: { name: string } | null
-  }
+  date: string | null
+  service_type_id: string | null
+  service_type_name: string | null
 }
 
+/** Per-play rows from song_plan_usage — medleys count for every linked song (#130). */
 function useSongUsageRows() {
   return useQuery({
     queryKey: ['song-usage-rows'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('plan_items')
-        .select('song_id, plans!inner(date, service_type_id, service_types(name))')
-        .not('song_id', 'is', null)
+        .from('song_plan_usage')
+        .select('song_id, date, service_type_id, service_type_name')
         .limit(5000)
       if (error) throw new Error(error.message)
       return data as UsageRow[]
@@ -72,21 +70,18 @@ export function SongReportsPage() {
       { total: number; lastPlayed: string | null; byType: Map<string, number> }
     >()
     for (const row of rows ?? []) {
-      if (!row.song_id) continue
-      const date = row.plans.date
+      if (!row.song_id || !row.date || !row.service_type_id) continue
+      const date = row.date
       if (date < since || date > today) continue
-      typeNames.set(
-        row.plans.service_type_id,
-        row.plans.service_types?.name ?? '?',
-      )
+      typeNames.set(row.service_type_id, row.service_type_name ?? '?')
       const entry =
         bySong.get(row.song_id) ??
         { total: 0, lastPlayed: null as string | null, byType: new Map<string, number>() }
       entry.total += 1
       if (!entry.lastPlayed || date > entry.lastPlayed) entry.lastPlayed = date
       entry.byType.set(
-        row.plans.service_type_id,
-        (entry.byType.get(row.plans.service_type_id) ?? 0) + 1,
+        row.service_type_id,
+        (entry.byType.get(row.service_type_id) ?? 0) + 1,
       )
       bySong.set(row.song_id, entry)
     }

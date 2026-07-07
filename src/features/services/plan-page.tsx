@@ -87,6 +87,8 @@ import {
 } from '@/features/services/plan-extras-cards'
 import { PlanItemDialog, type PlanItemDialogState } from '@/features/services/plan-item-dialog'
 import {
+  arrangementDisplayTitle,
+  buildArrangementIndex,
   computeItemTimes,
   findClashingPlans,
   formatClock,
@@ -102,7 +104,9 @@ import {
 import { PlanClashDialog } from '@/features/services/plan-clash-dialog'
 import { SongPickerDialog } from '@/features/services/song-picker-dialog'
 import {
+  useClearPlanLyricsPins,
   useDeletePlanItem,
+  usePinPlanLyrics,
   usePlanItems,
   useReorderPlanItems,
 } from '@/features/services/use-plan-items'
@@ -770,6 +774,8 @@ export function PlanPage() {
 
   const reorder = useReorderPlanItems(id ?? '')
   const deleteItem = useDeletePlanItem(id ?? '')
+  const pinLyrics = usePinPlanLyrics(id ?? '')
+  const clearLyricsPins = useClearPlanLyricsPins(id ?? '')
   const updatePlan = useUpdatePlan()
   const deletePlan = useDeletePlan()
   const sendNotification = useSendPlanNotification(id ?? '')
@@ -794,10 +800,12 @@ export function PlanPage() {
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data])
   const canManage = me?.role === 'admin' || me?.role === 'leader'
 
-  const songById = useMemo(() => {
-    const map = new Map((songs ?? []).map((s) => [s.id, s]))
-    return map
-  }, [songs])
+  // arrangement id -> {arrangement, linked songs} — resolves item titles
+  // (medleys show every song) and keys since #130.
+  const arrangementIndex = useMemo(
+    () => buildArrangementIndex(songs ?? []),
+    [songs],
+  )
 
   const { timed, totalSeconds, endsAt } = useMemo(
     () =>
@@ -872,6 +880,12 @@ export function PlanPage() {
         onSuccess: () => {
           // Issue #17 — notify everyone scheduled when the plan goes live.
           toast.success('Plan published')
+          // Lock each song's lyrics to the version being published (#130) so
+          // later edits can't rewrite this plan's lyrics sheet.
+          pinLyrics.mutate(undefined, {
+            onError: (e) =>
+              toast.error(`Published, but couldn't lock lyrics versions: ${e.message}`),
+          })
           sendNotification.mutate(undefined, {
             onSuccess: (res) => {
               if (res.sent > 0) {
@@ -900,7 +914,14 @@ export function PlanPage() {
       updatePlan.mutate(
         { id: plan!.id, values: { status: 'draft' } },
         {
-          onSuccess: () => toast.success('Plan moved back to draft'),
+          onSuccess: () => {
+            toast.success('Plan moved back to draft')
+            // Drafts follow the latest lyrics again (#130).
+            clearLyricsPins.mutate(undefined, {
+              onError: (e) =>
+                toast.error(`Couldn't release lyrics versions: ${e.message}`),
+            })
+          },
           onError: (e) => toast.error(e.message),
         },
       )
@@ -1113,21 +1134,24 @@ export function PlanPage() {
                 strategy={verticalListSortingStrategy}
               >
                 <div className="flex flex-col">
-                  {timed.map(({ item, startsAt, offsetSeconds }) => (
-                    <ItemRow
-                      key={item.id}
-                      item={item}
-                      startsAt={startsAt}
-                      offsetSeconds={offsetSeconds}
-                      canManage={canEditOrder}
-                      songTitle={item.song_id ? songById.get(item.song_id)?.title : undefined}
-                      defaultKey={
-                        item.song_id ? songById.get(item.song_id)?.default_key : undefined
-                      }
-                      onEdit={() => setItemDialog({ mode: 'edit', item })}
-                      onDelete={() => setDeletingItem(item)}
-                    />
-                  ))}
+                  {timed.map(({ item, startsAt, offsetSeconds }) => {
+                    const info = item.arrangement_id
+                      ? arrangementIndex.get(item.arrangement_id)
+                      : undefined
+                    return (
+                      <ItemRow
+                        key={item.id}
+                        item={item}
+                        startsAt={startsAt}
+                        offsetSeconds={offsetSeconds}
+                        canManage={canEditOrder}
+                        songTitle={info ? arrangementDisplayTitle(info) : undefined}
+                        defaultKey={info?.arrangement.song_key}
+                        onEdit={() => setItemDialog({ mode: 'edit', item })}
+                        onDelete={() => setDeletingItem(item)}
+                      />
+                    )
+                  })}
                 </div>
               </SortableContext>
             </DndContext>
@@ -1176,7 +1200,7 @@ export function PlanPage() {
         onClose={() => setItemDialog(null)}
         planId={plan.id}
         itemCount={items.length}
-        songs={songs ?? []}
+        arrangements={arrangementIndex}
       />
       <SongPickerDialog
         open={songPickerOpen}

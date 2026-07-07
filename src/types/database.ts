@@ -680,57 +680,67 @@ export type Database = {
       }
       plan_items: {
         Row: {
+          arrangement_id: string | null
           created_at: string
           description: string | null
           id: string
           key_override: string | null
           kind: Database["public"]["Enums"]["plan_item_kind"]
           length_seconds: number
+          lyrics_id: string | null
           plan_id: string
-          song_id: string | null
           sort_order: number
           title: string
           updated_at: string
         }
         Insert: {
+          arrangement_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
           key_override?: string | null
           kind?: Database["public"]["Enums"]["plan_item_kind"]
           length_seconds?: number
+          lyrics_id?: string | null
           plan_id: string
-          song_id?: string | null
           sort_order?: number
           title: string
           updated_at?: string
         }
         Update: {
+          arrangement_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
           key_override?: string | null
           kind?: Database["public"]["Enums"]["plan_item_kind"]
           length_seconds?: number
+          lyrics_id?: string | null
           plan_id?: string
-          song_id?: string | null
           sort_order?: number
           title?: string
           updated_at?: string
         }
         Relationships: [
           {
+            foreignKeyName: "plan_items_arrangement_id_fkey"
+            columns: ["arrangement_id"]
+            isOneToOne: false
+            referencedRelation: "song_arrangements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_items_lyrics_id_fkey"
+            columns: ["lyrics_id"]
+            isOneToOne: false
+            referencedRelation: "song_arrangement_lyrics"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "plan_items_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plan_items_song_id_fkey"
-            columns: ["song_id"]
-            isOneToOne: false
-            referencedRelation: "songs"
             referencedColumns: ["id"]
           },
         ]
@@ -779,39 +789,39 @@ export type Database = {
       }
       plan_template_items: {
         Row: {
+          arrangement_id: string | null
           created_at: string
           description: string | null
           id: string
           key_override: string | null
           kind: Database["public"]["Enums"]["plan_item_kind"]
           length_seconds: number
-          song_id: string | null
           sort_order: number
           template_id: string
           title: string
           updated_at: string
         }
         Insert: {
+          arrangement_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
           key_override?: string | null
           kind?: Database["public"]["Enums"]["plan_item_kind"]
           length_seconds?: number
-          song_id?: string | null
           sort_order?: number
           template_id: string
           title: string
           updated_at?: string
         }
         Update: {
+          arrangement_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
           key_override?: string | null
           kind?: Database["public"]["Enums"]["plan_item_kind"]
           length_seconds?: number
-          song_id?: string | null
           sort_order?: number
           template_id?: string
           title?: string
@@ -819,10 +829,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "plan_template_items_song_id_fkey"
-            columns: ["song_id"]
+            foreignKeyName: "plan_template_items_arrangement_id_fkey"
+            columns: ["arrangement_id"]
             isOneToOne: false
-            referencedRelation: "songs"
+            referencedRelation: "song_arrangements"
             referencedColumns: ["id"]
           },
           {
@@ -1214,6 +1224,77 @@ export type Database = {
         }
         Relationships: []
       }
+      song_arrangement_lyrics: {
+        Row: {
+          arrangement_id: string
+          created_at: string
+          id: string
+          lyrics: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          arrangement_id: string
+          created_at?: string
+          id?: string
+          lyrics: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          arrangement_id?: string
+          created_at?: string
+          id?: string
+          lyrics?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "song_arrangement_lyrics_arrangement_id_fkey"
+            columns: ["arrangement_id"]
+            isOneToOne: false
+            referencedRelation: "song_arrangements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      song_arrangement_songs: {
+        Row: {
+          arrangement_id: string
+          created_at: string
+          song_id: string
+          sort_order: number
+        }
+        Insert: {
+          arrangement_id: string
+          created_at?: string
+          song_id: string
+          sort_order?: number
+        }
+        Update: {
+          arrangement_id?: string
+          created_at?: string
+          song_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "song_arrangement_songs_arrangement_id_fkey"
+            columns: ["arrangement_id"]
+            isOneToOne: false
+            referencedRelation: "song_arrangements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "song_arrangement_songs_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       song_arrangements: {
         Row: {
           bpm: number | null
@@ -1222,7 +1303,6 @@ export type Database = {
           is_default: boolean
           meter: string | null
           name: string
-          song_id: string
           song_key: string | null
           sort_order: number
           updated_at: string
@@ -1234,7 +1314,6 @@ export type Database = {
           is_default?: boolean
           meter?: string | null
           name?: string
-          song_id: string
           song_key?: string | null
           sort_order?: number
           updated_at?: string
@@ -1246,52 +1325,43 @@ export type Database = {
           is_default?: boolean
           meter?: string | null
           name?: string
-          song_id?: string
           song_key?: string | null
           sort_order?: number
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "song_arrangements_song_id_fkey"
-            columns: ["song_id"]
-            isOneToOne: false
-            referencedRelation: "songs"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       song_attachments: {
         Row: {
+          arrangement_id: string
           created_at: string
           id: string
           label: string
-          song_id: string
           storage_path: string
           updated_at: string
         }
         Insert: {
+          arrangement_id: string
           created_at?: string
           id?: string
           label: string
-          song_id: string
           storage_path: string
           updated_at?: string
         }
         Update: {
+          arrangement_id?: string
           created_at?: string
           id?: string
           label?: string
-          song_id?: string
           storage_path?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "song_attachments_song_id_fkey"
-            columns: ["song_id"]
+            foreignKeyName: "song_attachments_arrangement_id_fkey"
+            columns: ["arrangement_id"]
             isOneToOne: false
-            referencedRelation: "songs"
+            referencedRelation: "song_arrangements"
             referencedColumns: ["id"]
           },
         ]
@@ -1302,7 +1372,6 @@ export type Database = {
           ccli_number: string | null
           created_at: string
           id: string
-          lyrics: string | null
           status: Database["public"]["Enums"]["song_status"]
           tags: string[]
           title: string
@@ -1313,7 +1382,6 @@ export type Database = {
           ccli_number?: string | null
           created_at?: string
           id?: string
-          lyrics?: string | null
           status?: Database["public"]["Enums"]["song_status"]
           tags?: string[]
           title: string
@@ -1324,7 +1392,6 @@ export type Database = {
           ccli_number?: string | null
           created_at?: string
           id?: string
-          lyrics?: string | null
           status?: Database["public"]["Enums"]["song_status"]
           tags?: string[]
           title?: string
@@ -1610,6 +1677,50 @@ export type Database = {
           },
         ]
       }
+      song_plan_usage: {
+        Row: {
+          arrangement_id: string | null
+          date: string | null
+          key_override: string | null
+          plan_id: string | null
+          plan_item_id: string | null
+          plan_status: Database["public"]["Enums"]["plan_status"] | null
+          plan_title: string | null
+          service_type_id: string | null
+          service_type_name: string | null
+          song_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_items_arrangement_id_fkey"
+            columns: ["arrangement_id"]
+            isOneToOne: false
+            referencedRelation: "song_arrangements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_items_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plans_service_type_id_fkey"
+            columns: ["service_type_id"]
+            isOneToOne: false
+            referencedRelation: "service_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "song_arrangement_songs_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       song_usage: {
         Row: {
           last_used: string | null
@@ -1619,7 +1730,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "plan_items_song_id_fkey"
+            foreignKeyName: "song_arrangement_songs_song_id_fkey"
             columns: ["song_id"]
             isOneToOne: false
             referencedRelation: "songs"
@@ -1629,8 +1740,19 @@ export type Database = {
       }
     }
     Functions: {
+      audit_record: {
+        Args: {
+          p_action: string
+          p_metadata?: Json
+          p_summary: string
+          p_target_label: string
+          p_target_person_id: string
+        }
+        Returns: undefined
+      }
       can_manage_team: { Args: { target_team_id: string }; Returns: boolean }
       can_view_contact: { Args: { target: string }; Returns: boolean }
+      current_actor_person_id: { Args: never; Returns: string }
       current_person_id: { Args: never; Returns: string }
       current_person_role: {
         Args: never
@@ -1647,6 +1769,7 @@ export type Database = {
       leads_team_on_plan: { Args: { target_plan_id: string }; Returns: boolean }
       manages_person: { Args: { target: string }; Returns: boolean }
       manages_photo_folder: { Args: { object_name: string }; Returns: boolean }
+      pin_plan_lyrics: { Args: { p_plan_id: string }; Returns: undefined }
       team_of_member: { Args: { target_member_id: string }; Returns: string }
       views_team: { Args: { target_team_id: string }; Returns: boolean }
     }

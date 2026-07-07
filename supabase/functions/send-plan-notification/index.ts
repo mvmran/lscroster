@@ -41,7 +41,7 @@ interface AssignmentRow {
 interface ItemRow {
   kind: 'header' | 'song' | 'item'
   title: string
-  song_id: string | null
+  arrangement_id: string | null
   key_override: string | null
   length_seconds: number
   description: string | null
@@ -103,27 +103,28 @@ Deno.serve(async (req) => {
   // -- order of service + songs --------------------------------------------
   const { data: itemRows } = await admin
     .from('plan_items')
-    .select('kind, title, song_id, key_override, length_seconds, description, sort_order')
+    .select('kind, title, arrangement_id, key_override, length_seconds, description, sort_order')
     .eq('plan_id', planId)
   const items = ((itemRows ?? []) as ItemRow[]).sort(
     (a, b) => a.sort_order - b.sort_order,
   )
 
-  const songIds = [...new Set(items.filter((i) => i.song_id).map((i) => i.song_id!))]
-  // Key/BPM/meter now live on the song's Default arrangement (issue #24/#29).
-  const songById = new Map<
+  // Key/BPM/meter come straight off the item's arrangement (#130).
+  const arrangementIds = [
+    ...new Set(items.filter((i) => i.arrangement_id).map((i) => i.arrangement_id!)),
+  ]
+  const arrangementById = new Map<
     string,
-    { default_key: string | null; bpm: number | null; meter: string | null }
+    { song_key: string | null; bpm: number | null; meter: string | null }
   >()
-  if (songIds.length > 0) {
+  if (arrangementIds.length > 0) {
     const { data: arrRows } = await admin
       .from('song_arrangements')
-      .select('song_id, song_key, bpm, meter')
-      .in('song_id', songIds)
-      .eq('is_default', true)
+      .select('id, song_key, bpm, meter')
+      .in('id', arrangementIds)
     for (const a of arrRows ?? []) {
-      songById.set(a.song_id as string, {
-        default_key: a.song_key,
+      arrangementById.set(a.id as string, {
+        song_key: a.song_key,
         bpm: a.bpm,
         meter: a.meter,
       })
@@ -158,12 +159,14 @@ Deno.serve(async (req) => {
   const songs = items
     .filter((i) => i.kind === 'song')
     .map((i) => {
-      const song = i.song_id ? songById.get(i.song_id) : undefined
+      const arrangement = i.arrangement_id
+        ? arrangementById.get(i.arrangement_id)
+        : undefined
       return {
         title: i.title,
-        key: i.key_override ?? song?.default_key ?? null,
-        bpm: song?.bpm ?? null,
-        meter: song?.meter ?? null,
+        key: i.key_override ?? arrangement?.song_key ?? null,
+        bpm: arrangement?.bpm ?? null,
+        meter: arrangement?.meter ?? null,
       }
     })
 

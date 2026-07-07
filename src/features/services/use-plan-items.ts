@@ -1,9 +1,41 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { TablesInsert, TablesUpdate } from '@/types/database'
-import type { PlanItem } from '@/features/services/service-utils'
+import type { ArrangementLyrics, PlanItem } from '@/features/services/service-utils'
 
 export const planItemsKey = (planId: string) => ['plan-items', planId] as const
+
+/**
+ * Every lyrics version of the plan's arrangements, keyed by row id (#130).
+ * Pinned versions (plan_items.lyrics_id on published plans) belong to those
+ * same arrangements, so one query covers both pinned and latest resolution in
+ * `buildLyricsSheet`.
+ */
+export function usePlanLyrics(
+  planId: string | undefined,
+  items: PlanItem[] | undefined,
+) {
+  const arrangementIds = [
+    ...new Set(
+      (items ?? [])
+        .map((i) => i.arrangement_id)
+        .filter((id): id is string => !!id),
+    ),
+  ].sort()
+  return useQuery({
+    queryKey: ['plan-lyrics', planId ?? '', arrangementIds.join(',')],
+    enabled: !!planId,
+    queryFn: async () => {
+      if (arrangementIds.length === 0) return new Map<string, ArrangementLyrics>()
+      const { data, error } = await supabase
+        .from('song_arrangement_lyrics')
+        .select('*')
+        .in('arrangement_id', arrangementIds)
+      if (error) throw new Error(error.message)
+      return new Map((data as ArrangementLyrics[]).map((row) => [row.id, row]))
+    },
+  })
+}
 
 export function usePlanItems(planId: string | undefined) {
   return useQuery({
@@ -78,6 +110,43 @@ export function useDeletePlanItem(planId: string) {
 }
 
 /**
+ * Publishing locks each song item to its arrangement's latest lyrics version
+ * (#130) so later edits create a new version instead of rewriting the plan.
+ */
+export function usePinPlanLyrics(planId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('pin_plan_lyrics', { p_plan_id: planId })
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: planItemsKey(planId) })
+      queryClient.invalidateQueries({ queryKey: ['plan-lyrics'] })
+    },
+  })
+}
+
+/** Unpublishing releases the pins — drafts follow the latest lyrics (#130). */
+export function useClearPlanLyricsPins(planId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('plan_items')
+        .update({ lyrics_id: null })
+        .eq('plan_id', planId)
+        .not('lyrics_id', 'is', null)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: planItemsKey(planId) })
+      queryClient.invalidateQueries({ queryKey: ['plan-lyrics'] })
+    },
+  })
+}
+
+/**
  * Persist a drag-reorder. Optimistically writes the new order to the cache so
  * the list doesn't snap back while the upsert is in flight.
  */
@@ -90,7 +159,8 @@ export function useReorderPlanItems(planId: string) {
         plan_id: item.plan_id,
         kind: item.kind,
         title: item.title,
-        song_id: item.song_id,
+        arrangement_id: item.arrangement_id,
+        lyrics_id: item.lyrics_id,
         key_override: item.key_override,
         length_seconds: item.length_seconds,
         description: item.description,

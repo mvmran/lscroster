@@ -215,6 +215,30 @@ Admin-only Settings → Audit log screen (after Email delivery) with date-range
 (default 3 days)/event/person/changed-by filters, 200-row cap. Issue #126
 (no schema) gates all scheduling email on a shared `isEmailableActive()` so
 pending (not-yet-accepted) and inactive people are never emailed.
+(0033) `arrangement_centric_songs` (issue #130): **song_arrangements becomes the
+record a plan uses.** New `song_arrangement_songs` junction (arrangement ⇄ songs,
+replaces `song_arrangements.song_id`) — a non-default arrangement linked to 2+
+songs is a **medley** and appears under every linked song; new versioned
+`song_arrangement_lyrics` (replaces `songs.lyrics`; version assigned by trigger,
+max+1 per arrangement). `plan_items`/`plan_template_items`/`song_attachments`
+re-point `song_id` → `arrangement_id`; `plan_items.lyrics_id` pins the version a
+**published** plan uses (`pin_plan_lyrics(plan_id)` on publish, cleared on
+unpublish; drafts follow latest; editing a pinned version warns and creates a new
+one). `song_usage` rebuilt over the junction + new flat `song_plan_usage` view —
+medley plays count for **every** linked song (CCLI). Triggers keep the old
+invariants junction-side: Default auto-created with its link, exactly one Default
+per song, Default links exactly one song, orphaned arrangements deleted when
+their last link goes (song delete cascades this way; shared medleys survive).
+Per-song arrangement-name uniqueness is now app-checked (DB constraint went with
+`song_id`). UI: per-arrangement lyrics + attachments in the Arrangements card
+tabs, a linked-songs control (non-default only) to build medleys (confirm +
+append the linked song's latest Default lyrics into the editor), smart two-step
+plan song picker (one click when only Default exists), order of service / print
+/ lyrics sheet / emails show medley names and arrangement keys.
+**Upgrade note (0033):** backfills existing data — every arrangement gets a
+junction row to its old song and a v1 copy of the song's lyrics; attachments and
+plan/template items move to the song's Default arrangement; items on published
+plans are pinned to v1. Storage paths unchanged; no user action needed.
 New Edge Functions: `cancel-assignment`, `send-plan-notification`,
 `request-password-reset`, `run-scheduled-job` (admin "send now" for the
 scheduled email jobs); new shared `_shared/email-prefs.ts` (per-person opt-outs

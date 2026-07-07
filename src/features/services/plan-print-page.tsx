@@ -6,6 +6,7 @@ import { FullPageError } from '@/components/full-page-error'
 import { FullPageLoader } from '@/components/full-page-loader'
 import { Button } from '@/components/ui/button'
 import {
+  buildArrangementIndex,
   computeItemTimes,
   formatClock,
   formatLength,
@@ -141,7 +142,10 @@ export function PlanPrintPage() {
 
   const plan = planQuery.data
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data])
-  const songById = useMemo(() => new Map((songs ?? []).map((s) => [s.id, s])), [songs])
+  const arrangementIndex = useMemo(
+    () => buildArrangementIndex(songs ?? []),
+    [songs],
+  )
 
   const { timed, totalSeconds, endsAt } = useMemo(
     () =>
@@ -177,7 +181,9 @@ export function PlanPrintPage() {
             songKey={(item) =>
               item.kind === 'song'
                 ? (item.key_override ??
-                  (item.song_id ? (songById.get(item.song_id)?.default_key ?? null) : null))
+                  (item.arrangement_id
+                    ? (arrangementIndex.get(item.arrangement_id)?.arrangement.song_key ?? null)
+                    : null))
                 : null
             }
             churchName={settings?.name ?? ''}
@@ -236,7 +242,9 @@ export function PlanPrintPage() {
               const key =
                 item.kind === 'song'
                   ? (item.key_override ??
-                    (item.song_id ? songById.get(item.song_id)?.default_key : null))
+                    (item.arrangement_id
+                      ? arrangementIndex.get(item.arrangement_id)?.arrangement.song_key
+                      : null))
                   : null
               return (
                 <tr

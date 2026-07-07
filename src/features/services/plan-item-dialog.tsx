@@ -18,9 +18,9 @@ import {
   DEFAULT_ITEM_LENGTH,
   formatLength,
   parseLengthInput,
+  type ArrangementInfo,
   type PlanItem,
   type PlanItemKind,
-  type Song,
 } from '@/features/services/service-utils'
 import {
   useCreatePlanItem,
@@ -37,20 +37,21 @@ function ItemForm({
   onClose,
   planId,
   itemCount,
-  songs,
+  arrangements,
 }: {
   state: NonNullable<PlanItemDialogState>
   onClose: () => void
   planId: string
   itemCount: number
-  songs: Song[]
+  arrangements: Map<string, ArrangementInfo>
 }) {
   const createItem = useCreatePlanItem(planId)
   const updateItem = useUpdatePlanItem(planId)
 
   const item = state.mode === 'edit' ? state.item : null
   const kind: PlanItemKind = item?.kind ?? (state.mode === 'create' ? state.kind : 'item')
-  const song = item?.song_id ? songs.find((s) => s.id === item.song_id) : undefined
+  const info = item?.arrangement_id ? arrangements.get(item.arrangement_id) : undefined
+  const arrangementKey = info?.arrangement.song_key ?? null
 
   const [title, setTitle] = useState(item?.title ?? '')
   const [length, setLength] = useState(
@@ -120,11 +121,11 @@ function ItemForm({
                   id="pi-key"
                   value={keyOverride}
                   onChange={(e) => setKeyOverride(e.target.value)}
-                  placeholder={song?.default_key ?? 'e.g. G'}
+                  placeholder={arrangementKey ?? 'e.g. G'}
                 />
-                {song?.default_key && (
+                {arrangementKey && (
                   <p className="text-muted-foreground text-xs">
-                    Leave blank for the default key ({song.default_key}).
+                    Leave blank for the arrangement’s key ({arrangementKey}).
                   </p>
                 )}
               </div>
@@ -145,13 +146,19 @@ function ItemForm({
           </div>
         )}
 
-        {song && (
+        {info && (
           <p className="text-muted-foreground text-xs">
             Linked to{' '}
-            <Link to={`/songs/${song.id}`} className="text-foreground underline">
-              {song.title}
-            </Link>{' '}
-            in the song library.
+            {info.songs.map((s, i) => (
+              <span key={s.id}>
+                {i > 0 && ' / '}
+                <Link to={`/songs/${s.id}`} className="text-foreground underline">
+                  {s.title}
+                </Link>
+              </span>
+            ))}
+            {!info.arrangement.is_default && ` (${info.arrangement.name})`} in the
+            song library.
           </p>
         )}
       </div>
@@ -177,14 +184,14 @@ export function PlanItemDialog({
   onClose,
   planId,
   itemCount,
-  songs,
+  arrangements,
 }: {
   state: PlanItemDialogState
   onClose: () => void
   planId: string
   /** Used to append new items at the end. */
   itemCount: number
-  songs: Song[]
+  arrangements: Map<string, ArrangementInfo>
 }) {
   const kind =
     state?.mode === 'edit' ? state.item.kind : (state?.kind ?? 'item')
@@ -218,7 +225,7 @@ export function PlanItemDialog({
             onClose={onClose}
             planId={planId}
             itemCount={itemCount}
-            songs={songs}
+            arrangements={arrangements}
           />
         )}
       </DialogContent>

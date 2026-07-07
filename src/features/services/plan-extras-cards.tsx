@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { downloadLyricsSheetPdf } from '@/features/services/lyrics-sheet-pdf'
 import {
+  buildArrangementIndex,
   buildLyricsSheet,
   formatStartTime,
   lyricsSheetMeta,
@@ -35,7 +36,7 @@ import {
   usePlanAttachments,
   useUploadPlanAttachment,
 } from '@/features/services/use-plan-attachments'
-import { usePlanItems } from '@/features/services/use-plan-items'
+import { usePlanItems, usePlanLyrics } from '@/features/services/use-plan-items'
 import { usePlanTimeMutations, usePlanTimes } from '@/features/services/use-plan-times'
 import { useSongs } from '@/features/services/use-songs'
 import { useChurchSettings } from '@/features/settings/use-church-settings'
@@ -292,16 +293,25 @@ export function PlanMediaCard({
 }) {
   const { data: items, isPending: itemsPending } = usePlanItems(planId)
   const { data: songs, isPending: songsPending } = useSongs()
+  const { data: lyricsById, isPending: lyricsPending } = usePlanLyrics(planId, items)
   const { data: settings } = useChurchSettings()
   const [generating, setGenerating] = useState(false)
 
-  const songById = useMemo(() => new Map((songs ?? []).map((s) => [s.id, s])), [songs])
+  const arrangementIndex = useMemo(
+    () => buildArrangementIndex(songs ?? []),
+    [songs],
+  )
   const entries = useMemo(
-    () => buildLyricsSheet(items ?? [], songById),
-    [items, songById],
+    () =>
+      buildLyricsSheet(
+        items ?? [],
+        arrangementIndex,
+        lyricsById ?? new Map(),
+      ),
+    [items, arrangementIndex, lyricsById],
   )
 
-  const isPending = itemsPending || songsPending
+  const isPending = itemsPending || songsPending || lyricsPending
 
   // Hide entirely from members until there is something to show, mirroring the
   // other plan cards.

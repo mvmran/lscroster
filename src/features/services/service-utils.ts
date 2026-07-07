@@ -6,16 +6,78 @@ export type Plan = Tables<'plans'>
 export type PlanItem = Tables<'plan_items'>
 export type ServiceType = Tables<'service_types'>
 export type SongArrangement = Tables<'song_arrangements'>
+export type ArrangementLyrics = Tables<'song_arrangement_lyrics'>
 /**
  * A library song with its Default arrangement's key/BPM/meter flattened on
  * (issue #24 moved these onto arrangements). Keeping them here lets the songs
  * list, picker and plan readers keep using `song.default_key` / `song.bpm`
- * unchanged; `meter` joined them for the lyrics sheet (issue #25).
+ * unchanged; `meter` joined them for the lyrics sheet (issue #25). Since #130
+ * arrangements link to songs via the `song_arrangement_songs` junction, so each
+ * song also carries its arrangements (Default first) — the picker uses them for
+ * the arrangement step, and `buildArrangementIndex` derives medley names from
+ * every song's junction rows.
  */
 export type Song = Tables<'songs'> & {
   default_key: string | null
   bpm: number | null
   meter: string | null
+  default_arrangement_id: string | null
+  arrangements: SongArrangement[]
+  /** This song's junction rows: arrangement id + the song's position in it. */
+  arrangement_links: { arrangement_id: string; sort_order: number }[]
+}
+
+/** An arrangement plus the songs it is linked to, in medley order (#130). */
+export interface ArrangementInfo {
+  arrangement: SongArrangement
+  songs: { id: string; title: string }[]
+}
+
+/**
+ * arrangement id -> {arrangement, linked songs} across the whole library.
+ * Each song's embed only carries its own junction row, so the full song list
+ * of a medley is assembled by walking every song (#130).
+ */
+export function buildArrangementIndex(songs: Song[]): Map<string, ArrangementInfo> {
+  const index = new Map<string, ArrangementInfo>()
+  const sortKeys = new Map<string, number[]>()
+  for (const song of songs) {
+    for (const link of song.arrangement_links) {
+      const arrangement = song.arrangements.find((a) => a.id === link.arrangement_id)
+      let info = index.get(link.arrangement_id)
+      if (!info) {
+        if (!arrangement) continue
+        info = { arrangement, songs: [] }
+        index.set(link.arrangement_id, info)
+        sortKeys.set(link.arrangement_id, [])
+      }
+      info.songs.push({ id: song.id, title: song.title })
+      sortKeys.get(link.arrangement_id)!.push(link.sort_order)
+    }
+  }
+  for (const [id, info] of index) {
+    const keys = sortKeys.get(id)!
+    info.songs = info.songs
+      .map((s, i) => ({ s, key: keys[i] }))
+      .sort((a, b) => a.key - b.key || a.s.title.localeCompare(b.s.title))
+      .map((x) => x.s)
+  }
+  return index
+}
+
+/** True when the arrangement is linked to more than one song. */
+export function isMedley(info: ArrangementInfo): boolean {
+  return info.songs.length > 1
+}
+
+/**
+ * Display title for an arrangement on a plan: the song title, "Song (Acoustic)"
+ * for a named non-default arrangement, or "Song A / Song B" for a medley.
+ */
+export function arrangementDisplayTitle(info: ArrangementInfo): string {
+  const names = info.songs.map((s) => s.title).join(' / ')
+  if (isMedley(info) || info.arrangement.is_default) return names
+  return `${names} (${info.arrangement.name})`
 }
 export type PlanItemKind = Enums<'plan_item_kind'>
 
@@ -279,9 +341,10 @@ export function songSearchLinks(title: string, author?: string | null) {
 }
 
 /**
- * One song's entry on a plan's lyrics sheet (issue #25). Key/BPM/meter come
- * from the song's Default arrangement (already flattened onto `Song`); the
- * lyrics come from the song itself.
+ * One song's entry on a plan's lyrics sheet (issue #25). Since #130 the
+ * key/BPM/meter come from the item's arrangement, the title covers medleys
+ * ("Song A / Song B"), and the lyrics are the item's pinned version when the
+ * plan is published, else the arrangement's latest.
  */
 export interface LyricsSheetEntry {
   songItemId: string
@@ -294,24 +357,37 @@ export interface LyricsSheetEntry {
 
 /**
  * The lyrics sheet for a plan: every song in the order of service, in setlist
- * order, so reordering the setlist reorders the sheet for free. `songById` maps
- * a song id to the flattened library song (from `useSongs`).
+ * order, so reordering the setlist reorders the sheet for free. `arrangements`
+ * comes from `buildArrangementIndex`; `lyricsById` holds every lyrics version
+ * of the plan's arrangements (pinned versions are always among them).
  */
 export function buildLyricsSheet(
   items: PlanItem[],
-  songById: Map<string, Song>,
+  arrangements: Map<string, ArrangementInfo>,
+  lyricsById: Map<string, ArrangementLyrics>,
 ): LyricsSheetEntry[] {
+  const latestByArrangement = new Map<string, ArrangementLyrics>()
+  for (const row of lyricsById.values()) {
+    const current = latestByArrangement.get(row.arrangement_id)
+    if (!current || row.version > current.version) {
+      latestByArrangement.set(row.arrangement_id, row)
+    }
+  }
   return items
     .filter((i) => i.kind === 'song')
     .map((i) => {
-      const song = i.song_id ? songById.get(i.song_id) : undefined
+      const info = i.arrangement_id ? arrangements.get(i.arrangement_id) : undefined
+      const pinned = i.lyrics_id ? lyricsById.get(i.lyrics_id) : undefined
+      const latest = i.arrangement_id
+        ? latestByArrangement.get(i.arrangement_id)
+        : undefined
       return {
         songItemId: i.id,
-        title: song?.title ?? i.title,
-        key: song?.default_key ?? null,
-        bpm: song?.bpm ?? null,
-        meter: song?.meter ?? null,
-        lyrics: song?.lyrics ?? null,
+        title: info ? arrangementDisplayTitle(info) : i.title,
+        key: i.key_override ?? info?.arrangement.song_key ?? null,
+        bpm: info?.arrangement.bpm ?? null,
+        meter: info?.arrangement.meter ?? null,
+        lyrics: (pinned ?? latest)?.lyrics ?? null,
       }
     })
 }

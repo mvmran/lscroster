@@ -69,12 +69,16 @@ export interface CreatePlanInput {
   source?: { kind: 'template' | 'plan'; id: string }
 }
 
-/** Items copied into a new plan, from either a template or another plan. */
+/**
+ * Items copied into a new plan, from either a template or another plan.
+ * lyrics_id is deliberately not copied — new plans are drafts, and drafts
+ * follow the arrangement's latest lyrics (#130).
+ */
 type CopiedItem = {
   sort_order: number
   kind: Tables<'plan_items'>['kind']
   title: string
-  song_id: string | null
+  arrangement_id: string | null
   key_override: string | null
   length_seconds: number
   description: string | null
@@ -87,11 +91,11 @@ async function fetchSourceItems(
     source.kind === 'template'
       ? supabase
           .from('plan_template_items')
-          .select('sort_order, kind, title, song_id, key_override, length_seconds, description')
+          .select('sort_order, kind, title, arrangement_id, key_override, length_seconds, description')
           .eq('template_id', source.id)
       : supabase
           .from('plan_items')
-          .select('sort_order, kind, title, song_id, key_override, length_seconds, description')
+          .select('sort_order, kind, title, arrangement_id, key_override, length_seconds, description')
           .eq('plan_id', source.id)
   const { data, error } = await query.order('sort_order')
   if (error) throw new Error(error.message)
