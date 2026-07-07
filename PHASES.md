@@ -90,10 +90,6 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   (e.g. sign-out) and the browser Back button aren't intercepted. Migrating to
   `createBrowserRouter` would let `useBlocker` cover those uniformly — deferred as
   too broad a change for a single editor's guard.
-- **Matrix past-service tint (#127):** columns whose `plan.date < todayISODate()`
-  get a faint `bg-muted/60` via a `<colgroup>`/`<col>` — the col background shows
-  through the mostly-transparent plan cells, so no flag threads into every `<td>`.
-  Works in light + dark.
 
 **Local verification quickstart:**
 ```
