@@ -793,6 +793,10 @@ export function MatrixPage() {
 
   const loading = plansQuery.isPending || teamsPending
 
+  // Services whose date has passed get a faint greyed column so they read as
+  // "in the past" at a glance (issue #127).
+  const todayStr = todayISODate()
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -955,6 +959,18 @@ export function MatrixPage() {
       ) : (
         <Card className="overflow-x-auto py-0">
           <table className="w-full border-collapse text-sm">
+            {/* Faint tint behind whole past-service columns (issue #127). A
+                <col> background shows through the mostly-transparent plan cells
+                without threading a flag into every one. */}
+            <colgroup>
+              <col />
+              {matrixPlans.map((plan) => (
+                <col
+                  key={plan.id}
+                  className={plan.date < todayStr ? 'bg-muted/60' : undefined}
+                />
+              ))}
+            </colgroup>
             <thead>
               <tr>
                 {/* Position label removed (issue #79); cell kept for layout. */}
