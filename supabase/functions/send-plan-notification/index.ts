@@ -34,7 +34,7 @@ interface AssignmentRow {
     managed_by_person_id: string | null
     managed_accepted_at: string | null
   }
-  teams: { name: string; sort_order: number }
+  teams: { id: string; name: string; sort_order: number }
   positions: { name: string; sort_order: number }
 }
 
@@ -69,7 +69,9 @@ Deno.serve(async (req) => {
 
   const { data: plan } = await admin
     .from('plans')
-    .select('id, date, title, start_time, service_types(name, default_start_time, end_time)')
+    .select(
+      'id, date, title, start_time, service_type_id, service_types(name, default_start_time, end_time)',
+    )
     .eq('id', planId)
     .maybeSingle()
   if (!plan) return jsonResponse({ error: 'Plan not found' }, 404)
@@ -174,20 +176,40 @@ Deno.serve(async (req) => {
   const { data: assignmentRows } = await admin
     .from('plan_assignments')
     .select(
-      'status, people(id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at), teams(name, sort_order), positions(name, sort_order)',
+      'status, people(id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at), teams(id, name, sort_order), positions(name, sort_order)',
     )
     .eq('plan_id', planId)
     .neq('status', 'declined')
   const assignments = (assignmentRows ?? []) as unknown as AssignmentRow[]
 
+  // Teams follow the plan's service type's stored order (service_type_teams
+  // .sort_order), matching the plan page — not the team's global sort_order,
+  // which fell back to alphabetical (issue #129). Teams that serve every service
+  // type (no join row) fall after, keeping their global order — mirrors the
+  // frontend `serviceTypeTeamSort`.
+  const { data: stTeamRows } = await admin
+    .from('service_type_teams')
+    .select('team_id, sort_order')
+    .eq('service_type_id', plan.service_type_id)
+  const serviceTypeTeamSort = new Map<string, number>(
+    (stTeamRows ?? []).map((r) => [r.team_id as string, r.sort_order as number]),
+  )
+  const teamSortKey = (id: string, globalSort: number) =>
+    serviceTypeTeamSort.has(id) ? serviceTypeTeamSort.get(id)! : 1_000_000 + globalSort
+
   const teamMap = new Map<
     string,
-    { name: string; sort_order: number; members: { position: string; positionSort: number; name: string }[] }
+    { id: string; name: string; sort_order: number; members: { position: string; positionSort: number; name: string }[] }
   >()
   for (const a of assignments) {
-    const key = a.teams.name
+    const key = a.teams.id
     if (!teamMap.has(key)) {
-      teamMap.set(key, { name: a.teams.name, sort_order: a.teams.sort_order, members: [] })
+      teamMap.set(key, {
+        id: a.teams.id,
+        name: a.teams.name,
+        sort_order: a.teams.sort_order,
+        members: [],
+      })
     }
     teamMap.get(key)!.members.push({
       position: a.positions.name,
@@ -196,7 +218,11 @@ Deno.serve(async (req) => {
     })
   }
   const teams = [...teamMap.values()]
-    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+    .sort(
+      (a, b) =>
+        teamSortKey(a.id, a.sort_order) - teamSortKey(b.id, b.sort_order) ||
+        a.name.localeCompare(b.name),
+    )
     .map((t) => ({
       name: t.name,
       members: t.members

@@ -303,6 +303,14 @@ export function useCreateArrangement(songId: string) {
         await supabase.from('song_arrangements').delete().eq('id', data.id)
         throw new Error(linkError.message)
       }
+      // Seed the new arrangement's lyrics from the song's Default so the editor
+      // isn't blank (#131). Best-effort — an empty Default just leaves it blank.
+      const seed = await fetchDefaultLyrics(songId)
+      if (seed && seed.trim()) {
+        await supabase
+          .from('song_arrangement_lyrics')
+          .insert({ arrangement_id: data.id, lyrics: seed.trim() })
+      }
       return data as SongArrangement
     },
     onSuccess: () => invalidate(songId),
