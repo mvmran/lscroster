@@ -252,6 +252,26 @@ plan song picker (one click when only Default exists), order of service / print
 junction row to its old song and a v1 copy of the song's lyrics; attachments and
 plan/template items move to the song's Default arrangement; items on published
 plans are pinned to v1. Storage paths unchanged; no user action needed.
+(0034) `worship_setlist` (issue #133): the publish-time **worship set-list
+email**. New `setlist_recipients` table (each row a person **or** a team;
+admin-write / leader-read RLS), `church_settings.send_setlist_on_publish`
+(default **off**) and `song_arrangements.reference_url` (the recording an
+arrangement follows, edited on the arrangement card, shown on the set list —
+falls back to a YouTube search link). Settings → "Scheduled jobs" is renamed
+**Communications setup** (`communications-setup-card.tsx`) and gains the
+set-list toggle + recipient picker (per-publish email estimate; warns above 20).
+On publish — and on demand from the plan's ⋯ menu ("Email set list…") — the
+browser builds a polished set-list PDF (jsPDF: header band, service info,
+who's-serving, times & location, song list with key/BPM/meter and clickable
+links, per-song flow notes from item descriptions, plan notes) in
+`setlist-pdf.ts` and posts it to the new **`send-setlist`** Edge Function,
+which expands teams → members, dedupes, requires leader/admin, caps at 50
+recipients, and — because Resend's **Batch API can't carry attachments** —
+sends *individual* emails through the shared 550 ms rate limiter, logging each
+to `email_log` (template `setlist`). The publish path chains the set-list send
+after the plan-notification call so the two functions' Resend traffic never
+overlaps the 2 req/s limit. Set-list sends deliberately skip per-person
+publish-email prefs — the distribution list is an explicit admin choice.
 New Edge Functions: `cancel-assignment`, `send-plan-notification`,
 `request-password-reset`, `run-scheduled-job` (admin "send now" for the
 scheduled email jobs); new shared `_shared/email-prefs.ts` (per-person opt-outs

@@ -131,6 +131,7 @@ export type Database = {
           request_nudge_days: number
           roster_status_hour: number
           roster_status_weeks: number
+          send_setlist_on_publish: boolean
           singleton: boolean
           timezone: string
           updated_at: string
@@ -150,6 +151,7 @@ export type Database = {
           request_nudge_days?: number
           roster_status_hour?: number
           roster_status_weeks?: number
+          send_setlist_on_publish?: boolean
           singleton?: boolean
           timezone?: string
           updated_at?: string
@@ -169,6 +171,7 @@ export type Database = {
           request_nudge_days?: number
           roster_status_hour?: number
           roster_status_weeks?: number
+          send_setlist_on_publish?: boolean
           singleton?: boolean
           timezone?: string
           updated_at?: string
@@ -1224,6 +1227,52 @@ export type Database = {
         }
         Relationships: []
       }
+      setlist_recipients: {
+        Row: {
+          created_at: string
+          id: string
+          person_id: string | null
+          team_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          person_id?: string | null
+          team_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          person_id?: string | null
+          team_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setlist_recipients_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "setlist_recipients_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "setlist_recipients_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       song_arrangement_lyrics: {
         Row: {
           arrangement_id: string
@@ -1303,6 +1352,7 @@ export type Database = {
           is_default: boolean
           meter: string | null
           name: string
+          reference_url: string | null
           song_key: string | null
           sort_order: number
           updated_at: string
@@ -1314,6 +1364,7 @@ export type Database = {
           is_default?: boolean
           meter?: string | null
           name?: string
+          reference_url?: string | null
           song_key?: string | null
           sort_order?: number
           updated_at?: string
@@ -1325,6 +1376,7 @@ export type Database = {
           is_default?: boolean
           meter?: string | null
           name?: string
+          reference_url?: string | null
           song_key?: string | null
           sort_order?: number
           updated_at?: string

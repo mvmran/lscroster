@@ -204,6 +204,7 @@ function ArrangementForm({
   const [songKey, setSongKey] = useState(arrangement.song_key ?? '')
   const [bpm, setBpm] = useState(arrangement.bpm?.toString() ?? '')
   const [meter, setMeter] = useState(arrangement.meter ?? '')
+  const [referenceUrl, setReferenceUrl] = useState(arrangement.reference_url ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const bpmValue = bpm.trim() === '' ? null : Number(bpm)
@@ -211,12 +212,15 @@ function ArrangementForm({
   const nameTaken = siblingNames.some(
     (n) => n.toLowerCase() === name.trim().toLowerCase(),
   )
+  const referenceUrlInvalid =
+    referenceUrl.trim() !== '' && !/^https?:\/\/\S+$/.test(referenceUrl.trim())
 
   const dirty =
     name.trim() !== arrangement.name ||
     songKey !== (arrangement.song_key ?? '') ||
     bpm !== (arrangement.bpm?.toString() ?? '') ||
-    meter !== (arrangement.meter ?? '')
+    meter !== (arrangement.meter ?? '') ||
+    referenceUrl.trim() !== (arrangement.reference_url ?? '')
 
   if (!canManage) {
     return (
@@ -233,12 +237,27 @@ function ArrangementForm({
           <dt className="text-muted-foreground">Meter</dt>
           <dd className="font-medium">{arrangement.meter ?? '—'}</dd>
         </div>
+        {arrangement.reference_url && (
+          <div className="col-span-3">
+            <dt className="text-muted-foreground">Reference recording</dt>
+            <dd className="font-medium">
+              <a
+                href={arrangement.reference_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary underline-offset-2 hover:underline"
+              >
+                {arrangement.reference_url}
+              </a>
+            </dd>
+          </div>
+        )}
       </dl>
     )
   }
 
   function save() {
-    if (bpmInvalid || !name.trim() || nameTaken) return
+    if (bpmInvalid || !name.trim() || nameTaken || referenceUrlInvalid) return
     update.mutate(
       {
         id: arrangement.id,
@@ -247,6 +266,7 @@ function ArrangementForm({
           song_key: songKey.trim() || null,
           bpm: bpmValue,
           meter: meter.trim() || null,
+          reference_url: referenceUrl.trim() || null,
         },
       },
       {
@@ -312,6 +332,25 @@ function ArrangementForm({
           />
         </div>
       </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={`arr-ref-${arrangement.id}`}>Reference recording</Label>
+        <p className="text-muted-foreground text-xs">
+          The YouTube (or other) link this arrangement follows — shown on the
+          worship set list.
+        </p>
+        <Input
+          id={`arr-ref-${arrangement.id}`}
+          type="url"
+          value={referenceUrl}
+          onChange={(e) => setReferenceUrl(e.target.value)}
+          placeholder="https://youtu.be/…"
+        />
+        {referenceUrlInvalid && (
+          <p className="text-destructive text-sm">
+            Enter a full link starting with http:// or https://
+          </p>
+        )}
+      </div>
       <div className="flex items-center justify-between gap-2">
         {arrangement.is_default ? (
           <span />
@@ -330,7 +369,13 @@ function ArrangementForm({
           <Button
             size="sm"
             onClick={save}
-            disabled={update.isPending || bpmInvalid || !name.trim() || nameTaken}
+            disabled={
+              update.isPending ||
+              bpmInvalid ||
+              !name.trim() ||
+              nameTaken ||
+              referenceUrlInvalid
+            }
           >
             {update.isPending && <Loader2 className="size-4 animate-spin" />}
             Save changes

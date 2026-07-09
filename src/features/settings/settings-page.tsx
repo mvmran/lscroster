@@ -24,7 +24,7 @@ import {
   useUploadChurchLogo,
   type LogoVariant,
 } from '@/features/settings/use-church-logo'
-import { ScheduledJobsCard } from '@/features/settings/scheduled-jobs-card'
+import { CommunicationsSetupCard } from '@/features/settings/communications-setup-card'
 import {
   useChurchSettings,
   useUpdateChurchSettings,
@@ -350,7 +350,7 @@ export function SettingsPage() {
       <PageHeader title="Settings" />
       <ChurchSettingsCard canEdit={isAdmin} />
       {canManageServiceTypes && <ServiceTypesLinkCard />}
-      {isAdmin && <ScheduledJobsCard />}
+      {isAdmin && <CommunicationsSetupCard />}
       {canSendEmail && <TestEmailCard isAdmin={isAdmin} />}
       {isAdmin && <AuditLogCard />}
     </div>

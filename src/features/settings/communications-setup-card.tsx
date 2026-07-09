@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -20,6 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePeople } from '@/features/people/use-people'
+import { useTeams } from '@/features/scheduling/use-teams'
 import {
   useChurchSettings,
   useUpdateChurchSettings,
@@ -28,12 +31,19 @@ import {
   useRunScheduledJob,
   type ScheduledJob,
 } from '@/features/settings/use-run-scheduled-job'
+import {
+  useAddSetlistRecipient,
+  useRemoveSetlistRecipient,
+  useSetlistRecipients,
+} from '@/features/settings/use-setlist-recipients'
 
 type ChurchSettings = NonNullable<ReturnType<typeof useChurchSettings>['data']>
 
 const NUDGE_MAX = 14
 const REMINDER_MAX = 7
 const ROSTER_STATUS_MAX = 52
+/** Above this the recipients control warns the list is getting expensive. */
+const SETLIST_SOFT_WARN = 20
 
 /** Format an hour-of-day (0–23) as a friendly local time, e.g. "9:00 AM". */
 function formatHour(h: number): string {
@@ -98,6 +108,118 @@ function SendNow({ job, label }: { job: ScheduledJob; label: string }) {
   )
 }
 
+/**
+ * The worship set-list distribution list (issue #133): the people and teams
+ * the set-list email + PDF goes to when a plan is published. Additions and
+ * removals save immediately. Because each recipient is an individual Resend
+ * call (attachments can't batch), the control nudges the admin to keep the
+ * list small.
+ */
+function SetlistRecipientsControl() {
+  const { data: recipients, isPending } = useSetlistRecipients()
+  const { data: people } = usePeople()
+  const { data: teams } = useTeams()
+  const add = useAddSetlistRecipient()
+  const remove = useRemoveSetlistRecipient()
+
+  if (isPending || !recipients) return <Skeleton className="h-16 w-full" />
+
+  const chosenPersonIds = new Set(
+    recipients.filter((r) => r.person_id).map((r) => r.person_id),
+  )
+  const chosenTeamIds = new Set(
+    recipients.filter((r) => r.team_id).map((r) => r.team_id),
+  )
+  const availablePeople = (people ?? []).filter(
+    (p) => p.status === 'active' && !chosenPersonIds.has(p.id),
+  )
+  const availableTeams = (teams ?? []).filter((t) => !chosenTeamIds.has(t.id))
+  const memberCount = (teamId: string) =>
+    teams?.find((t) => t.id === teamId)?.team_members[0]?.count ?? 0
+
+  // Rough send count: direct people + team members (overlaps are deduplicated
+  // at send time, so the real number is at most this).
+  const estimated =
+    chosenPersonIds.size +
+    [...chosenTeamIds].reduce((sum, id) => sum + memberCount(id ?? ''), 0)
+
+  const onError = (e: Error) => toast.error(e.message)
+
+  return (
+    <div className="flex flex-col gap-2">
+      {recipients.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {recipients.map((r) => (
+            <Badge key={r.id} variant="secondary" className="gap-1 pr-1">
+              {r.team_id
+                ? `${r.teams?.name ?? 'Team'} (team · ${memberCount(r.team_id)})`
+                : `${r.people?.first_name ?? ''} ${r.people?.last_name ?? ''}`.trim()}
+              <button
+                type="button"
+                aria-label="Remove recipient"
+                disabled={remove.isPending}
+                onClick={() => remove.mutate(r.id, { onError })}
+                className="hover:bg-muted-foreground/20 rounded-full p-0.5 disabled:opacity-50"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Select
+          value=""
+          onValueChange={(personId) => add.mutate({ personId }, { onError })}
+          disabled={add.isPending || availablePeople.length === 0}
+        >
+          <SelectTrigger className="w-44" aria-label="Add a person">
+            <SelectValue placeholder="Add a person…" />
+          </SelectTrigger>
+          <SelectContent>
+            {availablePeople.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.first_name} {p.last_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value=""
+          onValueChange={(teamId) => add.mutate({ teamId }, { onError })}
+          disabled={add.isPending || availableTeams.length === 0}
+        >
+          <SelectTrigger className="w-44" aria-label="Add a team">
+            <SelectValue placeholder="Add a team…" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableTeams.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name} ({t.team_members[0]?.count ?? 0})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {recipients.length === 0 ? (
+        <p className="text-muted-foreground text-xs">
+          No recipients yet — the set list won't be emailed until you add some.
+        </p>
+      ) : (
+        <p className="text-muted-foreground text-xs">
+          About {estimated} {estimated === 1 ? 'email' : 'emails'} per publish.
+        </p>
+      )}
+      {estimated > SETLIST_SOFT_WARN && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">
+          Each set-list email carries the PDF and is sent individually (Resend
+          allows 2/second) — keep this list to the people who really need it.
+        </p>
+      )}
+    </div>
+  )
+}
+
 function JobsForm({ settings }: { settings: ChurchSettings }) {
   const update = useUpdateChurchSettings()
   const [nudge, setNudge] = useState(String(settings.request_nudge_days))
@@ -109,6 +231,7 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
   const [reminderHour, setReminderHour] = useState(settings.reminder_hour)
   const [rosterHour, setRosterHour] = useState(settings.roster_status_hour)
   const [notifyOnPublish, setNotifyOnPublish] = useState(settings.notify_on_publish)
+  const [sendSetlist, setSendSetlist] = useState(settings.send_setlist_on_publish)
 
   const nudgeNum = Number.parseInt(nudge, 10)
   const reminderNum = Number.parseInt(reminder, 10)
@@ -126,7 +249,8 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
     nudgeHour !== settings.nudge_hour ||
     reminderHour !== settings.reminder_hour ||
     rosterHour !== settings.roster_status_hour ||
-    notifyOnPublish !== settings.notify_on_publish
+    notifyOnPublish !== settings.notify_on_publish ||
+    sendSetlist !== settings.send_setlist_on_publish
 
   function save() {
     update.mutate(
@@ -140,10 +264,11 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
           reminder_hour: reminderHour,
           roster_status_hour: rosterHour,
           notify_on_publish: notifyOnPublish,
+          send_setlist_on_publish: sendSetlist,
         },
       },
       {
-        onSuccess: () => toast.success('Scheduled jobs saved'),
+        onSuccess: () => toast.success('Communications setup saved'),
         onError: (e) => toast.error(e.message),
       },
     )
@@ -265,6 +390,28 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
         </label>
       </div>
 
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="job-setlist"
+            checked={sendSetlist}
+            onCheckedChange={(c) => setSendSetlist(c === true)}
+            className="mt-0.5"
+          />
+          <label htmlFor="job-setlist" className="cursor-pointer select-none">
+            <span className="text-sm font-medium">Worship set list on publish</span>
+            <span className="text-muted-foreground block text-xs">
+              Email the polished set-list PDF (songs, keys, links, flow notes)
+              to the recipients below when a plan is published. Leaders can also
+              send it from a plan's ⋯ menu at any time.
+            </span>
+          </label>
+        </div>
+        <div className="pl-7">
+          <SetlistRecipientsControl />
+        </div>
+      </div>
+
       {dirty && (
         <div className="flex justify-end">
           <Button
@@ -284,22 +431,23 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
 }
 
 /**
- * Admin controls for the recurring email jobs (issues #88, #117): the nudge
- * cadence, the pre-service reminder lead time, the upcoming-roster-status
- * look-ahead, and the publish-email master switch — all stored on
- * church_settings and read by the reminders / publish Edge Functions. Each job
- * also has a "(send now)" link to run it on demand.
+ * Admin controls for everything LSCroster emails automatically (issues #88,
+ * #117, #133): the nudge cadence, the pre-service reminder lead time, the
+ * upcoming-roster-status look-ahead, the publish-email master switch and the
+ * worship set-list send — all stored on church_settings (plus the
+ * setlist_recipients list) and read by the reminders / publish / set-list
+ * Edge Functions. Each scheduled job also has a "(send now)" link.
  */
-export function ScheduledJobsCard() {
+export function CommunicationsSetupCard() {
   const { data: settings, isPending } = useChurchSettings()
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Scheduled jobs</CardTitle>
+        <CardTitle>Communications setup</CardTitle>
         <CardDescription>
-          The automatic emails LSCroster sends, and when. Members can still opt
-          out individually from their own profile.
+          The automatic emails LSCroster sends, when, and to whom. Members can
+          still opt out individually from their own profile.
         </CardDescription>
       </CardHeader>
       <CardContent>

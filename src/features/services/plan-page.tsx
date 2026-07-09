@@ -34,6 +34,7 @@ import {
   Pencil,
   Plus,
   Printer,
+  Send,
   Trash2,
 } from 'lucide-react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -102,6 +103,7 @@ import {
   type PlanItem,
 } from '@/features/services/service-utils'
 import { PlanClashDialog } from '@/features/services/plan-clash-dialog'
+import { buildSetlistPdf, fetchSetlistPdfData } from '@/features/services/setlist-pdf'
 import { SongPickerDialog } from '@/features/services/song-picker-dialog'
 import {
   useClearPlanLyricsPins,
@@ -127,6 +129,8 @@ import {
 } from '@/features/services/use-plan-templates'
 import { usePlanTimes } from '@/features/services/use-plan-times'
 import { useSongs } from '@/features/services/use-songs'
+import { useChurchSettings } from '@/features/settings/use-church-settings'
+import { invokeFunction } from '@/lib/functions'
 
 function offsetLabel(seconds: number) {
   const m = Math.floor(seconds / 60)
@@ -781,6 +785,7 @@ export function PlanPage() {
   const sendNotification = useSendPlanNotification(id ?? '')
   const recordOverrides = useRecordPublishOverrides(id ?? '')
   const validation = usePlanValidation(planQuery.data ?? undefined)
+  const { data: churchSettings } = useChurchSettings()
 
   const [itemDialog, setItemDialog] = useState<PlanItemDialogState>(null)
   const [songPickerOpen, setSongPickerOpen] = useState(false)
@@ -790,6 +795,8 @@ export function PlanPage() {
   const [confirmDeletePlan, setConfirmDeletePlan] = useState(false)
   const [deletingItem, setDeletingItem] = useState<PlanItem | null>(null)
   const [gateOpen, setGateOpen] = useState(false)
+  const [confirmSetlist, setConfirmSetlist] = useState(false)
+  const [sendingSetlist, setSendingSetlist] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -873,6 +880,54 @@ export function PlanPage() {
     })
   }
 
+  /**
+   * Build the set-list PDF in the browser (like the run sheet) and hand it to
+   * the send-setlist Edge Function, which emails it to the curated recipient
+   * list one rate-limited send at a time (issue #133).
+   */
+  async function sendSetlist() {
+    if (!plan) return
+    setSendingSetlist(true)
+    try {
+      const data = await fetchSetlistPdfData(plan.id, plan.service_type_id)
+      const pdf = await buildSetlistPdf({
+        plan,
+        serviceTypeName: plan.service_types.name,
+        items,
+        arrangementIndex,
+        data,
+      })
+      const res = await invokeFunction<{
+        ok: boolean
+        sent: number
+        skipped: { name: string; reason: string }[]
+        noRecipients?: boolean
+      }>('send-setlist', {
+        planId: plan.id,
+        pdfBase64: pdf.base64,
+        filename: pdf.filename,
+      })
+      if (res.noRecipients) {
+        toast.info(
+          'No set-list recipients configured — add them under Settings → Communications setup.',
+        )
+      } else if (res.sent > 0) {
+        toast.success(
+          `Set list emailed to ${res.sent} ${res.sent === 1 ? 'person' : 'people'}`,
+        )
+      }
+      for (const skip of res.skipped) {
+        toast.warning(`Set list — ${skip.name}: ${skip.reason}`)
+      }
+    } catch (error) {
+      toast.error(
+        `Set list failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+      )
+    } finally {
+      setSendingSetlist(false)
+    }
+  }
+
   function publishNow() {
     updatePlan.mutate(
       { id: plan!.id, values: { status: 'published' } },
@@ -887,6 +942,12 @@ export function PlanPage() {
               toast.error(`Published, but couldn't lock lyrics versions: ${e.message}`),
           })
           sendNotification.mutate(undefined, {
+            // Worship set list to the curated recipient list (issue #133).
+            // Chained after the notification send so the two functions'
+            // Resend calls never overlap the 2 req/s limit.
+            onSettled: () => {
+              if (churchSettings?.send_setlist_on_publish) void sendSetlist()
+            },
             onSuccess: (res) => {
               if (res.sent > 0) {
                 toast.success(
@@ -1070,6 +1131,17 @@ export function PlanPage() {
                         Print run sheet
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={sendingSetlist}
+                      onClick={() => setConfirmSetlist(true)}
+                    >
+                      {sendingSetlist ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Send className="size-4" />
+                      )}
+                      Email set list…
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
@@ -1217,6 +1289,29 @@ export function PlanPage() {
         isPending={recordOverrides.isPending || updatePlan.isPending}
         onConfirm={confirmPublishWithOverrides}
       />
+
+      <AlertDialog open={confirmSetlist} onOpenChange={setConfirmSetlist}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Email the worship set list?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Builds the set-list PDF for this plan and emails it to the
+              recipients configured under Settings → Communications setup.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmSetlist(false)
+                void sendSetlist()
+              }}
+            >
+              Send set list
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {editDetailsOpen && (
         <EditDetailsDialog plan={plan} open onOpenChange={setEditDetailsOpen} />
