@@ -1,0 +1,27 @@
+meta {
+  name: 2 · Setlist lyrics for a plan
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/plans/{{planId}}/lyrics
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{apiKey}}
+}
+
+docs {
+  Full lyrics sheet for one plan: songs in setlist order, each with arrangement,
+  key/BPM/meter, the pinned `lyricsVersion`, raw `lyrics`, slide-ready
+  `sections[]`, and medley-aware `sourceSongs[]` (author / CCLI / copyright).
+
+  Uses the `planId` variable. Run request 1 first to auto-fill it, or paste a
+  specific published plan id into the Production environment's `planId`.
+
+  Only published, in-window plans are servable — anything else returns
+  404 plan_not_found. See docs/PROJECTION-API.md for the full field reference.
+}

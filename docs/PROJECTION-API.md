@@ -314,6 +314,11 @@ curl -s -H "Authorization: Bearer $KEY" "$BASE/plans/<plan-id>/lyrics" | jq
 curl -s -o /dev/null -w "%{http_code}\n" "$BASE/plans"
 ```
 
+Prefer a GUI? A ready-to-run [Bruno](https://usebruno.com) collection of both
+requests lives in [`projection-api-bruno/`](projection-api-bruno/) — open the
+folder in Bruno, pick the Production environment, paste your key into the
+`apiKey` secret variable, and send.
+
 ---
 
 ## 12. Changes from the earlier draft spec
