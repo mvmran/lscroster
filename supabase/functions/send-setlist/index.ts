@@ -1,11 +1,11 @@
-// Emails the worship set-list PDF to the admin-curated distribution list
+// Emails the worship set list to the admin-curated distribution list
 // (issue #133), on publish or on demand from the plan page. Leader/admin only.
 //
-// The PDF is generated client-side (jsPDF, like the run sheet and lyrics
-// sheet) and arrives base64-encoded. Resend's Batch API doesn't accept
-// attachments, so each recipient is one individual API call through the shared
-// 550 ms rate limiter — which is why the recipient list is curated and capped
-// rather than "everyone rostered".
+// The email body *is* the set list (see email-templates/setlist.ts): service
+// information with the worship-type teams' roster, practice information, the
+// song list and the plan's notes, plus a link to download the lyrics sheet
+// PDF from the app. No attachment — so the whole send fits in one Batch API
+// call and never worries Resend's 2 req/s throttle.
 
 import { z } from 'npm:zod@4'
 import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
@@ -14,25 +14,15 @@ import { resolveRecipient } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
 import { isEmailableActive } from '../_shared/person-status.ts'
 import { setlistEmail } from '../_shared/email-templates/setlist.ts'
-import { sendEmail } from '../_shared/resend.ts'
+import { sendEmailBatch } from '../_shared/resend.ts'
 import { appUrl, formatPlanDateLong, formatStartTime } from '../_shared/scheduling.ts'
 
-// Keeps a single send-out well inside Resend's monthly free tier and the
-// function's wall-clock budget (~0.55s per recipient).
+// Keeps a send-out well inside Resend's monthly free tier; also the Batch
+// API's per-call ceiling is 100.
 const MAX_RECIPIENTS = 50
 
 const requestSchema = z.object({
   planId: z.uuid(),
-  /** The set-list PDF, base64-encoded. ~8 MB base64 ≈ 6 MB PDF, ample. */
-  pdfBase64: z
-    .string()
-    .min(1)
-    .max(8_000_000)
-    .regex(/^[A-Za-z0-9+/]+={0,2}$/),
-  filename: z
-    .string()
-    .regex(/^[\w][\w .()-]{0,80}\.pdf$/)
-    .default('set-list.pdf'),
 })
 
 interface PersonRow {
@@ -44,6 +34,13 @@ interface PersonRow {
   auth_user_id: string | null
   managed_by_person_id: string | null
   managed_accepted_at: string | null
+}
+
+interface ServingRow {
+  status: string
+  people: { first_name: string; last_name: string } | null
+  teams: { id: string; name: string; sort_order: number; team_type: string } | null
+  positions: { name: string; sort_order: number } | null
 }
 
 Deno.serve(async (req) => {
@@ -63,16 +60,15 @@ Deno.serve(async (req) => {
 
   const parsed = requestSchema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return jsonResponse({ error: 'Invalid request' }, 400)
-  const { planId, pdfBase64, filename } = parsed.data
+  const { planId } = parsed.data
 
   const { data: plan } = await admin
     .from('plans')
-    .select('id, date, title, service_types(name)')
+    .select('id, date, title, notes, service_type_id, service_types(name)')
     .eq('id', planId)
     .maybeSingle()
   if (!plan) return jsonResponse({ error: 'Plan not found' }, 404)
-  const serviceTypeName =
-    (plan.service_types as unknown as { name: string }).name
+  const serviceTypeName = (plan.service_types as unknown as { name: string }).name
 
   const { data: church } = await admin
     .from('church_settings')
@@ -85,14 +81,12 @@ Deno.serve(async (req) => {
   const { data: recipientRows } = await admin
     .from('setlist_recipients')
     .select('person_id, team_id')
-  const directPersonIds = (recipientRows ?? [])
-    .filter((r) => r.person_id)
-    .map((r) => r.person_id as string)
+  const personIds = new Set<string>(
+    (recipientRows ?? []).filter((r) => r.person_id).map((r) => r.person_id as string),
+  )
   const teamIds = (recipientRows ?? [])
     .filter((r) => r.team_id)
     .map((r) => r.team_id as string)
-
-  const personIds = new Set<string>(directPersonIds)
   if (teamIds.length > 0) {
     const { data: memberRows } = await admin
       .from('team_members')
@@ -100,7 +94,6 @@ Deno.serve(async (req) => {
       .in('team_id', teamIds)
     for (const m of memberRows ?? []) personIds.add(m.person_id as string)
   }
-
   if (personIds.size === 0) {
     return jsonResponse({ ok: true, sent: 0, skipped: [], noRecipients: true })
   }
@@ -118,22 +111,88 @@ Deno.serve(async (req) => {
       {
         error:
           `The set list would go to ${people.length} people — the limit is ` +
-          `${MAX_RECIPIENTS} because each email carries the PDF individually. ` +
-          'Trim the recipient list in Settings → Communications setup.',
+          `${MAX_RECIPIENTS}. Trim the recipient list in Settings → ` +
+          'Communications setup.',
       },
       400,
     )
   }
 
-  // -- song summary + times for the email body ------------------------------
+  // -- who's serving: worship-type teams only (issue #133) ------------------
+  const { data: servingRows } = await admin
+    .from('plan_assignments')
+    .select(
+      'status, people(first_name, last_name), teams(id, name, sort_order, team_type), positions(name, sort_order)',
+    )
+    .eq('plan_id', planId)
+    .neq('status', 'declined')
+  // Teams follow the plan's service type's stored order (issue #129).
+  const { data: stTeamRows } = await admin
+    .from('service_type_teams')
+    .select('team_id, sort_order')
+    .eq('service_type_id', plan.service_type_id)
+  const serviceTypeTeamSort = new Map<string, number>(
+    (stTeamRows ?? []).map((r) => [r.team_id as string, r.sort_order as number]),
+  )
+  const teamSortKey = (id: string, globalSort: number) =>
+    serviceTypeTeamSort.get(id) ?? 1_000_000 + globalSort
+
+  interface TeamGroup {
+    id: string
+    name: string
+    sort: number
+    members: { name: string; position: string; positionSort: number }[]
+  }
+  const teamGroups = new Map<string, TeamGroup>()
+  for (const row of (servingRows ?? []) as unknown as ServingRow[]) {
+    if (!row.teams || !row.positions || !row.people) continue
+    if (row.teams.team_type !== 'worship') continue
+    let group = teamGroups.get(row.teams.id)
+    if (!group) {
+      group = {
+        id: row.teams.id,
+        name: row.teams.name,
+        sort: row.teams.sort_order,
+        members: [],
+      }
+      teamGroups.set(row.teams.id, group)
+    }
+    group.members.push({
+      name: `${row.people.first_name} ${row.people.last_name}`.trim(),
+      position: row.positions.name,
+      positionSort: row.positions.sort_order,
+    })
+  }
+  const serving = [...teamGroups.values()]
+    .sort(
+      (a, b) =>
+        teamSortKey(a.id, a.sort) - teamSortKey(b.id, b.sort) ||
+        a.name.localeCompare(b.name),
+    )
+    .map((t) => ({
+      team: t.name,
+      members: t.members
+        .sort((a, b) => a.positionSort - b.positionSort || a.name.localeCompare(b.name))
+        .map((m) => `${m.name} (${m.position})`)
+        .join(' / '),
+    }))
+
+  // -- times, songs, notes ---------------------------------------------------
+  const { data: timeRows } = await admin
+    .from('plan_times')
+    .select('label, start_time, sort_order')
+    .eq('plan_id', planId)
+  const times = (timeRows ?? [])
+    .sort((a, b) => a.sort_order - b.sort_order || a.start_time.localeCompare(b.start_time))
+    .map((t) => ({ label: t.label as string, time: formatStartTime(t.start_time) }))
+
   const { data: itemRows } = await admin
     .from('plan_items')
-    .select('kind, title, arrangement_id, key_override, sort_order')
+    .select('kind, title, arrangement_id, key_override, description, sort_order')
     .eq('plan_id', planId)
   const songItems = (itemRows ?? [])
     .filter((i) => i.kind === 'song')
     .sort((a, b) => a.sort_order - b.sort_order)
-
   const arrangementIds = [
     ...new Set(songItems.filter((i) => i.arrangement_id).map((i) => i.arrangement_id!)),
   ]
@@ -159,34 +218,26 @@ Deno.serve(async (req) => {
     const arr = i.arrangement_id ? arrangementById.get(i.arrangement_id) : undefined
     return {
       title: i.title,
-      key: i.key_override ?? arr?.song_key ?? null,
-      bpm: arr?.bpm ?? null,
-      meter: arr?.meter ?? null,
+      detail: i.description,
+      // "Leave empty if not present" — no search-link fallback here.
       referenceUrl: arr?.reference_url ?? null,
+      key: i.key_override ?? arr?.song_key ?? null,
+      meter: arr?.meter ?? null,
+      bpm: arr?.bpm ?? null,
     }
   })
 
-  const { data: timeRows } = await admin
-    .from('plan_times')
-    .select('label, start_time, sort_order')
-    .eq('plan_id', planId)
-  const times = (timeRows ?? [])
-    .sort((a, b) => a.sort_order - b.sort_order || a.start_time.localeCompare(b.start_time))
-    .map((t) => ({ label: t.label as string, time: formatStartTime(t.start_time) }))
-
   const planDateLong = formatPlanDateLong(plan.date)
 
-  // -- send, one rate-limited email per recipient ----------------------------
-  // Deliberately sequential: sendEmail's shared limiter spaces the calls so a
-  // full list never trips Resend's 2 req/s throttle. Emails to the explicit
-  // distribution list don't check per-person publish-email prefs — an admin
-  // put these people on the list on purpose.
-  let sent = 0
+  // -- render per recipient, send as one batch -------------------------------
+  // Emails to the explicit distribution list don't check per-person
+  // publish-email prefs — an admin put these people on the list on purpose.
+  const outbound: { personId: string; name: string; email: string; subject: string; html: string }[] = []
   const skipped: { name: string; reason: string }[] = []
   const seenEmails = new Set<string>()
   for (const person of people) {
-    const recipient = await resolveRecipient(admin, person)
     const displayName = `${person.first_name} ${person.last_name}`.trim()
+    const recipient = await resolveRecipient(admin, person)
     if (!recipient) {
       skipped.push({ name: displayName, reason: 'no email address' })
       continue
@@ -203,38 +254,47 @@ Deno.serve(async (req) => {
       planDateLong,
       serviceTypeName,
       planTitle: plan.title,
+      serving,
       times,
       songs,
+      notes: plan.notes,
       planId,
       appUrl: appUrl(),
     })
-    const result = await sendEmail({
-      to: recipient.email,
-      subject,
-      html,
-      fromName,
-      attachments: [{ filename, content: pdfBase64 }],
-    })
-    await logEmail(admin, {
-      to: recipient.email,
-      template: 'setlist',
-      subject,
-      result,
-      personId: person.id,
-      planId,
-    })
+    outbound.push({ personId: person.id, name: displayName, email: recipient.email, subject, html })
+  }
+
+  const results = await sendEmailBatch(
+    outbound.map((o) => ({ to: o.email, subject: o.subject, html: o.html, fromName })),
+  )
+  await Promise.all(
+    outbound.map((o, idx) =>
+      logEmail(admin, {
+        to: o.email,
+        template: 'setlist',
+        subject: o.subject,
+        result: results[idx],
+        personId: o.personId,
+        planId,
+      }),
+    ),
+  )
+
+  let sent = 0
+  outbound.forEach((o, idx) => {
+    const result = results[idx]
     if (result.sent) {
       sent++
     } else {
       skipped.push({
-        name: displayName,
+        name: o.name,
         reason:
           result.reason === 'not_configured'
             ? 'email not configured'
             : 'email provider error',
       })
     }
-  }
+  })
 
   return jsonResponse({ ok: true, sent, skipped })
 })

@@ -103,7 +103,6 @@ import {
   type PlanItem,
 } from '@/features/services/service-utils'
 import { PlanClashDialog } from '@/features/services/plan-clash-dialog'
-import { buildSetlistPdf, fetchSetlistPdfData } from '@/features/services/setlist-pdf'
 import { SongPickerDialog } from '@/features/services/song-picker-dialog'
 import {
   useClearPlanLyricsPins,
@@ -881,32 +880,21 @@ export function PlanPage() {
   }
 
   /**
-   * Build the set-list PDF in the browser (like the run sheet) and hand it to
-   * the send-setlist Edge Function, which emails it to the curated recipient
-   * list one rate-limited send at a time (issue #133).
+   * Email the worship set list (issue #133): the send-setlist Edge Function
+   * builds the formatted set-list email (songs, keys, links, worship-team
+   * roster, lyrics-sheet download link) and batch-sends it to the curated
+   * recipient list.
    */
   async function sendSetlist() {
     if (!plan) return
     setSendingSetlist(true)
     try {
-      const data = await fetchSetlistPdfData(plan.id, plan.service_type_id)
-      const pdf = await buildSetlistPdf({
-        plan,
-        serviceTypeName: plan.service_types.name,
-        items,
-        arrangementIndex,
-        data,
-      })
       const res = await invokeFunction<{
         ok: boolean
         sent: number
         skipped: { name: string; reason: string }[]
         noRecipients?: boolean
-      }>('send-setlist', {
-        planId: plan.id,
-        pdfBase64: pdf.base64,
-        filename: pdf.filename,
-      })
+      }>('send-setlist', { planId: plan.id })
       if (res.noRecipients) {
         toast.info(
           'No set-list recipients configured — add them under Settings → Communications setup.',
@@ -1295,8 +1283,9 @@ export function PlanPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Email the worship set list?</AlertDialogTitle>
             <AlertDialogDescription>
-              Builds the set-list PDF for this plan and emails it to the
-              recipients configured under Settings → Communications setup.
+              Emails this plan's set list — songs, keys, links and who's
+              serving — to the recipients configured under Settings →
+              Communications setup.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

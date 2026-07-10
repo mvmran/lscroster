@@ -7,24 +7,12 @@
 // emails per HTTP call) so a roster email-out is one or two rate-limited calls
 // instead of dozens.
 
-export interface EmailAttachment {
-  filename: string
-  /** File body, base64-encoded (Resend's JSON attachment format). */
-  content: string
-}
-
 interface SendEmailParams {
   to: string
   subject: string
   html: string
   /** Display name for the From header, e.g. the church name. */
   fromName: string
-  /**
-   * Only supported on single sends — Resend's Batch API rejects attachments,
-   * so attachment emails (e.g. the set-list PDF, issue #133) must go out one
-   * rate-limited call each.
-   */
-  attachments?: EmailAttachment[]
 }
 
 export type SendEmailResult =
@@ -59,7 +47,6 @@ export async function sendEmail({
   subject,
   html,
   fromName,
-  attachments,
 }: SendEmailParams): Promise<SendEmailResult> {
   const creds = credentials()
   if (!creds) return { sent: false, reason: 'not_configured' }
@@ -76,7 +63,6 @@ export async function sendEmail({
       to,
       subject,
       html,
-      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     }),
   })
 

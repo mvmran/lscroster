@@ -2,12 +2,27 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { PERSON_SAFE_COLUMNS } from '@/features/people/use-people'
 import type { Proficiency } from '@/features/scheduling/scheduling-utils'
-import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
+import type { Enums, Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
 export type TeamWithCounts = Tables<'teams'> & {
   positions: { count: number }[]
   team_members: { count: number }[]
   service_type_teams: { service_type_id: string; sort_order: number }[]
+}
+
+/**
+ * What kind of team this is (issue #133): 'worship' teams appear in the
+ * set-list email's who's-serving rows; 'media' is reserved for future
+ * media-specific comms; 'general' is everything else.
+ */
+export type TeamType = Enums<'team_type'>
+
+export const TEAM_TYPE_OPTIONS: TeamType[] = ['general', 'worship', 'media']
+
+export const TEAM_TYPE_LABELS: Record<TeamType, string> = {
+  general: 'General',
+  worship: 'Worship team',
+  media: 'Media team',
 }
 
 /** A team plus the ids of the service types it serves. */

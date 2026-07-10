@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Clock,
   Download,
@@ -12,6 +12,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -296,6 +297,8 @@ export function PlanMediaCard({
   const { data: lyricsById, isPending: lyricsPending } = usePlanLyrics(planId, items)
   const { data: settings } = useChurchSettings()
   const [generating, setGenerating] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const autoDownloadFired = useRef(false)
 
   const arrangementIndex = useMemo(
     () => buildArrangementIndex(songs ?? []),
@@ -312,6 +315,20 @@ export function PlanMediaCard({
   )
 
   const isPending = itemsPending || songsPending || lyricsPending
+
+  // The set-list email links here with ?lyrics=download (issue #133): once the
+  // sheet data is loaded, generate the PDF automatically and consume the param
+  // so a refresh doesn't download it again.
+  const autoDownload = searchParams.get('lyrics') === 'download'
+  useEffect(() => {
+    if (!autoDownload || autoDownloadFired.current || isPending) return
+    autoDownloadFired.current = true
+    const next = new URLSearchParams(searchParams)
+    next.delete('lyrics')
+    setSearchParams(next, { replace: true })
+    if (entries.length > 0) void print()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoDownload, isPending, entries.length])
 
   // Hide entirely from members until there is something to show, mirroring the
   // other plan cards.

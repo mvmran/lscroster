@@ -110,10 +110,9 @@ function SendNow({ job, label }: { job: ScheduledJob; label: string }) {
 
 /**
  * The worship set-list distribution list (issue #133): the people and teams
- * the set-list email + PDF goes to when a plan is published. Additions and
- * removals save immediately. Because each recipient is an individual Resend
- * call (attachments can't batch), the control nudges the admin to keep the
- * list small.
+ * the set-list email goes to when a plan is published. Additions and removals
+ * save immediately. The control nudges the admin to keep the list lean —
+ * every publish costs one email per recipient out of Resend's monthly quota.
  */
 function SetlistRecipientsControl() {
   const { data: recipients, isPending } = useSetlistRecipients()
@@ -212,8 +211,8 @@ function SetlistRecipientsControl() {
       )}
       {estimated > SETLIST_SOFT_WARN && (
         <p className="text-xs text-amber-700 dark:text-amber-400">
-          Each set-list email carries the PDF and is sent individually (Resend
-          allows 2/second) — keep this list to the people who really need it.
+          That's a lot of emails per publish — keep this list to the people who
+          really need the set list.
         </p>
       )}
     </div>
@@ -401,9 +400,12 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
           <label htmlFor="job-setlist" className="cursor-pointer select-none">
             <span className="text-sm font-medium">Worship set list on publish</span>
             <span className="text-muted-foreground block text-xs">
-              Email the polished set-list PDF (songs, keys, links, flow notes)
-              to the recipients below when a plan is published. Leaders can also
-              send it from a plan's ⋯ menu at any time.
+              Email the formatted set list (songs, keys, links, singers &
+              musicians, and a lyrics-sheet download link) to the recipients
+              below when a plan is published. Only teams marked{' '}
+              <strong>Worship team</strong> (on the team's Edit dialog) appear
+              in its who's-serving rows. Leaders can also send it from a plan's
+              ⋯ menu at any time.
             </span>
           </label>
         </div>

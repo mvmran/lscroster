@@ -252,26 +252,36 @@ plan song picker (one click when only Default exists), order of service / print
 junction row to its old song and a v1 copy of the song's lyrics; attachments and
 plan/template items move to the song's Default arrangement; items on published
 plans are pinned to v1. Storage paths unchanged; no user action needed.
-(0034) `worship_setlist` (issue #133): the publish-time **worship set-list
-email**. New `setlist_recipients` table (each row a person **or** a team;
-admin-write / leader-read RLS), `church_settings.send_setlist_on_publish`
-(default **off**) and `song_arrangements.reference_url` (the recording an
-arrangement follows, edited on the arrangement card, shown on the set list —
-falls back to a YouTube search link). Settings → "Scheduled jobs" is renamed
-**Communications setup** (`communications-setup-card.tsx`) and gains the
-set-list toggle + recipient picker (per-publish email estimate; warns above 20).
-On publish — and on demand from the plan's ⋯ menu ("Email set list…") — the
-browser builds a polished set-list PDF (jsPDF: header band, service info,
-who's-serving, times & location, song list with key/BPM/meter and clickable
-links, per-song flow notes from item descriptions, plan notes) in
-`setlist-pdf.ts` and posts it to the new **`send-setlist`** Edge Function,
-which expands teams → members, dedupes, requires leader/admin, caps at 50
-recipients, and — because Resend's **Batch API can't carry attachments** —
-sends *individual* emails through the shared 550 ms rate limiter, logging each
-to `email_log` (template `setlist`). The publish path chains the set-list send
-after the plan-notification call so the two functions' Resend traffic never
-overlaps the 2 req/s limit. Set-list sends deliberately skip per-person
-publish-email prefs — the distribution list is an explicit admin choice.
+(0034) `worship_setlist` (issue #133) + (0035) `team_types` (issue #134): the
+publish-time **worship set-list email**. Schema: `setlist_recipients` (each
+row a person **or** a team; admin-write / leader-read RLS),
+`church_settings.send_setlist_on_publish` (default **off**),
+`song_arrangements.reference_url` (the recording an arrangement follows,
+edited on the arrangement card) and `teams.team_type` (enum
+general/worship/media, set on the team create/edit dialogs — 'media' reserved
+for future comms). Settings → "Scheduled jobs" is renamed **Communications
+setup** (`communications-setup-card.tsx`) and gains the set-list toggle +
+recipient picker (per-publish email estimate; warns above 20). On publish —
+and on demand from the plan's ⋯ menu ("Email set list…") — the
+**`send-setlist`** Edge Function builds the email server-side and batch-sends
+it. The body *is* the set list, a bordered grid mirroring the worship team's
+long-standing Word template (issue #134): Service Information (date, service
+type, **worship-type teams' rosters only** as "Name (Position) / …" rows,
+theme = plan title), Practice Information (plan times + church address), Song
+List (name with the item's flow note beneath / Listen link — **empty** when
+the arrangement has no `reference_url`, no search fallback / key / info =
+meter / BPM) and Notes (plan.notes verbatim). **No attachment** — a
+"Download lyrics sheet (PDF)" button opens the plan with `?lyrics=download`,
+which `PlanMediaCard` consumes to auto-generate the existing lyrics-sheet PDF
+client-side. Attachment-free means the send-out is one Resend **Batch API**
+call (cap 50 recipients), so the publish path's chaining after
+plan-notification is belt-and-braces only. Function expands teams → members,
+dedupes, requires leader/admin, logs each send to `email_log` (template
+`setlist`), and deliberately skips per-person publish-email prefs — the
+distribution list is an explicit admin choice. (The first cut, shipped
+briefly as 0034 alone, attached a jsPDF set-list PDF and sent individual
+rate-limited emails; reworked to the above after reviewing it against the
+team's real template.)
 New Edge Functions: `cancel-assignment`, `send-plan-notification`,
 `request-password-reset`, `run-scheduled-job` (admin "send now" for the
 scheduled email jobs); new shared `_shared/email-prefs.ts` (per-person opt-outs

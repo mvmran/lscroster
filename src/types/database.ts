@@ -1637,6 +1637,7 @@ export type Database = {
           id: string
           name: string
           sort_order: number
+          team_type: Database["public"]["Enums"]["team_type"]
           updated_at: string
         }
         Insert: {
@@ -1644,6 +1645,7 @@ export type Database = {
           id?: string
           name: string
           sort_order?: number
+          team_type?: Database["public"]["Enums"]["team_type"]
           updated_at?: string
         }
         Update: {
@@ -1651,6 +1653,7 @@ export type Database = {
           id?: string
           name?: string
           sort_order?: number
+          team_type?: Database["public"]["Enums"]["team_type"]
           updated_at?: string
         }
         Relationships: []
@@ -1843,6 +1846,7 @@ export type Database = {
         | "quarterly"
         | "yearly"
       song_status: "active" | "archived"
+      team_type: "general" | "worship" | "media"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1991,6 +1995,7 @@ export const Constants = {
         "yearly",
       ],
       song_status: ["active", "archived"],
+      team_type: ["general", "worship", "media"],
     },
   },
 } as const

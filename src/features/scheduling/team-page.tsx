@@ -47,8 +47,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { fullName } from '@/features/people/person-utils'
@@ -59,6 +67,8 @@ import { TeamGrantCard } from '@/features/scheduling/team-grants-card'
 import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import { otherProficiency, type Position } from '@/features/scheduling/scheduling-utils'
 import {
+  TEAM_TYPE_LABELS,
+  TEAM_TYPE_OPTIONS,
   useDeleteTeam,
   useMembershipMutations,
   usePositionMutations,
@@ -68,6 +78,7 @@ import {
   useTeamMembers,
   useUpdateTeam,
   type TeamMemberWithPositions,
+  type TeamType,
 } from '@/features/scheduling/use-teams'
 import { useServiceTypes } from '@/features/services/use-service-types'
 
@@ -652,6 +663,7 @@ export function TeamPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [name, setName] = useState('')
+  const [teamType, setTeamType] = useState<TeamType>('general')
   const [serviceTypeIds, setServiceTypeIds] = useState<string[]>([])
 
   // Governance (admins + global leaders) edit the team and appoint grants;
@@ -692,6 +704,7 @@ export function TeamPage() {
 
   function openEdit() {
     setName(team!.name)
+    setTeamType(team!.team_type)
     setServiceTypeIds(team!.service_type_teams.map((st) => st.service_type_id))
     setEditOpen(true)
   }
@@ -701,7 +714,7 @@ export function TeamPage() {
     try {
       await updateTeam.mutateAsync({
         id: team!.id,
-        values: { name: name.trim() },
+        values: { name: name.trim(), team_type: teamType },
       })
       await setTeamServiceTypes.mutateAsync({ teamId: team!.id, serviceTypeIds })
       setEditOpen(false)
@@ -742,7 +755,12 @@ export function TeamPage() {
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">{team.name}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="font-heading text-2xl font-semibold tracking-tight">{team.name}</h1>
+              {team.team_type !== 'general' && (
+                <Badge variant="secondary">{TEAM_TYPE_LABELS[team.team_type]}</Badge>
+              )}
+            </div>
             <p className="text-muted-foreground text-sm">{typeName}</p>
           </div>
           {canGovern && (
@@ -770,13 +788,32 @@ export function TeamPage() {
           <DialogHeader>
             <DialogTitle>Edit team</DialogTitle>
             <DialogDescription>
-              Rename the team or change which service types it serves.
+              Rename the team, set its type, or change which service types it
+              serves.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="et-name">Name</Label>
               <Input id="et-name" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="et-type">Team type</Label>
+              <Select value={teamType} onValueChange={(v) => setTeamType(v as TeamType)}>
+                <SelectTrigger id="et-type" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEAM_TYPE_OPTIONS.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {TEAM_TYPE_LABELS[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-muted-foreground text-xs">
+                Worship teams appear in the set-list email's who's-serving rows.
+              </p>
             </div>
             <div className="flex flex-col gap-2">
               <Label>Service types</Label>

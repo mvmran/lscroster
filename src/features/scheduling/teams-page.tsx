@@ -18,13 +18,23 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ServiceTypePicker } from '@/features/scheduling/service-type-picker'
 import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import {
+  TEAM_TYPE_LABELS,
+  TEAM_TYPE_OPTIONS,
   useCreateTeam,
   useSetTeamServiceTypes,
   useTeams,
+  type TeamType,
   type TeamWithCounts,
 } from '@/features/scheduling/use-teams'
 import { useServiceTypes } from '@/features/services/use-service-types'
@@ -40,6 +50,7 @@ function NewTeamDialog({
   const setServiceTypes = useSetTeamServiceTypes()
   const { data: serviceTypes } = useServiceTypes()
   const [name, setName] = useState('')
+  const [teamType, setTeamType] = useState<TeamType>('general')
   const [serviceTypeIds, setServiceTypeIds] = useState<string[]>([])
 
   const pending = createTeam.isPending || setServiceTypes.isPending
@@ -54,10 +65,11 @@ function NewTeamDialog({
     const trimmed = name.trim()
     if (!trimmed) return
     try {
-      const team = await createTeam.mutateAsync({ name: trimmed })
+      const team = await createTeam.mutateAsync({ name: trimmed, team_type: teamType })
       await setServiceTypes.mutateAsync({ teamId: team.id, serviceTypeIds })
       onOpenChange(false)
       setName('')
+      setTeamType('general')
       setServiceTypeIds([])
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not create team')
@@ -83,6 +95,24 @@ function NewTeamDialog({
               placeholder="e.g. Worship team"
               autoFocus
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="nt-type">Team type</Label>
+            <Select value={teamType} onValueChange={(v) => setTeamType(v as TeamType)}>
+              <SelectTrigger id="nt-type" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TEAM_TYPE_OPTIONS.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {TEAM_TYPE_LABELS[t]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              Worship teams appear in the set-list email's who's-serving rows.
+            </p>
           </div>
           <div className="flex flex-col gap-2">
             <Label>Service types</Label>
