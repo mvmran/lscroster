@@ -14,6 +14,10 @@ auth:bearer {
   token: {{apiKey}}
 }
 
+vars:pre-request {
+  baseUrl: https://zaoxceundoeefoacfiar.supabase.co/functions/v1/projection-api
+}
+
 script:post-response {
   // Convenience: remember the first plan's id so request 2 can run without
   // you copying it by hand. Overwrite the env's planId if you want a specific one.
@@ -27,7 +31,7 @@ docs {
   Lists published plans from 10 days before today to 60 days ahead, in the
   church's timezone. No parameters. Sorted by date then start time; an empty
   `plans` array is a normal 200 (nothing published in the window).
-
+  
   After this runs, the first plan's id is saved to the `planId` variable, so
   request 2 works immediately. Requires an environment (Production) with a
   valid `apiKey` set — generate one in LSCroster → Settings → Projection API.
