@@ -25,6 +25,7 @@ import {
   type LogoVariant,
 } from '@/features/settings/use-church-logo'
 import { CommunicationsSetupCard } from '@/features/settings/communications-setup-card'
+import { ProjectionApiCard } from '@/features/settings/projection-api-card'
 import {
   useChurchSettings,
   useUpdateChurchSettings,
@@ -351,6 +352,7 @@ export function SettingsPage() {
       <ChurchSettingsCard canEdit={isAdmin} />
       {canManageServiceTypes && <ServiceTypesLinkCard />}
       {isAdmin && <CommunicationsSetupCard />}
+      {isAdmin && <ProjectionApiCard />}
       {canSendEmail && <TestEmailCard isAdmin={isAdmin} />}
       {isAdmin && <AuditLogCard />}
     </div>

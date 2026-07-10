@@ -441,6 +441,11 @@ verify_jwt = true
 [functions.send-setlist]
 verify_jwt = true
 
+# Mac projection app endpoints; the admin-issued API key (hash checked against
+# projection_api_keys) is the credential, not a JWT.
+[functions.projection-api]
+verify_jwt = false
+
 [analytics]
 # Disabled: not needed locally, and on Windows it requires exposing the
 # Docker daemon over TCP.

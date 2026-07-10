@@ -1094,6 +1094,95 @@ export type Database = {
           },
         ]
       }
+      projection_api_keys: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          key_hash: string
+          key_prefix: string
+          label: string
+          last_used_at: string | null
+          revoked_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash: string
+          key_prefix: string
+          label: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          label?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projection_api_keys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projection_api_keys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projection_api_requests: {
+        Row: {
+          endpoint: string
+          http_status: number
+          id: number
+          ip: string | null
+          key_id: string | null
+          plan_id: string | null
+          requested_at: string
+        }
+        Insert: {
+          endpoint: string
+          http_status: number
+          id?: never
+          ip?: string | null
+          key_id?: string | null
+          plan_id?: string | null
+          requested_at?: string
+        }
+        Update: {
+          endpoint?: string
+          http_status?: number
+          id?: never
+          ip?: string | null
+          key_id?: string | null
+          plan_id?: string | null
+          requested_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projection_api_requests_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "projection_api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       publish_overrides: {
         Row: {
           created_at: string
@@ -1422,6 +1511,7 @@ export type Database = {
         Row: {
           author: string | null
           ccli_number: string | null
+          copyright: string | null
           created_at: string
           id: string
           status: Database["public"]["Enums"]["song_status"]
@@ -1432,6 +1522,7 @@ export type Database = {
         Insert: {
           author?: string | null
           ccli_number?: string | null
+          copyright?: string | null
           created_at?: string
           id?: string
           status?: Database["public"]["Enums"]["song_status"]
@@ -1442,6 +1533,7 @@ export type Database = {
         Update: {
           author?: string | null
           ccli_number?: string | null
+          copyright?: string | null
           created_at?: string
           id?: string
           status?: Database["public"]["Enums"]["song_status"]

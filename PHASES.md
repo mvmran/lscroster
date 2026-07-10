@@ -292,6 +292,23 @@ The `reminders` function now runs three jobs off the one hourly cron (nudges,
 reminders and the roster-status digest, each at its admin-configured hour —
 issue #120) and accepts `{ force, only }` so an admin can trigger one on demand.
 Regenerate `src/types/database.ts` from the local stack after pulling.
+(0036) `projection_api` (issue #135): read-only **Projection API** for the
+church's Mac projection software, served by the new **`projection-api`** Edge
+Function (`verify_jwt = false`; contract doc `docs/PROJECTION-API.md`,
+apiVersion 1). `GET …/plans` lists published plans **today−10…+60 days**
+(church timezone); `GET …/plans/{id}/lyrics` returns setlist-ordered songs with
+arrangement/key(override-aware)/BPM/meter, the **pinned `lyricsVersion`** +
+raw lyrics + parsed `sections[]` (`_shared/lyric-sections.ts`, a Deno port of
+the app parser — keep the header grammar in sync), and medley-aware
+`sourceSongs[]` (author / CCLI / copyright). Auth = admin-issued keys
+(`lscp_` + 64 hex, generated in-browser, **shown once**, sha-256 hash in new
+`projection_api_keys`, per-device revocation) from the new Settings →
+**Projection API** card; no Supabase key is ever shared. Every request logs to
+`projection_api_requests` (60/min/key rate limit → 429 + CCLI usage audit;
+both tables admin-only RLS). Schema also adds **`songs.copyright`** (multi-line
+CCLI attribution, edited on the song page under CCLI number, served in
+`sourceSongs`). Only published, in-window plans are servable — no bulk
+historical export. No new env vars/cron.
 
 **Upgrade note (0023 — per-team access grants):** management is no longer
 global. After `db push`, an existing global **Leader** keeps governance (create

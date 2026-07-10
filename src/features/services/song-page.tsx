@@ -50,6 +50,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { useUnsavedChangesWarning } from '@/lib/use-unsaved-changes-warning'
 import { LyricsStructureEditor } from '@/features/services/lyrics-structure-editor'
@@ -96,12 +97,14 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
   const [title, setTitle] = useState(song.title)
   const [author, setAuthor] = useState(song.author ?? '')
   const [ccli, setCcli] = useState(song.ccli_number ?? '')
+  const [copyright, setCopyright] = useState(song.copyright ?? '')
   const [tags, setTags] = useState(song.tags.join(', '))
 
   const dirty =
     title !== song.title ||
     author !== (song.author ?? '') ||
     ccli !== (song.ccli_number ?? '') ||
+    copyright !== (song.copyright ?? '') ||
     tags !== song.tags.join(', ')
 
   async function save() {
@@ -113,6 +116,7 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
           title: title.trim(),
           author: author.trim() || null,
           ccli_number: ccli.trim() || null,
+          copyright: copyright.trim() || null,
           tags: parseTagsInput(tags),
         },
       })
@@ -138,6 +142,12 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
               <dt className="text-muted-foreground">Tags</dt>
               <dd className="font-medium">{song.tags.join(', ') || '—'}</dd>
             </div>
+            {song.copyright && (
+              <div className="col-span-2 sm:col-span-3">
+                <dt className="text-muted-foreground">Copyright</dt>
+                <dd className="font-medium whitespace-pre-line">{song.copyright}</dd>
+              </div>
+            )}
           </dl>
         </CardContent>
       </Card>
@@ -163,6 +173,19 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
             <Label htmlFor="sd-ccli">CCLI number</Label>
             <Input id="sd-ccli" value={ccli} onChange={(e) => setCcli(e.target.value)} />
           </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="sd-copyright">Copyright</Label>
+          <Textarea
+            id="sd-copyright"
+            rows={2}
+            value={copyright}
+            onChange={(e) => setCopyright(e.target.value)}
+            placeholder={'e.g. © 2006 sixsteps Music\nCCLI Licence #123456'}
+          />
+          <p className="text-muted-foreground text-xs">
+            The CCLI copyright lines shown alongside projected lyrics.
+          </p>
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="sd-tags">Tags</Label>
