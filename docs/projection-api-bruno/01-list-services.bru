@@ -20,9 +20,10 @@ vars:pre-request {
 
 script:post-response {
   // Convenience: remember the first plan's id so request 2 can run without
-  // you copying it by hand. Overwrite the env's planId if you want a specific one.
+  // you copying it by hand — but only when planId is still empty, so a value
+  // you've deliberately set (env var or a prior runtime override) sticks.
   const plans = res.getBody() && res.getBody().plans;
-  if (plans && plans.length > 0) {
+  if (plans && plans.length > 0 && !bru.getVar('planId')) {
     bru.setVar('planId', plans[0].id);
   }
 }
@@ -31,8 +32,11 @@ docs {
   Lists published plans from 10 days before today to 60 days ahead, in the
   church's timezone. No parameters. Sorted by date then start time; an empty
   `plans` array is a normal 200 (nothing published in the window).
-  
-  After this runs, the first plan's id is saved to the `planId` variable, so
-  request 2 works immediately. Requires an environment (Production) with a
-  valid `apiKey` set — generate one in LSCroster → Settings → Projection API.
+
+  After this runs, the first plan's id is saved to the `planId` variable (only
+  if it was empty), so request 2 works immediately. To target a specific
+  service instead, set `planId` yourself — in the Production environment, or
+  as a runtime variable — and it won't be overwritten. Requires an environment
+  (Production) with a valid `apiKey` set — generate one in LSCroster →
+  Settings → Projection API.
 }

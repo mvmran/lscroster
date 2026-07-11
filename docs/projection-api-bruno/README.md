@@ -13,10 +13,16 @@ share and diff.
 3. Generate an API key in LSCroster → **Settings → Projection API** (it's shown
    only once). In Bruno, open the Production environment and paste it into the
    **`apiKey`** secret variable.
-4. Send **1 · List published services**. It lists what's published and stashes
-   the first plan's id into `planId`.
+4. Send **1 · List published services**. If `planId` is empty, it stashes the
+   first plan's id there for you.
 5. Send **2 · Setlist lyrics for a plan** to get that plan's songs and lyrics.
-   To target a specific service, paste its id into the environment's `planId`.
+
+To target a **specific** service instead of "whatever's first": open the
+Production environment and paste that plan's id into `planId` *before*
+sending request 1 — request 1 only fills `planId` when it's empty, so your
+value is left alone. (If a stale id is stuck in `planId` from a previous
+session, clear it via the Runtime Variables panel or edit the environment
+value directly, then re-send.)
 
 ## Notes
 
