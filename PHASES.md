@@ -310,6 +310,31 @@ CCLI attribution, edited on the song page under CCLI number, served in
 `sourceSongs`). Only published, in-window plans are servable — no bulk
 historical export. No new env vars/cron.
 
+(0037) `conditional_rules` (issue #113): **conditional relationship rules** —
+"if the person in ⟨trigger position⟩ is ⟨male/female⟩, then ⟨target
+position(s)⟩ need ⟨N⟩ people" (design doc `docs/DESIGN-conditional-rules.md`).
+Schema: `people.sex` (nullable `person_sex` enum; joins the safe-columns
+grant + appended to `people_directory`, unmasked — set on the person form),
+`conditional_rules` (+ `conditional_rule_effects` child rows, service-type
+scoped, `strength` reuses `pairing_strength`) and `plan_rule_mutes`
+(per-plan off-switch). Evaluation is the pure resolver
+`conditional-rules.ts::resolveRequirements` — **effective min precedence:
+manual per-plan override (#110) > fired rules (max wins; hard beats soft on
+ties) > team default** — consumed by the validator (`checkCoverage` emits
+rule-attributed `CONDITIONAL_MIN_UNFILLED`, severity from rule strength;
+`checkConditionalRules` warns `RULE_UNEVALUATED` when a trigger assignee's sex
+is unrecorded) and by the engine (fills one slot at a time, re-resolving after
+every pick; rule targets sort after their triggers via `rulePositionDepths`;
+no-rules behaviour is byte-identical to before). **No ELSE** — the else-case
+is a second rule; base min is the "nothing fired" default. Cycles are rejected
+at authoring time (named loop message). UI: dropdown sentence builder + rule
+list on Teams (admins/leaders), status chips on the plan's People panel
+(active / waiting / not applicable / can't check / muted — click to mute per
+plan), min-stepper shows rule provenance and a manual step overrides the rule
+for that plan. NB: `ValidationPosition.minCount` / `EnginePosition.minCount`
+are now the **base** team default; overrides travel separately in
+`planMinOverrides` (the resolver coalesces). No new env vars/cron.
+
 **Upgrade note (0023 — per-team access grants):** management is no longer
 global. After `db push`, an existing global **Leader** keeps governance (create
 teams, appoint Team Leaders/Viewers on any team) and broad read, but can no

@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ConditionalRulesCard } from '@/features/scheduling/conditional-rules-card'
 import { ServiceTypePicker } from '@/features/scheduling/service-type-picker'
 import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import {
@@ -212,6 +213,8 @@ export function TeamsPage() {
           ))}
         </div>
       )}
+
+      {canManage && <ConditionalRulesCard />}
 
       <NewTeamDialog open={newTeamOpen} onOpenChange={setNewTeamOpen} />
     </div>

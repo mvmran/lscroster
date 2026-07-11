@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   checkAvailability,
   checkCadence,
+  checkConditionalRules,
   checkCoverage,
   checkEligibility,
   checkInactive,
@@ -345,5 +346,126 @@ describe('validateService', () => {
     expect(codes).toContain('NO_REQUIRED_LEVEL')
     expect(codes).not.toContain('MANDATORY_UNFILLED') // trainee fills the slot
     expect(warnings.map((w) => w.code)).toContain('TRAINEE_UNSUPERVISED')
+  })
+})
+
+describe('conditional rules (issue #113)', () => {
+  const VOCALS_RULE = {
+    id: 'rule-a',
+    name: 'Vocals balance',
+    serviceTypeId: null,
+    triggerPositionId: 'wl',
+    triggerAttribute: 'sex' as const,
+    triggerValue: 'female',
+    strength: 'hard' as const,
+    enabled: true,
+    effects: [{ targetPositionId: 'male-vocals', minCount: 2 }],
+  }
+
+  const ruleState = (overrides: Partial<ServiceState> = {}) =>
+    state({
+      positions: [
+        position({ id: 'wl', name: 'Worship Leader', minCount: 1 }),
+        position({ id: 'male-vocals', name: 'Male Vocals', minCount: 1 }),
+      ],
+      rules: [VOCALS_RULE],
+      ...overrides,
+    })
+
+  it('emits CONDITIONAL_MIN_UNFILLED with rule attribution when a fired rule is unmet', () => {
+    const s = ruleState({
+      assignments: [assign('sarah', 'wl'), assign('mike', 'male-vocals')],
+      people: [
+        person({ id: 'sarah', sex: 'female', eligibility: { wl: 'qualified' } }),
+        person({ id: 'mike', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+      ],
+    })
+    const results = checkCoverage(s)
+    const unmet = results.find((r) => r.code === 'CONDITIONAL_MIN_UNFILLED')
+    expect(unmet).toBeDefined()
+    expect(unmet!.severity).toBe('error')
+    expect(unmet!.message).toContain('Male Vocals needs 2 when Worship Leader is female')
+    expect(unmet!.message).toContain('Vocals balance')
+  })
+
+  it('a soft rule warns instead of erroring', () => {
+    const s = ruleState({
+      rules: [{ ...VOCALS_RULE, strength: 'soft' as const }],
+      assignments: [assign('sarah', 'wl'), assign('mike', 'male-vocals')],
+      people: [
+        person({ id: 'sarah', sex: 'female', eligibility: { wl: 'qualified' } }),
+        person({ id: 'mike', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+      ],
+    })
+    const unmet = checkCoverage(s).find((r) => r.code === 'CONDITIONAL_MIN_UNFILLED')
+    expect(unmet!.severity).toBe('warning')
+  })
+
+  it('falls back to base minimums when the trigger is unfilled (dormant)', () => {
+    const s = ruleState({
+      assignments: [assign('mike', 'male-vocals')],
+      people: [person({ id: 'mike', sex: 'male', eligibility: { 'male-vocals': 'qualified' } })],
+    })
+    const results = checkCoverage(s)
+    expect(results.find((r) => r.code === 'CONDITIONAL_MIN_UNFILLED')).toBeUndefined()
+    // WL itself is understaffed (base min 1) — the plain code, not the rule one
+    expect(results.find((r) => r.code === 'MANDATORY_UNFILLED')?.positionId).toBe('wl')
+  })
+
+  it('a manual plan override beats the fired rule', () => {
+    const s = ruleState({
+      assignments: [assign('sarah', 'wl'), assign('mike', 'male-vocals')],
+      people: [
+        person({ id: 'sarah', sex: 'female', eligibility: { wl: 'qualified' } }),
+        person({ id: 'mike', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+      ],
+      planMinOverrides: new Map([['male-vocals', 1]]),
+    })
+    expect(checkCoverage(s).find((r) => r.code === 'CONDITIONAL_MIN_UNFILLED')).toBeUndefined()
+  })
+
+  it('a muted rule does not fire', () => {
+    const s = ruleState({
+      assignments: [assign('sarah', 'wl'), assign('mike', 'male-vocals')],
+      people: [
+        person({ id: 'sarah', sex: 'female', eligibility: { wl: 'qualified' } }),
+        person({ id: 'mike', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+      ],
+      mutedRuleIds: new Set(['rule-a']),
+    })
+    expect(checkCoverage(s).find((r) => r.code === 'CONDITIONAL_MIN_UNFILLED')).toBeUndefined()
+  })
+
+  it('warns RULE_UNEVALUATED when the trigger assignee has no recorded sex', () => {
+    const s = ruleState({
+      assignments: [assign('sam', 'wl'), assign('mike', 'male-vocals')],
+      people: [
+        person({ id: 'sam', name: 'Sam', eligibility: { wl: 'qualified' } }),
+        person({ id: 'mike', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+      ],
+    })
+    const results = checkConditionalRules(s)
+    expect(results).toHaveLength(1)
+    expect(results[0]).toMatchObject({
+      code: 'RULE_UNEVALUATED',
+      severity: 'warning',
+      personIds: ['sam'],
+    })
+    expect(results[0].message).toContain('Vocals balance')
+    expect(results[0].message).toContain("Sam's sex isn't recorded")
+  })
+
+  it('declined trigger assignees un-fire the rule', () => {
+    const s = ruleState({
+      assignments: [
+        assign('sarah', 'wl', { status: 'declined' }),
+        assign('mike', 'male-vocals'),
+      ],
+      people: [
+        person({ id: 'sarah', sex: 'female', eligibility: { wl: 'qualified' } }),
+        person({ id: 'mike', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+      ],
+    })
+    expect(checkCoverage(s).find((r) => r.code === 'CONDITIONAL_MIN_UNFILLED')).toBeUndefined()
   })
 })

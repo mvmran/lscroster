@@ -253,3 +253,141 @@ describe('rankCandidates', () => {
     expect(ranked.map((r) => r.personId)).toEqual(['sub'])
   })
 })
+
+describe('conditional rules in the engine (issue #113)', () => {
+  const VOCALS_RULE = {
+    id: 'rule-a',
+    name: 'Vocals balance',
+    serviceTypeId: null,
+    triggerPositionId: 'wl',
+    triggerAttribute: 'sex' as const,
+    triggerValue: 'female',
+    strength: 'hard' as const,
+    enabled: true,
+    effects: [{ targetPositionId: 'male-vocals', minCount: 2 }],
+  }
+
+  const ruleState = (overrides: Partial<EngineState> = {}) =>
+    state({
+      positions: [
+        position({ id: 'wl', name: 'Worship Leader', minCount: 1 }),
+        position({ id: 'male-vocals', name: 'Male Vocals', minCount: 1 }),
+      ],
+      rules: [VOCALS_RULE],
+      ...overrides,
+    })
+
+  it('re-expands the target after the trigger fires: 2 male vocals for a female WL', () => {
+    const res = autoSchedule(
+      ruleState({
+        candidates: [
+          candidate({ id: 'sarah', sex: 'female', eligibility: { wl: 'qualified' } }),
+          candidate({ id: 'm1', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+          candidate({ id: 'm2', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+        ],
+      }),
+    )
+    expect(res.unfilled).toHaveLength(0)
+    const vocals = res.suggestions.filter((s) => s.positionId === 'male-vocals')
+    expect(vocals).toHaveLength(2)
+    expect(res.suggestions.find((s) => s.positionId === 'wl')?.personId).toBe('sarah')
+  })
+
+  it('fires off pre-existing manual trigger assignments too', () => {
+    const res = autoSchedule(
+      ruleState({
+        candidates: [
+          candidate({ id: 'sarah', sex: 'female', eligibility: { wl: 'qualified' } }),
+          candidate({ id: 'm1', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+          candidate({ id: 'm2', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+        ],
+        existingAssignments: [{ personId: 'sarah', positionId: 'wl', teamId: 'team-1' }],
+      }),
+    )
+    expect(res.suggestions.filter((s) => s.positionId === 'male-vocals')).toHaveLength(2)
+  })
+
+  it('leaves the rule dormant when the trigger cannot be filled', () => {
+    const res = autoSchedule(
+      ruleState({
+        candidates: [
+          candidate({ id: 'm1', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+          candidate({ id: 'm2', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+        ],
+      }),
+    )
+    // WL unfilled → rule never fires → male vocals fills only its base minimum
+    expect(res.suggestions.filter((s) => s.positionId === 'male-vocals')).toHaveLength(1)
+    expect(res.unfilled.map((u) => u.positionId)).toEqual(['wl'])
+  })
+
+  it('attributes a rule-raised unfilled slot to the rule', () => {
+    const res = autoSchedule(
+      ruleState({
+        candidates: [
+          candidate({ id: 'sarah', sex: 'female', eligibility: { wl: 'qualified' } }),
+          candidate({ id: 'm1', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+        ],
+      }),
+    )
+    expect(res.unfilled).toHaveLength(1)
+    expect(res.unfilled[0].positionId).toBe('male-vocals')
+    expect(res.unfilled[0].reason).toContain('rule "Vocals balance"')
+    expect(res.unfilled[0].reason).toContain('Worship Leader is female')
+  })
+
+  it('cascading rules resolve through the chain deterministically', () => {
+    const chain = [
+      {
+        ...VOCALS_RULE,
+        id: 'r1',
+        name: 'r1',
+        triggerPositionId: 'a',
+        effects: [{ targetPositionId: 'b', minCount: 1 }],
+      },
+      {
+        ...VOCALS_RULE,
+        id: 'r2',
+        name: 'r2',
+        triggerPositionId: 'b',
+        effects: [{ targetPositionId: 'c', minCount: 1 }],
+      },
+    ]
+    const s = state({
+      positions: [
+        position({ id: 'a', minCount: 1 }),
+        position({ id: 'b', minCount: 0 }),
+        position({ id: 'c', minCount: 0 }),
+      ],
+      rules: chain,
+      candidates: [
+        candidate({ id: 'p1', sex: 'female', eligibility: { a: 'qualified' } }),
+        candidate({ id: 'p2', sex: 'female', eligibility: { b: 'qualified' } }),
+        candidate({ id: 'p3', sex: 'female', eligibility: { c: 'qualified' } }),
+      ],
+    })
+    const first = autoSchedule(s)
+    const second = autoSchedule(s)
+    expect(first.suggestions.map((x) => `${x.personId}:${x.positionId}`)).toEqual([
+      'p1:a',
+      'p2:b',
+      'p3:c',
+    ])
+    expect(second).toEqual(first)
+  })
+
+  it('plan min overrides beat fired rules in the engine too', () => {
+    const res = autoSchedule(
+      ruleState({
+        candidates: [
+          candidate({ id: 'sarah', sex: 'female', eligibility: { wl: 'qualified' } }),
+          candidate({ id: 'm1', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+          candidate({ id: 'm2', sex: 'male', eligibility: { 'male-vocals': 'qualified' } }),
+        ],
+        planMinOverrides: new Map([['male-vocals', 1]]),
+      }),
+    )
+    expect(res.suggestions.filter((s) => s.positionId === 'male-vocals')).toHaveLength(1)
+    expect(res.unfilled).toHaveLength(0)
+  })
+})

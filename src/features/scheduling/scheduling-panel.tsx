@@ -77,10 +77,17 @@ import {
 import {
   useAllPlanMinCounts,
   useSetPlanMinCount,
+  useSetPlanRuleMute,
 } from '@/features/scheduling/use-scheduling-rules'
+import {
+  ruleSentence,
+  type EffectiveMinimum,
+  type RuleEvaluation,
+} from '@/features/scheduling/conditional-rules'
 import {
   resultsByPerson,
   resultsByPosition,
+  usePlanRequirements,
   usePlanValidation,
 } from '@/features/scheduling/use-service-state'
 import { SuggestRosterButton } from '@/features/scheduling/auto-schedule-dialog'
@@ -371,16 +378,22 @@ export function AssignPersonDialog({
 function PositionMinCount({
   planId,
   position,
+  effective,
 }: {
   planId: string
   position: Position
+  /** Resolved minimum with provenance — shows when a rule set the number. */
+  effective?: EffectiveMinimum
 }) {
   const { data: overrides } = useAllPlanMinCounts()
   const setMin = useSetPlanMinCount()
   const override = overrides?.find(
     (o) => o.plan_id === planId && o.position_id === position.id,
   )?.min_count
-  const value = override ?? position.min_count
+  // A fired conditional rule (issue #113) sets the number when there's no
+  // manual override; stepping it writes an override, which then wins.
+  const ruleSet = override == null && effective?.source === 'rule' ? effective : null
+  const value = override ?? ruleSet?.min ?? position.min_count
 
   function set(next: number) {
     if (next < 0 || next > 99 || next === value) return
@@ -393,7 +406,11 @@ function PositionMinCount({
   return (
     <div
       className="flex items-center gap-0.5 rounded-md border px-1.5 py-0.5"
-      title="Minimum people required for this position"
+      title={
+        ruleSet?.rule
+          ? `Set by rule "${ruleSet.rule.name}". Changing it here overrides the rule for this plan only.`
+          : 'Minimum people required for this position'
+      }
     >
       <span className="text-muted-foreground mr-0.5 text-xs">Min</span>
       <Button
@@ -406,7 +423,14 @@ function PositionMinCount({
       >
         <Minus className="size-3.5" />
       </Button>
-      <span className="w-4 text-center text-sm tabular-nums" aria-live="polite">
+      <span
+        className={
+          ruleSet
+            ? 'text-primary w-4 text-center text-sm font-semibold tabular-nums'
+            : 'w-4 text-center text-sm tabular-nums'
+        }
+        aria-live="polite"
+      >
         {value}
       </span>
       <Button
@@ -419,6 +443,79 @@ function PositionMinCount({
       >
         <Plus className="size-3.5" />
       </Button>
+    </div>
+  )
+}
+
+const RULE_STATUS_TEXT: Record<RuleEvaluation['status'], string> = {
+  fired: 'active',
+  dormant: 'waiting',
+  unmatched: 'not applicable',
+  unevaluable: "can't check",
+  muted: 'muted',
+}
+
+const RULE_STATUS_CLASSES: Record<RuleEvaluation['status'], string> = {
+  fired:
+    'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300',
+  dormant: 'text-muted-foreground',
+  unmatched: 'text-muted-foreground',
+  unevaluable:
+    'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300',
+  muted: 'text-muted-foreground line-through',
+}
+
+/**
+ * One chip per conditional rule that applies to this plan (issue #113):
+ * active (fired), waiting on its trigger, not applicable, can't-check, or
+ * muted. Managers click a chip to mute/unmute the rule for this plan only.
+ */
+function PlanRuleChips({
+  plan,
+  evaluations,
+  canManage,
+  positionName,
+}: {
+  plan: PlanWithType
+  evaluations: RuleEvaluation[]
+  canManage: boolean
+  positionName: (id: string) => string
+}) {
+  const setMute = useSetPlanRuleMute()
+  if (evaluations.length === 0) return null
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-muted-foreground text-xs font-medium">Rules:</span>
+      {evaluations.map((ev) => {
+        const muted = ev.status === 'muted'
+        const action = muted
+          ? ' Click to turn it back on for this plan.'
+          : ' Click to mute it for this plan.'
+        return (
+          <button
+            key={ev.rule.id}
+            type="button"
+            disabled={!canManage || setMute.isPending}
+            className="disabled:cursor-default"
+            title={
+              `${ruleSentence(ev.rule, positionName)} — ${RULE_STATUS_TEXT[ev.status]}.` +
+              (canManage ? action : '')
+            }
+            aria-label={`Rule ${ev.rule.name}: ${RULE_STATUS_TEXT[ev.status]}`}
+            onClick={() =>
+              setMute.mutate(
+                { planId: plan.id, ruleId: ev.rule.id, muted: !muted },
+                { onError: (e) => toast.error(e.message) },
+              )
+            }
+          >
+            <Badge variant="outline" className={RULE_STATUS_CLASSES[ev.status]}>
+              {ev.rule.name} · {RULE_STATUS_TEXT[ev.status]}
+            </Badge>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -439,6 +536,8 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
   const validation = usePlanValidation(plan)
   const byPosition = useMemo(() => resultsByPosition(validation.all), [validation])
   const byPerson = useMemo(() => resultsByPerson(validation.all), [validation])
+  // Effective minimums + conditional-rule statuses (issue #113).
+  const requirements = usePlanRequirements(plan)
 
   const planTeams = useMemo(
     () =>
@@ -630,6 +729,14 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
             </div>
           )}
         </div>
+        {manageAny && requirements && (
+          <PlanRuleChips
+            plan={plan}
+            evaluations={requirements.evaluations}
+            canManage={manageAny}
+            positionName={(id) => positions?.find((p) => p.id === id)?.name ?? '?'}
+          />
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {teamsPending || assignmentsPending ? (
@@ -666,7 +773,9 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                     )
                     const posResults = byPosition.get(position.id) ?? []
                     const understaffed = posResults.some(
-                      (r) => r.code === 'MANDATORY_UNFILLED',
+                      (r) =>
+                        r.code === 'MANDATORY_UNFILLED' ||
+                        r.code === 'CONDITIONAL_MIN_UNFILLED',
                     )
                     return (
                       <div
@@ -680,7 +789,11 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                           </div>
                           {teamManage && (
                             <div className="flex items-center gap-1">
-                              <PositionMinCount planId={plan.id} position={position} />
+                              <PositionMinCount
+                                planId={plan.id}
+                                position={position}
+                                effective={requirements?.minimums.get(position.id)}
+                              />
                               <Button
                                 variant="outline"
                                 size="sm"

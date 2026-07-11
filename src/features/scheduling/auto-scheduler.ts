@@ -1,5 +1,12 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import {
+  resolveRequirements,
+  rulePositionDepths,
+  ruleValueLabel,
+  type ConditionalRule,
+  type EffectiveMinimum,
+} from '@/features/scheduling/conditional-rules'
+import {
   consecutiveRun,
   isUnavailableOn,
   type ValidationPerson,
@@ -52,11 +59,18 @@ export interface EnginePairing {
 
 export interface EngineState {
   service: { id: string; date: string; serviceTypeId: string }
+  /** `minCount` is the base (team-default) minimum — see `planMinOverrides`. */
   positions: EnginePosition[]
   candidates: EngineCandidate[]
   /** Manual assignments already on the plan (non-declined occupy a slot). */
   existingAssignments: EngineAssignment[]
   pairings: EnginePairing[]
+  /** Conditional relationship rules (issue #113); absent = none. */
+  rules?: ConditionalRule[]
+  /** Manual per-plan minimum overrides (issue #110) — they win over rules. */
+  planMinOverrides?: ReadonlyMap<string, number>
+  /** Rules muted on this plan. */
+  mutedRuleIds?: ReadonlySet<string>
 }
 
 export interface Suggestion {
@@ -234,6 +248,31 @@ function scoreCandidate(
 
 // --- the engine --------------------------------------------------------------
 
+/** Effective minimums for the in-progress roster (rules re-fire as it grows). */
+function resolveEngineMinimums(
+  state: EngineState,
+  roster: WorkingAssignment[],
+): Map<string, EffectiveMinimum> {
+  return resolveRequirements({
+    serviceTypeId: state.service.serviceTypeId,
+    positions: state.positions.map((p) => ({ id: p.id, minCount: p.minCount })),
+    assignments: roster.map((r) => ({ personId: r.personId, positionId: r.positionId })),
+    people: state.candidates,
+    rules: state.rules ?? [],
+    planMinOverrides: state.planMinOverrides,
+    mutedRuleIds: state.mutedRuleIds,
+  }).minimums
+}
+
+/** "— needed because Worship Leader is female (rule …)" for rule-raised slots. */
+function ruleContext(eff: EffectiveMinimum, positions: EnginePosition[]): string {
+  if (eff.source !== 'rule' || !eff.rule) return ''
+  const trigger = positions.find((p) => p.id === eff.rule!.triggerPositionId)
+  return ` — needed because ${trigger?.name ?? 'another position'} is ${ruleValueLabel(
+    eff.rule.triggerValue,
+  )} (rule "${eff.rule.name}")`
+}
+
 export function autoSchedule(
   state: EngineState,
   weights: ScoringWeights = DEFAULT_WEIGHTS,
@@ -246,32 +285,45 @@ export function autoSchedule(
     level: candidateById.get(a.personId)?.eligibility[a.positionId],
   }))
 
-  // Expand the unfilled mandatory slots per position.
-  interface Slot {
-    pos: EnginePosition
-    poolSize: number
-  }
-  const slots: Slot[] = []
-  for (const pos of state.positions) {
-    const filled = roster.filter((r) => r.positionId === pos.id).length
-    const needed = Math.max(0, pos.minCount - filled)
-    const poolSize = eligibleFor(state, pos).length
-    for (let i = 0; i < needed; i++) slots.push({ pos, poolSize })
-  }
-
-  // Fill order: scarcest first, then specialists (fill_priority), then a stable
-  // tiebreak so the same inputs always produce the same roster.
-  slots.sort(
-    (a, b) =>
-      a.poolSize - b.poolSize ||
-      a.pos.fillPriority - b.pos.fillPriority ||
-      a.pos.id.localeCompare(b.pos.id),
-  )
-
   const suggestions: Suggestion[] = []
   const unfilled: UnfilledSlot[] = []
 
-  for (const slot of slots) {
+  // Conditional rules (issue #113) make the slot list dynamic: filling a
+  // trigger position can change its targets' effective minimums. So instead of
+  // expanding every slot up front, fill ONE slot at a time and re-resolve the
+  // minimums after each decision. Rule targets sort after their triggers
+  // (depth), so a target's requirement is known before it is considered;
+  // within a depth the original scarcity → fill_priority → id order applies —
+  // with no rules this degenerates to exactly the previous behaviour.
+  const depths = rulePositionDepths(state.rules ?? [])
+  // Slots we failed to fill, per position — excluded from re-expansion so the
+  // loop always terminates (each iteration grows the roster or this map).
+  const givenUp = new Map<string, number>()
+
+  for (;;) {
+    const minimums = resolveEngineMinimums(state, roster)
+    const open = state.positions
+      .map((pos) => {
+        const filled = roster.filter((r) => r.positionId === pos.id).length
+        const eff = minimums.get(pos.id) ?? { min: pos.minCount, source: 'default' as const }
+        return {
+          pos,
+          eff,
+          needed: eff.min - filled - (givenUp.get(pos.id) ?? 0),
+          poolSize: eligibleFor(state, pos).length,
+        }
+      })
+      .filter((s) => s.needed > 0)
+    if (open.length === 0) break
+
+    open.sort(
+      (a, b) =>
+        (depths.get(a.pos.id) ?? 0) - (depths.get(b.pos.id) ?? 0) ||
+        a.poolSize - b.poolSize ||
+        a.pos.fillPriority - b.pos.fillPriority ||
+        a.pos.id.localeCompare(b.pos.id),
+    )
+    const slot = open[0]
     const pos = slot.pos
     const hasQualified = roster.some(
       (r) => r.positionId === pos.id && r.level === 'qualified',
@@ -299,8 +351,9 @@ export function autoSchedule(
         positionId: pos.id,
         positionName: pos.name,
         teamName: pos.teamName,
-        reason: why,
+        reason: why + ruleContext(slot.eff, state.positions),
       })
+      givenUp.set(pos.id, (givenUp.get(pos.id) ?? 0) + 1)
       continue
     }
 

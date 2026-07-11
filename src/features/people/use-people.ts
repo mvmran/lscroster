@@ -20,7 +20,7 @@ export const peopleKeys = {
  * "is this person emailable?" flag for the scheduling UI.
  */
 export const PERSON_SAFE_COLUMNS =
-  'id, first_name, last_name, role, status, photo_url, notes, ' +
+  'id, first_name, last_name, role, status, photo_url, notes, sex, ' +
   'auth_user_id, managed_by_person_id, managed_accepted_at, has_email, ' +
   'created_at, updated_at'
 

@@ -1,4 +1,10 @@
 import { addDays, differenceInCalendarDays, getDate, getDay, parseISO } from 'date-fns'
+import {
+  resolveRequirements,
+  ruleValueLabel,
+  type ConditionalRule,
+  type ResolvedRequirements,
+} from '@/features/scheduling/conditional-rules'
 
 /**
  * Shared scheduling-rules validator (issue #34, scheduling rules P2).
@@ -38,6 +44,8 @@ export const RULE_SHORT_LABELS: Record<string, string> = {
   OVER_CADENCE: 'Too frequent',
   MAX_CONSECUTIVE: 'Too many in a row',
   UNDER_TARGET: 'Below target',
+  CONDITIONAL_MIN_UNFILLED: 'Rule unmet',
+  RULE_UNEVALUATED: 'Rule unchecked',
 }
 
 export interface RuleResult {
@@ -79,6 +87,8 @@ export interface ValidationAssignment {
 export interface ValidationPerson {
   id: string
   name: string
+  /** Trigger attribute for conditional rules (issue #113); unset = unrecorded. */
+  sex?: 'male' | 'female' | null
   /** From `person_scheduling_prefs.status`; absent prefs → 'active'. */
   status: PersonStatus
   /** Min days between services (0 = no constraint). */
@@ -108,13 +118,36 @@ export interface ValidationPairing {
 
 export interface ServiceState {
   service: { id: string; date: string; serviceTypeId: string }
-  /** Positions of the teams that serve this plan. */
+  /**
+   * Positions of the teams that serve this plan. `minCount` is the *base*
+   * (team-default) minimum; per-plan overrides arrive via `planMinOverrides`
+   * and conditional rules layer on top — see resolveRequirements.
+   */
   positions: ValidationPosition[]
   /** Current draft assignments on this plan. */
   assignments: ValidationAssignment[]
   /** Context for every person referenced by an assignment. */
   people: ValidationPerson[]
   pairings: ValidationPairing[]
+  /** Conditional relationship rules (issue #113); absent = none. */
+  rules?: ConditionalRule[]
+  /** Manual per-plan minimum overrides (issue #110) — they win over rules. */
+  planMinOverrides?: ReadonlyMap<string, number>
+  /** Rules muted on this plan. */
+  mutedRuleIds?: ReadonlySet<string>
+}
+
+/** Effective per-position minimums + rule statuses for this state. */
+export function resolveStateRequirements(state: ServiceState): ResolvedRequirements {
+  return resolveRequirements({
+    serviceTypeId: state.service.serviceTypeId,
+    positions: state.positions.map((p) => ({ id: p.id, minCount: p.minCount })),
+    assignments: scheduled(state).map((a) => ({ personId: a.personId, positionId: a.positionId })),
+    people: state.people,
+    rules: state.rules ?? [],
+    planMinOverrides: state.planMinOverrides,
+    mutedRuleIds: state.mutedRuleIds,
+  })
 }
 
 // --- small, individually-testable date helpers -------------------------------
@@ -274,12 +307,16 @@ export function checkPairings(state: ServiceState): RuleResult[] {
 }
 
 /**
- * MANDATORY_UNFILLED + NO_REQUIRED_LEVEL — per-position coverage.
- * Trainees count toward `min_count`; a `requires_level` position needs at least
- * one qualified person present.
+ * MANDATORY_UNFILLED + CONDITIONAL_MIN_UNFILLED + NO_REQUIRED_LEVEL —
+ * per-position coverage against the *effective* minimum (plan override wins
+ * over fired conditional rules, which win over the team default). Trainees
+ * count toward the minimum; a `requires_level` position needs at least one
+ * qualified person present.
  */
 export function checkCoverage(state: ServiceState): RuleResult[] {
   const people = peopleById(state)
+  const positionName = new Map(state.positions.map((p) => [p.id, p.name]))
+  const { minimums } = resolveStateRequirements(state)
   const byPosition = new Map<string, ValidationAssignment[]>()
   for (const a of scheduled(state)) {
     ;(byPosition.get(a.positionId) ?? byPosition.set(a.positionId, []).get(a.positionId)!).push(a)
@@ -287,18 +324,32 @@ export function checkCoverage(state: ServiceState): RuleResult[] {
   const results: RuleResult[] = []
   for (const pos of state.positions) {
     const filled = byPosition.get(pos.id) ?? []
-    if (pos.minCount >= 1 && filled.length < pos.minCount) {
-      results.push({
-        code: 'MANDATORY_UNFILLED',
-        severity: 'error',
-        message:
-          filled.length === 0
-            ? `${pos.name} needs ${pos.minCount} but nobody is scheduled yet.`
-            : `${pos.name} needs ${pos.minCount} but only ${filled.length} scheduled.`,
-        positionId: pos.id,
-      })
+    const eff = minimums.get(pos.id) ?? { min: pos.minCount, source: 'default' as const }
+    if (eff.min >= 1 && filled.length < eff.min) {
+      if (eff.source === 'rule' && eff.rule) {
+        // Attribute the shortfall to the rule that raised (or set) the bar.
+        const trigger = positionName.get(eff.rule.triggerPositionId) ?? 'another position'
+        results.push({
+          code: 'CONDITIONAL_MIN_UNFILLED',
+          severity: eff.rule.strength === 'hard' ? 'error' : 'warning',
+          message: `${pos.name} needs ${eff.min} when ${trigger} is ${ruleValueLabel(eff.rule.triggerValue)} (rule "${eff.rule.name}") — ${
+            filled.length === 0 ? 'nobody is scheduled yet' : `only ${filled.length} scheduled`
+          }.`,
+          positionId: pos.id,
+        })
+      } else {
+        results.push({
+          code: 'MANDATORY_UNFILLED',
+          severity: 'error',
+          message:
+            filled.length === 0
+              ? `${pos.name} needs ${eff.min} but nobody is scheduled yet.`
+              : `${pos.name} needs ${eff.min} but only ${filled.length} scheduled.`,
+          positionId: pos.id,
+        })
+      }
     }
-    if (pos.requiresLevel && (pos.minCount >= 1 || filled.length > 0)) {
+    if (pos.requiresLevel && (eff.min >= 1 || filled.length > 0)) {
       const hasQualified = filled.some(
         (a) => people.get(a.personId)?.eligibility[pos.id] === 'qualified',
       )
@@ -312,6 +363,30 @@ export function checkCoverage(state: ServiceState): RuleResult[] {
         })
       }
     }
+  }
+  return results
+}
+
+/**
+ * RULE_UNEVALUATED — a conditional rule's trigger position is filled, but an
+ * assignee's attribute is unrecorded, so the rule can't be checked. A warning
+ * (doubles as a data-hygiene nudge); fired/dormant/unmatched rules are silent
+ * here — unmet fired rules surface through checkCoverage.
+ */
+export function checkConditionalRules(state: ServiceState): RuleResult[] {
+  const people = peopleById(state)
+  const { evaluations } = resolveStateRequirements(state)
+  const results: RuleResult[] = []
+  for (const ev of evaluations) {
+    if (ev.status !== 'unevaluable') continue
+    const names = ev.personIds.map((id) => nameOf(people, id)).join(', ')
+    results.push({
+      code: 'RULE_UNEVALUATED',
+      severity: 'warning',
+      message: `Can't check rule "${ev.rule.name}" — ${names}'s ${ev.rule.triggerAttribute} isn't recorded.`,
+      positionId: ev.rule.triggerPositionId,
+      personIds: ev.personIds,
+    })
   }
   return results
 }
@@ -458,6 +533,7 @@ const CHECKS = [
   checkMultiPosition,
   checkPairings,
   checkCoverage,
+  checkConditionalRules,
   checkSupervision,
   checkCadence,
 ]

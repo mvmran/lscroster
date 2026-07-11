@@ -178,6 +178,102 @@ export type Database = {
         }
         Relationships: []
       }
+      conditional_rule_effects: {
+        Row: {
+          created_at: string
+          id: string
+          min_count: number
+          rule_id: string
+          target_position_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_count: number
+          rule_id: string
+          target_position_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_count?: number
+          rule_id?: string
+          target_position_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conditional_rule_effects_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "conditional_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conditional_rule_effects_target_position_id_fkey"
+            columns: ["target_position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conditional_rules: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          name: string
+          service_type_id: string | null
+          strength: Database["public"]["Enums"]["pairing_strength"]
+          trigger_attribute: string
+          trigger_position_id: string
+          trigger_value: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          name: string
+          service_type_id?: string | null
+          strength?: Database["public"]["Enums"]["pairing_strength"]
+          trigger_attribute: string
+          trigger_position_id: string
+          trigger_value: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          name?: string
+          service_type_id?: string | null
+          strength?: Database["public"]["Enums"]["pairing_strength"]
+          trigger_attribute?: string
+          trigger_position_id?: string
+          trigger_value?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conditional_rules_service_type_id_fkey"
+            columns: ["service_type_id"]
+            isOneToOne: false
+            referencedRelation: "service_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conditional_rules_trigger_position_id_fkey"
+            columns: ["trigger_position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_log: {
         Row: {
           created_at: string
@@ -300,6 +396,7 @@ export type Database = {
           phone: string | null
           photo_url: string | null
           role: Database["public"]["Enums"]["app_role"]
+          sex: Database["public"]["Enums"]["person_sex"] | null
           status: Database["public"]["Enums"]["person_status"]
           updated_at: string
         }
@@ -318,6 +415,7 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          sex?: Database["public"]["Enums"]["person_sex"] | null
           status?: Database["public"]["Enums"]["person_status"]
           updated_at?: string
         }
@@ -336,6 +434,7 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          sex?: Database["public"]["Enums"]["person_sex"] | null
           status?: Database["public"]["Enums"]["person_status"]
           updated_at?: string
         }
@@ -786,6 +885,39 @@ export type Database = {
             columns: ["position_id"]
             isOneToOne: false
             referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_rule_mutes: {
+        Row: {
+          created_at: string
+          plan_id: string
+          rule_id: string
+        }
+        Insert: {
+          created_at?: string
+          plan_id: string
+          rule_id: string
+        }
+        Update: {
+          created_at?: string
+          plan_id?: string
+          rule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_rule_mutes_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_rule_mutes_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "conditional_rules"
             referencedColumns: ["id"]
           },
         ]
@@ -1768,6 +1900,7 @@ export type Database = {
           phone: string | null
           photo_url: string | null
           role: Database["public"]["Enums"]["app_role"] | null
+          sex: Database["public"]["Enums"]["person_sex"] | null
           status: Database["public"]["Enums"]["person_status"] | null
           updated_at: string | null
         }
@@ -1786,6 +1919,7 @@ export type Database = {
           phone?: never
           photo_url?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
+          sex?: Database["public"]["Enums"]["person_sex"] | null
           status?: Database["public"]["Enums"]["person_status"] | null
           updated_at?: string | null
         }
@@ -1804,6 +1938,7 @@ export type Database = {
           phone?: never
           photo_url?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
+          sex?: Database["public"]["Enums"]["person_sex"] | null
           status?: Database["public"]["Enums"]["person_status"] | null
           updated_at?: string | null
         }
@@ -1925,6 +2060,7 @@ export type Database = {
       assignment_status: "pending" | "confirmed" | "declined"
       pairing_kind: "prefer" | "avoid" | "together"
       pairing_strength: "hard" | "soft"
+      person_sex: "male" | "female"
       person_status: "active" | "inactive"
       plan_item_kind: "header" | "song" | "item"
       plan_status: "draft" | "published"
@@ -2073,6 +2209,7 @@ export const Constants = {
       assignment_status: ["pending", "confirmed", "declined"],
       pairing_kind: ["prefer", "avoid", "together"],
       pairing_strength: ["hard", "soft"],
+      person_sex: ["male", "female"],
       person_status: ["active", "inactive"],
       plan_item_kind: ["header", "song", "item"],
       plan_status: ["draft", "published"],

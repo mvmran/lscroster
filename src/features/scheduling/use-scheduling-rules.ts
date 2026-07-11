@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { normalizePair } from '@/features/scheduling/scheduling-utils'
+import type { ConditionalRule, RuleAttribute } from '@/features/scheduling/conditional-rules'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
 // Data layer for scheduling rules (issue #32, phase 1). One-off unavailability
@@ -19,6 +20,8 @@ export const schedulingRuleKeys = {
   allPairings: ['person-pairings-all'] as const,
   rosteredDates: ['rostered-dates'] as const,
   allPlanMinCounts: ['plan-min-counts-all'] as const,
+  conditionalRules: ['conditional-rules'] as const,
+  planRuleMutes: ['plan-rule-mutes'] as const,
 }
 
 export type PlanPositionMinCount = Tables<'plan_position_min_counts'>
@@ -332,5 +335,166 @@ export function useRosteredDates() {
       return data as unknown as RosteredDate[]
     },
     staleTime: 60 * 1000,
+  })
+}
+
+// --- conditional relationship rules (issue #113) ------------------------------
+// Rule definitions + per-plan mutes. Storage rows are mapped to the engine's
+// ConditionalRule shape here so the resolver/validator never see snake_case.
+
+export type ConditionalRuleRow = Tables<'conditional_rules'> & {
+  conditional_rule_effects: Tables<'conditional_rule_effects'>[]
+}
+
+export function toConditionalRule(row: ConditionalRuleRow): ConditionalRule {
+  return {
+    id: row.id,
+    name: row.name,
+    serviceTypeId: row.service_type_id,
+    triggerPositionId: row.trigger_position_id,
+    triggerAttribute: row.trigger_attribute as RuleAttribute,
+    triggerValue: row.trigger_value,
+    strength: row.strength,
+    enabled: row.enabled,
+    effects: row.conditional_rule_effects.map((e) => ({
+      targetPositionId: e.target_position_id,
+      minCount: e.min_count,
+    })),
+  }
+}
+
+export function useAllConditionalRules() {
+  return useQuery({
+    queryKey: schedulingRuleKeys.conditionalRules,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('conditional_rules')
+        .select('*, conditional_rule_effects(*)')
+        .order('created_at')
+      if (error) throw new Error(error.message)
+      return data as ConditionalRuleRow[]
+    },
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useAllPlanRuleMutes() {
+  return useQuery({
+    queryKey: schedulingRuleKeys.planRuleMutes,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('plan_rule_mutes').select('plan_id, rule_id')
+      if (error) throw new Error(error.message)
+      return data as Pick<Tables<'plan_rule_mutes'>, 'plan_id' | 'rule_id'>[]
+    },
+    staleTime: 60 * 1000,
+  })
+}
+
+export interface SaveConditionalRuleVars {
+  id?: string
+  name: string
+  serviceTypeId: string | null
+  triggerPositionId: string
+  triggerAttribute: RuleAttribute
+  triggerValue: string
+  strength: 'hard' | 'soft'
+  enabled: boolean
+  effects: { targetPositionId: string; minCount: number }[]
+}
+
+/** Create or update a rule; effects are replaced wholesale (they're tiny). */
+export function useSaveConditionalRule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: SaveConditionalRuleVars) => {
+      const row = {
+        name: vars.name,
+        service_type_id: vars.serviceTypeId,
+        trigger_position_id: vars.triggerPositionId,
+        trigger_attribute: vars.triggerAttribute,
+        trigger_value: vars.triggerValue,
+        strength: vars.strength,
+        enabled: vars.enabled,
+      }
+      let ruleId = vars.id
+      if (ruleId) {
+        const { error } = await supabase.from('conditional_rules').update(row).eq('id', ruleId)
+        if (error) throw new Error(error.message)
+        const { error: delError } = await supabase
+          .from('conditional_rule_effects')
+          .delete()
+          .eq('rule_id', ruleId)
+        if (delError) throw new Error(delError.message)
+      } else {
+        const { data, error } = await supabase
+          .from('conditional_rules')
+          .insert(row)
+          .select('id')
+          .single()
+        if (error) throw new Error(error.message)
+        ruleId = data.id
+      }
+      const { error: fxError } = await supabase.from('conditional_rule_effects').insert(
+        vars.effects.map((e) => ({
+          rule_id: ruleId!,
+          target_position_id: e.targetPositionId,
+          min_count: e.minCount,
+        })),
+      )
+      if (fxError) throw new Error(fxError.message)
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.conditionalRules }),
+  })
+}
+
+export function useSetRuleEnabled() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ ruleId, enabled }: { ruleId: string; enabled: boolean }) => {
+      const { error } = await supabase
+        .from('conditional_rules')
+        .update({ enabled })
+        .eq('id', ruleId)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.conditionalRules }),
+  })
+}
+
+export function useDeleteConditionalRule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (ruleId: string) => {
+      const { error } = await supabase.from('conditional_rules').delete().eq('id', ruleId)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.conditionalRules }),
+  })
+}
+
+/** Mute (or unmute) one rule on one plan. */
+export function useSetPlanRuleMute() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ planId, ruleId, muted }: { planId: string; ruleId: string; muted: boolean }) => {
+      if (muted) {
+        const { error } = await supabase
+          .from('plan_rule_mutes')
+          .upsert({ plan_id: planId, rule_id: ruleId }, { onConflict: 'plan_id,rule_id' })
+        if (error) throw new Error(error.message)
+      } else {
+        const { error } = await supabase
+          .from('plan_rule_mutes')
+          .delete()
+          .eq('plan_id', planId)
+          .eq('rule_id', ruleId)
+        if (error) throw new Error(error.message)
+      }
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.planRuleMutes }),
   })
 }

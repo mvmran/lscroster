@@ -3,9 +3,12 @@ import { fullName } from '@/features/people/person-utils'
 import { usePlanAssignments, type AssignmentWithPerson } from '@/features/scheduling/use-assignments'
 import { useBlockouts } from '@/features/scheduling/use-blockouts'
 import {
+  toConditionalRule,
+  useAllConditionalRules,
   useAllPairings,
   useAllPersonPrefs,
   useAllPlanMinCounts,
+  useAllPlanRuleMutes,
   useAllRecurringUnavailability,
   useRosteredDates,
 } from '@/features/scheduling/use-scheduling-rules'
@@ -15,7 +18,9 @@ import {
   useAllTeamMembers,
   useTeams,
 } from '@/features/scheduling/use-teams'
+import type { ResolvedRequirements } from '@/features/scheduling/conditional-rules'
 import {
+  resolveStateRequirements,
   validateService,
   type RuleResult,
   type ServiceState,
@@ -53,6 +58,9 @@ export interface SchedulingRulesData {
     history: ReturnType<typeof useRosteredDates>['data']
     /** Per-plan minimum-required overrides (issue #110). */
     minCounts: ReturnType<typeof useAllPlanMinCounts>['data']
+    /** Conditional relationship rules + per-plan mutes (issue #113). */
+    conditionalRules: ReturnType<typeof useAllConditionalRules>['data']
+    ruleMutes: ReturnType<typeof useAllPlanRuleMutes>['data']
   }
 }
 
@@ -66,6 +74,8 @@ export function useSchedulingRulesData(): SchedulingRulesData {
   const pairings = useAllPairings()
   const history = useRosteredDates()
   const minCounts = useAllPlanMinCounts()
+  const conditionalRules = useAllConditionalRules()
+  const ruleMutes = useAllPlanRuleMutes()
 
   const isPending =
     teams.isPending ||
@@ -76,7 +86,9 @@ export function useSchedulingRulesData(): SchedulingRulesData {
     recurring.isPending ||
     pairings.isPending ||
     history.isPending ||
-    minCounts.isPending
+    minCounts.isPending ||
+    conditionalRules.isPending ||
+    ruleMutes.isPending
 
   return {
     isPending,
@@ -90,7 +102,22 @@ export function useSchedulingRulesData(): SchedulingRulesData {
       pairings: pairings.data,
       history: history.data,
       minCounts: minCounts.data,
+      conditionalRules: conditionalRules.data,
+      ruleMutes: ruleMutes.data,
     },
+  }
+}
+
+/** The plan's conditional rules + muted set, mapped for the resolver. */
+export function planRuleContext(
+  planId: string,
+  data: Pick<SchedulingRulesData['data'], 'conditionalRules' | 'ruleMutes'>,
+): { rules: ReturnType<typeof toConditionalRule>[]; mutedRuleIds: Set<string> } {
+  return {
+    rules: (data.conditionalRules ?? []).map(toConditionalRule),
+    mutedRuleIds: new Set(
+      (data.ruleMutes ?? []).filter((m) => m.plan_id === planId).map((m) => m.rule_id),
+    ),
   }
 }
 
@@ -121,6 +148,8 @@ export interface PersonContextMaps {
   recurring: Map<string, { weekOfMonth: number | null; weekday: number }[]>
   /** Other (non-declined) service dates, excluding `excludePlanId`. */
   history: Map<string, { date: string; serviceTypeId: string }[]>
+  /** Rule trigger attribute (issue #113); missing = unrecorded. */
+  sex: Map<string, 'male' | 'female' | null>
 }
 
 export function buildPersonContextMaps(
@@ -128,10 +157,12 @@ export function buildPersonContextMaps(
   excludePlanId: string,
 ): PersonContextMaps {
   const eligibility = new Map<string, Record<string, ValidationProficiency>>()
+  const sex = new Map<string, 'male' | 'female' | null>()
   for (const m of data.members ?? []) {
     const rec = eligibility.get(m.person_id) ?? {}
     for (const tp of m.team_member_positions) rec[tp.position_id] = tp.proficiency
     eligibility.set(m.person_id, rec)
+    sex.set(m.person_id, m.people.sex)
   }
 
   const prefs = new Map((data.prefs ?? []).map((p) => [p.person_id, p]))
@@ -159,7 +190,7 @@ export function buildPersonContextMaps(
     history.set(row.person_id, arr)
   }
 
-  return { eligibility, prefs, blockouts, recurring, history }
+  return { eligibility, prefs, blockouts, recurring, history, sex }
 }
 
 /** Assemble one person's full rule context from the maps. */
@@ -172,6 +203,7 @@ export function makeValidationPerson(
   return {
     id,
     name,
+    sex: maps.sex.get(id) ?? null,
     status: prefs?.status ?? 'active',
     minGapDays: prefs?.min_gap_days ?? 0,
     maxPerMonth: prefs?.max_per_month ?? null,
@@ -194,13 +226,27 @@ export function buildPlanValidation(
   planAssignments: AssignmentWithPerson[],
   data: SchedulingRulesData['data'],
 ): PlanValidation {
+  const state = buildServiceState(plan, planAssignments, data)
+  const { errors, warnings } = validateService(state)
+  return { errors, warnings, all: [...errors, ...warnings], isPending: false }
+}
+
+/** The full validator input for one plan — shared by validation and the
+ * effective-requirements resolver (issue #113 chips/steppers). */
+export function buildServiceState(
+  plan: PlanWithType,
+  planAssignments: AssignmentWithPerson[],
+  data: SchedulingRulesData['data'],
+): ServiceState {
   const teams = data.teams ?? []
   const teamNameById = new Map(teams.map((t) => [t.id, t.name]))
   const servingTeamIds = new Set(
     teams.filter((t) => teamServesType(t, plan.service_type_id)).map((t) => t.id),
   )
 
-  // Per-plan minimum overrides win over the team default (issue #110).
+  // Positions carry the base team default; the per-plan overrides (issue #110)
+  // and conditional rules (issue #113) layer on via the resolver inside the
+  // validator, which keeps the provenance ("who set this minimum") intact.
   const minOverrides = planMinCountMap(plan.id, data.minCounts)
   const positions: ValidationPosition[] = (data.positions ?? [])
     .filter((p) => servingTeamIds.has(p.team_id))
@@ -209,7 +255,7 @@ export function buildPlanValidation(
       name: p.name,
       teamId: p.team_id,
       teamName: teamNameById.get(p.team_id) ?? '',
-      minCount: minOverrides.get(p.id) ?? p.min_count,
+      minCount: p.min_count,
       maxCount: p.max_count,
       requiresLevel: p.requires_level as ValidationProficiency | null,
     }))
@@ -223,12 +269,18 @@ export function buildPlanValidation(
 
   const maps = buildPersonContextMaps(data, plan.id)
   const nameById = new Map(planAssignments.map((a) => [a.person_id, fullName(a.people)]))
+  // An assignee may not (any longer) be a team member — their sex still comes
+  // along on the assignment's people embed.
+  for (const a of planAssignments) {
+    if (!maps.sex.has(a.person_id)) maps.sex.set(a.person_id, a.people.sex)
+  }
 
   const assignedIds = [...new Set(assignments.map((a) => a.personId))]
   const people: ValidationPerson[] = assignedIds.map((id) =>
     makeValidationPerson(maps, id, nameById.get(id) ?? 'Someone'),
   )
 
+  const { rules, mutedRuleIds } = planRuleContext(plan.id, data)
   const state: ServiceState = {
     service: { id: plan.id, date: plan.date, serviceTypeId: plan.service_type_id },
     positions,
@@ -240,10 +292,31 @@ export function buildPlanValidation(
       kind: p.kind,
       strength: p.strength,
     })),
+    rules,
+    planMinOverrides: minOverrides,
+    mutedRuleIds,
   }
 
-  const { errors, warnings } = validateService(state)
-  return { errors, warnings, all: [...errors, ...warnings], isPending: false }
+  return state
+}
+
+/**
+ * The effective per-position minimums + rule statuses for one plan — powers
+ * the plan page's rule chips and the min-stepper provenance (issue #113).
+ * null while the underlying queries load.
+ */
+export function usePlanRequirements(
+  plan: PlanWithType | undefined,
+): ResolvedRequirements | null {
+  const { isPending, data } = useSchedulingRulesData()
+  const assignmentsQuery = usePlanAssignments(plan?.id)
+  const planAssignments = assignmentsQuery.data
+
+  return useMemo(() => {
+    if (!plan || isPending || assignmentsQuery.isPending || !planAssignments) return null
+    return resolveStateRequirements(buildServiceState(plan, planAssignments, data))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPending, assignmentsQuery.isPending, planAssignments, data, plan?.id, plan?.date, plan?.service_type_id])
 }
 
 /**
@@ -267,7 +340,11 @@ export function usePlanValidation(plan: PlanWithType | undefined): PlanValidatio
  * belongs on the person rows. Keeps `NO_REQUIRED_LEVEL` (which names both a
  * position and the people in it) from showing twice.
  */
-const POSITION_LEVEL_CODES = new Set(['MANDATORY_UNFILLED', 'NO_REQUIRED_LEVEL'])
+const POSITION_LEVEL_CODES = new Set([
+  'MANDATORY_UNFILLED',
+  'CONDITIONAL_MIN_UNFILLED',
+  'NO_REQUIRED_LEVEL',
+])
 
 /** Coverage results for a position (slot header badges). */
 export function resultsByPosition(results: RuleResult[]): Map<string, RuleResult[]> {

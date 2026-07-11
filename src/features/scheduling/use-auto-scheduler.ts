@@ -7,6 +7,7 @@ import {
   buildPersonContextMaps,
   makeValidationPerson,
   planMinCountMap,
+  planRuleContext,
   useSchedulingRulesData,
 } from '@/features/scheduling/use-service-state'
 import { serviceTypeTeamSort, teamServesType } from '@/features/scheduling/use-teams'
@@ -38,8 +39,9 @@ function buildEngineState(
     teams.filter((t) => teamServesType(t, plan.service_type_id)).map((t) => t.id),
   )
 
-  // Per-plan minimum overrides win over the team default (issue #110), so the
-  // auto-scheduler fills to the same target the badges show.
+  // Base team-default minimums; per-plan overrides (issue #110) and
+  // conditional rules (issue #113) layer on inside the engine's resolver, so
+  // the auto-scheduler fills to the same target the badges show.
   const minOverrides = planMinCountMap(plan.id, data.minCounts)
   const positions: EnginePosition[] = (data.positions ?? [])
     .filter((p) => servingTeamIds.has(p.team_id))
@@ -48,7 +50,7 @@ function buildEngineState(
       name: p.name,
       teamId: p.team_id,
       teamName: teamNameById.get(p.team_id) ?? '',
-      minCount: minOverrides.get(p.id) ?? p.min_count,
+      minCount: p.min_count,
       maxCount: p.max_count,
       requiresLevel: p.requires_level as ValidationProficiency | null,
       fillPriority: p.fill_priority,
@@ -57,7 +59,19 @@ function buildEngineState(
   const maps = buildPersonContextMaps(data, plan.id)
   const nameById = new Map<string, string>()
   for (const m of data.members ?? []) nameById.set(m.person_id, fullName(m.people))
-  const candidateIds = [...new Set((data.members ?? []).map((m) => m.person_id))]
+  // Assignees who aren't (any longer) team members stay resolver-visible: the
+  // engine never *picks* them (they have no eligibility), but a conditional
+  // rule may need the sex of whoever already occupies a trigger position.
+  for (const a of planAssignments) {
+    if (!maps.sex.has(a.person_id)) maps.sex.set(a.person_id, a.people.sex)
+    if (!nameById.has(a.person_id)) nameById.set(a.person_id, fullName(a.people))
+  }
+  const candidateIds = [
+    ...new Set([
+      ...(data.members ?? []).map((m) => m.person_id),
+      ...planAssignments.filter((a) => a.status !== 'declined').map((a) => a.person_id),
+    ]),
+  ]
   const candidates: EngineCandidate[] = candidateIds.map((id) =>
     makeValidationPerson(maps, id, nameById.get(id) ?? 'Someone'),
   )
@@ -66,6 +80,7 @@ function buildEngineState(
     .filter((a) => a.status !== 'declined')
     .map((a) => ({ personId: a.person_id, positionId: a.position_id, teamId: a.team_id }))
 
+  const { rules, mutedRuleIds } = planRuleContext(plan.id, data)
   return {
     service: { id: plan.id, date: plan.date, serviceTypeId: plan.service_type_id },
     positions,
@@ -77,6 +92,9 @@ function buildEngineState(
       kind: p.kind,
       strength: p.strength,
     })),
+    rules,
+    planMinOverrides: minOverrides,
+    mutedRuleIds,
   }
 }
 
@@ -138,7 +156,10 @@ export function useAutoScheduler(plan: PlanWithType | undefined) {
     isPending: isPending || assignmentsQuery.isPending,
     ready: !!state,
     /** Any serving position has a mandatory minimum — auto-fill has work to do. */
-    hasMandatory: !!state && state.positions.some((p) => p.minCount >= 1),
+    hasMandatory:
+      !!state &&
+      (state.positions.some((p) => (state.planMinOverrides?.get(p.id) ?? p.minCount) >= 1) ||
+        (state.rules ?? []).some((r) => r.enabled)),
     /**
      * Run the engine. `excludeTeamIds` drops those teams' positions first — the
      * Matrix passes its collapsed (hidden) teams so a suggestion only fills the

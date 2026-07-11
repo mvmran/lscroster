@@ -22,6 +22,7 @@ const personFormSchema = z.object({
   email: z.union([z.literal(''), z.email({ error: 'Enter a valid email' })]),
   phone: z.string().trim().refine(isValidPhone, { error: PHONE_ERROR }),
   birthday: z.string(), // yyyy-mm-dd from <input type="date">, or ''
+  sex: z.enum(['', 'male', 'female']),
   notes: z.string(),
   role: z.enum(ROLES),
 })
@@ -48,6 +49,7 @@ const emptyValues: PersonFormValues = {
   email: '',
   phone: '',
   birthday: '',
+  sex: '',
   notes: '',
   role: 'member',
 }
@@ -135,6 +137,32 @@ export function PersonForm({
           <Label htmlFor="birthday">Birthday</Label>
           <Input id="birthday" type="date" {...form.register('birthday')} />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="sex">Sex</Label>
+        <Controller
+          control={form.control}
+          name="sex"
+          render={({ field }) => (
+            <Select
+              value={field.value === '' ? 'unset' : field.value}
+              onValueChange={(v) => field.onChange(v === 'unset' ? '' : v)}
+            >
+              <SelectTrigger id="sex" className="w-full sm:w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unset">Not recorded</SelectItem>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
+        <p className="text-muted-foreground text-xs">
+          Used by scheduling rules (e.g. vocal balance). Visible to everyone signed in.
+        </p>
       </div>
 
       {canEditRole && (

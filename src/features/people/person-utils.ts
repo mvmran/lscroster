@@ -55,6 +55,7 @@ export function personToFormValues(person: Person): PersonFormValues {
     email: person.email ?? '',
     phone: person.phone ?? '',
     birthday: person.birthday ?? '',
+    sex: person.sex ?? '',
     notes: person.notes ?? '',
     role: person.role,
   }
@@ -69,6 +70,7 @@ export function formValuesToPerson(
     email: values.email || null,
     phone: formatPhone(values.phone) || null,
     birthday: values.birthday || null,
+    sex: values.sex || null,
     notes: values.notes || null,
     role: values.role,
   }
