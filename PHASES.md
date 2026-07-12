@@ -335,6 +335,33 @@ for that plan. NB: `ValidationPosition.minCount` / `EnginePosition.minCount`
 are now the **base** team default; overrides travel separately in
 `planMinOverrides` (the resolver coalesces). No new env vars/cron.
 
+(0038) `conditional_rule_person_effects` (issue #113 extension): rules grow
+**person-identity conditions** and **person / same-person effects** (design
+doc §8). Conditions: `attribute(sex)` | `person(<id>)` | `any`; effects:
+`count(≥N)` | `person(<id>)` | `same-person` — mixed freely in one rule
+("if WL is Sam → Sam on Guitar, Sharon on Keys, ≥2 Female Vocals").
+`any` + `same-person` = the **cross-team mirror** ("whoever leads worship also
+runs Foldback" — rules were already position-scoped, so cross-team was free).
+Fired person effects emit **personRequirements**: never write-time gates —
+the validator flags `CONDITIONAL_PERSON_MISSING` (severity = rule strength,
+message notes declined/unavailable), the engine fills the pool-of-one slot
+(never substitutes; names the person in unfilled reasons), and the plan page
+shows a one-click **"Add ⟨person⟩"** button. Fired requirements **sanction**
+those (person, position) pairs: `checkMultiPosition` + the engine's
+`in-service` rejection skip exactly them (a third position still errors;
+swap the trigger and the sanction evaporates). Fairness counts **once per
+service** (history deduped by plan). Request emails stay one-per-row.
+Person FKs are `ON DELETE SET NULL` → a null ref makes the rule **broken**
+(new status): stops firing, red plan chip, "needs attention" badge + reason
+on the rules card (also warns for inactive / no-longer-set-up people).
+DB: widened `trigger_attribute` CHECK + `trigger_person_id`;
+`effect_kind`/`required_person_id`/nullable `min_count` on effects with
+per-kind shape CHECKs and partial unique indexes. Additive only — v1 rows
+stay valid. Builder gains the operator select + eligibility-filtered person
+pickers. NB: `SaveConditionalRuleVars`/`toConditionalRule` now speak the
+unions; `useAllConditionalRules` embeds person names via the two FK hints.
+No new env vars/cron.
+
 **Upgrade note (0023 — per-team access grants):** management is no longer
 global. After `db push`, an existing global **Leader** keeps governance (create
 teams, appoint Team Leaders/Viewers on any team) and broad read, but can no

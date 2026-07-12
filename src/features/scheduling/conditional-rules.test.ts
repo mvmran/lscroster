@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   findRuleCycle,
+  personPositionKey,
   resolveRequirements,
   rulePositionDepths,
   ruleSentence,
@@ -15,33 +16,28 @@ function rule(
     name: overrides.id,
     serviceTypeId: null,
     triggerPositionId: 'wl',
-    triggerAttribute: 'sex',
-    triggerValue: 'female',
+    condition: { kind: 'attribute', attribute: 'sex', value: 'female' },
     strength: 'hard',
     enabled: true,
     ...overrides,
   }
 }
 
+const count = (targetPositionId: string, minCount: number) =>
+  ({ kind: 'count', targetPositionId, minCount }) as const
+
 // The canonical Vocals-balance pair from issue #113: WL female → 2 male vocals;
 // WL male → 2 female vocals.
 const RULE_A = rule({
   id: 'rule-a',
   name: 'Vocals balance (F)',
-  triggerValue: 'female',
-  effects: [
-    { targetPositionId: 'male-vocals', minCount: 2 },
-    { targetPositionId: 'female-vocals', minCount: 1 },
-  ],
+  effects: [count('male-vocals', 2), count('female-vocals', 1)],
 })
 const RULE_B = rule({
   id: 'rule-b',
   name: 'Vocals balance (M)',
-  triggerValue: 'male',
-  effects: [
-    { targetPositionId: 'male-vocals', minCount: 1 },
-    { targetPositionId: 'female-vocals', minCount: 2 },
-  ],
+  condition: { kind: 'attribute', attribute: 'sex', value: 'male' },
+  effects: [count('male-vocals', 1), count('female-vocals', 2)],
 })
 
 function input(overrides: Partial<ResolveInput> = {}): ResolveInput {
@@ -112,14 +108,12 @@ describe('resolveRequirements', () => {
     const soft3 = rule({
       id: 'rule-soft',
       strength: 'soft',
-      triggerValue: 'female',
-      effects: [{ targetPositionId: 'male-vocals', minCount: 3 }],
+      effects: [count('male-vocals', 3)],
     })
     const hard3 = rule({
       id: 'rule-hard',
       strength: 'hard',
-      triggerValue: 'female',
-      effects: [{ targetPositionId: 'male-vocals', minCount: 3 }],
+      effects: [count('male-vocals', 3)],
     })
     const res = resolveRequirements(
       input({
@@ -178,19 +172,157 @@ describe('resolveRequirements', () => {
     expect(res.minimums.get('male-vocals')?.min).toBe(2)
     expect(res.minimums.get('female-vocals')?.min).toBe(2)
   })
+
+  // --- person conditions + person / same-person effects ------------------------
+
+  // Sam's package deal: when Sam leads, Sam plays guitar, Sharon plays keys,
+  // and two female vocals are needed.
+  const SAM_RULE = rule({
+    id: 'rule-sam',
+    name: 'Sam leads & plays',
+    condition: { kind: 'person', personId: 'sam', personName: 'Sam Smith' },
+    effects: [
+      { kind: 'same-person', targetPositionId: 'guitar' },
+      { kind: 'person', targetPositionId: 'keys', personId: 'sharon', personName: 'Sharon Lee' },
+      count('female-vocals', 2),
+    ],
+  })
+  const SAM_POSITIONS = [
+    { id: 'wl', minCount: 1 },
+    { id: 'guitar', minCount: 0 },
+    { id: 'keys', minCount: 0 },
+    { id: 'female-vocals', minCount: 1 },
+  ]
+
+  it('a person condition fires only for that person', () => {
+    const dormant = resolveRequirements(
+      input({
+        positions: SAM_POSITIONS,
+        rules: [SAM_RULE],
+        assignments: [{ personId: 'tom', positionId: 'wl' }],
+        people: [{ id: 'tom' }],
+      }),
+    )
+    expect(dormant.evaluations[0].status).toBe('unmatched')
+    expect(dormant.personRequirements).toEqual([])
+
+    const fired = resolveRequirements(
+      input({
+        positions: SAM_POSITIONS,
+        rules: [SAM_RULE],
+        assignments: [{ personId: 'sam', positionId: 'wl' }],
+        people: [{ id: 'sam' }],
+      }),
+    )
+    expect(fired.evaluations[0]).toMatchObject({ status: 'fired', personIds: ['sam'] })
+    expect(fired.personRequirements).toEqual([
+      expect.objectContaining({ personId: 'sam', targetPositionId: 'guitar', via: 'same-person' }),
+      expect.objectContaining({ personId: 'sharon', targetPositionId: 'keys', via: 'person' }),
+    ])
+    expect(fired.minimums.get('female-vocals')?.min).toBe(2)
+    expect(fired.sanctioned).toEqual(
+      new Set([personPositionKey('sam', 'guitar'), personPositionKey('sharon', 'keys')]),
+    )
+  })
+
+  it('an any-condition mirror demands every trigger assignee on the target', () => {
+    const mirror = rule({
+      id: 'rule-mirror',
+      condition: { kind: 'any' },
+      triggerPositionId: 'wl',
+      effects: [{ kind: 'same-person', targetPositionId: 'guitar' }],
+    })
+    const res = resolveRequirements(
+      input({
+        positions: SAM_POSITIONS,
+        rules: [mirror],
+        assignments: [
+          { personId: 'sam', positionId: 'wl' },
+          { personId: 'tom', positionId: 'wl' },
+        ],
+        people: [{ id: 'sam' }, { id: 'tom' }],
+      }),
+    )
+    expect(res.personRequirements.map((r) => r.personId).sort()).toEqual(['sam', 'tom'])
+    expect(res.evaluations[0].personIds).toEqual(['sam', 'tom'])
+  })
+
+  it('dedupes person requirements across rules, hard rule carrying attribution', () => {
+    const soft = rule({
+      id: 'a-soft',
+      strength: 'soft',
+      condition: { kind: 'any' },
+      effects: [{ kind: 'same-person', targetPositionId: 'guitar' }],
+    })
+    const hard = rule({
+      id: 'z-hard',
+      strength: 'hard',
+      condition: { kind: 'person', personId: 'sam' },
+      effects: [{ kind: 'same-person', targetPositionId: 'guitar' }],
+    })
+    const res = resolveRequirements(
+      input({
+        positions: SAM_POSITIONS,
+        rules: [soft, hard],
+        assignments: [{ personId: 'sam', positionId: 'wl' }],
+        people: [{ id: 'sam' }],
+      }),
+    )
+    expect(res.personRequirements).toHaveLength(1)
+    expect(res.personRequirements[0].rule.id).toBe('z-hard')
+  })
+
+  it('marks rules with deleted person references broken and never fires them', () => {
+    const brokenCondition = rule({
+      id: 'r-bc',
+      condition: { kind: 'person', personId: null },
+      effects: [count('guitar', 1)],
+    })
+    const brokenEffect = rule({
+      id: 'r-be',
+      condition: { kind: 'any' },
+      effects: [{ kind: 'person', targetPositionId: 'keys', personId: null }],
+    })
+    const res = resolveRequirements(
+      input({
+        positions: SAM_POSITIONS,
+        rules: [brokenCondition, brokenEffect],
+        assignments: [{ personId: 'sam', positionId: 'wl' }],
+        people: [{ id: 'sam' }],
+      }),
+    )
+    expect(res.evaluations.map((e) => e.status)).toEqual(['broken', 'broken'])
+    expect(res.personRequirements).toEqual([])
+    expect(res.minimums.get('guitar')).toEqual({ min: 0, source: 'default' })
+  })
+
+  it('muting silences person requirements too', () => {
+    const res = resolveRequirements(
+      input({
+        positions: SAM_POSITIONS,
+        rules: [SAM_RULE],
+        assignments: [{ personId: 'sam', positionId: 'wl' }],
+        people: [{ id: 'sam' }],
+        mutedRuleIds: new Set(['rule-sam']),
+      }),
+    )
+    expect(res.evaluations[0].status).toBe('muted')
+    expect(res.personRequirements).toEqual([])
+    expect(res.sanctioned.size).toBe(0)
+  })
 })
 
 describe('findRuleCycle', () => {
   it('accepts chains and rejects loops', () => {
     const chain = [
-      rule({ id: 'r1', triggerPositionId: 'a', effects: [{ targetPositionId: 'b', minCount: 1 }] }),
-      rule({ id: 'r2', triggerPositionId: 'b', effects: [{ targetPositionId: 'c', minCount: 1 }] }),
+      rule({ id: 'r1', triggerPositionId: 'a', effects: [count('b', 1)] }),
+      rule({ id: 'r2', triggerPositionId: 'b', effects: [count('c', 1)] }),
     ]
     expect(findRuleCycle(chain)).toBeNull()
 
     const loop = [
       ...chain,
-      rule({ id: 'r3', triggerPositionId: 'c', effects: [{ targetPositionId: 'a', minCount: 1 }] }),
+      rule({ id: 'r3', triggerPositionId: 'c', effects: [count('a', 1)] }),
     ]
     const cycle = findRuleCycle(loop)
     expect(cycle).not.toBeNull()
@@ -199,18 +331,36 @@ describe('findRuleCycle', () => {
 
   it('ignores disabled rules', () => {
     const loop = [
-      rule({ id: 'r1', triggerPositionId: 'a', effects: [{ targetPositionId: 'b', minCount: 1 }] }),
-      rule({ id: 'r2', enabled: false, triggerPositionId: 'b', effects: [{ targetPositionId: 'a', minCount: 1 }] }),
+      rule({ id: 'r1', triggerPositionId: 'a', effects: [count('b', 1)] }),
+      rule({ id: 'r2', enabled: false, triggerPositionId: 'b', effects: [count('a', 1)] }),
     ]
     expect(findRuleCycle(loop)).toBeNull()
+  })
+
+  it('catches loops built from mirror (same-person) rules', () => {
+    const loop = [
+      rule({
+        id: 'r1',
+        triggerPositionId: 'a',
+        condition: { kind: 'any' },
+        effects: [{ kind: 'same-person', targetPositionId: 'b' }],
+      }),
+      rule({
+        id: 'r2',
+        triggerPositionId: 'b',
+        condition: { kind: 'any' },
+        effects: [{ kind: 'same-person', targetPositionId: 'a' }],
+      }),
+    ]
+    expect(findRuleCycle(loop)).not.toBeNull()
   })
 })
 
 describe('rulePositionDepths', () => {
   it('orders triggers before targets, transitively', () => {
     const rules = [
-      rule({ id: 'r1', triggerPositionId: 'a', effects: [{ targetPositionId: 'b', minCount: 1 }] }),
-      rule({ id: 'r2', triggerPositionId: 'b', effects: [{ targetPositionId: 'c', minCount: 1 }] }),
+      rule({ id: 'r1', triggerPositionId: 'a', effects: [count('b', 1)] }),
+      rule({ id: 'r2', triggerPositionId: 'b', effects: [count('c', 1)] }),
     ]
     const depths = rulePositionDepths(rules)
     expect(depths.get('a')).toBe(0)
@@ -220,8 +370,8 @@ describe('rulePositionDepths', () => {
 
   it('survives a (defensively broken) cycle', () => {
     const rules = [
-      rule({ id: 'r1', triggerPositionId: 'a', effects: [{ targetPositionId: 'b', minCount: 1 }] }),
-      rule({ id: 'r2', triggerPositionId: 'b', effects: [{ targetPositionId: 'a', minCount: 1 }] }),
+      rule({ id: 'r1', triggerPositionId: 'a', effects: [count('b', 1)] }),
+      rule({ id: 'r2', triggerPositionId: 'b', effects: [count('a', 1)] }),
     ]
     const depths = rulePositionDepths(rules)
     expect(depths.size).toBe(2)
@@ -229,14 +379,45 @@ describe('rulePositionDepths', () => {
 })
 
 describe('ruleSentence', () => {
-  it('renders the readable summary', () => {
-    const names: Record<string, string> = {
-      wl: 'Worship Leader',
-      'male-vocals': 'Male Vocals',
-      'female-vocals': 'Female Vocals',
-    }
-    expect(ruleSentence(RULE_A, (id) => names[id] ?? id)).toBe(
+  const names: Record<string, string> = {
+    wl: 'Worship Leader',
+    guitar: 'Guitar',
+    keys: 'Keys',
+    foldback: 'Foldback',
+    'male-vocals': 'Male Vocals',
+    'female-vocals': 'Female Vocals',
+  }
+  const nameOf = (id: string) => names[id] ?? id
+
+  it('renders attribute rules', () => {
+    expect(ruleSentence(RULE_A, nameOf)).toBe(
       'If Worship Leader is female → Male Vocals ≥ 2, Female Vocals ≥ 1',
+    )
+  })
+
+  it('renders person conditions and mixed effects', () => {
+    const sam = rule({
+      id: 'r-sam',
+      condition: { kind: 'person', personId: 'sam', personName: 'Sam Smith' },
+      effects: [
+        { kind: 'same-person', targetPositionId: 'guitar' },
+        { kind: 'person', targetPositionId: 'keys', personId: 'sharon', personName: 'Sharon Lee' },
+        count('female-vocals', 2),
+      ],
+    })
+    expect(ruleSentence(sam, nameOf)).toBe(
+      'If Worship Leader is Sam Smith → Guitar: the same person, Keys: Sharon Lee, Female Vocals ≥ 2',
+    )
+  })
+
+  it('renders a pure mirror rule as a linked-participation sentence', () => {
+    const mirror = rule({
+      id: 'r-mirror',
+      condition: { kind: 'any' },
+      effects: [{ kind: 'same-person', targetPositionId: 'foldback' }],
+    })
+    expect(ruleSentence(mirror, nameOf)).toBe(
+      'Whoever is on Worship Leader also serves on Foldback',
     )
   })
 })

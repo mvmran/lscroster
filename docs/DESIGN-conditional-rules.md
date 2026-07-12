@@ -342,3 +342,49 @@ migration path beyond the standard `db push` ordering.
 4. **Scope** — service-type-level rules instead of #113's literal
    "saved on template" (recommended; same outcome, no copy/drift). OK?
 5. **Effects** — min-count only in v1, max-count later (recommended)?
+
+---
+
+## 8. Extension (2026-07-12): person conditions, person effects, cross-team mirror
+
+Approved and shipped as migration 0038 the day after v1. Everything below was
+implemented against the v1 architecture unchanged — same resolver indirection,
+same precedence, same chips.
+
+**Generalised shape.** Conditions and effects became discriminated unions:
+
+    condition = attribute(sex=…) | person(<id>) | any
+    effect    = count(target, ≥N) | person(target, <id>) | same-person(target)
+
+One rule holds one condition and a mixed effect list ("if WL is Sam → Sam on
+Guitar, Sharon on Keys, ≥2 Female Vocals"). `any` + `same-person` is the
+cross-team mirror ("whoever leads worship also runs Foldback"). Cross-team
+needed **no schema change** — rules were never team-scoped, only
+position-scoped.
+
+**Person requirements are checks, not writes (decision: Manoj).** A fired
+person/same-person effect emits a `personRequirement` (person P must hold
+position Y). Nothing auto-inserts assignments: the validator flags
+`CONDITIONAL_PERSON_MISSING` at the rule's strength, the engine fills the
+pool-of-one slot during Suggest roster, and the plan page offers a one-click
+"Add P" button. Rejected: full mirror auto-linking (hidden writes fight the
+request-email/token lifecycle) and blocking the triggering assignment (no
+write-time gates anywhere in the app).
+
+**Sanctioned double-booking.** Fired requirements yield sanctioned
+(person, position) pairs. `checkMultiPosition` and the engine's `in-service`
+rejection exempt exactly those pairs: Sam may hold WL + Guitar, a third
+un-sanctioned position still errors, and if the trigger changes the sanction
+evaporates and the stale rows surface as an ordinary double-booking.
+
+**Fairness counts once per service (decision: Manoj).** History dedupes by
+plan, so a rule-linked double counts as one serve for min-gap / max-per-month /
+consecutive / scoring. Request emails stay one-per-assignment-row for now
+(decision: Manoj) — combining into one email per person is a follow-up.
+
+**Referential integrity.** Person FKs are `ON DELETE SET NULL`; a null ref
+makes the rule **broken**: it stops firing, the plan chip goes red
+("needs attention"), and the rules card explains ("person was removed — edit
+or delete"). The card also warns when a referenced person is inactive or no
+longer set up for the position. DB CHECKs enforce per-kind shape; partial
+unique indexes allow "≥2 on Vocals AND Sam on Vocals" in one rule.

@@ -82,6 +82,7 @@ import {
 import {
   ruleSentence,
   type EffectiveMinimum,
+  type PersonRequirement,
   type RuleEvaluation,
 } from '@/features/scheduling/conditional-rules'
 import {
@@ -453,6 +454,7 @@ const RULE_STATUS_TEXT: Record<RuleEvaluation['status'], string> = {
   unmatched: 'not applicable',
   unevaluable: "can't check",
   muted: 'muted',
+  broken: 'needs attention',
 }
 
 const RULE_STATUS_CLASSES: Record<RuleEvaluation['status'], string> = {
@@ -463,6 +465,8 @@ const RULE_STATUS_CLASSES: Record<RuleEvaluation['status'], string> = {
   unevaluable:
     'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300',
   muted: 'text-muted-foreground line-through',
+  broken:
+    'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300',
 }
 
 /**
@@ -489,14 +493,17 @@ function PlanRuleChips({
       <span className="text-muted-foreground text-xs font-medium">Rules:</span>
       {evaluations.map((ev) => {
         const muted = ev.status === 'muted'
-        const action = muted
-          ? ' Click to turn it back on for this plan.'
-          : ' Click to mute it for this plan.'
+        const action =
+          ev.status === 'broken'
+            ? ' A person this rule references was removed — edit or delete the rule under Teams.'
+            : muted
+              ? ' Click to turn it back on for this plan.'
+              : ' Click to mute it for this plan.'
         return (
           <button
             key={ev.rule.id}
             type="button"
-            disabled={!canManage || setMute.isPending}
+            disabled={!canManage || ev.status === 'broken' || setMute.isPending}
             className="disabled:cursor-default"
             title={
               `${ruleSentence(ev.rule, positionName)} — ${RULE_STATUS_TEXT[ev.status]}.` +
@@ -528,6 +535,7 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
   const { data: me } = useCurrentPerson()
   const deleteAssignment = useDeleteAssignment(plan.id)
   const cancelAssignment = useCancelAssignment(plan.id)
+  const createAssignment = useCreateAssignment(plan.id)
   const sendRequests = useSendRequests(plan.id)
   const [picker, setPicker] = useState<PickerTarget | null>(null)
   const [replaceTarget, setReplaceTarget] = useState<ReplaceTarget | null>(null)
@@ -538,6 +546,37 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
   const byPerson = useMemo(() => resultsByPerson(validation.all), [validation])
   // Effective minimums + conditional-rule statuses (issue #113).
   const requirements = usePlanRequirements(plan)
+
+  // Names for people rules demand who may not be on the plan yet: assignment
+  // embeds first (covers same-person mirrors), then the rules' own name refs.
+  const rulePersonName = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const a of assignments ?? []) map.set(a.person_id, fullName(a.people))
+    for (const ev of requirements?.evaluations ?? []) {
+      const c = ev.rule.condition
+      if (c.kind === 'person' && c.personId && c.personName && !map.has(c.personId)) {
+        map.set(c.personId, c.personName)
+      }
+      for (const e of ev.rule.effects) {
+        if (e.kind === 'person' && e.personId && e.personName && !map.has(e.personId)) {
+          map.set(e.personId, e.personName)
+        }
+      }
+    }
+    return map
+  }, [assignments, requirements])
+
+  /** One-click fix for an unmet person-requirement (adds a draft assignment). */
+  function addRequired(req: PersonRequirement, position: Position) {
+    createAssignment.mutate(
+      { person_id: req.personId, team_id: position.team_id, position_id: position.id },
+      {
+        onSuccess: () =>
+          toast.success(`${rulePersonName.get(req.personId) ?? 'Person'} added to ${position.name}`),
+        onError: (e) => toast.error(e.message),
+      },
+    )
+  }
 
   const planTeams = useMemo(
     () =>
@@ -775,8 +814,18 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                     const understaffed = posResults.some(
                       (r) =>
                         r.code === 'MANDATORY_UNFILLED' ||
-                        r.code === 'CONDITIONAL_MIN_UNFILLED',
+                        r.code === 'CONDITIONAL_MIN_UNFILLED' ||
+                        r.code === 'CONDITIONAL_PERSON_MISSING',
                     )
+                    // Unmet person-requirements with no row at all here — a
+                    // declined row means they said no; don't offer to re-add.
+                    const missingRequired = teamManage
+                      ? (requirements?.personRequirements ?? []).filter(
+                          (r) =>
+                            r.targetPositionId === position.id &&
+                            !slotAssignments.some((a) => a.person_id === r.personId),
+                        )
+                      : []
                     return (
                       <div
                         key={position.id}
@@ -948,6 +997,23 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                             )
                           })
                         )}
+                        {missingRequired.map((req) => {
+                          const name = rulePersonName.get(req.personId) ?? 'the required person'
+                          return (
+                            <Button
+                              key={`${req.personId}-${req.rule.id}`}
+                              variant="outline"
+                              size="sm"
+                              className="h-7 self-start px-2"
+                              disabled={createAssignment.isPending}
+                              title={`Rule "${req.rule.name}" requires ${name} here.`}
+                              onClick={() => addRequired(req, position)}
+                            >
+                              <UserPlus className="size-3.5" />
+                              Add {name}
+                            </Button>
+                          )
+                        })}
                       </div>
                     )
                   })

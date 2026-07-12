@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -32,10 +32,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { fullName } from '@/features/people/person-utils'
 import {
   findRuleCycle,
+  isRuleBroken,
   ruleSentence,
   type ConditionalRule,
+  type RuleCondition,
+  type RuleEffect,
 } from '@/features/scheduling/conditional-rules'
 import {
   toConditionalRule,
@@ -43,24 +47,41 @@ import {
   useDeleteConditionalRule,
   useSaveConditionalRule,
   useSetRuleEnabled,
+  type ConditionalRuleRow,
   type SaveConditionalRuleVars,
 } from '@/features/scheduling/use-scheduling-rules'
-import { teamServesType, useAllPositions, useTeams } from '@/features/scheduling/use-teams'
+import {
+  teamServesType,
+  useAllPositions,
+  useAllTeamMembers,
+  useTeams,
+} from '@/features/scheduling/use-teams'
 import { useServiceTypes } from '@/features/services/use-service-types'
 
 /**
- * Conditional relationship rules (issue #113): "if the person in <position>
- * is <male/female>, then <other position(s)> need <N> people". Authored as a
- * dropdown sentence so an invalid rule is hard to build; saved rules render as
- * a read-only sentence. Admins/leaders only (matches the RLS write policy).
+ * Conditional relationship rules (issue #113 + extension): "if the person in
+ * <position> <is female / is male / is a specific person / is anyone>, then
+ * <other position(s)> need <N people / a specific person / the same person>".
+ * Authored as a dropdown sentence so an invalid rule is hard to build; saved
+ * rules render as a read-only sentence. Admins/leaders only (matches RLS).
  */
 
+/** UI condition operator — the two sex values fold into the one select. */
+type ConditionChoice = 'female' | 'male' | 'person' | 'any'
+
 interface EffectDraft {
+  kind: 'count' | 'person' | 'same-person'
   targetPositionId: string
   minCount: string
+  personId: string
 }
 
 const ALL_TYPES = 'all'
+
+function conditionToChoice(c: RuleCondition): ConditionChoice {
+  if (c.kind === 'attribute') return c.value === 'male' ? 'male' : 'female'
+  return c.kind
+}
 
 function RuleDialog({
   open,
@@ -78,17 +99,25 @@ function RuleDialog({
   const { data: serviceTypes } = useServiceTypes()
   const { data: teams } = useTeams()
   const { data: positions } = useAllPositions()
+  const { data: members } = useAllTeamMembers()
 
   const [name, setName] = useState(editing?.name ?? '')
   const [serviceTypeId, setServiceTypeId] = useState(editing?.serviceTypeId ?? ALL_TYPES)
   const [triggerPositionId, setTriggerPositionId] = useState(editing?.triggerPositionId ?? '')
-  const [triggerValue, setTriggerValue] = useState(editing?.triggerValue ?? 'female')
+  const [conditionChoice, setConditionChoice] = useState<ConditionChoice>(
+    editing ? conditionToChoice(editing.condition) : 'female',
+  )
+  const [conditionPersonId, setConditionPersonId] = useState(
+    editing?.condition.kind === 'person' ? (editing.condition.personId ?? '') : '',
+  )
   const [strength, setStrength] = useState<'hard' | 'soft'>(editing?.strength ?? 'hard')
   const [effects, setEffects] = useState<EffectDraft[]>(
     editing?.effects.map((e) => ({
+      kind: e.kind,
       targetPositionId: e.targetPositionId,
-      minCount: String(e.minCount),
-    })) ?? [{ targetPositionId: '', minCount: '1' }],
+      minCount: e.kind === 'count' ? String(e.minCount) : '1',
+      personId: e.kind === 'person' ? (e.personId ?? '') : '',
+    })) ?? [{ kind: 'count', targetPositionId: '', minCount: '1', personId: '' }],
   )
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -97,6 +126,11 @@ function RuleDialog({
     const p = (positions ?? []).find((pos) => pos.id === id)
     return p ? `${teamNameById.get(p.team_id) ?? '?'} — ${p.name}` : '?'
   }
+  const personNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const m of members ?? []) map.set(m.person_id, fullName(m.people))
+    return map
+  }, [members])
 
   // Only positions of teams serving the rule's service type make sense as
   // trigger or target; "all service types" allows every position.
@@ -111,6 +145,27 @@ function RuleDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teams, positions, serviceTypeId, teamNameById])
 
+  /**
+   * People to offer for a position's person picker: everyone set up for it,
+   * plus the current selection (a rule may reference someone no longer set up
+   * — keep them visible rather than silently dropping the reference).
+   */
+  function peopleFor(positionId: string, keepId?: string): { id: string; name: string }[] {
+    const list: { id: string; name: string }[] = []
+    const seen = new Set<string>()
+    for (const m of members ?? []) {
+      const eligible =
+        positionId === '' || m.team_member_positions.some((tp) => tp.position_id === positionId)
+      if (!eligible || seen.has(m.person_id)) continue
+      seen.add(m.person_id)
+      list.push({ id: m.person_id, name: fullName(m.people) })
+    }
+    if (keepId && !seen.has(keepId)) {
+      list.push({ id: keepId, name: personNameById.get(keepId) ?? 'Removed person' })
+    }
+    return list.sort((a, b) => a.name.localeCompare(b.name))
+  }
+
   function setEffect(index: number, patch: Partial<EffectDraft>) {
     setEffects((prev) => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)))
   }
@@ -120,18 +175,50 @@ function RuleDialog({
     const trimmed = name.trim()
     if (!trimmed) return setFormError('Give the rule a name.')
     if (!triggerPositionId) return setFormError('Pick the position the rule watches.')
-    const cleanEffects = effects
-      .filter((e) => e.targetPositionId)
-      .map((e) => ({
-        targetPositionId: e.targetPositionId,
-        minCount: Math.max(0, Number.parseInt(e.minCount, 10) || 0),
-      }))
+    if (conditionChoice === 'person' && !conditionPersonId) {
+      return setFormError('Pick the person the rule watches for.')
+    }
+
+    const cleanEffects: RuleEffect[] = []
+    const dupKeys = new Set<string>()
+    for (const e of effects) {
+      if (!e.targetPositionId) continue
+      let effect: RuleEffect
+      if (e.kind === 'count') {
+        effect = {
+          kind: 'count',
+          targetPositionId: e.targetPositionId,
+          minCount: Math.max(0, Number.parseInt(e.minCount, 10) || 0),
+        }
+      } else if (e.kind === 'person') {
+        if (!e.personId) {
+          return setFormError(
+            `Pick the person required on ${positionName(e.targetPositionId)}.`,
+          )
+        }
+        effect = { kind: 'person', targetPositionId: e.targetPositionId, personId: e.personId }
+      } else {
+        effect = { kind: 'same-person', targetPositionId: e.targetPositionId }
+      }
+      // Matches the DB's partial unique indexes: one count and one same-person
+      // row per target; one row per (target, person) for named people.
+      const key = `${effect.kind}|${effect.targetPositionId}|${effect.kind === 'person' ? effect.personId : ''}`
+      if (dupKeys.has(key)) {
+        return setFormError('Two of the requirements say the same thing — remove one.')
+      }
+      dupKeys.add(key)
+      cleanEffects.push(effect)
+    }
     if (cleanEffects.length === 0) {
-      return setFormError('Add at least one position the rule sets a minimum for.')
+      return setFormError('Add at least one requirement.')
     }
-    if (new Set(cleanEffects.map((e) => e.targetPositionId)).size !== cleanEffects.length) {
-      return setFormError('Each position can appear only once in a rule.')
-    }
+
+    const condition: RuleCondition =
+      conditionChoice === 'person'
+        ? { kind: 'person', personId: conditionPersonId }
+        : conditionChoice === 'any'
+          ? { kind: 'any' }
+          : { kind: 'attribute', attribute: 'sex', value: conditionChoice }
 
     // Reject trigger→target loops before they're stored (the resolver would
     // only break them defensively).
@@ -140,8 +227,7 @@ function RuleDialog({
       name: trimmed,
       serviceTypeId: serviceTypeId === ALL_TYPES ? null : serviceTypeId,
       triggerPositionId,
-      triggerAttribute: 'sex',
-      triggerValue,
+      condition,
       strength,
       enabled: editing?.enabled ?? true,
       effects: cleanEffects,
@@ -160,8 +246,7 @@ function RuleDialog({
       name: trimmed,
       serviceTypeId: candidate.serviceTypeId,
       triggerPositionId,
-      triggerAttribute: 'sex',
-      triggerValue,
+      condition,
       strength,
       enabled: candidate.enabled,
       effects: cleanEffects,
@@ -177,12 +262,12 @@ function RuleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{editing ? 'Edit rule' : 'New rule'}</DialogTitle>
           <DialogDescription>
             When the person in one position matches a condition, other positions
-            need a different number of people.
+            need certain people or numbers.
           </DialogDescription>
         </DialogHeader>
 
@@ -230,55 +315,110 @@ function RuleDialog({
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={triggerValue} onValueChange={setTriggerValue}>
-                <SelectTrigger className="w-full sm:w-36" aria-label="Trigger value">
+              <Select
+                value={conditionChoice}
+                onValueChange={(v) => setConditionChoice(v as ConditionChoice)}
+              >
+                <SelectTrigger className="w-full sm:w-44" aria-label="Condition">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="female">is female</SelectItem>
                   <SelectItem value="male">is male</SelectItem>
+                  <SelectItem value="person">is a specific person…</SelectItem>
+                  <SelectItem value="any">is anyone</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {conditionChoice === 'person' && (
+              <Select value={conditionPersonId} onValueChange={setConditionPersonId}>
+                <SelectTrigger className="w-full" aria-label="Trigger person">
+                  <SelectValue placeholder="Pick the person" />
+                </SelectTrigger>
+                <SelectContent>
+                  {peopleFor(triggerPositionId, conditionPersonId || undefined).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
             <Label>…then require</Label>
             {effects.map((effect, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={0}
-                  className="w-16"
-                  value={effect.minCount}
-                  onChange={(e) => setEffect(i, { minCount: e.target.value })}
-                  aria-label="Minimum people"
-                />
-                <span className="text-muted-foreground text-sm">on</span>
-                <Select
-                  value={effect.targetPositionId}
-                  onValueChange={(v) => setEffect(i, { targetPositionId: v })}
-                >
-                  <SelectTrigger className="min-w-0 flex-1" aria-label="Target position">
-                    <SelectValue placeholder="Pick a position" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectablePositions.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {positionName(p.id)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {effects.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Remove this position"
-                    onClick={() => setEffects((prev) => prev.filter((_, j) => j !== i))}
+              <div key={i} className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={effect.kind}
+                    onValueChange={(v) => setEffect(i, { kind: v as EffectDraft['kind'] })}
                   >
-                    <Trash2 className="size-4" />
-                  </Button>
+                    <SelectTrigger className="w-40 shrink-0" aria-label="Requirement type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="count">at least…</SelectItem>
+                      <SelectItem value="person">a specific person…</SelectItem>
+                      <SelectItem value="same-person">the same person</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {effect.kind === 'count' && (
+                    <Input
+                      type="number"
+                      min={0}
+                      className="w-16"
+                      value={effect.minCount}
+                      onChange={(e) => setEffect(i, { minCount: e.target.value })}
+                      aria-label="Minimum people"
+                    />
+                  )}
+                  <span className="text-muted-foreground text-sm">on</span>
+                  <Select
+                    value={effect.targetPositionId}
+                    onValueChange={(v) => setEffect(i, { targetPositionId: v })}
+                  >
+                    <SelectTrigger className="min-w-0 flex-1" aria-label="Target position">
+                      <SelectValue placeholder="Pick a position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectablePositions.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {positionName(p.id)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {effects.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Remove this requirement"
+                      onClick={() => setEffects((prev) => prev.filter((_, j) => j !== i))}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                </div>
+                {effect.kind === 'person' && (
+                  <Select
+                    value={effect.personId}
+                    onValueChange={(v) => setEffect(i, { personId: v })}
+                  >
+                    <SelectTrigger className="w-full" aria-label="Required person">
+                      <SelectValue placeholder="Pick the person" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {peopleFor(effect.targetPositionId, effect.personId || undefined).map(
+                        (p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             ))}
@@ -287,11 +427,14 @@ function RuleDialog({
               size="sm"
               className="self-start"
               onClick={() =>
-                setEffects((prev) => [...prev, { targetPositionId: '', minCount: '1' }])
+                setEffects((prev) => [
+                  ...prev,
+                  { kind: 'count', targetPositionId: '', minCount: '1', personId: '' },
+                ])
               }
             >
               <Plus className="size-4" />
-              Add another position
+              Add another requirement
             </Button>
           </div>
 
@@ -325,6 +468,41 @@ function RuleDialog({
   )
 }
 
+/**
+ * Health warnings for one rule — surfaced instead of letting a rule silently
+ * misbehave: a deleted person (the rule no longer fires), someone on a break,
+ * or someone no longer set up for the position the rule involves them in.
+ */
+function ruleWarnings(
+  rule: ConditionalRule,
+  row: ConditionalRuleRow | undefined,
+  eligiblePersonIds: (positionId: string) => Set<string>,
+): string[] {
+  const warnings: string[] = []
+  if (isRuleBroken(rule)) {
+    warnings.push('A person this rule references was removed — the rule no longer applies.')
+  }
+  const checkPerson = (
+    ref: { id: string; first_name: string; last_name: string; status: string } | null,
+    positionId: string,
+    role: string,
+  ) => {
+    if (!ref) return
+    const name = fullName(ref)
+    if (ref.status !== 'active') warnings.push(`${name} isn't active at the moment.`)
+    if (!eligiblePersonIds(positionId).has(ref.id)) {
+      warnings.push(`${name} isn't set up for the ${role} position.`)
+    }
+  }
+  checkPerson(row?.trigger_person ?? null, rule.triggerPositionId, 'watched')
+  for (const e of row?.conditional_rule_effects ?? []) {
+    if (e.effect_kind === 'person') {
+      checkPerson(e.required_person ?? null, e.target_position_id, 'required')
+    }
+  }
+  return warnings
+}
+
 export function ConditionalRulesCard() {
   const rulesQuery = useAllConditionalRules()
   const setEnabled = useSetRuleEnabled()
@@ -332,6 +510,7 @@ export function ConditionalRulesCard() {
   const { data: teams } = useTeams()
   const { data: positions } = useAllPositions()
   const { data: serviceTypes } = useServiceTypes()
+  const { data: members } = useAllTeamMembers()
 
   // Key the dialog by rule id (or 'new') so its internal state resets whenever
   // a different rule is opened.
@@ -342,6 +521,22 @@ export function ConditionalRulesCard() {
     () => (rulesQuery.data ?? []).map(toConditionalRule),
     [rulesQuery.data],
   )
+  const rowById = useMemo(
+    () => new Map((rulesQuery.data ?? []).map((r) => [r.id, r])),
+    [rulesQuery.data],
+  )
+  const eligibleByPosition = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    for (const m of members ?? []) {
+      for (const tp of m.team_member_positions) {
+        ;(map.get(tp.position_id) ?? map.set(tp.position_id, new Set()).get(tp.position_id)!).add(
+          m.person_id,
+        )
+      }
+    }
+    return map
+  }, [members])
+
   const teamNameById = useMemo(() => new Map((teams ?? []).map((t) => [t.id, t.name])), [teams])
   const positionName = (id: string) => {
     const p = (positions ?? []).find((pos) => pos.id === id)
@@ -380,14 +575,19 @@ export function ConditionalRulesCard() {
       <CardContent className="flex flex-col gap-2">
         {rules.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            No conditional rules yet. Example: if the Worship Leader is female,
-            require 2 people on Male Vocals.
+            No conditional rules yet. Examples: if the Worship Leader is female,
+            require 2 people on Male Vocals; if Sam leads, he also plays guitar.
           </p>
         ) : (
           rules.map((rule) => {
             const typeName = rule.serviceTypeId
               ? serviceTypes?.find((st) => st.id === rule.serviceTypeId)?.name ?? '?'
               : 'All service types'
+            const warnings = ruleWarnings(
+              rule,
+              rowById.get(rule.id),
+              (positionId) => eligibleByPosition.get(positionId) ?? new Set(),
+            )
             return (
               <div
                 key={rule.id}
@@ -399,10 +599,25 @@ export function ConditionalRulesCard() {
                     <Badge variant="secondary" className="ml-1 align-middle">
                       {rule.strength === 'hard' ? 'Required' : 'Preferred'}
                     </Badge>
+                    {warnings.length > 0 && (
+                      <Badge
+                        variant="outline"
+                        className="ml-1 border-amber-300 bg-amber-50 align-middle text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300"
+                        title={warnings.join(' ')}
+                      >
+                        <AlertTriangle className="size-3" />
+                        Needs attention
+                      </Badge>
+                    )}
                   </p>
                   <p className="text-muted-foreground truncate text-sm">
                     {ruleSentence(rule, positionName)} · {typeName}
                   </p>
+                  {warnings.length > 0 && (
+                    <p className="truncate text-xs text-amber-700 dark:text-amber-400">
+                      {warnings.join(' ')}
+                    </p>
+                  )}
                 </div>
                 <Switch
                   checked={rule.enabled}

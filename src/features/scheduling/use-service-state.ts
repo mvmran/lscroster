@@ -182,9 +182,15 @@ export function buildPersonContextMaps(
   }
 
   // History excludes this plan (the consumer re-adds it as "this service").
+  // Deduped per (person, plan): serving two rule-linked positions in one
+  // service counts once for fairness — min-gap, per-month and consecutive.
   const history = new Map<string, { date: string; serviceTypeId: string }[]>()
+  const seenPlans = new Set<string>()
   for (const row of data.history ?? []) {
     if (row.plan_id === excludePlanId || !row.plans) continue
+    const key = `${row.person_id} ${row.plan_id}`
+    if (seenPlans.has(key)) continue
+    seenPlans.add(key)
     const arr = history.get(row.person_id) ?? []
     arr.push({ date: row.plans.date, serviceTypeId: row.plans.service_type_id })
     history.set(row.person_id, arr)
@@ -269,18 +275,33 @@ export function buildServiceState(
 
   const maps = buildPersonContextMaps(data, plan.id)
   const nameById = new Map(planAssignments.map((a) => [a.person_id, fullName(a.people)]))
+  for (const m of data.members ?? []) {
+    if (!nameById.has(m.person_id)) nameById.set(m.person_id, fullName(m.people))
+  }
   // An assignee may not (any longer) be a team member — their sex still comes
   // along on the assignment's people embed.
   for (const a of planAssignments) {
     if (!maps.sex.has(a.person_id)) maps.sex.set(a.person_id, a.people.sex)
   }
 
-  const assignedIds = [...new Set(assignments.map((a) => a.personId))]
-  const people: ValidationPerson[] = assignedIds.map((id) =>
+  const { rules, mutedRuleIds } = planRuleContext(plan.id, data)
+
+  // Assigned people, plus anyone a rule names (condition or effect) — the
+  // person-requirement check needs their name and availability even when
+  // they're not (yet) on the plan. Checks that police the roster iterate over
+  // assignments, so the extra entries never cause spurious results.
+  const personIds = new Set(assignments.map((a) => a.personId))
+  for (const rule of rules) {
+    if (rule.condition.kind === 'person' && rule.condition.personId) {
+      personIds.add(rule.condition.personId)
+    }
+    for (const e of rule.effects) {
+      if (e.kind === 'person' && e.personId) personIds.add(e.personId)
+    }
+  }
+  const people: ValidationPerson[] = [...personIds].map((id) =>
     makeValidationPerson(maps, id, nameById.get(id) ?? 'Someone'),
   )
-
-  const { rules, mutedRuleIds } = planRuleContext(plan.id, data)
   const state: ServiceState = {
     service: { id: plan.id, date: plan.date, serviceTypeId: plan.service_type_id },
     positions,
@@ -343,6 +364,8 @@ export function usePlanValidation(plan: PlanWithType | undefined): PlanValidatio
 const POSITION_LEVEL_CODES = new Set([
   'MANDATORY_UNFILLED',
   'CONDITIONAL_MIN_UNFILLED',
+  // Names a person, but one who *isn't on the plan* — badge the position.
+  'CONDITIONAL_PERSON_MISSING',
   'NO_REQUIRED_LEVEL',
 ])
 

@@ -260,11 +260,10 @@ describe('conditional rules in the engine (issue #113)', () => {
     name: 'Vocals balance',
     serviceTypeId: null,
     triggerPositionId: 'wl',
-    triggerAttribute: 'sex' as const,
-    triggerValue: 'female',
+    condition: { kind: 'attribute', attribute: 'sex', value: 'female' } as const,
     strength: 'hard' as const,
     enabled: true,
-    effects: [{ targetPositionId: 'male-vocals', minCount: 2 }],
+    effects: [{ kind: 'count', targetPositionId: 'male-vocals', minCount: 2 } as const],
   }
 
   const ruleState = (overrides: Partial<EngineState> = {}) =>
@@ -343,14 +342,14 @@ describe('conditional rules in the engine (issue #113)', () => {
         id: 'r1',
         name: 'r1',
         triggerPositionId: 'a',
-        effects: [{ targetPositionId: 'b', minCount: 1 }],
+        effects: [{ kind: 'count', targetPositionId: 'b', minCount: 1 } as const],
       },
       {
         ...VOCALS_RULE,
         id: 'r2',
         name: 'r2',
         triggerPositionId: 'b',
-        effects: [{ targetPositionId: 'c', minCount: 1 }],
+        effects: [{ kind: 'count', targetPositionId: 'c', minCount: 1 } as const],
       },
     ]
     const s = state({
@@ -388,6 +387,134 @@ describe('conditional rules in the engine (issue #113)', () => {
       }),
     )
     expect(res.suggestions.filter((s) => s.positionId === 'male-vocals')).toHaveLength(1)
+    expect(res.unfilled).toHaveLength(0)
+  })
+})
+
+describe('person-identity rules in the engine (issue #113 extension)', () => {
+  // "When Sam leads, Sam plays guitar and Sharon plays keys."
+  const SAM_RULE = {
+    id: 'rule-sam',
+    name: 'Sam leads & plays',
+    serviceTypeId: null,
+    triggerPositionId: 'wl',
+    condition: { kind: 'person', personId: 'sam', personName: 'Sam Smith' } as const,
+    strength: 'hard' as const,
+    enabled: true,
+    effects: [
+      { kind: 'same-person', targetPositionId: 'guitar' } as const,
+      { kind: 'person', targetPositionId: 'keys', personId: 'sharon', personName: 'Sharon Lee' } as const,
+    ],
+  }
+
+  const samState = (overrides: Partial<EngineState> = {}) =>
+    state({
+      positions: [
+        position({ id: 'wl', name: 'Worship Leader', minCount: 1 }),
+        position({ id: 'guitar', name: 'Guitar', minCount: 0 }),
+        position({ id: 'keys', name: 'Keys', minCount: 0 }),
+      ],
+      rules: [SAM_RULE],
+      ...overrides,
+    })
+
+  it('fills the package deal: Sam takes both positions, Sharon takes keys', () => {
+    const res = autoSchedule(
+      samState({
+        existingAssignments: [{ personId: 'sam', positionId: 'wl', teamId: 'team-1' }],
+        candidates: [
+          candidate({ id: 'sam', name: 'Sam Smith', eligibility: { wl: 'qualified', guitar: 'qualified' } }),
+          candidate({ id: 'sharon', name: 'Sharon Lee', eligibility: { keys: 'qualified' } }),
+        ],
+      }),
+    )
+    expect(res.unfilled).toHaveLength(0)
+    const byPos = new Map(res.suggestions.map((s) => [s.positionId, s]))
+    expect(byPos.get('guitar')).toMatchObject({ personId: 'sam', reason: 'Linked by rule "Sam leads & plays"' })
+    expect(byPos.get('keys')).toMatchObject({ personId: 'sharon', reason: 'Named in rule "Sam leads & plays"' })
+  })
+
+  it('does not fire the package when someone else leads', () => {
+    const res = autoSchedule(
+      samState({
+        existingAssignments: [{ personId: 'tom', positionId: 'wl', teamId: 'team-1' }],
+        candidates: [
+          candidate({ id: 'tom', eligibility: { wl: 'qualified' } }),
+          candidate({ id: 'sam', eligibility: { wl: 'qualified', guitar: 'qualified' } }),
+          candidate({ id: 'sharon', eligibility: { keys: 'qualified' } }),
+        ],
+      }),
+    )
+    expect(res.suggestions).toHaveLength(0)
+    expect(res.unfilled).toHaveLength(0)
+  })
+
+  it('reports an unavailable required person by name instead of substituting', () => {
+    const res = autoSchedule(
+      samState({
+        existingAssignments: [{ personId: 'sam', positionId: 'wl', teamId: 'team-1' }],
+        candidates: [
+          candidate({ id: 'sam', name: 'Sam Smith', eligibility: { wl: 'qualified', guitar: 'qualified' } }),
+          candidate({
+            id: 'sharon',
+            name: 'Sharon Lee',
+            eligibility: { keys: 'qualified' },
+            blockouts: [{ start: SUNDAY, end: SUNDAY }],
+          }),
+          // Someone else could play keys — the rule wants Sharon, not a stand-in.
+          candidate({ id: 'kim', eligibility: { keys: 'qualified' } }),
+        ],
+      }),
+    )
+    expect(res.suggestions.find((s) => s.positionId === 'keys')).toBeUndefined()
+    const gap = res.unfilled.find((u) => u.positionId === 'keys')
+    expect(gap?.reason).toContain('Rule "Sam leads & plays" needs Sharon Lee on Keys')
+    expect(gap?.reason).toContain("they're unavailable that day")
+  })
+
+  it('mirror rule assigns the same person cross-team, exempt from double-booking', () => {
+    const mirror = {
+      ...SAM_RULE,
+      id: 'rule-mirror',
+      name: 'WL runs foldback',
+      condition: { kind: 'any' } as const,
+      effects: [{ kind: 'same-person', targetPositionId: 'foldback' } as const],
+    }
+    const res = autoSchedule(
+      state({
+        positions: [
+          position({ id: 'wl', name: 'Worship Leader', minCount: 1, teamId: 'team-1' }),
+          position({ id: 'foldback', name: 'Foldback', minCount: 0, teamId: 'team-2', teamName: 'Tech' }),
+        ],
+        rules: [mirror],
+        candidates: [
+          candidate({ id: 'tom', eligibility: { wl: 'qualified', foldback: 'qualified' } }),
+        ],
+      }),
+    )
+    expect(res.unfilled).toHaveLength(0)
+    expect(res.suggestions.map((s) => `${s.personId}:${s.positionId}`).sort()).toEqual([
+      'tom:foldback',
+      'tom:wl',
+    ])
+  })
+
+  it('a person requirement never double-fills the same slot', () => {
+    // Requirement already satisfied — nothing to suggest.
+    const res = autoSchedule(
+      samState({
+        existingAssignments: [
+          { personId: 'sam', positionId: 'wl', teamId: 'team-1' },
+          { personId: 'sam', positionId: 'guitar', teamId: 'team-1' },
+          { personId: 'sharon', positionId: 'keys', teamId: 'team-1' },
+        ],
+        candidates: [
+          candidate({ id: 'sam', eligibility: { wl: 'qualified', guitar: 'qualified' } }),
+          candidate({ id: 'sharon', eligibility: { keys: 'qualified' } }),
+        ],
+      }),
+    )
+    expect(res.suggestions).toHaveLength(0)
     expect(res.unfilled).toHaveLength(0)
   })
 })

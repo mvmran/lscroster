@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { fullName } from '@/features/people/person-utils'
 import { normalizePair } from '@/features/scheduling/scheduling-utils'
-import type { ConditionalRule, RuleAttribute } from '@/features/scheduling/conditional-rules'
+import type {
+  ConditionalRule,
+  RuleAttribute,
+  RuleCondition,
+  RuleEffect,
+} from '@/features/scheduling/conditional-rules'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
 // Data layer for scheduling rules (issue #32, phase 1). One-off unavailability
@@ -342,8 +348,58 @@ export function useRosteredDates() {
 // Rule definitions + per-plan mutes. Storage rows are mapped to the engine's
 // ConditionalRule shape here so the resolver/validator never see snake_case.
 
+/** The name/status slice of a person a rule references (for display + warnings). */
+export interface RulePersonRef {
+  id: string
+  first_name: string
+  last_name: string
+  status: Tables<'people'>['status']
+}
+
 export type ConditionalRuleRow = Tables<'conditional_rules'> & {
-  conditional_rule_effects: Tables<'conditional_rule_effects'>[]
+  trigger_person: RulePersonRef | null
+  conditional_rule_effects: (Tables<'conditional_rule_effects'> & {
+    required_person: RulePersonRef | null
+  })[]
+}
+
+function rowCondition(row: ConditionalRuleRow): RuleCondition {
+  switch (row.trigger_attribute) {
+    case 'person':
+      return {
+        kind: 'person',
+        personId: row.trigger_person_id,
+        personName: row.trigger_person ? fullName(row.trigger_person) : undefined,
+      }
+    case 'any':
+      return { kind: 'any' }
+    default:
+      return {
+        kind: 'attribute',
+        attribute: row.trigger_attribute as RuleAttribute,
+        value: row.trigger_value ?? '',
+      }
+  }
+}
+
+function rowEffect(e: ConditionalRuleRow['conditional_rule_effects'][number]): RuleEffect {
+  switch (e.effect_kind) {
+    case 'person':
+      return {
+        kind: 'person',
+        targetPositionId: e.target_position_id,
+        personId: e.required_person_id,
+        personName: e.required_person ? fullName(e.required_person) : undefined,
+      }
+    case 'same_person':
+      return { kind: 'same-person', targetPositionId: e.target_position_id }
+    default:
+      return {
+        kind: 'count',
+        targetPositionId: e.target_position_id,
+        minCount: e.min_count ?? 0,
+      }
+  }
 }
 
 export function toConditionalRule(row: ConditionalRuleRow): ConditionalRule {
@@ -352,14 +408,10 @@ export function toConditionalRule(row: ConditionalRuleRow): ConditionalRule {
     name: row.name,
     serviceTypeId: row.service_type_id,
     triggerPositionId: row.trigger_position_id,
-    triggerAttribute: row.trigger_attribute as RuleAttribute,
-    triggerValue: row.trigger_value,
+    condition: rowCondition(row),
     strength: row.strength,
     enabled: row.enabled,
-    effects: row.conditional_rule_effects.map((e) => ({
-      targetPositionId: e.target_position_id,
-      minCount: e.min_count,
-    })),
+    effects: row.conditional_rule_effects.map(rowEffect),
   }
 }
 
@@ -369,10 +421,13 @@ export function useAllConditionalRules() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('conditional_rules')
-        .select('*, conditional_rule_effects(*)')
+        .select(
+          '*, trigger_person:people!conditional_rules_trigger_person_id_fkey(id, first_name, last_name, status), ' +
+            'conditional_rule_effects(*, required_person:people!conditional_rule_effects_required_person_id_fkey(id, first_name, last_name, status))',
+        )
         .order('created_at')
       if (error) throw new Error(error.message)
-      return data as ConditionalRuleRow[]
+      return data as unknown as ConditionalRuleRow[]
     },
     staleTime: 60 * 1000,
   })
@@ -395,11 +450,10 @@ export interface SaveConditionalRuleVars {
   name: string
   serviceTypeId: string | null
   triggerPositionId: string
-  triggerAttribute: RuleAttribute
-  triggerValue: string
+  condition: RuleCondition
   strength: 'hard' | 'soft'
   enabled: boolean
-  effects: { targetPositionId: string; minCount: number }[]
+  effects: RuleEffect[]
 }
 
 /** Create or update a rule; effects are replaced wholesale (they're tiny). */
@@ -407,12 +461,14 @@ export function useSaveConditionalRule() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (vars: SaveConditionalRuleVars) => {
+      const c = vars.condition
       const row = {
         name: vars.name,
         service_type_id: vars.serviceTypeId,
         trigger_position_id: vars.triggerPositionId,
-        trigger_attribute: vars.triggerAttribute,
-        trigger_value: vars.triggerValue,
+        trigger_attribute: c.kind === 'attribute' ? c.attribute : c.kind,
+        trigger_value: c.kind === 'attribute' ? c.value : null,
+        trigger_person_id: c.kind === 'person' ? c.personId : null,
         strength: vars.strength,
         enabled: vars.enabled,
       }
@@ -438,7 +494,9 @@ export function useSaveConditionalRule() {
         vars.effects.map((e) => ({
           rule_id: ruleId!,
           target_position_id: e.targetPositionId,
-          min_count: e.minCount,
+          effect_kind: e.kind === 'same-person' ? 'same_person' : e.kind,
+          min_count: e.kind === 'count' ? e.minCount : null,
+          required_person_id: e.kind === 'person' ? e.personId : null,
         })),
       )
       if (fxError) throw new Error(fxError.message)

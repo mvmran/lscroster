@@ -8,6 +8,7 @@ import {
   checkInactive,
   checkMultiPosition,
   checkPairings,
+  checkPersonRequirements,
   checkSupervision,
   consecutiveRun,
   isLastWeekdayOfMonth,
@@ -355,11 +356,10 @@ describe('conditional rules (issue #113)', () => {
     name: 'Vocals balance',
     serviceTypeId: null,
     triggerPositionId: 'wl',
-    triggerAttribute: 'sex' as const,
-    triggerValue: 'female',
+    condition: { kind: 'attribute', attribute: 'sex', value: 'female' } as const,
     strength: 'hard' as const,
     enabled: true,
-    effects: [{ targetPositionId: 'male-vocals', minCount: 2 }],
+    effects: [{ kind: 'count', targetPositionId: 'male-vocals', minCount: 2 } as const],
   }
 
   const ruleState = (overrides: Partial<ServiceState> = {}) =>
@@ -467,5 +467,133 @@ describe('conditional rules (issue #113)', () => {
       ],
     })
     expect(checkCoverage(s).find((r) => r.code === 'CONDITIONAL_MIN_UNFILLED')).toBeUndefined()
+  })
+})
+
+describe('person-identity rules (issue #113 extension)', () => {
+  // "When Sam leads, Sam plays guitar and Sharon plays keys."
+  const SAM_RULE = {
+    id: 'rule-sam',
+    name: 'Sam leads & plays',
+    serviceTypeId: null,
+    triggerPositionId: 'wl',
+    condition: { kind: 'person', personId: 'sam', personName: 'Sam Smith' } as const,
+    strength: 'hard' as const,
+    enabled: true,
+    effects: [
+      { kind: 'same-person', targetPositionId: 'guitar' } as const,
+      { kind: 'person', targetPositionId: 'keys', personId: 'sharon', personName: 'Sharon Lee' } as const,
+    ],
+  }
+
+  const samState = (overrides: Partial<ServiceState> = {}) =>
+    state({
+      positions: [
+        position({ id: 'wl', name: 'Worship Leader', minCount: 1 }),
+        position({ id: 'guitar', name: 'Guitar', minCount: 0 }),
+        position({ id: 'keys', name: 'Keys', minCount: 0 }),
+      ],
+      rules: [SAM_RULE],
+      ...overrides,
+    })
+
+  const sam = (over: Partial<ValidationPerson> = {}) =>
+    person({ id: 'sam', name: 'Sam Smith', eligibility: { wl: 'qualified', guitar: 'qualified' }, ...over })
+  const sharon = (over: Partial<ValidationPerson> = {}) =>
+    person({ id: 'sharon', name: 'Sharon Lee', eligibility: { keys: 'qualified' }, ...over })
+
+  it('flags missing required people at the rule strength, on the target position', () => {
+    const s = samState({
+      assignments: [assign('sam', 'wl')],
+      people: [sam(), sharon()],
+    })
+    const results = checkPersonRequirements(s)
+    expect(results).toHaveLength(2)
+    const byPos = new Map(results.map((r) => [r.positionId, r]))
+    expect(byPos.get('guitar')).toMatchObject({
+      code: 'CONDITIONAL_PERSON_MISSING',
+      severity: 'error',
+      personIds: ['sam'],
+    })
+    expect(byPos.get('guitar')!.message).toContain(
+      'Sam Smith is on Worship Leader and also needs to be on Guitar',
+    )
+    expect(byPos.get('keys')!.message).toContain('Keys needs Sharon Lee when Worship Leader is Sam Smith')
+  })
+
+  it('is satisfied once the required people hold the target positions', () => {
+    const s = samState({
+      assignments: [assign('sam', 'wl'), assign('sam', 'guitar'), assign('sharon', 'keys')],
+      people: [sam(), sharon()],
+    })
+    expect(checkPersonRequirements(s)).toEqual([])
+  })
+
+  it('sanctions the rule-linked double-booking but still catches a third position', () => {
+    const linked = samState({
+      assignments: [assign('sam', 'wl'), assign('sam', 'guitar'), assign('sharon', 'keys')],
+      people: [sam(), sharon()],
+    })
+    expect(checkMultiPosition(linked)).toEqual([])
+
+    const overloaded = samState({
+      positions: [
+        position({ id: 'wl', name: 'Worship Leader', minCount: 1 }),
+        position({ id: 'guitar', name: 'Guitar', minCount: 0 }),
+        position({ id: 'keys', name: 'Keys', minCount: 0 }),
+        position({ id: 'sound', name: 'Sound', minCount: 0 }),
+      ],
+      assignments: [assign('sam', 'wl'), assign('sam', 'guitar'), assign('sam', 'sound')],
+      people: [sam({ eligibility: { wl: 'qualified', guitar: 'qualified', sound: 'qualified' } })],
+    })
+    const results = checkMultiPosition(overloaded)
+    expect(results).toHaveLength(1)
+    expect(results[0].message).toContain('2 positions')
+    expect(results[0].message).not.toContain('Guitar') // the sanctioned one
+  })
+
+  it('without the rule, the same double-booking is still an error', () => {
+    const s = samState({
+      rules: [],
+      assignments: [assign('sam', 'wl'), assign('sam', 'guitar')],
+      people: [sam()],
+    })
+    expect(checkMultiPosition(s)).toHaveLength(1)
+  })
+
+  it('notes a declined target and an unavailable required person', () => {
+    const s = samState({
+      assignments: [assign('sam', 'wl'), assign('sam', 'guitar', { status: 'declined' })],
+      people: [
+        sam(),
+        sharon({ blockouts: [{ start: SUNDAY, end: SUNDAY }] }),
+      ],
+    })
+    const results = checkPersonRequirements(s)
+    const byPos = new Map(results.map((r) => [r.positionId, r]))
+    expect(byPos.get('guitar')!.message).toContain('They declined that position.')
+    expect(byPos.get('keys')!.message).toContain('Sharon Lee is unavailable that day')
+  })
+
+  it('a mirror (any → same person) rule demands the trigger assignee cross-team', () => {
+    const mirror = {
+      id: 'rule-mirror',
+      name: 'Band runs foldback',
+      serviceTypeId: null,
+      triggerPositionId: 'wl',
+      condition: { kind: 'any' } as const,
+      strength: 'soft' as const,
+      enabled: true,
+      effects: [{ kind: 'same-person', targetPositionId: 'guitar' } as const],
+    }
+    const s = samState({
+      rules: [mirror],
+      assignments: [assign('tom', 'wl')],
+      people: [person({ id: 'tom', name: 'Tom Jones', eligibility: { wl: 'qualified' } })],
+    })
+    const results = checkPersonRequirements(s)
+    expect(results).toHaveLength(1)
+    expect(results[0]).toMatchObject({ severity: 'warning', personIds: ['tom'] })
+    expect(results[0].message).toContain('Tom Jones is on Worship Leader and also needs to be on Guitar')
   })
 })

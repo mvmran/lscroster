@@ -181,29 +181,49 @@ export type Database = {
       conditional_rule_effects: {
         Row: {
           created_at: string
+          effect_kind: string
           id: string
-          min_count: number
+          min_count: number | null
+          required_person_id: string | null
           rule_id: string
           target_position_id: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          effect_kind?: string
           id?: string
-          min_count: number
+          min_count?: number | null
+          required_person_id?: string | null
           rule_id: string
           target_position_id: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          effect_kind?: string
           id?: string
-          min_count?: number
+          min_count?: number | null
+          required_person_id?: string | null
           rule_id?: string
           target_position_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "conditional_rule_effects_required_person_id_fkey"
+            columns: ["required_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conditional_rule_effects_required_person_id_fkey"
+            columns: ["required_person_id"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "conditional_rule_effects_rule_id_fkey"
             columns: ["rule_id"]
@@ -229,8 +249,9 @@ export type Database = {
           service_type_id: string | null
           strength: Database["public"]["Enums"]["pairing_strength"]
           trigger_attribute: string
+          trigger_person_id: string | null
           trigger_position_id: string
-          trigger_value: string
+          trigger_value: string | null
           updated_at: string
         }
         Insert: {
@@ -241,8 +262,9 @@ export type Database = {
           service_type_id?: string | null
           strength?: Database["public"]["Enums"]["pairing_strength"]
           trigger_attribute: string
+          trigger_person_id?: string | null
           trigger_position_id: string
-          trigger_value: string
+          trigger_value?: string | null
           updated_at?: string
         }
         Update: {
@@ -253,8 +275,9 @@ export type Database = {
           service_type_id?: string | null
           strength?: Database["public"]["Enums"]["pairing_strength"]
           trigger_attribute?: string
+          trigger_person_id?: string | null
           trigger_position_id?: string
-          trigger_value?: string
+          trigger_value?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -263,6 +286,20 @@ export type Database = {
             columns: ["service_type_id"]
             isOneToOne: false
             referencedRelation: "service_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conditional_rules_trigger_person_id_fkey"
+            columns: ["trigger_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conditional_rules_trigger_person_id_fkey"
+            columns: ["trigger_person_id"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
             referencedColumns: ["id"]
           },
           {

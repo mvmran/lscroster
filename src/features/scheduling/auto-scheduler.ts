@@ -1,10 +1,13 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import {
+  conditionPhrase,
+  personPositionKey,
   resolveRequirements,
   rulePositionDepths,
-  ruleValueLabel,
   type ConditionalRule,
   type EffectiveMinimum,
+  type PersonRequirement,
+  type ResolvedRequirements,
 } from '@/features/scheduling/conditional-rules'
 import {
   consecutiveRun,
@@ -154,13 +157,22 @@ function rejectionReason(
   state: EngineState,
   roster: WorkingAssignment[],
   needsQualified: boolean,
+  sanctioned: ReadonlySet<string>,
 ): 'level' | 'unavailable' | 'inactive' | 'in-service' | 'avoid' | 'cadence' | null {
   const level = person.eligibility[pos.id]
   if (needsQualified && level !== 'qualified') return 'level'
   if (person.status !== 'active') return 'inactive'
   if (isUnavailableOn(person, state.service.date)) return 'unavailable'
 
-  if (roster.some((r) => r.personId === person.id)) return 'in-service' // no multi-position
+  // No multi-position — except a slot a fired rule explicitly demands of this
+  // person ("Sam leads AND plays guitar"); never the same slot twice.
+  if (roster.some((r) => r.personId === person.id && r.positionId === pos.id)) return 'in-service'
+  if (
+    roster.some((r) => r.personId === person.id) &&
+    !sanctioned.has(personPositionKey(person.id, pos.id))
+  ) {
+    return 'in-service'
+  }
 
   // hard-avoid vs anyone already assigned
   const assignedIds = new Set(roster.map((r) => r.personId))
@@ -248,11 +260,11 @@ function scoreCandidate(
 
 // --- the engine --------------------------------------------------------------
 
-/** Effective minimums for the in-progress roster (rules re-fire as it grows). */
-function resolveEngineMinimums(
+/** Requirements for the in-progress roster (rules re-fire as it grows). */
+function resolveEngineRequirements(
   state: EngineState,
   roster: WorkingAssignment[],
-): Map<string, EffectiveMinimum> {
+): ResolvedRequirements {
   return resolveRequirements({
     serviceTypeId: state.service.serviceTypeId,
     positions: state.positions.map((p) => ({ id: p.id, minCount: p.minCount })),
@@ -261,16 +273,27 @@ function resolveEngineMinimums(
     rules: state.rules ?? [],
     planMinOverrides: state.planMinOverrides,
     mutedRuleIds: state.mutedRuleIds,
-  }).minimums
+  })
 }
 
 /** "— needed because Worship Leader is female (rule …)" for rule-raised slots. */
 function ruleContext(eff: EffectiveMinimum, positions: EnginePosition[]): string {
   if (eff.source !== 'rule' || !eff.rule) return ''
-  const trigger = positions.find((p) => p.id === eff.rule!.triggerPositionId)
-  return ` — needed because ${trigger?.name ?? 'another position'} is ${ruleValueLabel(
-    eff.rule.triggerValue,
-  )} (rule "${eff.rule.name}")`
+  const phrase = conditionPhrase(
+    eff.rule,
+    (id) => positions.find((p) => p.id === id)?.name ?? 'another position',
+  )
+  return ` — needed because ${phrase} (rule "${eff.rule.name}")`
+}
+
+/** Person-specific "why they can't take the rule-required slot". */
+const PERSON_REASON_TEXT: Record<string, string> = {
+  level: "they don't fill it at the required level",
+  unavailable: "they're unavailable that day",
+  inactive: "they're on a break",
+  'in-service': "they're already serving in another position",
+  avoid: 'an avoid pairing blocks them',
+  cadence: "they're over their serving limit",
 }
 
 export function autoSchedule(
@@ -299,9 +322,97 @@ export function autoSchedule(
   // Slots we failed to fill, per position — excluded from re-expansion so the
   // loop always terminates (each iteration grows the roster or this map).
   const givenUp = new Map<string, number>()
+  // Person-requirements we failed to satisfy (person+position keys).
+  const givenUpReqs = new Set<string>()
+
+  const positionById = new Map(state.positions.map((p) => [p.id, p]))
+
+  /** Fill (or give up on) one unmet person-requirement — always progresses. */
+  function fillPersonRequirement(req: PersonRequirement): void {
+    const key = personPositionKey(req.personId, req.targetPositionId)
+    const pos = positionById.get(req.targetPositionId)
+    if (!pos) {
+      givenUpReqs.add(key)
+      return
+    }
+    const person = candidateById.get(req.personId)
+    const personName =
+      person?.name ??
+      (req.rule.condition.kind === 'person' ? req.rule.condition.personName : undefined) ??
+      'the required person'
+    const describe = (why: string) =>
+      `Rule "${req.rule.name}" needs ${personName} on ${pos.name}, but ${why}`
+
+    if (!person || !(pos.id in person.eligibility)) {
+      unfilled.push({
+        positionId: pos.id,
+        positionName: pos.name,
+        teamName: pos.teamName,
+        reason: describe("they're not set up for that position"),
+      })
+      givenUpReqs.add(key)
+      return
+    }
+    const hasQualified = roster.some((r) => r.positionId === pos.id && r.level === 'qualified')
+    const needsQualified = pos.requiresLevel === 'qualified' && !hasQualified
+    // The requirement itself sanctions this pair, letting them hold it in
+    // addition to the (trigger) position they may already occupy.
+    const reject = rejectionReason(person, pos, state, roster, needsQualified, new Set([key]))
+    if (reject) {
+      unfilled.push({
+        positionId: pos.id,
+        positionName: pos.name,
+        teamName: pos.teamName,
+        reason: describe(PERSON_REASON_TEXT[reject] ?? "they can't take it"),
+      })
+      givenUpReqs.add(key)
+      return
+    }
+    suggestions.push({
+      personId: person.id,
+      personName: person.name,
+      positionId: pos.id,
+      positionName: pos.name,
+      teamId: pos.teamId,
+      teamName: pos.teamName,
+      reason:
+        req.via === 'same-person'
+          ? `Linked by rule "${req.rule.name}"`
+          : `Named in rule "${req.rule.name}"`,
+    })
+    roster.push({
+      personId: person.id,
+      positionId: pos.id,
+      teamId: pos.teamId,
+      level: person.eligibility[pos.id],
+    })
+  }
 
   for (;;) {
-    const minimums = resolveEngineMinimums(state, roster)
+    const resolved = resolveEngineRequirements(state, roster)
+    const minimums = resolved.minimums
+
+    // Fired person-requirements first — a pool of exactly one is the most
+    // constrained slot there is, and satisfying it may fire further rules.
+    const occupied = new Set(roster.map((r) => personPositionKey(r.personId, r.positionId)))
+    const openReq = resolved.personRequirements
+      .filter(
+        (r) =>
+          positionById.has(r.targetPositionId) &&
+          !occupied.has(personPositionKey(r.personId, r.targetPositionId)) &&
+          !givenUpReqs.has(personPositionKey(r.personId, r.targetPositionId)),
+      )
+      .sort(
+        (a, b) =>
+          (depths.get(a.targetPositionId) ?? 0) - (depths.get(b.targetPositionId) ?? 0) ||
+          a.rule.id.localeCompare(b.rule.id) ||
+          a.personId.localeCompare(b.personId),
+      )
+    if (openReq.length > 0) {
+      fillPersonRequirement(openReq[0])
+      continue
+    }
+
     const open = state.positions
       .map((pos) => {
         const filled = roster.filter((r) => r.positionId === pos.id).length
@@ -334,7 +445,7 @@ export function autoSchedule(
     const rejections = new Set<string>()
     const pool: { person: EngineCandidate; score: number; reason: string }[] = []
     for (const person of eligibleFor(state, pos)) {
-      const reject = rejectionReason(person, pos, state, roster, needsQualified)
+      const reject = rejectionReason(person, pos, state, roster, needsQualified, resolved.sanctioned)
       if (reject) {
         rejections.add(reject)
         continue
@@ -416,11 +527,12 @@ export function rankCandidates(
 
   const hasQualified = roster.some((r) => r.positionId === pos.id && r.level === 'qualified')
   const needsQualified = pos.requiresLevel === 'qualified' && !hasQualified
+  const { sanctioned } = resolveEngineRequirements(state, roster)
 
   const ranked: RankedCandidate[] = []
   for (const person of eligibleFor(state, pos)) {
     if (exclude.has(person.id)) continue
-    if (rejectionReason(person, pos, state, roster, needsQualified)) continue
+    if (rejectionReason(person, pos, state, roster, needsQualified, sanctioned)) continue
     const { score, reason } = scoreCandidate(person, state, roster, weights)
     ranked.push({
       personId: person.id,

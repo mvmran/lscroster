@@ -1,8 +1,10 @@
 import { addDays, differenceInCalendarDays, getDate, getDay, parseISO } from 'date-fns'
 import {
+  conditionPhrase,
+  personPositionKey,
   resolveRequirements,
-  ruleValueLabel,
   type ConditionalRule,
+  type PersonRequirement,
   type ResolvedRequirements,
 } from '@/features/scheduling/conditional-rules'
 
@@ -45,6 +47,7 @@ export const RULE_SHORT_LABELS: Record<string, string> = {
   MAX_CONSECUTIVE: 'Too many in a row',
   UNDER_TARGET: 'Below target',
   CONDITIONAL_MIN_UNFILLED: 'Rule unmet',
+  CONDITIONAL_PERSON_MISSING: 'Rule unmet',
   RULE_UNEVALUATED: 'Rule unchecked',
 }
 
@@ -261,10 +264,16 @@ export function checkInactive(state: ServiceState): RuleResult[] {
   return results
 }
 
-/** MULTI_POSITION — one person fills more than one position in the service. */
+/**
+ * MULTI_POSITION — one person fills more than one position in the service.
+ * Positions a fired conditional rule explicitly demands of the person (the
+ * `sanctioned` set — "Sam leads AND plays guitar") don't count against them;
+ * the error fires only when more than one *unsanctioned* position remains.
+ */
 export function checkMultiPosition(state: ServiceState): RuleResult[] {
   const people = peopleById(state)
   const positions = new Map(state.positions.map((p) => [p.id, p]))
+  const { sanctioned } = resolveStateRequirements(state)
   const byPerson = new Map<string, Set<string>>()
   for (const a of scheduled(state)) {
     ;(byPerson.get(a.personId) ?? byPerson.set(a.personId, new Set()).get(a.personId)!).add(
@@ -273,12 +282,15 @@ export function checkMultiPosition(state: ServiceState): RuleResult[] {
   }
   const results: RuleResult[] = []
   for (const [personId, positionIds] of byPerson) {
-    if (positionIds.size > 1) {
-      const names = [...positionIds].map((id) => positions.get(id)?.name ?? '?').join(', ')
+    const unsanctioned = [...positionIds].filter(
+      (id) => !sanctioned.has(personPositionKey(personId, id)),
+    )
+    if (unsanctioned.length > 1) {
+      const names = unsanctioned.map((id) => positions.get(id)?.name ?? '?').join(', ')
       results.push({
         code: 'MULTI_POSITION',
         severity: 'error',
-        message: `${nameOf(people, personId)} is scheduled in ${positionIds.size} positions (${names}).`,
+        message: `${nameOf(people, personId)} is scheduled in ${unsanctioned.length} positions (${names}).`,
         personIds: [personId],
       })
     }
@@ -328,11 +340,11 @@ export function checkCoverage(state: ServiceState): RuleResult[] {
     if (eff.min >= 1 && filled.length < eff.min) {
       if (eff.source === 'rule' && eff.rule) {
         // Attribute the shortfall to the rule that raised (or set) the bar.
-        const trigger = positionName.get(eff.rule.triggerPositionId) ?? 'another position'
+        const phrase = conditionPhrase(eff.rule, (id) => positionName.get(id) ?? 'another position')
         results.push({
           code: 'CONDITIONAL_MIN_UNFILLED',
           severity: eff.rule.strength === 'hard' ? 'error' : 'warning',
-          message: `${pos.name} needs ${eff.min} when ${trigger} is ${ruleValueLabel(eff.rule.triggerValue)} (rule "${eff.rule.name}") — ${
+          message: `${pos.name} needs ${eff.min} when ${phrase} (rule "${eff.rule.name}") — ${
             filled.length === 0 ? 'nobody is scheduled yet' : `only ${filled.length} scheduled`
           }.`,
           positionId: pos.id,
@@ -378,14 +390,83 @@ export function checkConditionalRules(state: ServiceState): RuleResult[] {
   const { evaluations } = resolveStateRequirements(state)
   const results: RuleResult[] = []
   for (const ev of evaluations) {
-    if (ev.status !== 'unevaluable') continue
+    // Only attribute conditions can be unevaluable (unrecorded attribute).
+    if (ev.status !== 'unevaluable' || ev.rule.condition.kind !== 'attribute') continue
     const names = ev.personIds.map((id) => nameOf(people, id)).join(', ')
     results.push({
       code: 'RULE_UNEVALUATED',
       severity: 'warning',
-      message: `Can't check rule "${ev.rule.name}" — ${names}'s ${ev.rule.triggerAttribute} isn't recorded.`,
+      message: `Can't check rule "${ev.rule.name}" — ${names}'s ${ev.rule.condition.attribute} isn't recorded.`,
       positionId: ev.rule.triggerPositionId,
       personIds: ev.personIds,
+    })
+  }
+  return results
+}
+
+/** The display name for a person a rule demands (they may not be assigned). */
+function requiredPersonName(
+  req: PersonRequirement,
+  people: Map<string, ValidationPerson>,
+): string {
+  const known = people.get(req.personId)?.name
+  if (known) return known
+  if (req.via === 'person') {
+    const effect = req.rule.effects.find(
+      (e) =>
+        e.kind === 'person' &&
+        e.personId === req.personId &&
+        e.targetPositionId === req.targetPositionId,
+    )
+    if (effect?.kind === 'person' && effect.personName) return effect.personName
+  }
+  if (req.rule.condition.kind === 'person' && req.rule.condition.personId === req.personId) {
+    return req.rule.condition.personName ?? 'Someone'
+  }
+  return 'Someone'
+}
+
+/**
+ * CONDITIONAL_PERSON_MISSING — a fired rule demands a specific person on a
+ * position and they don't (non-declined) hold it. Never blocks the triggering
+ * assignment: it surfaces at the rule's strength (hard = publish-blocking
+ * error through the existing overridable gate, soft = warning), and the admin
+ * resolves it by adding the person, swapping the trigger, or muting the rule.
+ */
+export function checkPersonRequirements(state: ServiceState): RuleResult[] {
+  const people = peopleById(state)
+  const positionName = new Map(state.positions.map((p) => [p.id, p.name]))
+  const { personRequirements } = resolveStateRequirements(state)
+  const occupied = new Set(
+    scheduled(state).map((a) => personPositionKey(a.personId, a.positionId)),
+  )
+  const declined = new Set(
+    state.assignments
+      .filter((a) => a.status === 'declined')
+      .map((a) => personPositionKey(a.personId, a.positionId)),
+  )
+
+  const results: RuleResult[] = []
+  for (const req of personRequirements) {
+    if (occupied.has(personPositionKey(req.personId, req.targetPositionId))) continue
+    const name = requiredPersonName(req, people)
+    const target = positionName.get(req.targetPositionId) ?? 'a position'
+    const base =
+      req.via === 'same-person'
+        ? `${name} is on ${positionName.get(req.rule.triggerPositionId) ?? 'the trigger position'} and also needs to be on ${target} (rule "${req.rule.name}").`
+        : `${target} needs ${name} when ${conditionPhrase(req.rule, (id) => positionName.get(id) ?? 'another position')} (rule "${req.rule.name}").`
+    const person = people.get(req.personId)
+    const note = declined.has(personPositionKey(req.personId, req.targetPositionId))
+      ? ' They declined that position.'
+      : person && isUnavailableOn(person, state.service.date)
+        ? ` Note: ${name} is unavailable that day.`
+        : ''
+    results.push({
+      code: 'CONDITIONAL_PERSON_MISSING',
+      severity: req.rule.strength === 'hard' ? 'error' : 'warning',
+      message: base + note,
+      positionId: req.targetPositionId,
+      personIds: [req.personId],
     })
   }
   return results
@@ -534,6 +615,7 @@ const CHECKS = [
   checkPairings,
   checkCoverage,
   checkConditionalRules,
+  checkPersonRequirements,
   checkSupervision,
   checkCadence,
 ]
