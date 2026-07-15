@@ -2,6 +2,16 @@
 
 This is the project instruction file for Grok (xAI). It mirrors CLAUDE.md for compatibility when working with Grok Build / Grok CLI.
 
+## Current state (as of 2026-07-15)
+
+- **Phases 0–4 are deployed** to production (Life Sanctuary Church). Phase 3's real-user parallel run continues alongside.
+- **Phase 5 (distribution) has not started** — needs Manoj's confirmation before any SETUP/UPGRADE/distribution work.
+- Work is **issue-driven** against the GitHub backlog (`mvmran/lscroster`). Prefer open issues + the "Post-Phase-4 enhancements" section of `PHASES.md` over phase checklists.
+- **Schema:** 37 migrations in `supabase/migrations/`, through `conditional_rule_person_effects` (PHASES ~0038). After pulling schema changes, regenerate types from the **local** stack.
+- **Recently shipped (post-Phase 4):** conditional relationship rules incl. person/same-person effects (#113); Projection API (#135); worship set-list email + team types (#133/#134); arrangement-centric songs, medleys, versioned lyrics (#130); audit log (#116); roster-status digest (#117); configurable scheduled-job hours (#120); team leaders/viewers; managed accounts; contact visibility; plan min-count overrides; indigo/3D UI modernization (client-only).
+- **Open backlog (snapshot):** #136 reorder-teams popup bug; #103 reports; #90 consolidate roster emails; longer-horizon TODOs (#7 keyboard shortcuts, #9 rehearsals, #41 SMS). Confirm against GitHub before starting work.
+- Full schema notes, upgrade caveats, and local-stack gotchas live in **`PHASES.md`** — re-read it at the start of non-trivial work.
+
 ## What this project is
 
 LSCroster is an open-source worship & service planning web app for churches, replicating the
@@ -47,45 +57,61 @@ Church-specific configuration (name, logo, timezone, email sender) lives in a si
 /src
   /app            # router (lazy routes + Suspense), providers, layout shell
   /components/ui  # shadcn components (generated — don't hand-edit heavily)
-  /components     # shared app components
+  /components     # shared app components (PageHeader, EmptyState, StatusBadge, …)
   /features
-    /auth         # sign-in, invite acceptance, setup wizard
+    /auth         # sign-in, invite acceptance, password reset, setup wizard
     /dashboard    # home page: this week, my requests, my upcoming dates
-    /people       # People module
-    /services     # service types, plans, order of service, songs, print/PDF
+    /people       # People module (directory, import, managed accounts, email prefs)
+    /services     # service types, plans, order of service, songs/arrangements,
+                  # lyrics, print/PDF, song reports
     /scheduling   # teams, positions, assignments, blockouts, matrix,
+                  # auto-scheduler, scheduling/conditional rules,
                   # my-schedule, public /respond/:token page
-    /settings     # church settings, users & roles, email log
-  /lib            # supabase client, helpers, constants
+    /settings     # church settings, users & roles, communications setup,
+                  # email log, audit log, projection API keys
+  /lib            # supabase client, helpers, constants, status tokens
   /types          # generated DB types + shared types
 /supabase
   /migrations     # ALL schema changes live here (timestamped SQL)
   /functions      # setup, invite, accept-invitation, delete-person,
-                  # send-email, send-requests, respond-to-request, reminders
-                  # (_shared/: resend, auth, email-log, scheduling, templates)
- /docs             # SETUP.md, UPGRADE.md, screenshots
+                  # account-access, send-email, send-requests,
+                  # respond-to-request, cancel-assignment,
+                  # send-plan-notification, send-setlist, reminders,
+                  # run-scheduled-job (admin "send now"),
+                  # request-password-reset, projection-api
+                  # (_shared/: resend, auth, email-log, email-prefs,
+                  #  scheduling, roster-status, lyric-sections,
+                  #  person-status, email-templates/)
+/docs             # PROJECTION-API.md, DESIGN-conditional-rules.md,
+                  # projection-api-bruno/; SETUP.md / UPGRADE.md = Phase 5
 ```
 
-Storage buckets (all private, served via signed URLs): `photos`,
-`song-attachments`, `plan-attachments`.
+Storage buckets: private (signed URLs) — `photos`, `song-attachments`,
+`plan-attachments`; public — `church-logo`.
 
 ## Database conventions
 
 - snake_case names; `uuid` PKs (`gen_random_uuid()`); `created_at`/`updated_at timestamptz` on every table (updated via trigger).
-- **Every table has RLS enabled.** No exceptions. Policies are role-based.
-- Roles (enum `app_role`): `admin` (everything), `leader` (manage plans/teams/songs for their teams), `member` (view plans they're on, respond to requests, manage own profile & blockouts).
+- **Every table has RLS enabled.** No exceptions. Policies are role-based (and, for scheduling writes, often **per-team**).
+- Roles (enum `app_role`): `admin` (everything), `leader` (governance + broad read; team **writes** require Team Leader appointment via `can_manage_team()`), `member` (view plans they're on, respond to requests, manage own profile & blockouts).
+- Per-team access: `team_leaders` / `team_viewers` (`team_access_grants`) with helpers `leads_team()`, `can_manage_team()`, `views_team()`, `is_viewer_of_plan()`. Team Viewers get read-only rosters (incl. drafts) for their teams.
+- Managed accounts: `people.managed_by_person_id` — managers see managed people's assignments/plans and can act for them within RLS.
+- Contact visibility: members do not always see `email`/`phone`/`birthday`; app reads go through the masked `people_directory` view + `can_view_contact()`.
 - `people` is the canonical person record and may exist **without** a login. `people.auth_user_id` (nullable) links to `auth.users` once the person accepts an email invitation. Role lives on `people.role`.
 - Schema changes happen **only** via migration files (`npx supabase migration new ...`). Never edit schema in the Supabase dashboard. Migrations must be re-runnable on a fresh database (this is the distribution upgrade path).
 - After schema changes, regenerate types (see Commands; use the local stack during development).
-- Plan visibility: members see **published** plans, plus any plan they're scheduled onto (even drafts) via the `is_assigned_to_plan()` security-definer helper — it must be security definer to avoid RLS policy recursion between `plans` and `plan_assignments`. `plan_items`, `plan_times` and `plan_attachments` follow the same rule.
+- Plan visibility: members see **published** plans, plus any plan they're scheduled onto (even drafts) via the `is_assigned_to_plan()` security-definer helper — it must be security definer to avoid RLS policy recursion between `plans` and `plan_assignments`. Managers and Team Leaders/Viewers get additional visibility via related helpers. `plan_items`, `plan_times` and `plan_attachments` follow the same rule.
 - Members can update only their own `plan_assignments` row, and only the response columns (`status` to confirmed/declined, `responded_at`, `decline_reason`) — enforced by the `protect_assignment_columns` trigger, mirroring `protect_people_columns`.
+- Songs are **arrangement-centric**: plan items reference `arrangement_id` (not bare `song_id`); lyrics are versioned on the arrangement; published plans pin a lyrics version.
 
 ## Auth & email
 
-- Supabase Auth, email + password, **invite-only** (public signups disabled). Admin invites a person → invitation email (Resend) → person sets password → account linked to their `people` row.
-- All outbound email goes through the shared Resend helper in `supabase/functions/_shared/resend.ts`; every send attempt is logged to `email_log` (admin-viewable at Settings → Email log). HTML templates live in `supabase/functions/_shared/email-templates/`.
+- Supabase Auth, email + password, **invite-only** (public signups disabled). Admin invites a person → invitation email (Resend) → person sets password → account linked to their `people` row. Password reset goes through the `request-password-reset` Edge Function (not client-side Resend).
+- All outbound email goes through the shared Resend helper in `supabase/functions/_shared/resend.ts`; every send attempt is logged to `email_log` (admin-viewable at Settings → Email log). HTML templates live in `supabase/functions/_shared/email-templates/`. Per-person opt-outs and managed-account routing live in `_shared/email-prefs.ts`. Scheduling mail is gated on active, emailable people (`isEmailableActive` / #126).
 - Scheduling requests are answerable **without logging in**: emails link to `APP_URL/respond/<token>` (raw token only ever in the email; sha-256 hash in `plan_assignments.token_hash`), and that public page calls the `respond-to-request` Edge Function (verify_jwt off — the token is the credential). Answers can be changed until the service date passes.
-- Reminders: an hourly `pg_cron` job (`lscroster-reminders`, created in migration 0004) calls the `reminders` Edge Function via `pg_net`, reading the function URL and a shared secret from **Vault** (`reminders_function_url`, `reminders_cron_secret`); the function checks the `x-cron-secret` header against its `CRON_SECRET` env and only sends during the 9am hour in the church timezone. It nudges unanswered requests after `church_settings.request_nudge_days` and reminds confirmed people `reminder_days_before` days out, idempotently via `nudged_at`/`reminded_at`.
+- Reminders: an hourly `pg_cron` job (`lscroster-reminders`) calls the `reminders` Edge Function via `pg_net`, reading the function URL and a shared secret from **Vault** (`reminders_function_url`, `reminders_cron_secret`); the function checks the `x-cron-secret` header against its `CRON_SECRET` env. It runs **three jobs** off the one hourly schedule, each gated on its admin-configured hour in church timezone (`church_settings.nudge_hour` / `reminder_hour` / `roster_status_hour`, defaults **9 / 9 / 20**): (1) nudge unanswered requests after `request_nudge_days`, (2) remind confirmed people `reminder_days_before` days out (idempotent via `nudged_at`/`reminded_at`), (3) "upcoming roster status" digest (#117) to Team Leaders, Team Viewers and admins (a plain `leader` only qualifies if also a TL/TV), covering `roster_status_weeks` weeks ahead and scoped to each recipient's teams (admins see all). A `0` setting disables that job. An admin can run any job on demand from Settings → **Communications setup** ("send now"), which calls `run-scheduled-job` (admin-only); it POSTs the `reminders` function `{ force: true, only: <job> }` in the background. No new cron/Vault secret — it reuses the existing hourly job and `CRON_SECRET`. The digest's pie chart is rendered by **QuickChart.io** (aggregate category counts only — no personal data); the RAG-coloured table is authoritative if the image is blocked.
+- On publish (optional): plan-notification emails and the worship **set-list** email (`send-setlist`, #133/#134) when `send_setlist_on_publish` is on; recipients come from `setlist_recipients`. Set-list can also be sent on demand from the plan ⋯ menu.
+- **Projection API** (`projection-api`, #135): read-only published plans + versioned lyrics for the church's Mac projection software; admin-issued API keys (`lscp_…`, hash stored in `projection_api_keys`); contract in `docs/PROJECTION-API.md`. No Supabase key is shared with the projection app.
 
 ## Environment variables
 
@@ -107,6 +133,7 @@ npm run dev                      # local dev server (5173)
 npm run build                    # production build (must pass before any push)
 npm run lint                     # eslint
 npm run typecheck                # tsc --noEmit
+npm test                         # vitest run
 npm run db:types                 # types from the LINKED (production) project
 npx supabase start               # local Supabase stack (Docker Desktop must be up)
 npx supabase db reset --local    # rebuild local DB from migrations
@@ -127,7 +154,7 @@ production database that lacks its tables.
 
 ## Working rules for Grok (and Claude Code compatibility)
 
-1. **Follow `PHASES.md` exactly.** Work on the current phase only; tick checkboxes as items complete. Don't start a new phase without explicit confirmation. Current work is issue-driven from the GitHub backlog (post-Phase 4).
+1. **Follow `PHASES.md`.** Work on open GitHub issues or the current phase only; tick checkboxes as items complete. Don't start Phase 5 (or a new phase) without explicit confirmation from Manoj. Current work is issue-driven from the GitHub backlog (post-Phase 4).
 2. **Never** run destructive commands against the linked production project (`db reset`, dropping tables, deleting storage buckets) without explicitly confirming with Manoj first. Local Docker DB is fair game.
 3. Every schema change = a new migration file + regenerated types + RLS policies in the same migration.
 4. TypeScript strict; no `any`; validate external input with Zod.
@@ -136,7 +163,7 @@ production database that lacks its tables.
 7. Conventional commits (`feat:`, `fix:`, `chore:`, `db:`); small commits; `build` + `typecheck` (and `npm test` when relevant) must pass before pushing.
 8. Anything that would break an existing church instance on upgrade (renamed columns, changed email links) needs a migration path and a note in that issue's `PHASES.md` entry.
 9. UI language: modern, clean, fast. Sunday-morning-proof: big touch targets, obvious states, minimal clicks for the common tasks (view this week's plan, respond to a request).
-10. Verify on the local stack before deploying: `npx supabase db reset --local`, seed test users (local auth admin API + `docker exec supabase_db_lscroster psql`), drive the UI in a browser, and probe RLS at the API level with a member JWT — hidden buttons are not security.
+10. Verify on the local stack before deploying: `npx supabase db reset --local`, seed test users (local auth admin API + `docker exec supabase_db_lscroster psql`), drive the UI in a browser, and probe RLS at the API level with a member JWT — hidden buttons are not security. See `PHASES.md` for the local grant gotcha after `db reset --local`.
 11. Use the todo_write tool for any multi-step or complex task (3+ steps). Mark items completed as you finish them; do not batch completions.
 12. For ambiguous architecture, high-impact refactors, or unclear requirements, consider entering plan mode first (`enter_plan_mode`).
 
@@ -146,13 +173,16 @@ Grok automatically loads project instruction files. This `GROK.md` lives alongsi
 
 - For guaranteed loading by Grok regardless of name, files are also placed under `.grok/rules/`.
 - Always prefer the content in these files over generic assumptions.
-- When in doubt about next actions, re-read `PHASES.md` and the open backlog section.
+- When in doubt about next actions, re-read `PHASES.md` (especially Post-Phase-4) and the open GitHub issues.
 
 ## Glossary (Planning Center terminology we mirror)
 
 - **Service type** — recurring gathering (e.g. "Sunday 10am").
 - **Plan** — one dated instance of a service type, with an order of service and scheduled people.
 - **Plan item** — a row in the order of service: header, song, or generic item, with a duration.
+- **Arrangement** — a playable version of a song (or medley of songs) with key/BPM/meter and versioned lyrics; what a plan item actually references.
 - **Team / Position** — e.g. Worship team / Acoustic guitar; people are scheduled into positions on a plan.
+- **Team Leader / Team Viewer** — per-team grants; TL can manage that team's roster; TV is read-only for that team's plans/assignments.
 - **Blockout** — a date range a person is unavailable.
 - **Scheduling request** — pending assignment a person accepts/declines (via email link or in-app).
+- **Conditional rule** — if the person in a trigger position matches a condition (sex / specific person / any), then target positions need a count, a specific person, or the same person (cross-team mirror).

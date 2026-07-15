@@ -6,7 +6,7 @@ See the root `GROK.md` (and `CLAUDE.md`) for the full detailed instructions. Key
 
 ## Critical standing instructions
 
-- Follow `PHASES.md` strictly. Work only on the current phase or open GitHub issues. Tick checkboxes. Do not start Phase 5 (distribution) without Manoj's confirmation.
+- Follow `PHASES.md` strictly. Work only on open GitHub issues or the current phase. Tick checkboxes. Do not start Phase 5 (distribution) without Manoj's confirmation.
 - Single-tenant architecture: NO `tenant_id`, no multi-tenancy ever.
 - All schema via timestamped migrations only + types + RLS.
 - Tech stack is locked (see full table in root GROK.md / CLAUDE.md).
@@ -17,7 +17,7 @@ See the root `GROK.md` (and `CLAUDE.md`) for the full detailed instructions. Key
 
 ## Working rules (abridged)
 
-1. PHASES.md first.
+1. PHASES.md first (Post-Phase-4 section + open issues).
 2. Never destructive ops on linked prod DB without explicit confirmation.
 3. Migration + types + RLS together.
 4. Strict TypeScript, no `any`.
@@ -34,6 +34,6 @@ Full details (repository layout, database rules, auth flow, commands, gotchas, l
 
 ## Reference
 
-- Current status: Phases 0-4 deployed. Work is issue-driven (`mvmran/lscroster` GitHub).
-- Post-Phase-4 enhancements and open backlog are listed in `PHASES.md`.
-- Always cross-check against the latest `PHASES.md` content.
+- **Current status (2026-07-15):** Phases 0–4 deployed. Phase 5 not started. Work is issue-driven (`mvmran/lscroster`).
+- Schema through ~0038 (`conditional_rule_person_effects`); 37 migration files. See root `GROK.md` "Current state" for recently shipped features and open backlog snapshot.
+- Post-Phase-4 enhancements, upgrade notes, and local-stack gotchas are in `PHASES.md` — always cross-check the latest content there.
