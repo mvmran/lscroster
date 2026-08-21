@@ -570,9 +570,47 @@ and the demo roster double-booked two people. Screenshots (dashboard,
 plan, matrix, phone respond page, Settings → Church) were captured headlessly
 from that demo instance into `docs/screenshots/` — light mode, 2× DPR, demo data
 only, so no real person's details are published; `docs/screenshots/README.md`
-records the recipe for re-shooting. **Still outstanding:** the real
-second-instance dry run — new Supabase + Vercel projects, timed end-to-end,
-against the docs alone.
+records the recipe for re-shooting.
+
+**Dry run (second instance, hosted, 2026-08-21).** A genuinely independent
+instance — new Supabase project (`lscroster-dryrun`, ap-southeast-2) and new
+Vercel project, from a fresh clone at `C:\dev\lscroster-dryrun`, against the
+docs alone. **36 minutes wall clock, zero code changes**, so the Phase 5
+acceptance criterion holds.
+
+| Step | Time | |
+| --- | --- | --- |
+| 1 clone + `npm install` | 1m05s | |
+| 2 create project | ~40s | `supabase projects create` works as well as the dashboard |
+| 3 `link` + `db push` | 12s | all 39 migrations |
+| 4 `functions deploy` | 1m30s | 16 functions, **no Docker needed** |
+| 5 Vercel | 2m | CLI path; see caveat below |
+| 6–7 secrets + Vault | ~1m | |
+| 8–9 dashboard toggles + wizard | Manoj | |
+
+Verified on the new instance: 40 tables all with RLS on, 4 storage buckets, 31
+db functions; `/auth/v1/signup` returns `422 signup_disabled`; anon holds only
+`church_settings` (demo data present but invisible — `people` refuses at the
+grant level, everything else filters to `[]`); demo seed loads, wipes exactly
+and reloads on a *hosted* database, not just locally; and the hourly job fired
+by itself at the top of the hour — `cron.job_run_details` `succeeded`,
+`net._http_response` `200 {"ok":true,"skipped":"outside send hour"}` — proving
+the pg_cron → pg_net → function → Vault-secret chain end to end on a project
+that was empty an hour earlier.
+
+Doc fixes it produced: warn that `npm install`'s vulnerability summary and the
+absence of Docker are both fine (step 1); say that a 2026 project shows the key
+as `sb_publishable_…` (step 5); add the `job_run_details` query that proves the
+cron actually called the function (step 7); add the `signup` curl that proves
+sign-ups are shut (step 8); replace "paste into the SQL Editor" with
+`db query --linked -f` for demo load and wipe (step 11).
+
+**Caveat, recorded deliberately:** step 5 was done with the Vercel CLI
+(`project add` → `link` → env vars → `deploy --prod`), not the documented
+"import your fork at vercel.com/new". The git-connected import is stock Vercel
+behaviour and is what the LSC instance runs on, but it was not re-exercised
+here. `vercel link` also appends `VERCEL_OIDC_TOKEN` to `.env.local` (appends —
+it does not clobber).
 
 ---
 

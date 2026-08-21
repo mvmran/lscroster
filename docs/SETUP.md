@@ -50,6 +50,13 @@ npm install
 Forking (rather than downloading a zip) is what makes upgrades easy later — see
 [UPGRADE.md](UPGRADE.md).
 
+Two things that look alarming and are not. `npm install` ends with a summary
+like `13 vulnerabilities (7 high)` — that is npm reporting published advisories
+across the whole dependency tree, not a problem with your copy; fixes arrive
+with each release, which is the other reason to follow [UPGRADE.md](UPGRADE.md).
+And nothing in this guide needs Docker: it is only for running the app on your
+own machine (see [Running it locally](#running-it-locally-optional) at the end).
+
 ---
 
 ## Step 2 — Create your Supabase project
@@ -120,6 +127,10 @@ authenticates with its own single-use token).
    | `VITE_SUPABASE_URL` | `https://<your-project-ref>.supabase.co` |
    | `VITE_SUPABASE_ANON_KEY` | the **anon / publishable** key |
 
+   A project created today lists that key as `sb_publishable_…`; older projects
+   show a long `eyJ…` token labelled `anon`. Either works — do **not** use
+   anything labelled `secret` or `service_role`.
+
    Both are safe to expose in a browser — row-level security, not secrecy, is
    what protects your data.
 4. Click **Deploy** and note the URL Vercel gives you
@@ -182,6 +193,19 @@ Check the job is registered:
 npx supabase db query --linked "select jobname, schedule, active from cron.job"
 ```
 
+You should see `lscroster-reminders` on `0 * * * *`, active. After the next
+whole hour passes, this confirms it actually called the function and that your
+two secrets match:
+
+```bash
+npx supabase db query --linked "select d.status, r.status_code, r.content from cron.job_run_details d left join net._http_response r on true order by d.start_time desc limit 1"
+```
+
+`succeeded` with a `200` is what you want. A `401` means `reminders_cron_secret`
+and `CRON_SECRET` are not the same string. Outside a send hour the function
+replies `{"ok":true,"skipped":"outside send hour"}` — that is a healthy answer,
+not a failure.
+
 ---
 
 ## Step 8 — Lock down sign-ups and finish the auth settings
@@ -193,6 +217,16 @@ In the Supabase Dashboard:
    your admin account through a different, one-time-only path.
 2. **Authentication → URL Configuration**: set **Site URL** to your `APP_URL`,
    and add it to **Redirect URLs** as well. Password-reset links depend on this.
+
+This is the only step in the guide that needs the dashboard. To prove the first
+toggle took effect, ask the API to create an account — it should refuse:
+
+```bash
+curl -s -X POST "https://<your-project-ref>.supabase.co/auth/v1/signup" -H "apikey: <your-publishable-key>" -H "Content-Type: application/json" -d "{\"email\":\"nobody@example.com\",\"password\":\"not-a-real-password\"}"
+```
+
+Expect `{"code":422,...,"error_code":"signup_disabled"}`. Anything else means
+sign-ups are still open and anyone who finds your URL can create a login.
 
 ---
 
@@ -248,9 +282,13 @@ logs every send attempt with its result.
 
 If you want a populated app to click around before entering real people:
 
-- **Hosted:** Supabase Dashboard → **SQL Editor** → paste the contents of
-  [`supabase/seeds/demo-data.sql`](../supabase/seeds/demo-data.sql) → **Run**.
-- **Local:** `npm run db:demo`.
+```bash
+npx supabase db query --linked -f supabase/seeds/demo-data.sql
+```
+
+(Or paste [`supabase/seeds/demo-data.sql`](../supabase/seeds/demo-data.sql) into
+the Supabase Dashboard's **SQL Editor** and press **Run**. Locally, it is
+`npm run db:demo`.)
 
 You get three teams with positions, fifteen people, a weekly service type, six
 public-domain hymns and three plans — last Sunday, this Sunday fully rostered
@@ -262,9 +300,12 @@ accident.
 Remove it all whenever you like — the wipe matches only demo rows and leaves
 anything you added alone:
 
-- **Hosted:** run [`supabase/seeds/demo-wipe.sql`](../supabase/seeds/demo-wipe.sql)
-  in the SQL Editor.
-- **Local:** `npm run db:demo:wipe`.
+```bash
+npx supabase db query --linked -f supabase/seeds/demo-wipe.sql
+```
+
+(`npm run db:demo:wipe` locally.) It matches only rows the demo seed created, so
+the church, your admin account and anything you have entered yourself survive.
 
 ---
 
