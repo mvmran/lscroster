@@ -13,9 +13,10 @@ and a pre-rendered shell. Don't chase without Manoj's call.
 
 Since launch, work is **issue-driven** against the GitHub backlog
 (`mvmran/lscroster`) — see "Post-Phase-4 enhancements" below. **Phase 5
-(distribution) started 2026-08-21**: docs, screenshots, demo data and
-per-instance branding are done; the timed second-instance dry run is the one
-remaining item.
+(distribution) completed 2026-08-21** and shipped as **v1.0.0**: docs,
+screenshots, demo data, per-instance branding, and a second-instance dry run
+that stood up a genuinely independent church in 36 minutes with zero code
+changes.
 
 ---
 
@@ -527,7 +528,7 @@ blockouts, and email accept/decline.
 - [x] Resend setup guide including custom domain/DNS/DMARC (SETUP.md step 10)
 - [x] Backup guidance — `docs/BACKUPS.md` (what each Supabase plan gives you, `db dump`, storage files, restore, yearly fire drill)
 - [x] README: screenshots, feature list, comparison scope vs Planning Center, licence (GPLv3), CI badge, docs index
-- [ ] Dry run: deploy a second clean instance from the docs alone, timing it; fix every friction point found
+- [x] Dry run: deploy a second clean instance from the docs alone, timing it; fix every friction point found
 
 ### Acceptance criteria
 - A second, fully independent instance deployed using only the documentation, in under an hour, with zero code changes.
@@ -596,7 +597,9 @@ and reloads on a *hosted* database, not just locally; and the hourly job fired
 by itself at the top of the hour — `cron.job_run_details` `succeeded`,
 `net._http_response` `200 {"ok":true,"skipped":"outside send hour"}` — proving
 the pg_cron → pg_net → function → Vault-secret chain end to end on a project
-that was empty an hour earlier.
+that was empty an hour earlier. Manoj then walked step 12 on the live instance —
+invite, roster, send a scheduling request and answer it from the emailed link
+without logging in — and `email_log` recorded the send as `sent`.
 
 Doc fixes it produced: warn that `npm install`'s vulnerability summary and the
 absence of Docker are both fine (step 1); say that a 2026 project shows the key
@@ -622,7 +625,7 @@ see `docs/UPGRADE.md`.
 
 | Version | Date | Highlights |
 | --- | --- | --- |
-| _(unreleased)_ | | Phase 5 distribution: SETUP/UPGRADE/BACKUPS docs, demo data seed + wipe, per-instance accent colour (0039), README rewrite |
+| `v1.0.0` | 2026-08-21 | First distributable release. Phase 5: `docs/SETUP.md` / `UPGRADE.md` / `BACKUPS.md`, README rewrite with screenshots, demo data seed + wipe, per-instance accent colour (migration 0039 `brand_accent`). Proven by a second-instance dry run: new Supabase + Vercel projects from the docs alone in 36 minutes, zero code changes. **No action needed by existing instances** — 0039 is additive and defaults to the shipped indigo, so nothing changes appearance or behaviour on upgrade. |
 
 Anything that needs action from an instance owner on upgrade — a new secret, a
 manual step, a behaviour change their team will notice — must be called out in
