@@ -57,13 +57,15 @@ Church-specific configuration (name, logo, timezone, email sender) lives in a si
   /lib            # supabase client, helpers, constants
   /types          # generated DB types + shared types
 /supabase
+  seed.sql        # LOCAL-ONLY reset bootstrap (grants repair; loads no data)
+  /seeds          # demo-data.sql / demo-wipe.sql (evaluation data, ids start 0de00)
   /migrations     # ALL schema changes live here (timestamped SQL)
   /functions      # setup, invite, accept-invitation, delete-person,
                   # send-email, send-requests, respond-to-request, reminders,
                   # run-scheduled-job (admin "send now")
                   # (_shared/: resend, auth, email-log, scheduling,
                   #  roster-status, templates)
-/docs             # SETUP.md, UPGRADE.md, screenshots
+/docs             # SETUP.md, UPGRADE.md, BACKUPS.md, PROJECTION-API.md, screenshots/
 ```
 
 Storage buckets (all private, served via signed URLs): `photos`,
@@ -114,6 +116,7 @@ npx supabase db push --yes       # apply migrations to the linked (production) p
 npx supabase functions deploy <name>
 npx supabase functions serve --env-file .env.functions.local   # run functions locally
 npx supabase db query --linked "<sql>"   # run SQL on production (vault, cron checks)
+npm run db:demo                  # load demo data into the local DB (db:demo:wipe removes it)
 ```
 
 During development, generate types from the **local** stack instead of production:
@@ -127,7 +130,7 @@ production database that lacks its tables.
 
 ## Working rules for Claude Code
 
-1. Follow `PHASES.md`. Work on the current phase only; tick checkboxes as items complete. Don't start a new phase without confirmation.
+1. Follow `PHASES.md`. Work on the current phase only; tick checkboxes as items complete. Don't start a new phase without confirmation. **Phase 5 (distribution) is in progress** — keep `docs/SETUP.md`, `docs/UPGRADE.md` and `.env.example` true whenever a step, secret or command changes, and never hard-code Life Sanctuary specifics into the app.
 2. **Never** run destructive commands against the linked production project (`db reset`, dropping tables, deleting storage buckets) without explicitly confirming with Manoj first. Local Docker DB is fair game.
 3. Every schema change = a new migration file + regenerated types + RLS policies in the same migration.
 4. TypeScript strict; no `any`; validate external input with Zod.

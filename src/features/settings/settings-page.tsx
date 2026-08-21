@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { CalendarDays, Loader2, Mail, ScrollText, X } from 'lucide-react'
+import { CalendarDays, Check, Loader2, Mail, ScrollText, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/page-header'
@@ -30,6 +30,11 @@ import {
   useChurchSettings,
   useUpdateChurchSettings,
 } from '@/features/settings/use-church-settings'
+import {
+  applyBrandHue,
+  BRAND_PRESETS,
+  presetName,
+} from '@/lib/brand'
 import { invokeFunction } from '@/lib/functions'
 import { cn } from '@/lib/utils'
 
@@ -135,19 +140,86 @@ function LogoField({
   )
 }
 
+/**
+ * Accent colour picker (Phase 5). Every branded token derives from one oklch
+ * hue, so a swatch grid is the whole feature — clicking one previews it live
+ * across the app; it only persists when the form is saved.
+ */
+function AccentField({
+  hue,
+  onChange,
+}: {
+  hue: number
+  onChange: (hue: number) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>Accent colour</Label>
+      <p className="text-muted-foreground text-xs">
+        Tints buttons, links and the sidebar throughout the app — currently{' '}
+        <span className="font-medium">{presetName(hue)}</span>. Changes preview
+        immediately and apply for everyone once saved.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {BRAND_PRESETS.map((preset) => {
+          const selected = preset.hue === hue
+          return (
+            <button
+              key={preset.hue}
+              type="button"
+              onClick={() => onChange(preset.hue)}
+              aria-label={preset.name}
+              aria-pressed={selected}
+              title={preset.name}
+              className={cn(
+                'flex size-9 items-center justify-center rounded-full transition',
+                'ring-offset-background focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
+                selected
+                  ? 'ring-foreground ring-2 ring-offset-2'
+                  : 'hover:scale-110',
+              )}
+              style={{ backgroundColor: `oklch(0.51 0.22 ${preset.hue})` }}
+            >
+              {selected && <Check className="size-4 text-white" />}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function ChurchSettingsForm({ settings }: { settings: ChurchSettings }) {
   const updateSettings = useUpdateChurchSettings()
   const [name, setName] = useState(settings.name)
   const [address, setAddress] = useState(settings.address ?? '')
+  const [hue, setHue] = useState(settings.brand_hue)
+  const savedHue = useRef(settings.brand_hue)
 
   const dirty =
-    name.trim() !== settings.name || address.trim() !== (settings.address ?? '')
+    name.trim() !== settings.name ||
+    address.trim() !== (settings.address ?? '') ||
+    hue !== settings.brand_hue
+
+  // Preview the accent live, and put the saved one back if the admin navigates
+  // away without saving.
+  useEffect(() => {
+    applyBrandHue(hue)
+  }, [hue])
+  useEffect(() => {
+    const saved = savedHue.current
+    return () => applyBrandHue(saved)
+  }, [])
 
   function save() {
     updateSettings.mutate(
       {
         id: settings.id,
-        values: { name: name.trim(), address: address.trim() || null },
+        values: {
+          name: name.trim(),
+          address: address.trim() || null,
+          brand_hue: hue,
+        },
       },
       {
         onSuccess: () => toast.success('Church details saved'),
@@ -177,6 +249,7 @@ function ChurchSettingsForm({ settings }: { settings: ChurchSettings }) {
           <LogoField settings={settings} variant="dark" />
         </div>
       </div>
+      <AccentField hue={hue} onChange={setHue} />
       <div className="flex flex-col gap-2">
         <Label htmlFor="church-address">Address</Label>
         <Textarea
@@ -216,7 +289,7 @@ function ChurchSettingsCard({ canEdit }: { canEdit: boolean }) {
         <CardTitle>Church</CardTitle>
         <CardDescription>
           {canEdit
-            ? 'Your church name and address. The address appears on plan-publish emails.'
+            ? 'Your church name, logo, accent colour and address. The address appears on plan-publish emails.'
             : 'Instance configuration created by the setup wizard.'}
         </CardDescription>
       </CardHeader>

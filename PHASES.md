@@ -13,7 +13,9 @@ and a pre-rendered shell. Don't chase without Manoj's call.
 
 Since launch, work is **issue-driven** against the GitHub backlog
 (`mvmran/lscroster`) — see "Post-Phase-4 enhancements" below. **Phase 5
-(distribution) has not started; needs Manoj's confirmation.**
+(distribution) started 2026-08-21**: docs, demo data and per-instance branding
+are done; the timed second-instance dry run and the screenshot files are the
+remaining items.
 
 ---
 
@@ -362,6 +364,11 @@ pickers. NB: `SaveConditionalRuleVars`/`toConditionalRule` now speak the
 unions; `useAllConditionalRules` embeds person names via the two FK hints.
 No new env vars/cron.
 
+(0039) `brand_accent` (Phase 5): `church_settings.brand_hue` smallint 0–360,
+default 278 — the per-instance accent colour, picked from a swatch grid in
+Settings → Church and applied to `--brand-hue` at runtime. Additive and
+default-identical, so no instance changes appearance on upgrade.
+
 **Upgrade note (0023 — per-team access grants):** management is no longer
 global. After `db push`, an existing global **Leader** keeps governance (create
 teams, appoint Team Leaders/Viewers on any team) and broad read, but can no
@@ -512,18 +519,72 @@ blockouts, and email accept/decline.
 **Goal:** any reasonably technical person at another church can stand up their own instance.
 
 ### Deliverables
-- [ ] `docs/SETUP.md`: step-by-step — fork repo → create Supabase project → run migrations (`supabase db push`) → set secrets → deploy to Vercel → first-run wizard. Include screenshots.
-- [ ] "Deploy with Vercel" button in README
-- [ ] Seed script with demo data (sample service type, songs, team) for evaluation, plus a wipe-demo-data command
-- [ ] `docs/UPGRADE.md`: pull latest → `supabase db push` → redeploy; versioned releases (git tags), per-release notes in `PHASES.md`
-- [ ] Branding configurable per instance: church name, logo, colour accent, email sender — all via Settings, no code edits
-- [ ] Resend setup guide including custom domain/DNS for good email deliverability
-- [ ] Backup guidance (Supabase backups; manual `pg_dump` instructions)
-- [ ] README: screenshots, feature list, comparison scope vs Planning Center, licence (GPLv3)
+- [x] `docs/SETUP.md`: step-by-step — fork repo → create Supabase project → run migrations (`supabase db push`) → deploy functions → Vercel → secrets + Vault → auth lockdown → first-run wizard → Resend domain → optional demo data → verification checklist + troubleshooting. _(Screenshot files still to be captured — see `docs/screenshots/README.md` for the shot list.)_
+- [x] "Deploy with Vercel" button in README
+- [x] Seed script with demo data (`supabase/seeds/demo-data.sql`, `npm run db:demo`) plus a wipe (`demo-wipe.sql`, `npm run db:demo:wipe`)
+- [x] `docs/UPGRADE.md`: pull the tagged release into your fork → `db push` → `functions deploy` → push to `main`; database-first order, rollback, local trial run
+- [x] Branding configurable per instance: church name, logo, **accent colour** (migration 0039 `brand_accent`) and address — all via Settings, no code edits
+- [x] Resend setup guide including custom domain/DNS/DMARC (SETUP.md step 10)
+- [x] Backup guidance — `docs/BACKUPS.md` (what each Supabase plan gives you, `db dump`, storage files, restore, yearly fire drill)
+- [x] README: feature list, comparison scope vs Planning Center, licence (GPLv3), CI badge, docs index
 - [ ] Dry run: deploy a second clean instance from the docs alone, timing it; fix every friction point found
 
 ### Acceptance criteria
 - A second, fully independent instance deployed using only the documentation, in under an hour, with zero code changes.
+
+### Phase 5 notes
+
+**Accent colour (migration 0039 `brand_accent`).** `church_settings.brand_hue`
+(smallint 0–360, default 278 = the shipped indigo, so existing instances are
+byte-identical after the migration). The whole theme already derived from one
+`--brand-hue` oklch variable in `src/index.css`; `src/lib/brand.ts` holds the
+presets/clamp/localStorage cache, `src/app/brand-accent.tsx` applies the saved
+hue above the router (church_settings is anon-readable, so the sign-in page is
+branded too), and `main.tsx` re-applies the cached hue synchronously at boot to
+avoid a flash of indigo on every reload. The Settings → Church swatch grid
+previews live and reverts on navigate-away if not saved. RLS unchanged:
+admin-only write, everyone (incl. anon) reads.
+
+**Demo data.** Every demo row's id starts with `0de00`, which is what makes the
+wipe exact — it deletes only demo rows and leaves real data alone. Demo people
+have **no email address** on purpose (they can't be invited or emailed by
+accident), the songs are public-domain hymns only, and plan dates are computed
+relative to `current_date` so the demo always looks current. The rosters are
+deliberately clash-free — an out-of-the-box "Double-booked" warning was the
+first thing the dry run surfaced.
+
+**`supabase/seed.sql` (local only).** Loads no data — a fresh local stack must
+land on the setup wizard, like a new church. It repairs the local DML-grants
+quirk (see the gotcha above) and deliberately excludes `people` from the blanket
+grant so migration 0024's column-level lock on email/phone/birthday stays
+intact; a blanket grant there would mask a real security regression. Seeds never
+run against a hosted project.
+
+**Dry run (local, 2026-08-21).** `db reset --local` → wizard on a fresh DB →
+demo data → drive the UI. Verified: all 39 migrations apply from scratch; the
+`setup` Edge Function creates church + first admin and signs in; demo data loads
+and wipes cleanly (idempotent both ways); accent colour persists and RLS holds
+(member read ✓, member write ✗, anon write ✗). Friction fixed: the wizard's
+church-name placeholder was hard-coded to "Life Sanctuary Church" (now generic)
+and the demo roster double-booked two people. **Still outstanding:** the real
+second-instance dry run (new Supabase + Vercel projects, timed end-to-end) and
+the screenshot files.
+
+---
+
+## Releases
+
+Versioned as `v<major>.<minor>.<patch>` git tags; each tag gets a GitHub release
+whose notes are mirrored here. Other churches upgrade tag-to-tag —
+see `docs/UPGRADE.md`.
+
+| Version | Date | Highlights |
+| --- | --- | --- |
+| _(unreleased)_ | | Phase 5 distribution: SETUP/UPGRADE/BACKUPS docs, demo data seed + wipe, per-instance accent colour (0039), README rewrite |
+
+Anything that needs action from an instance owner on upgrade — a new secret, a
+manual step, a behaviour change their team will notice — must be called out in
+that release's notes.
 
 ---
 

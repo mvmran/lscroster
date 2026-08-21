@@ -111,7 +111,7 @@ export function SetupPage() {
               <Label htmlFor="churchName">Church name</Label>
               <Input
                 id="churchName"
-                placeholder="Life Sanctuary Church"
+                placeholder="Your church's name"
                 {...form.register('churchName')}
               />
               {errors.churchName && (

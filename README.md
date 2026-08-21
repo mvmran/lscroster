@@ -1,87 +1,170 @@
 # LSCroster
 
-Open-source worship & service planning for churches — a lightweight,
-self-hosted alternative to Planning Center **Services** with a built-in
-people directory.
+**Open-source worship & service planning for churches** — a self-hosted
+alternative to Planning Center **Services**, with a built-in people directory.
 
-Each church runs its **own independent instance**: one repo fork, one
+Plan your order of service, roster your teams, let people accept or decline from
+their phone without logging in, and stop chasing replies in a group chat.
+
+[![CI](https://github.com/mvmran/lscroster/actions/workflows/ci.yml/badge.svg)](https://github.com/mvmran/lscroster/actions/workflows/ci.yml)
+[![Licence: GPL v3](https://img.shields.io/badge/licence-GPLv3-blue.svg)](LICENSE)
+
+Each church runs its **own independent instance**: one repository fork, one
 [Supabase](https://supabase.com) project, one [Vercel](https://vercel.com)
-deployment. No multi-tenancy, no SaaS — your data stays in your own project,
-comfortably inside free hosting tiers for a typical congregation (~50 users).
+deployment. No multi-tenancy, no SaaS, no per-seat pricing — your data sits in
+your own database, comfortably inside the free tiers for a typical congregation
+(~50 users, roughly $0/month).
 
-> Built for Life Sanctuary Church, Sydney. Designed to be deployed by any
-> church — see `docs/SETUP.md` (coming in Phase 5) for the full guide.
+**→ [Set up your own instance](docs/SETUP.md)** (about 45 minutes, no coding)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmvmran%2Flscroster&env=VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY&envDescription=Your%20Supabase%20project%20URL%20and%20anon%20key&envLink=https%3A%2F%2Fgithub.com%2Fmvmran%2Flscroster%2Fblob%2Fmain%2Fdocs%2FSETUP.md&project-name=lscroster&repository-name=lscroster)
+
+The button handles the hosting half. Create your Supabase project and run the
+migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in order.
+
+---
+
+## What it does
+
+**Services**
+- Service types (e.g. "Sunday 10am") and dated plans, with recurring plan
+  generation — create the next eight Sundays in one go
+- Drag-and-drop order of service: headers, songs and items with durations and a
+  running clock
+- Multiple times per plan (rehearsal + service), shown in emails and My Schedule
+- Print-ready run sheet and PDF export; lyrics sheets for the band
+- Plan attachments and notes; draft vs published, so nobody sees a half-built plan
+
+**Songs**
+- Song library with authors, CCLI numbers, copyright, tags and usage reports
+  (frequency, last played, by service type)
+- Arrangements per song — key, BPM, meter, reference recording, versioned lyrics
+- Medleys: one arrangement spanning several songs, counted for every song it
+  contains
+
+**Scheduling**
+- Teams, positions, and per-person qualifications with trainee/qualified levels
+- Matrix view: weeks × positions across upcoming plans, rostered inline
+- Auto-scheduling suggestions that respect qualifications, blockouts, fairness
+  and how recently someone served
+- Scheduling rules — pairings, exclusions, per-plan minimums, and conditional
+  rules ("if a woman leads worship, roster two female vocalists")
+- Blockouts: people mark themselves unavailable; the roster respects it
+- **Answer without logging in** — the emailed link is the credential, so replies
+  actually come back
+
+**Email**
+- Scheduling requests, nudges for silence, reminders before the service, a
+  publish notification and a weekly roster-status digest for leaders
+- A worship set-list email at publish time, laid out like the Word document your
+  team already uses
+- Every send logged, with the delivery result, in Settings → Email delivery
+
+**People & admin**
+- People directory that works with or without logins — half a church roll has no
+  intention of ever signing in, and that is fine
+- Invite-only accounts, roles (admin / leader / member), per-team leaders and
+  read-only viewers
+- Managed accounts for people who need someone answering on their behalf
+- Contact-detail visibility rules, an audit log of who changed what, and a
+  read-only Projection API for your projection software
+  ([PROJECTION-API.md](docs/PROJECTION-API.md))
+
+Mobile-first throughout, installable to a phone's home screen, with a dark mode
+and an accent colour you pick in Settings.
+
+---
+
+## How it compares to Planning Center
+
+LSCroster deliberately mirrors **Services** and a light slice of **People**. It
+is not a Planning Center clone.
+
+| | LSCroster | Planning Center |
+| --- | --- | --- |
+| Service plans, order of service, songs | ✅ | ✅ |
+| Team scheduling, blockouts, email requests | ✅ | ✅ |
+| People directory | ✅ lightweight | ✅ full CRM |
+| Auto-scheduling with fairness + rules | ✅ | partial |
+| Projection API for your own software | ✅ | via integrations |
+| Check-ins, Giving, Groups, Registrations | ❌ | ✅ |
+| Native mobile apps | ❌ (installable web app) | ✅ |
+| SMS notifications, CCLI reporting integration | ❌ | ✅ |
+| Your data in your own database | ✅ | ❌ |
+| Cost at ~50 users | ~$0/month | paid tiers |
+
+If you need Check-ins or Giving, use Planning Center — it is a good product. If
+you want your rosters and plans to be yours, run this.
+
+---
+
+## Screenshots
+
+See [docs/screenshots](docs/screenshots) — dashboard, plan with order of service,
+the scheduling matrix, and the phone view of a scheduling request.
+
+---
 
 ## Stack
 
 Vite + React + TypeScript · Tailwind CSS + shadcn/ui · TanStack Query ·
-React Router · Supabase (Postgres, Auth, Storage, Edge Functions) · Resend ·
-Vercel
+React Router · Supabase (Postgres, Auth, Storage, Edge Functions, pg_cron) ·
+Resend · Vercel
+
+Everything runs on managed free tiers; there is no server to patch.
+
+---
 
 ## Local development
 
-```sh
+Requires Node 20+ and Docker Desktop.
+
+```bash
 npm install
-npx supabase start         # local Supabase stack (requires Docker)
-cp .env.example .env.local # fill in the URL + anon key printed by supabase start
+npx supabase start
+cp .env.example .env.local   # fill in the URL + anon key printed by supabase start
 npm run dev
 ```
 
-On first load the app shows a one-time setup wizard that creates your church
-and the first admin account.
-
-## Commands
+A fresh local database is empty, so the app opens its one-time setup wizard —
+the same first-run experience a new church gets. `npm run db:demo` loads a demo
+church to click around in.
 
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | local dev server |
 | `npm run build` | production build |
-| `npm run lint` | eslint |
-| `npm run typecheck` | TypeScript check |
-| `npm run db:types` | regenerate `src/types/database.ts` from the linked project |
-| `npx supabase start` | local Supabase stack (Docker) |
-| `npx supabase db reset` | rebuild local DB from migrations |
-| `npx supabase db push` | apply migrations to the linked production project |
+| `npm run lint` / `npm run typecheck` / `npm test` | checks CI also runs |
+| `npm run db:demo` / `npm run db:demo:wipe` | load / remove the demo data |
+| `npx supabase db reset --local` | rebuild the local DB from migrations |
+| `npx supabase db push` | apply migrations to your linked project |
+| `npx supabase functions deploy` | deploy the Edge Functions |
 
-## Deployment (summary)
+Schema changes are always a new migration file — never a dashboard edit — which
+is what makes upgrades safe for every church running a copy.
 
-1. Create a Supabase project (choose your nearest region), then
-   `npx supabase link` and `npx supabase db push`.
-2. Disable public signups: Dashboard → Authentication → Sign In / Up →
-   turn off "Allow new users to sign up".
-3. Deploy Edge Functions:
-   `npx supabase functions deploy setup send-email invite accept-invitation delete-person`,
-   then set secrets:
-   `npx supabase secrets set RESEND_API_KEY=... EMAIL_FROM=... APP_URL=...`
-   (`APP_URL` is the public URL of the app — invitation emails build their
-   links from it.)
-4. Import the repo into Vercel; set `VITE_SUPABASE_URL` and
-   `VITE_SUPABASE_ANON_KEY` env vars. Every push to `main` auto-deploys.
-5. Open the deployed URL and complete the setup wizard.
+---
 
-### Custom domain & email deliverability
+## Documentation
 
-- Add your domain in Vercel (Project → Settings → Domains) and mark it as the
-  primary domain so the `*.vercel.app` URL redirects to it.
-- Verify the domain in Resend (Domains → Add Domain → add the SPF/DKIM DNS
-  records). Use a sender on that domain for `EMAIL_FROM`. Adding a DMARC TXT
-  record (`v=DMARC1; p=none;`) further improves deliverability.
-- Update the secrets to match: `npx supabase secrets set
-  EMAIL_FROM=roster@yourdomain APP_URL=https://yourdomain`.
-- In Supabase: Authentication → URL Configuration → set **Site URL** to your
-  domain and add it to **Redirect URLs** (used by auth emails such as future
-  password resets).
+| Guide | |
+| --- | --- |
+| [SETUP.md](docs/SETUP.md) | stand up your own instance, start to finish |
+| [UPGRADE.md](docs/UPGRADE.md) | pull a new release into your fork |
+| [BACKUPS.md](docs/BACKUPS.md) | backing up and restoring your data |
+| [PROJECTION-API.md](docs/PROJECTION-API.md) | read-only API for projection software |
+| [PHASES.md](PHASES.md) | build history, release notes and design decisions |
 
-## Deploying changes
+---
 
-- **Frontend** — push/merge to `main`; Vercel builds and deploys automatically.
-- **Schema** — add a migration (`npx supabase migration new ...`), test locally
-  (`npx supabase db reset`), then `npx supabase db push` and commit the
-  regenerated types (`npm run db:types`).
-- **Edge Functions** — `npx supabase functions deploy <name>`.
-- **Secrets** — `npx supabase secrets set KEY=value` (takes effect on next
-  invocation; no redeploy needed).
+## Contributing
+
+Issues and pull requests are welcome at
+[github.com/mvmran/lscroster](https://github.com/mvmran/lscroster). If you are
+running your own instance and hit a rough edge in the setup docs, that is worth
+an issue too — the docs are meant to work without a conversation.
 
 ## Licence
 
-[GPLv3](LICENSE)
+[GPLv3](LICENSE). Run it, modify it, deploy it for your church; if you distribute
+a modified version, share those changes under the same licence.

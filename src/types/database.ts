@@ -118,6 +118,7 @@ export type Database = {
       church_settings: {
         Row: {
           address: string | null
+          brand_hue: number
           created_at: string
           email_from_name: string | null
           id: string
@@ -138,6 +139,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          brand_hue?: number
           created_at?: string
           email_from_name?: string | null
           id?: string
@@ -158,6 +160,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          brand_hue?: number
           created_at?: string
           email_from_name?: string | null
           id?: string

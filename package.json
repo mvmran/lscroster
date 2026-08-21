@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "db:types": "supabase gen types typescript --linked > src/types/database.ts"
+    "db:types": "supabase gen types typescript --linked > src/types/database.ts",
+    "db:demo": "docker exec -i supabase_db_lscroster psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/seeds/demo-data.sql",
+    "db:demo:wipe": "docker exec -i supabase_db_lscroster psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/seeds/demo-wipe.sql"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
