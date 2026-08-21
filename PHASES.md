@@ -2,14 +2,15 @@
 
 Solo developer, vibe-coded with Claude Code. Each phase ends with a **usable release**
 deployed to the live Life Sanctuary Church instance. Tick boxes as work completes.
-**Phases 0–4 are deployed to production.** Phase 3's real-user parallel run
-continues alongside. Two Phase-4 acceptance items is now closed: (a) the worship
-pastor rosters a month in one sitting via the matrix view on prod, and (b) a
-call on whether to chase the Lighthouse performance target (production mobile:
-accessibility 98 ✓, performance 64). The perf gap is dominated by simulated
-slow-4G + 4× CPU throttling against an SPA shell — on real connections first
-paint is sub-second; closing it would need vendor-chunk tuning, deferred fonts
-and a pre-rendered shell. Don't chase without Manoj's call.
+**Phases 0–5 are complete and deployed to production.** Phase 3's real-user
+parallel run continues alongside. Phase 4's acceptance items are both closed:
+the worship pastor rosters a month in one sitting via the matrix view on prod,
+and the Lighthouse criterion is met on accessibility (98) and **deliberately not
+pursued on performance** (production mobile 64). Manoj's call, 2026-08-21: that
+score is Lighthouse's simulated slow-4G + 4× CPU profile against an SPA shell,
+not what the congregation experiences on real phones. Reopening it would mean a
+pre-rendered shell, getting the Supabase client off the sign-in path and
+`manualChunks` tuning — don't start any of that without asking him again.
 
 Since launch, work is **issue-driven** against the GitHub backlog
 (`mvmran/lscroster`) — see "Post-Phase-4 enhancements" below. **Phase 5
@@ -510,8 +511,8 @@ blockouts, and email accept/decline.
 - [x] Accessibility pass (keyboard, focus states, contrast) _(dialog descriptions added; Lighthouse accessibility 98)_
 
 ### Acceptance criteria
-- Worship pastor can roster a month in one sitting via the matrix view.
-- Lighthouse: 90+ performance and accessibility on key pages.
+- [x] Worship pastor can roster a month in one sitting via the matrix view. _(confirmed on prod)_
+- [x] Lighthouse: 90+ performance and accessibility on key pages. _(accessibility 98 ✓; performance 64 — closed as won't-chase, see the note at the top of this file)_
 
 ---
 
