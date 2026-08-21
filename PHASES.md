@@ -13,9 +13,9 @@ and a pre-rendered shell. Don't chase without Manoj's call.
 
 Since launch, work is **issue-driven** against the GitHub backlog
 (`mvmran/lscroster`) — see "Post-Phase-4 enhancements" below. **Phase 5
-(distribution) started 2026-08-21**: docs, demo data and per-instance branding
-are done; the timed second-instance dry run and the screenshot files are the
-remaining items.
+(distribution) started 2026-08-21**: docs, screenshots, demo data and
+per-instance branding are done; the timed second-instance dry run is the one
+remaining item.
 
 ---
 
@@ -519,14 +519,14 @@ blockouts, and email accept/decline.
 **Goal:** any reasonably technical person at another church can stand up their own instance.
 
 ### Deliverables
-- [x] `docs/SETUP.md`: step-by-step — fork repo → create Supabase project → run migrations (`supabase db push`) → deploy functions → Vercel → secrets + Vault → auth lockdown → first-run wizard → Resend domain → optional demo data → verification checklist + troubleshooting. _(Screenshot files still to be captured — see `docs/screenshots/README.md` for the shot list.)_
+- [x] `docs/SETUP.md`: step-by-step — fork repo → create Supabase project → run migrations (`supabase db push`) → deploy functions → Vercel → secrets + Vault → auth lockdown → first-run wizard → Resend domain → optional demo data → verification checklist + troubleshooting, with screenshots
 - [x] "Deploy with Vercel" button in README
 - [x] Seed script with demo data (`supabase/seeds/demo-data.sql`, `npm run db:demo`) plus a wipe (`demo-wipe.sql`, `npm run db:demo:wipe`)
 - [x] `docs/UPGRADE.md`: pull the tagged release into your fork → `db push` → `functions deploy` → push to `main`; database-first order, rollback, local trial run
 - [x] Branding configurable per instance: church name, logo, **accent colour** (migration 0039 `brand_accent`) and address — all via Settings, no code edits
 - [x] Resend setup guide including custom domain/DNS/DMARC (SETUP.md step 10)
 - [x] Backup guidance — `docs/BACKUPS.md` (what each Supabase plan gives you, `db dump`, storage files, restore, yearly fire drill)
-- [x] README: feature list, comparison scope vs Planning Center, licence (GPLv3), CI badge, docs index
+- [x] README: screenshots, feature list, comparison scope vs Planning Center, licence (GPLv3), CI badge, docs index
 - [ ] Dry run: deploy a second clean instance from the docs alone, timing it; fix every friction point found
 
 ### Acceptance criteria
@@ -566,9 +566,13 @@ demo data → drive the UI. Verified: all 39 migrations apply from scratch; the
 and wipes cleanly (idempotent both ways); accent colour persists and RLS holds
 (member read ✓, member write ✗, anon write ✗). Friction fixed: the wizard's
 church-name placeholder was hard-coded to "Life Sanctuary Church" (now generic)
-and the demo roster double-booked two people. **Still outstanding:** the real
-second-instance dry run (new Supabase + Vercel projects, timed end-to-end) and
-the screenshot files.
+and the demo roster double-booked two people. Screenshots (dashboard,
+plan, matrix, phone respond page, Settings → Church) were captured headlessly
+from that demo instance into `docs/screenshots/` — light mode, 2× DPR, demo data
+only, so no real person's details are published; `docs/screenshots/README.md`
+records the recipe for re-shooting. **Still outstanding:** the real
+second-instance dry run — new Supabase + Vercel projects, timed end-to-end,
+against the docs alone.
 
 ---
 

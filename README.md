@@ -100,8 +100,12 @@ you want your rosters and plans to be yours, run this.
 
 ## Screenshots
 
-See [docs/screenshots](docs/screenshots) — dashboard, plan with order of service,
-the scheduling matrix, and the phone view of a scheduling request.
+| | |
+| --- | --- |
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Plan with order of service](docs/screenshots/plan.png) |
+| **Home** — this week's service and your upcoming dates | **A plan** — order of service with a running clock, rosters below |
+| ![Scheduling matrix](docs/screenshots/matrix.png) | <img src="docs/screenshots/request-phone.png" alt="Scheduling request on a phone" width="260"> |
+| **Matrix** — weeks across, positions down, rostered inline | **A scheduling request** — answered from the emailed link, no login |
 
 ---
 

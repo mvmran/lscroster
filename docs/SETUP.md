@@ -213,6 +213,8 @@ Go to **Settings → Church** and add your logo (light and dark versions) and yo
 accent colour. The whole interface re-tints instantly, and it applies to
 everyone — no code change, no redeploy.
 
+![Settings → Church, showing the logo tiles and accent colour swatches](screenshots/settings-church.png)
+
 ---
 
 ## Step 10 — Send email from your own domain
