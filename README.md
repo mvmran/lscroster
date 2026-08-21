@@ -7,6 +7,7 @@ Plan your order of service, roster your teams, let people accept or decline from
 their phone without logging in, and stop chasing replies in a group chat.
 
 [![CI](https://github.com/mvmran/lscroster/actions/workflows/ci.yml/badge.svg)](https://github.com/mvmran/lscroster/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/mvmran/lscroster?label=release)](https://github.com/mvmran/lscroster/releases/latest)
 [![Licence: GPL v3](https://img.shields.io/badge/licence-GPLv3-blue.svg)](LICENSE)
 
 Each church runs its **own independent instance**: one repository fork, one
@@ -158,6 +159,7 @@ is what makes upgrades safe for every church running a copy.
 | [BACKUPS.md](docs/BACKUPS.md) | backing up and restoring your data |
 | [PROJECTION-API.md](docs/PROJECTION-API.md) | read-only API for projection software |
 | [PHASES.md](PHASES.md) | build history, release notes and design decisions |
+| [Releases](https://github.com/mvmran/lscroster/releases) | what changed in each version, and anything you must do on upgrade |
 
 ---
 

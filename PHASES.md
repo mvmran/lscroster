@@ -632,6 +632,12 @@ Anything that needs action from an instance owner on upgrade — a new secret, a
 manual step, a behaviour change their team will notice — must be called out in
 that release's notes.
 
+**The git tag is the version.** `package.json` deliberately stays at `0.0.0` —
+nothing reads it, the app is never published to npm, and Manoj's call (2026-08-21)
+was to keep releases a one-step operation rather than a version-bump commit
+followed by a tag. Don't "fix" it. To cut a release: commit, `git tag -a vX.Y.Z`,
+push both, `gh release create`, and mirror the notes into the table above.
+
 ---
 
 ## Out of scope (for now — keep the codebase ready, but do not build)

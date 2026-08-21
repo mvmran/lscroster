@@ -8,6 +8,10 @@ This guide takes about **45 minutes**, most of it waiting for accounts to be
 created. You need to be comfortable copying commands into a terminal; you do not
 need to know how to write code, and you will not edit a single source file.
 
+(We time this. The last run, with the four accounts already in place, took 36
+minutes end to end and changed no code — so budget the difference for signing
+up.)
+
 **What you will end up with**
 
 - your roster app at a URL you choose (e.g. `https://roster.yourchurch.org`)

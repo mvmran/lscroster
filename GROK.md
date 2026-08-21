@@ -5,7 +5,7 @@ This is the project instruction file for Grok (xAI). It mirrors CLAUDE.md for co
 ## Current state (as of 2026-08-21)
 
 - **Phases 0–4 are deployed** to production (Life Sanctuary Church). Phase 3's real-user parallel run continues alongside.
-- **Phase 5 (distribution) is in progress** (started 2026-08-21): `docs/SETUP.md`, `docs/UPGRADE.md`, `docs/BACKUPS.md`, README rewrite, demo-data seed + wipe (`npm run db:demo`) and per-instance accent colour (migration 0039) are done; the timed second-instance dry run and screenshot files remain.
+- **Phase 5 (distribution) is complete** — released as **v1.0.0** on 2026-08-21: `docs/SETUP.md`, `docs/UPGRADE.md`, `docs/BACKUPS.md`, README rewrite with screenshots, demo-data seed + wipe (`npm run db:demo`) and per-instance accent colour (migration 0039). Proven by a second-instance dry run: new Supabase + Vercel projects from the docs alone in 36 minutes, zero code changes.
 - Work is **issue-driven** against the GitHub backlog (`mvmran/lscroster`). Prefer open issues + the "Post-Phase-4 enhancements" section of `PHASES.md` over phase checklists.
 - **Schema:** 39 migrations in `supabase/migrations/`, through `brand_accent` (PHASES 0039). After pulling schema changes, regenerate types from the **local** stack.
 - **Recently shipped (post-Phase 4):** conditional relationship rules incl. person/same-person effects (#113); Projection API (#135); worship set-list email + team types (#133/#134); arrangement-centric songs, medleys, versioned lyrics (#130); audit log (#116); roster-status digest (#117); configurable scheduled-job hours (#120); team leaders/viewers; managed accounts; contact visibility; plan min-count overrides; indigo/3D UI modernization (client-only).
@@ -155,7 +155,7 @@ production database that lacks its tables.
 
 ## Working rules for Grok (and Claude Code compatibility)
 
-1. **Follow `PHASES.md`.** Work on open GitHub issues or the current phase only; tick checkboxes as items complete. Don't start a new phase without explicit confirmation from Manoj. Phase 5 (distribution) is in progress alongside the issue-driven backlog — keep `docs/SETUP.md`, `docs/UPGRADE.md` and `.env.example` true whenever a step, secret or command changes, and never hard-code Life Sanctuary specifics into the app.
+1. **Follow `PHASES.md`.** Phases 0–5 are complete (v1.0.0, 2026-08-21); work is now issue-driven against the GitHub backlog. Tick checkboxes as items complete, and don't start new phase-sized work without explicit confirmation from Manoj. Other churches now run copies, so keep `docs/SETUP.md`, `docs/UPGRADE.md` and `.env.example` true whenever a step, secret or command changes, and never hard-code Life Sanctuary specifics into the app.
 2. **Never** run destructive commands against the linked production project (`db reset`, dropping tables, deleting storage buckets) without explicitly confirming with Manoj first. Local Docker DB is fair game.
 3. Every schema change = a new migration file + regenerated types + RLS policies in the same migration.
 4. TypeScript strict; no `any`; validate external input with Zod.

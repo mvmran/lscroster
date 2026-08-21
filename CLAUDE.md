@@ -130,7 +130,7 @@ production database that lacks its tables.
 
 ## Working rules for Claude Code
 
-1. Follow `PHASES.md`. Work on the current phase only; tick checkboxes as items complete. Don't start a new phase without confirmation. **Phase 5 (distribution) is in progress** — keep `docs/SETUP.md`, `docs/UPGRADE.md` and `.env.example` true whenever a step, secret or command changes, and never hard-code Life Sanctuary specifics into the app.
+1. Follow `PHASES.md`. **Phases 0–5 are complete (v1.0.0, 2026-08-21)**; work is now issue-driven against the GitHub backlog. Tick checkboxes as items complete, and don't start new phase-sized work without confirmation. Other churches now run copies, so keep `docs/SETUP.md`, `docs/UPGRADE.md` and `.env.example` true whenever a step, secret or command changes, and never hard-code Life Sanctuary specifics into the app.
 2. **Never** run destructive commands against the linked production project (`db reset`, dropping tables, deleting storage buckets) without explicitly confirming with Manoj first. Local Docker DB is fair game.
 3. Every schema change = a new migration file + regenerated types + RLS policies in the same migration.
 4. TypeScript strict; no `any`; validate external input with Zod.
