@@ -158,6 +158,7 @@ is what makes upgrades safe for every church running a copy.
 | [UPGRADE.md](docs/UPGRADE.md) | pull a new release into your fork |
 | [BACKUPS.md](docs/BACKUPS.md) | backing up and restoring your data |
 | [PROJECTION-API.md](docs/PROJECTION-API.md) | read-only API for projection software |
+| [DESIGN.md](docs/DESIGN.md) | why the app is built the way it is |
 | [Releases](https://github.com/mvmran/lscroster/releases) | what changed in each version, and anything you must do on upgrade |
 
 ---
