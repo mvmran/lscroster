@@ -29,9 +29,12 @@ const appVersion = pkg.version
 // SHA as an env var; locally we ask git.
 const buildCommit = (process.env.VERCEL_GIT_COMMIT_SHA ?? git('git rev-parse HEAD') ?? '')
   .slice(0, 7)
-// A `+` suffix marks a build made from a dirty working tree, so it is never
-// mistaken for a clean build of that commit.
-const buildDirty = Boolean(git('git status --porcelain'))
+// A `+` suffix marks a build made from a dirty working tree, so a hand-made
+// local build is never mistaken for a clean build of that commit. Only asked
+// locally: a CI or Vercel checkout is clean by construction, and its build
+// steps leave files behind that make `git status` report otherwise.
+const buildDirty =
+  !process.env.VERCEL && !process.env.CI && Boolean(git('git status --porcelain'))
 
 // https://vite.dev/config/
 export default defineConfig({
