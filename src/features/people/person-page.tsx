@@ -67,6 +67,7 @@ import {
   useRemovePhoto,
   useUploadPhoto,
 } from '@/features/people/use-photos'
+import { ChangePasswordCard } from '@/features/auth/change-password-card'
 import { PersonEmailPrefsCard } from '@/features/people/person-email-prefs-card'
 import { PersonScheduleCard } from '@/features/people/person-schedule-card'
 import { PersonSchedulingCard } from '@/features/scheduling/person-scheduling-card'
@@ -446,6 +447,10 @@ export function PersonPage() {
 
       {/* Email preferences (issue #87) — after Scheduling rules. */}
       {showEmailPrefs && <PersonEmailPrefsCard personId={p.id} />}
+
+      {/* Your own password (issue #138) — only ever on your own profile, and
+          only once you have an account to change the password of. */}
+      {isSelf && p.auth_user_id && <ChangePasswordCard />}
 
       {/* Notes — admins and leaders only */}
       {(isAdmin || isLeader) && p.notes && (

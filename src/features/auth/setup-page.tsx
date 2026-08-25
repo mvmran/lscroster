@@ -6,6 +6,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { FullPageLoader } from '@/components/full-page-loader'
+import { PasswordInput } from '@/components/password-input'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -185,9 +186,8 @@ export function SetupPage() {
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="new-password"
                 {...form.register('password')}
               />

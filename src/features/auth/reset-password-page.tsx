@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { FullPageLoader } from '@/components/full-page-loader'
+import { PasswordInput } from '@/components/password-input'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -13,7 +14,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PASSWORD_HINT, passwordWithConfirm } from '@/features/auth/password-utils'
 import { ChurchLogo } from '@/features/settings/church-logo'
@@ -127,9 +127,8 @@ export function ResetPasswordPage() {
           >
             <div className="flex flex-col gap-2">
               <Label htmlFor="password">New password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="new-password"
                 {...form.register('password')}
               />
@@ -141,9 +140,8 @@ export function ResetPasswordPage() {
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="confirm">Confirm password</Label>
-              <Input
+              <PasswordInput
                 id="confirm"
-                type="password"
                 autoComplete="new-password"
                 {...form.register('confirm')}
               />
