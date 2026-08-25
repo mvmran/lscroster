@@ -86,6 +86,11 @@ git push origin main
 Vercel builds and deploys automatically. Watch it finish in the Vercel dashboard,
 then hard-refresh the app once and check the page you use most.
 
+To confirm which build you are on, open **Settings** and read the footer at the
+bottom of the page: it shows the app name, the release version, the commit the
+bundle was built from, and the build date. Everyone sees it, so if someone
+reports a problem you can ask them for that line.
+
 ---
 
 ## Trying an upgrade first (recommended for big releases)

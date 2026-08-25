@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { CalendarDays, Check, Loader2, Mail, ScrollText, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { AppVersion } from '@/components/app-version'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
 import {
@@ -428,6 +429,7 @@ export function SettingsPage() {
       {isAdmin && <ProjectionApiCard />}
       {canSendEmail && <TestEmailCard isAdmin={isAdmin} />}
       {isAdmin && <AuditLogCard />}
+      <AppVersion />
     </div>
   )
 }
