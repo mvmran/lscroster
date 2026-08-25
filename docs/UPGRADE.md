@@ -31,8 +31,7 @@ The steps below are simply that order written out.
 Releases are tagged `v<major>.<minor>.<patch>`. Read the release notes on the
 [Releases page](https://github.com/mvmran/lscroster/releases); anything that needs
 action on your part (a new secret, a manual step, a behaviour change your team
-will notice) is called out there, and the same notes are kept in
-[`PHASES.md`](../PHASES.md).
+will notice) is called out there.
 
 ### 2. Pull the upstream code into your fork
 

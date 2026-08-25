@@ -24,8 +24,12 @@ supabase/.temp
 # Vercel
 .vercel
 
-# Claude Code local settings
-.claude/settings.local.json
+# Agent working files — kept local, not distributed with the app
+.claude/
+.grok/
+CLAUDE.md
+GROK.md
+PHASES.md
 
 # Editor directories and files
 .vscode/*

@@ -2,11 +2,11 @@
 
 Status: **approved & implemented** (migration 0037, 2026-07-11) — §7's
 recommendations were all accepted. Kept as the design record; the shipped
-summary lives in PHASES.md (0037).
+summary lives in the project's internal build notes (migration 0037).
 Tracks GitHub issue [#113](https://github.com/mvmran/lscroster/issues/113)
 ("Additional per plan scheduling rules"). Written 2026-07-11 after a research
 pass over the scheduling engine; intended as session context for the
-implementation sessions, alongside CLAUDE.md / PHASES.md.
+implementation sessions, alongside the project's internal build notes.
 
 The feature: a general mechanism for **"if ⟨condition on the person assigned
 to position A⟩ then ⟨headcount constraint on position(s) B…⟩"**. Canonical
@@ -321,7 +321,7 @@ a compact chip per active/dormant rule with a mute toggle
    `buildEngineState`.
 6. **UI**: person-form sex field; rule-builder dialog + rules list; plan-page
    rule chips + mute; min-stepper provenance tooltips.
-7. **PHASES.md** entry under post-Phase-4 enhancements; close #113 on ship.
+7. Build-notes entry under post-Phase-4 enhancements; close #113 on ship.
 
 Nothing here breaks an existing instance on upgrade (new tables + one
 nullable column; no renamed columns or changed email links), so no special
