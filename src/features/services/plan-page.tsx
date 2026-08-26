@@ -782,11 +782,13 @@ export function PlanPage() {
   const navigate = useNavigate()
   const location = useLocation()
   // Where "Back" returns to — set via navigation state by the linking page
-  // (e.g. the Matrix), otherwise fall back to the main Services page.
+  // (e.g. the Matrix), otherwise the main Services page, carrying `?type=`
+  // back so the list is still filtered the way you left it. (A type that has
+  // since been deleted is ignored by the Services page itself.)
   const backTo =
     typeof (location.state as { from?: string } | null)?.from === 'string'
       ? (location.state as { from: string }).from
-      : '/services'
+      : `/services${location.search}`
   const { data: me } = useCurrentPerson()
   const planQuery = usePlan(id)
   const itemsQuery = usePlanItems(id)

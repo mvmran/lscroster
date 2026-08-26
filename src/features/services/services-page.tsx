@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CalendarDays, Grid3x3, Plus } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { EmptyState } from '@/components/empty-state'
 import { FullPageError } from '@/components/full-page-error'
 import { PageHeader } from '@/components/page-header'
@@ -71,7 +71,22 @@ export function ServicesPage() {
   const { data: me } = useCurrentPerson()
   const perms = useTeamPermissions()
 
-  const [typeFilter, setTypeFilter] = useState('all')
+  // The service-type filter lives in the URL (`?type=<id>`), not in component
+  // state: opening a plan and coming back — with the Back button or the
+  // browser's — then returns to the list you were actually looking at. It is
+  // also what the plan screen reads to scope its Prev/Now/Next.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const typeParam = searchParams.get('type')
+  // A type that has since been deleted (or a hand-edited URL) falls back to
+  // showing everything, rather than an empty list under a blank filter. While
+  // the types are still loading, trust the URL so the list doesn't flicker.
+  const typeFilter =
+    typeParam && (serviceTypes?.some((st) => st.id === typeParam) ?? true)
+      ? typeParam
+      : 'all'
+  const setTypeFilter = (value: string) =>
+    // replace: the filter is a view of this page, not a place to go Back to.
+    setSearchParams(value === 'all' ? {} : { type: value }, { replace: true })
   const [newPlanOpen, setNewPlanOpen] = useState(false)
 
   const canManage = me?.role === 'admin' || me?.role === 'leader'
