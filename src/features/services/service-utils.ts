@@ -117,6 +117,39 @@ export function weeklyDates(startISO: string, endISO: string, cap = 104): string
   return dates
 }
 
+/** The minimum shape needed to put plans in chronological order. */
+export type PlanChronological = {
+  date: string
+  start_time: string | null
+  service_types: { name: string; default_start_time: string | null }
+}
+
+/**
+ * Chronological order for plans, regardless of service type: by date, then by
+ * the time the service actually starts (its own override, else the service
+ * type's default), then by service type name so two services starting at the
+ * same moment keep a stable order. A plan with no start time at all sorts
+ * after the timed ones on that day — an unset time is unknown, not midnight.
+ *
+ * Used by the plan page's prev/now/next, which must step through every plan in
+ * date order: a Sunday morning service followed by that evening's is "next",
+ * even though they are different service types.
+ */
+export function comparePlansByDateTime(
+  a: PlanChronological,
+  b: PlanChronological,
+): number {
+  if (a.date !== b.date) return a.date.localeCompare(b.date)
+  const startA = a.start_time ?? a.service_types.default_start_time
+  const startB = b.start_time ?? b.service_types.default_start_time
+  if (startA !== startB) {
+    if (startA === null) return 1
+    if (startB === null) return -1
+    return startA.localeCompare(startB)
+  }
+  return a.service_types.name.localeCompare(b.service_types.name)
+}
+
 export function formatPlanDate(date: string) {
   return format(parseISO(date), 'EEE d MMM yyyy')
 }

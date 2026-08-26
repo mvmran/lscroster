@@ -90,6 +90,7 @@ import { PlanItemDialog, type PlanItemDialogState } from '@/features/services/pl
 import {
   arrangementDisplayTitle,
   buildArrangementIndex,
+  comparePlansByDateTime,
   computeItemTimes,
   findClashingPlans,
   formatClock,
@@ -833,14 +834,15 @@ export function PlanPage() {
     [items, plan],
   )
 
-  // Prev/next/today navigation across this service type's plans (issue #69).
+  // Prev/next/today navigation (issue #69) steps through *every* plan in
+  // chronological order, not just this service type's: skipping past the
+  // evening service because you opened the morning one is a bug, and the
+  // Services list is where filtering by type belongs.
   const plansQuery = usePlans()
-  const siblings = useMemo(() => {
-    if (!plan) return []
-    return (plansQuery.data ?? [])
-      .filter((p) => p.service_type_id === plan.service_type_id)
-      .sort((a, b) => a.date.localeCompare(b.date))
-  }, [plansQuery.data, plan])
+  const siblings = useMemo(
+    () => [...(plansQuery.data ?? [])].sort(comparePlansByDateTime),
+    [plansQuery.data],
+  )
   const currentIndex = siblings.findIndex((p) => p.id === plan?.id)
   const prevPlan = currentIndex > 0 ? siblings[currentIndex - 1] : null
   const nextPlan =
@@ -1061,7 +1063,7 @@ export function PlanPage() {
           <div className="flex items-center gap-1">
             <span
               className="inline-flex"
-              title={!prevPlan ? 'This is the earliest service of this type' : undefined}
+              title={!prevPlan ? 'This is the earliest service' : undefined}
             >
               <Button
                 variant="outline"
@@ -1098,7 +1100,7 @@ export function PlanPage() {
             </span>
             <span
               className="inline-flex"
-              title={!nextPlan ? 'This is the latest service of this type' : undefined}
+              title={!nextPlan ? 'This is the latest service' : undefined}
             >
               <Button
                 variant="outline"

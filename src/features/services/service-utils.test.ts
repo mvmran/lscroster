@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  comparePlansByDateTime,
   findClashingPlans,
   weeklyDates,
   type ClashCandidate,
+  type PlanChronological,
 } from '@/features/services/service-utils'
 
 describe('weeklyDates (issue #72)', () => {
@@ -134,5 +136,70 @@ describe('findClashingPlans (issue #78)', () => {
         withOverride,
       ).map((c) => c.id),
     ).toEqual(['d'])
+  })
+})
+
+describe('comparePlansByDateTime', () => {
+  const p = (
+    date: string,
+    typeName: string,
+    defaultStart: string | null,
+    override: string | null = null,
+  ): PlanChronological & { id: string } => ({
+    id: `${date} ${typeName}`,
+    date,
+    start_time: override,
+    service_types: { name: typeName, default_start_time: defaultStart },
+  })
+
+  const order = (plans: (PlanChronological & { id: string })[]) =>
+    [...plans].sort(comparePlansByDateTime).map((x) => x.id)
+
+  it('orders by date first, whatever the service type', () => {
+    expect(
+      order([
+        p('2026-07-12', 'Sunday 10am', '10:00:00'),
+        p('2026-07-05', 'Wednesday Prayer', '19:00:00'),
+      ]),
+    ).toEqual(['2026-07-05 Wednesday Prayer', '2026-07-12 Sunday 10am'])
+  })
+
+  it('puts the morning service before the evening one on the same day', () => {
+    // The bug this fixes: prev/next used to skip a same-day service of another
+    // type entirely.
+    expect(
+      order([
+        p('2026-07-05', 'Sunday 5pm', '17:00:00'),
+        p('2026-07-05', 'Sunday 10am', '10:00:00'),
+      ]),
+    ).toEqual(['2026-07-05 Sunday 10am', '2026-07-05 Sunday 5pm'])
+  })
+
+  it("honours a plan's own start-time override", () => {
+    // A 10am service moved to 6:30pm sorts after the 5pm one that day.
+    expect(
+      order([
+        p('2026-07-05', 'Sunday 10am', '10:00:00', '18:30:00'),
+        p('2026-07-05', 'Sunday 5pm', '17:00:00'),
+      ]),
+    ).toEqual(['2026-07-05 Sunday 5pm', '2026-07-05 Sunday 10am'])
+  })
+
+  it('sorts a plan with no start time after the timed ones that day', () => {
+    expect(
+      order([
+        p('2026-07-05', 'Working Bee', null),
+        p('2026-07-05', 'Sunday 10am', '10:00:00'),
+      ]),
+    ).toEqual(['2026-07-05 Sunday 10am', '2026-07-05 Working Bee'])
+  })
+
+  it('falls back to the service type name when two start together', () => {
+    expect(
+      order([
+        p('2026-07-05', 'Kids Church', '10:00:00'),
+        p('2026-07-05', 'Adults Service', '10:00:00'),
+      ]),
+    ).toEqual(['2026-07-05 Adults Service', '2026-07-05 Kids Church'])
   })
 })
