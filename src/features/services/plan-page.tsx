@@ -187,6 +187,7 @@ function ItemRow({
             aria-label={`Reorder ${item.title}`}
             {...attributes}
             {...listeners}
+            title="Drag to move this item up or down"
           >
             <GripVertical className="size-4" />
           </button>
@@ -232,6 +233,7 @@ function ItemRow({
                 size="icon"
                 className="size-8 shrink-0"
                 aria-label={`Actions for ${item.title}`}
+                title="Edit or remove this item"
               >
                 <MoreHorizontal className="size-4" />
               </Button>
@@ -523,7 +525,7 @@ function SaveTemplateDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Save as template</DialogTitle>
+            <DialogTitle>Templates</DialogTitle>
             <DialogDescription>
               Type a new name to create a template, or pick an existing one for
               this service type to overwrite it.
@@ -655,6 +657,7 @@ function NotesCard({ plan, canManage }: { plan: PlanWithType; canManage: boolean
                       { onError: (e) => toast.error(e.message) },
                     )
                   }
+                  title="Save these notes to the plan"
                 >
                   {updatePlan.isPending && <Loader2 className="size-4 animate-spin" />}
                   Save notes
@@ -715,6 +718,7 @@ function PlanStartTime({
           className="h-7"
           disabled={!draft || updatePlan.isPending}
           onClick={() => save(`${draft}:00`)}
+          title="Save this start time for this plan only"
         >
           {updatePlan.isPending && <Loader2 className="size-3.5 animate-spin" />}
           Save
@@ -731,7 +735,13 @@ function PlanStartTime({
             Use default
           </Button>
         )}
-        <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditing(false)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7"
+          onClick={() => setEditing(false)}
+          title="Leave the start time unchanged"
+        >
           Cancel
         </Button>
       </span>
@@ -858,7 +868,9 @@ export function PlanPage() {
         <CalendarDays className="size-8" />
         <p>This plan doesn’t exist or hasn’t been published yet.</p>
         <Button variant="outline" asChild>
-          <Link to="/services">Back to services</Link>
+          <Link to="/services" title="Go back to the services list">
+            Back to services
+          </Link>
         </Button>
       </div>
     )
@@ -1023,7 +1035,14 @@ export function PlanPage() {
       <div>
         <div className="mb-1 flex items-center gap-2">
           <Button variant="ghost" size="sm" className="-ml-2" asChild>
-            <Link to={backTo}>
+            <Link
+              to={backTo}
+              title={
+                backTo === '/services/matrix'
+                  ? 'Back to the Matrix'
+                  : 'Back to the services list'
+              }
+            >
               <ArrowLeft className="size-4" />
               Back
             </Link>
@@ -1040,38 +1059,60 @@ export function PlanPage() {
           <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2">
           {/* Prev / now / next across this service type's plans (issue #69). */}
           <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-muted-foreground/40"
-              disabled={!prevPlan}
-              onClick={() => prevPlan && navigate(`/services/plans/${prevPlan.id}`)}
-              aria-label="Previous service"
+            <span
+              className="inline-flex"
+              title={!prevPlan ? 'This is the earliest service of this type' : undefined}
             >
-              <ChevronLeft />
-              <span className="hidden sm:inline">Prev</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-muted-foreground/40"
-              disabled={!todayPlan || todayPlan.id === plan.id}
-              onClick={() => todayPlan && navigate(`/services/plans/${todayPlan.id}`)}
-              title="Jump to today or the next upcoming service"
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-muted-foreground/40"
+                disabled={!prevPlan}
+                onClick={() => prevPlan && navigate(`/services/plans/${prevPlan.id}`)}
+                aria-label="Previous service"
+                title="Open the service before this one"
+              >
+                <ChevronLeft />
+                <span className="hidden sm:inline">Prev</span>
+              </Button>
+            </span>
+            <span
+              className="inline-flex"
+              title={
+                !todayPlan || todayPlan.id === plan.id
+                  ? 'You are already on the next upcoming service'
+                  : undefined
+              }
             >
-              Now
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-muted-foreground/40"
-              disabled={!nextPlan}
-              onClick={() => nextPlan && navigate(`/services/plans/${nextPlan.id}`)}
-              aria-label="Next service"
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-muted-foreground/40"
+                disabled={!todayPlan || todayPlan.id === plan.id}
+                onClick={() => todayPlan && navigate(`/services/plans/${todayPlan.id}`)}
+                aria-label="Go to the next upcoming service"
+                title="Jump to today or the next upcoming service"
+              >
+                Now
+              </Button>
+            </span>
+            <span
+              className="inline-flex"
+              title={!nextPlan ? 'This is the latest service of this type' : undefined}
             >
-              <span className="hidden sm:inline">Next</span>
-              <ChevronRight />
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-muted-foreground/40"
+                disabled={!nextPlan}
+                onClick={() => nextPlan && navigate(`/services/plans/${nextPlan.id}`)}
+                aria-label="Next service"
+                title="Open the service after this one"
+              >
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight />
+              </Button>
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={plan.status === 'published' ? 'default' : 'outline'}>
@@ -1088,6 +1129,11 @@ export function PlanPage() {
                     sendNotification.isPending ||
                     recordOverrides.isPending
                   }
+                  title={
+                    plan.status === 'published'
+                      ? 'Hide this plan from the team again'
+                      : 'Make it visible and email everyone scheduled'
+                  }
                 >
                   {sendNotification.isPending && (
                     <Loader2 className="size-4 animate-spin" />
@@ -1096,25 +1142,43 @@ export function PlanPage() {
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon" className="size-8" aria-label="Plan actions">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      aria-label="Plan actions"
+                      title="Edit, duplicate, print or delete this plan"
+                    >
                       <MoreHorizontal className="size-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setEditDetailsOpen(true)}>
+                    <DropdownMenuItem
+                      onClick={() => setEditDetailsOpen(true)}
+                      title="Change this plan's date or title"
+                    >
                       <Pencil className="size-4" />
                       Edit details
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setDuplicateOpen(true)}>
+                    <DropdownMenuItem
+                      onClick={() => setDuplicateOpen(true)}
+                      title="Copy this order of service to another date"
+                    >
                       <Copy className="size-4" />
                       Duplicate…
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTemplateOpen(true)}>
+                    <DropdownMenuItem
+                      onClick={() => setTemplateOpen(true)}
+                      title="Save this plan as a reusable template, or edit one"
+                    >
                       <LayoutTemplate className="size-4" />
-                      Save as template…
+                      Templates…
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to={`/services/plans/${plan.id}/print`}>
+                      <Link
+                        to={`/services/plans/${plan.id}/print`}
+                        title="Open a printable run sheet"
+                      >
                         <Printer className="size-4" />
                         Print run sheet
                       </Link>
@@ -1122,6 +1186,7 @@ export function PlanPage() {
                     <DropdownMenuItem
                       disabled={sendingSetlist}
                       onClick={() => setConfirmSetlist(true)}
+                      title="Emails the songs, keys and worship roster"
                     >
                       {sendingSetlist ? (
                         <Loader2 className="size-4 animate-spin" />
@@ -1134,6 +1199,7 @@ export function PlanPage() {
                     <DropdownMenuItem
                       variant="destructive"
                       onClick={() => setConfirmDeletePlan(true)}
+                      title="Delete this plan and everyone scheduled on it"
                     >
                       <Trash2 className="size-4" />
                       Delete plan
@@ -1144,7 +1210,10 @@ export function PlanPage() {
             )}
             {!canManage && (
               <Button variant="outline" size="sm" asChild>
-                <Link to={`/services/plans/${plan.id}/print`}>
+                <Link
+                  to={`/services/plans/${plan.id}/print`}
+                  title="Open a printable run sheet"
+                >
                   <Printer className="size-4" />
                   Print
                 </Link>
@@ -1221,13 +1290,18 @@ export function PlanPage() {
 
       {canEditOrder && (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setSongPickerOpen(true)}>
+          <Button
+            variant="outline"
+            onClick={() => setSongPickerOpen(true)}
+            title="Add a song from the library to this plan"
+          >
             <Music className="size-4" />
             Add song
           </Button>
           <Button
             variant="outline"
             onClick={() => setItemDialog({ mode: 'create', kind: 'header' })}
+            title="Add a section heading, like Worship"
           >
             <Plus className="size-4" />
             Add header
@@ -1235,6 +1309,7 @@ export function PlanPage() {
           <Button
             variant="outline"
             onClick={() => setItemDialog({ mode: 'create', kind: 'item' })}
+            title="Add a non-song item, like Welcome"
           >
             <Plus className="size-4" />
             Add item

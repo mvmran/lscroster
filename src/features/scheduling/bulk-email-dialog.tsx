@@ -202,20 +202,27 @@ export function BulkEmailButton({
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={openDialog}
-        disabled={eligiblePlans.length === 0}
+      {/* The hint for the disabled state lives on the span: a disabled Button
+          has pointer-events: none, so its own title would never show. */}
+      <span
+        className="inline-flex"
         title={
           eligiblePlans.length === 0
             ? 'No outstanding request emails in the displayed services'
             : undefined
         }
       >
-        <Mail className="size-4" />
-        Bulk email
-      </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={openDialog}
+          disabled={eligiblePlans.length === 0}
+          title="Email everyone still waiting on a request"
+        >
+          <Mail className="size-4" />
+          Bulk email
+        </Button>
+      </span>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[85svh] flex-col sm:max-w-lg">

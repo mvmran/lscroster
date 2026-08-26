@@ -414,16 +414,22 @@ function PositionMinCount({
       }
     >
       <span className="text-muted-foreground mr-0.5 text-xs">Min</span>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-6"
-        disabled={value <= 0 || setMin.isPending}
-        onClick={() => set(value - 1)}
-        aria-label={`Decrease minimum for ${position.name}`}
+      <span
+        className="inline-flex shrink-0"
+        title={value <= 0 ? 'This position is already optional' : undefined}
       >
-        <Minus className="size-3.5" />
-      </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6"
+          disabled={value <= 0 || setMin.isPending}
+          onClick={() => set(value - 1)}
+          aria-label={`Decrease minimum for ${position.name}`}
+          title="One less person needed here"
+        >
+          <Minus className="size-3.5" />
+        </Button>
+      </span>
       <span
         className={
           ruleSet
@@ -441,6 +447,7 @@ function PositionMinCount({
         disabled={setMin.isPending}
         onClick={() => set(value + 1)}
         aria-label={`Increase minimum for ${position.name}`}
+        title="One more person needed here"
       >
         <Plus className="size-3.5" />
       </Button>
@@ -742,7 +749,12 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
               <div className="flex items-center gap-2">
                 <SuggestRosterButton plan={plan} excludeTeamIds={excludeTeamIds} />
                 {unsentCount > 0 && (
-                  <Button size="sm" onClick={send} disabled={sendRequests.isPending}>
+                  <Button
+                    size="sm"
+                    onClick={send}
+                    disabled={sendRequests.isPending}
+                    title="Email everyone not asked yet"
+                  >
                     {sendRequests.isPending ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
@@ -758,6 +770,7 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                   variant="outline"
                   onClick={cancelUnsent}
                   disabled={deleteAssignment.isPending}
+                  title="Remove the people who haven't been emailed yet"
                 >
                   {deleteAssignment.isPending && (
                     <Loader2 className="size-4 animate-spin" />
@@ -848,6 +861,7 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                                 size="sm"
                                 className="h-7 px-2"
                                 onClick={() => setPicker({ team, position })}
+                                title="Schedule someone into this position"
                               >
                                 <Plus className="size-3.5" />
                                 Add
@@ -914,6 +928,7 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                                         size="icon"
                                         className="size-7"
                                         aria-label={`Actions for ${fullName(assignment.people)}`}
+                                        title="Replace, email or remove this person"
                                       >
                                         <MoreHorizontal className="size-4" />
                                       </Button>

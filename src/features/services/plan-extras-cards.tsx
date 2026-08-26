@@ -112,6 +112,7 @@ export function PlanTimesCard({
                       remove.mutate(t.id, { onError: (e) => toast.error(e.message) })
                     }
                     aria-label={`Remove ${t.label}`}
+                    title="Remove this time from the plan"
                   >
                     <X className="size-4" />
                   </Button>
@@ -142,16 +143,24 @@ export function PlanTimesCard({
               className="h-9 w-32"
               aria-label="Start time"
             />
-            <Button
-              type="submit"
-              variant="outline"
-              size="sm"
-              className="h-9"
-              disabled={add.isPending || !label.trim() || !time}
+            <span
+              className="inline-flex"
+              title={
+                !label.trim() || !time ? 'Type a label and a time first' : undefined
+              }
             >
-              <Plus className="size-4" />
-              Add
-            </Button>
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                className="h-9"
+                disabled={add.isPending || !label.trim() || !time}
+                title="Add this time to the plan"
+              >
+                <Plus className="size-4" />
+                Add
+              </Button>
+            </span>
           </form>
         )}
       </CardContent>
@@ -224,6 +233,7 @@ export function PlanAttachmentsCard({
                     open.mutate(attachment, { onError: (e) => toast.error(e.message) })
                   }
                   aria-label={`Download ${attachment.label}`}
+                  title="Open or save this file"
                 >
                   <Download className="size-4" />
                 </Button>
@@ -239,6 +249,7 @@ export function PlanAttachmentsCard({
                       })
                     }
                     aria-label={`Delete ${attachment.label}`}
+                    title="Delete this file from the plan"
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -259,6 +270,7 @@ export function PlanAttachmentsCard({
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
               disabled={upload.isPending}
+              title={`Attach a file to this plan (max ${MAX_ATTACHMENT_MB} MB)`}
             >
               {upload.isPending ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -359,19 +371,27 @@ export function PlanMediaCard({
             Lyrics sheet for the songs in this plan, in setlist order.
           </CardDescription>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={print}
-          disabled={generating || entries.length === 0}
+        <span
+          className="inline-flex"
+          title={
+            entries.length === 0 ? 'No songs in the order of service yet' : undefined
+          }
         >
-          {generating ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Printer className="size-4" />
-          )}
-          Print
-        </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={print}
+            disabled={generating || entries.length === 0}
+            title="Download the lyrics sheet as a PDF"
+          >
+            {generating ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Printer className="size-4" />
+            )}
+            Print
+          </Button>
+        </span>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         <p className="text-sm font-medium">Lyrics Sheet</p>

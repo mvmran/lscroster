@@ -133,7 +133,11 @@ export function SuggestRosterButton({
         onClick={run}
         disabled={engine.isPending || !engine.ready}
         className={compact ? 'size-6 shrink-0 border-muted-foreground/40 p-0' : undefined}
-        title={compact ? 'Suggest a roster for this service' : undefined}
+        title={
+          compact
+            ? 'Suggest a roster for this service'
+            : 'Auto-fill the empty spots from your scheduling rules'
+        }
         aria-label={compact ? 'Suggest a roster for this service' : undefined}
       >
         <Sparkles className={compact ? 'size-3.5' : 'size-4'} />

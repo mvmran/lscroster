@@ -88,17 +88,32 @@ export function ServicesPage() {
             <>
               {canMatrix && (
                 <Button variant="outline" asChild>
-                  <Link to="/services/matrix">
+                  <Link to="/services/matrix" title="Roster several services side by side">
                     <Grid3x3 className="size-4" />
                     <span className="hidden sm:inline">Matrix</span>
                   </Link>
                 </Button>
               )}
               {canManage && (
-                <Button onClick={() => setNewPlanOpen(true)} disabled={noServiceTypes}>
-                  <Plus className="size-4" />
-                  New plan
-                </Button>
+                // The span carries the "why is this greyed out" hint: a disabled
+                // Button has pointer-events: none, so its own title never shows.
+                <span
+                  className="inline-flex"
+                  title={
+                    noServiceTypes
+                      ? 'Add a service type under Settings first'
+                      : undefined
+                  }
+                >
+                  <Button
+                    onClick={() => setNewPlanOpen(true)}
+                    disabled={noServiceTypes}
+                    title="Plan a new service date"
+                  >
+                    <Plus className="size-4" />
+                    New plan
+                  </Button>
+                </span>
               )}
             </>
           )

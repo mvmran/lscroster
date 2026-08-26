@@ -178,16 +178,22 @@ function MatrixMinCount({ planId, position }: { planId: string; position: Positi
   return (
     <div className="flex items-center gap-1 px-2 py-1.5">
       <span className="text-muted-foreground mr-auto text-xs">Min required</span>
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-6"
-        disabled={value <= 0 || setMin.isPending}
-        onClick={() => set(value - 1)}
-        aria-label={`Decrease minimum for ${position.name}`}
+      <span
+        className="inline-flex shrink-0"
+        title={value <= 0 ? 'This position is already optional' : undefined}
       >
-        <Minus className="size-3" />
-      </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="size-6"
+          disabled={value <= 0 || setMin.isPending}
+          onClick={() => set(value - 1)}
+          aria-label={`Decrease minimum for ${position.name}`}
+          title="One less person needed here"
+        >
+          <Minus className="size-3" />
+        </Button>
+      </span>
       <span className="w-4 text-center text-sm tabular-nums" aria-live="polite">
         {value}
       </span>
@@ -198,6 +204,7 @@ function MatrixMinCount({ planId, position }: { planId: string; position: Positi
         disabled={setMin.isPending}
         onClick={() => set(value + 1)}
         aria-label={`Increase minimum for ${position.name}`}
+        title="One more person needed here"
       >
         <Plus className="size-3" />
       </Button>
@@ -306,6 +313,7 @@ function MatrixCell({
                   <button
                     type="button"
                     aria-label="Assignment actions"
+                    title="Replace, email or remove this person"
                     className="ml-auto shrink-0 rounded px-1 font-bold leading-none opacity-70 hover:opacity-100"
                   >
                     …
@@ -381,7 +389,11 @@ function MatrixCell({
             <button
               type="button"
               onClick={onAdd}
-              title={understaffed ? positionResults.map((r) => r.message).join('\n') : undefined}
+              title={
+                understaffed
+                  ? positionResults.map((r) => r.message).join('\n')
+                  : 'Schedule someone into this spot'
+              }
               className={
                 understaffed
                   ? 'flex flex-1 items-center justify-center rounded-md border border-dashed border-red-500/60 px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40'
@@ -397,6 +409,7 @@ function MatrixCell({
                 <button
                   type="button"
                   aria-label="Cell actions"
+                  title="Set the minimum needed, or add someone"
                   className="text-muted-foreground/60 hover:bg-accent hover:text-foreground shrink-0 rounded-md border border-dashed px-1.5 py-1 text-xs font-bold leading-none"
                 >
                   …
@@ -433,31 +446,32 @@ function SendColumnButton({
       ? `Send ${unsentIds.length} request${unsentIds.length === 1 ? '' : 's'}`
       : 'No requests to send'
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="size-6 shrink-0 border-muted-foreground/40 p-0"
-      title={tooltip}
-      aria-label={tooltip}
-      disabled={unsentIds.length === 0 || sendRequests.isPending}
-      onClick={() =>
-        sendRequests.mutate(unsentIds, {
-          onSuccess: (result) => {
-            if (result.sent > 0) toast.success(`${result.sent} sent`)
-            for (const skip of result.skipped) {
-              toast.warning(`${skip.name}: ${skip.reason}`)
-            }
-          },
-          onError: (e) => toast.error(e.message),
-        })
-      }
-    >
-      {sendRequests.isPending ? (
-        <Loader2 className="size-3.5 animate-spin" />
-      ) : (
-        <Send className="size-3.5" />
-      )}
-    </Button>
+    <span className="inline-flex shrink-0" title={tooltip}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="size-6 shrink-0 border-muted-foreground/40 p-0"
+        aria-label={tooltip}
+        disabled={unsentIds.length === 0 || sendRequests.isPending}
+        onClick={() =>
+          sendRequests.mutate(unsentIds, {
+            onSuccess: (result) => {
+              if (result.sent > 0) toast.success(`${result.sent} sent`)
+              for (const skip of result.skipped) {
+                toast.warning(`${skip.name}: ${skip.reason}`)
+              }
+            },
+            onError: (e) => toast.error(e.message),
+          })
+        }
+      >
+        {sendRequests.isPending ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <Send className="size-3.5" />
+        )}
+      </Button>
+    </span>
   )
 }
 
@@ -476,34 +490,35 @@ function CancelUnsentColumnButton({
       ? `Cancel ${unsentIds.length} unsent request${unsentIds.length === 1 ? '' : 's'}`
       : 'No unsent requests to cancel'
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="size-6 shrink-0 border-muted-foreground/40 p-0"
-      title={tooltip}
-      aria-label={tooltip}
-      disabled={unsentIds.length === 0 || deleteAssignment.isPending}
-      onClick={() =>
-        Promise.allSettled(
-          unsentIds.map((id) => deleteAssignment.mutateAsync(id)),
-        ).then((results) => {
-          const failed = results.filter((r) => r.status === 'rejected').length
-          const removed = results.length - failed
-          if (removed > 0) {
-            toast.success(
-              `${removed} unsent assignment${removed === 1 ? '' : 's'} cancelled`,
-            )
-          }
-          if (failed > 0) toast.error(`${failed} could not be cancelled`)
-        })
-      }
-    >
-      {deleteAssignment.isPending ? (
-        <Loader2 className="size-3.5 animate-spin" />
-      ) : (
-        <CircleX className="size-3.5" />
-      )}
-    </Button>
+    <span className="inline-flex shrink-0" title={tooltip}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="size-6 shrink-0 border-muted-foreground/40 p-0"
+        aria-label={tooltip}
+        disabled={unsentIds.length === 0 || deleteAssignment.isPending}
+        onClick={() =>
+          Promise.allSettled(
+            unsentIds.map((id) => deleteAssignment.mutateAsync(id)),
+          ).then((results) => {
+            const failed = results.filter((r) => r.status === 'rejected').length
+            const removed = results.length - failed
+            if (removed > 0) {
+              toast.success(
+                `${removed} unsent assignment${removed === 1 ? '' : 's'} cancelled`,
+              )
+            }
+            if (failed > 0) toast.error(`${failed} could not be cancelled`)
+          })
+        }
+      >
+        {deleteAssignment.isPending ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <CircleX className="size-3.5" />
+        )}
+      </Button>
+    </span>
   )
 }
 
@@ -535,6 +550,7 @@ function OrderItemRow({
           aria-label={`Reorder ${item.title}`}
           {...attributes}
           {...listeners}
+          title="Drag to reorder this service's order"
         >
           <GripVertical className="size-3" />
         </button>
@@ -802,7 +818,7 @@ export function MatrixPage() {
       <div>
         <div className="mb-1 flex items-center justify-between gap-2">
           <Button variant="ghost" size="sm" className="-ml-2" asChild>
-            <Link to="/services">
+            <Link to="/services" title="Back to the services list">
               <ArrowLeft className="size-4" />
               Services
             </Link>
@@ -821,71 +837,115 @@ export function MatrixPage() {
             {/* Week paging (issue #67): shift the window one service earlier/later. */}
             <div className="flex items-center justify-center gap-1.5 [&_button]:border-foreground/30">
               <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={() => setWeekOffset((o) => o - 1)}
-                  disabled={startIndex <= 0}
-                  aria-label="Show earlier services"
+                <span
+                  className="inline-flex"
+                  title={startIndex <= 0 ? 'Already at the earliest service' : undefined}
                 >
-                  <ChevronLeft className="size-3" />
-                  Prev
-                </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setWeekOffset((o) => o - 1)}
+                    disabled={startIndex <= 0}
+                    aria-label="Show earlier services"
+                    title="Show the services before these"
+                  >
+                    <ChevronLeft className="size-3" />
+                    Prev
+                  </Button>
+                </span>
                 {/* Jump back to the next-upcoming service (window default). */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={() => setWeekOffset(0)}
-                  disabled={weekOffset === 0}
-                  aria-label="Show today's upcoming services"
+                <span
+                  className="inline-flex"
+                  title={
+                    weekOffset === 0
+                      ? 'Already showing the next upcoming service'
+                      : undefined
+                  }
                 >
-                  Now
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={() => setWeekOffset((o) => o + 1)}
-                  disabled={startIndex >= maxStart}
-                  aria-label="Show later services"
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setWeekOffset(0)}
+                    disabled={weekOffset === 0}
+                    aria-label="Show today's upcoming services"
+                    title="Jump back to the next upcoming service"
+                  >
+                    Now
+                  </Button>
+                </span>
+                <span
+                  className="inline-flex"
+                  title={
+                    startIndex >= maxStart ? 'No later services to show' : undefined
+                  }
                 >
-                  Next
-                  <ChevronRight className="size-3" />
-                </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setWeekOffset((o) => o + 1)}
+                    disabled={startIndex >= maxStart}
+                    aria-label="Show later services"
+                    title="Show the services after these"
+                  >
+                    Next
+                    <ChevronRight className="size-3" />
+                  </Button>
+                </span>
               </div>
             </div>
             {/* Services-shown slider (issue #57): default 4, clamped 2–9. */}
             <div className="flex items-center gap-1.5 rounded-md border px-2 py-0.5">
               <span className="text-muted-foreground text-xs font-medium">Columns</span>
               <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="size-4"
-                  onClick={() => setPlanCount(planCount - 1)}
-                  disabled={planCount <= MATRIX_PLAN_COUNT_MIN}
-                  aria-label="Show fewer services"
+                <span
+                  className="inline-flex shrink-0"
+                  title={
+                    planCount <= MATRIX_PLAN_COUNT_MIN
+                      ? 'Showing the fewest columns already'
+                      : undefined
+                  }
                 >
-                  <Minus className="size-2.5" />
-                </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-4"
+                    onClick={() => setPlanCount(planCount - 1)}
+                    disabled={planCount <= MATRIX_PLAN_COUNT_MIN}
+                    aria-label="Show fewer services"
+                    title="Show one less service column"
+                  >
+                    <Minus className="size-2.5" />
+                  </Button>
+                </span>
                 <span
                   className="w-4 text-center text-xs tabular-nums"
                   aria-live="polite"
                 >
                   {planCount}
                 </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="size-4"
-                  onClick={() => setPlanCount(planCount + 1)}
-                  disabled={planCount >= MATRIX_PLAN_COUNT_MAX}
-                  aria-label="Show more services"
+                <span
+                  className="inline-flex shrink-0"
+                  title={
+                    planCount >= MATRIX_PLAN_COUNT_MAX
+                      ? 'Showing the most columns already'
+                      : undefined
+                  }
                 >
-                  <Plus className="size-2.5" />
-                </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-4"
+                    onClick={() => setPlanCount(planCount + 1)}
+                    disabled={planCount >= MATRIX_PLAN_COUNT_MAX}
+                    aria-label="Show more services"
+                    title="Show one more service column"
+                  >
+                    <Plus className="size-2.5" />
+                  </Button>
+                </span>
               </div>
             </div>
             {/* Reorder is personal-order only — hidden when one type is shown (#70). */}
@@ -894,6 +954,7 @@ export function MatrixPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setOrderOpen(true)}
+                title="Change the order team sections appear in"
               >
                 <ArrowUpDown className="size-4" />
                 Reorder teams
@@ -1021,7 +1082,11 @@ export function MatrixPage() {
                       type="button"
                       onClick={() => toggleOrderCollapsed()}
                       className="text-muted-foreground/60 hover:text-foreground shrink-0 p-0.5"
-                      title={orderCollapsed ? 'Show order of service' : 'Hide order of service'}
+                      title={
+                        orderCollapsed
+                          ? 'Show the order-of-service rows again'
+                          : 'Hide the order-of-service rows in every column'
+                      }
                       aria-label={
                         orderCollapsed
                           ? 'Show order of service'
@@ -1077,7 +1142,11 @@ export function MatrixPage() {
                           type="button"
                           onClick={() => toggleTeamCollapse(team.id)}
                           className="text-muted-foreground/60 hover:text-foreground shrink-0 p-0.5"
-                          title={teamCollapsed ? 'Show positions' : 'Hide positions'}
+                          title={
+                            teamCollapsed
+                              ? `Show ${team.name} positions again`
+                              : `Hide ${team.name} positions in every column`
+                          }
                           aria-label={
                             teamCollapsed
                               ? `Show ${team.name} positions`
