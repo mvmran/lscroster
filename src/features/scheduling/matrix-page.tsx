@@ -1041,7 +1041,12 @@ export function MatrixPage() {
                   <th key={plan.id} className="min-w-32 border-b border-l p-2 text-left">
                     <div className="flex items-start justify-between gap-1">
                       <Link
-                        to={`/services/plans/${plan.id}`}
+                        // ?type= scopes the plan screen's Prev/Now/Next to the
+                        // same filter this Matrix is showing (issue: nav skipped
+                        // other types); omitted when all types are displayed.
+                        to={`/services/plans/${plan.id}${
+                          typeFilter === 'all' ? '' : `?type=${typeFilter}`
+                        }`}
                         state={{ from: '/services/matrix' }}
                         className="font-medium hover:underline"
                       >

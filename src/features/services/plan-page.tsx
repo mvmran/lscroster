@@ -37,7 +37,13 @@ import {
   Send,
   Trash2,
 } from 'lucide-react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
 import { toast } from 'sonner'
 import { FullPageError } from '@/components/full-page-error'
 import {
@@ -834,15 +840,30 @@ export function PlanPage() {
     [items, plan],
   )
 
-  // Prev/next/today navigation (issue #69) steps through *every* plan in
-  // chronological order, not just this service type's: skipping past the
-  // evening service because you opened the morning one is a bug, and the
-  // Services list is where filtering by type belongs.
+  // Prev/next/today navigation (issue #69) walks plans in chronological order,
+  // across service types — pressing Next on the Sunday morning plan must not
+  // skip that evening's service. The list you arrived from can narrow it: the
+  // Services list and the Matrix pass their service-type filter as `?type=`,
+  // and the buttons below keep it in the URL as you step. A stale or
+  // hand-edited `?type=` that doesn't match this plan is ignored, so the
+  // buttons can never strand you outside your own list.
+  const [searchParams] = useSearchParams()
+  const typeParam = searchParams.get('type')
+  const scopedTypeId =
+    plan && typeParam && plan.service_type_id === typeParam ? typeParam : null
   const plansQuery = usePlans()
-  const siblings = useMemo(
-    () => [...(plansQuery.data ?? [])].sort(comparePlansByDateTime),
-    [plansQuery.data],
-  )
+  const siblings = useMemo(() => {
+    // Copy first — plansQuery.data is the React Query cache, never sort it in place.
+    const chronological = [...(plansQuery.data ?? [])].sort(comparePlansByDateTime)
+    return scopedTypeId
+      ? chronological.filter((p) => p.service_type_id === scopedTypeId)
+      : chronological
+  }, [plansQuery.data, scopedTypeId])
+  const goToPlan = (id: string) =>
+    navigate(
+      { pathname: `/services/plans/${id}`, search: location.search },
+      { state: location.state },
+    )
   const currentIndex = siblings.findIndex((p) => p.id === plan?.id)
   const prevPlan = currentIndex > 0 ? siblings[currentIndex - 1] : null
   const nextPlan =
@@ -1063,14 +1084,20 @@ export function PlanPage() {
           <div className="flex items-center gap-1">
             <span
               className="inline-flex"
-              title={!prevPlan ? 'This is the earliest service' : undefined}
+              title={
+                !prevPlan
+                  ? scopedTypeId
+                    ? 'This is the earliest service of this type'
+                    : 'This is the earliest service'
+                  : undefined
+              }
             >
               <Button
                 variant="outline"
                 size="sm"
                 className="border-muted-foreground/40"
                 disabled={!prevPlan}
-                onClick={() => prevPlan && navigate(`/services/plans/${prevPlan.id}`)}
+                onClick={() => prevPlan && goToPlan(prevPlan.id)}
                 aria-label="Previous service"
                 title="Open the service before this one"
               >
@@ -1091,7 +1118,7 @@ export function PlanPage() {
                 size="sm"
                 className="border-muted-foreground/40"
                 disabled={!todayPlan || todayPlan.id === plan.id}
-                onClick={() => todayPlan && navigate(`/services/plans/${todayPlan.id}`)}
+                onClick={() => todayPlan && goToPlan(todayPlan.id)}
                 aria-label="Go to the next upcoming service"
                 title="Jump to today or the next upcoming service"
               >
@@ -1100,14 +1127,20 @@ export function PlanPage() {
             </span>
             <span
               className="inline-flex"
-              title={!nextPlan ? 'This is the latest service' : undefined}
+              title={
+                !nextPlan
+                  ? scopedTypeId
+                    ? 'This is the latest service of this type'
+                    : 'This is the latest service'
+                  : undefined
+              }
             >
               <Button
                 variant="outline"
                 size="sm"
                 className="border-muted-foreground/40"
                 disabled={!nextPlan}
-                onClick={() => nextPlan && navigate(`/services/plans/${nextPlan.id}`)}
+                onClick={() => nextPlan && goToPlan(nextPlan.id)}
                 aria-label="Next service"
                 title="Open the service after this one"
               >

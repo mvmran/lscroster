@@ -23,14 +23,28 @@ import { formatPlanDate } from '@/features/services/service-utils'
 import { splitUpcomingPast, usePlans, type PlanWithType } from '@/features/services/use-plans'
 import { useServiceTypes } from '@/features/services/use-service-types'
 
-function PlanList({ plans, emptyText }: { plans: PlanWithType[]; emptyText: string }) {
+/**
+ * `search` carries the active service-type filter into the plan screen as
+ * `?type=<id>`, so its Prev/Now/Next walk the same list you were looking at.
+ * Empty when "All service types" is selected — then the plan screen steps
+ * through every plan in date order.
+ */
+function PlanList({
+  plans,
+  emptyText,
+  search,
+}: {
+  plans: PlanWithType[]
+  emptyText: string
+  search: string
+}) {
   if (plans.length === 0) {
     return <EmptyState icon={CalendarDays} title={emptyText} />
   }
   return (
     <div className="flex flex-col gap-2">
       {plans.map((plan) => (
-        <Link key={plan.id} to={`/services/plans/${plan.id}`}>
+        <Link key={plan.id} to={`/services/plans/${plan.id}${search}`}>
           <Card className="py-3 transition-colors hover:bg-accent/50 active:bg-accent">
             <CardContent className="flex items-center gap-3 px-4">
               <div className="min-w-0 flex-1">
@@ -78,6 +92,9 @@ export function ServicesPage() {
   if (isError) return <FullPageError message={error.message} />
 
   const noServiceTypes = serviceTypes !== undefined && serviceTypes.length === 0
+  // Passed to every plan link so the plan screen can scope its Prev/Now/Next
+  // to the same filter (nothing to pass when showing all types).
+  const planSearch = typeFilter === 'all' ? '' : `?type=${typeFilter}`
 
   return (
     <div className="flex flex-col gap-4">
@@ -173,6 +190,7 @@ export function ServicesPage() {
           <TabsContent value="upcoming">
             <PlanList
               plans={upcoming}
+              search={planSearch}
               emptyText={
                 canManage
                   ? 'No upcoming plans. Create one to start planning.'
@@ -181,7 +199,7 @@ export function ServicesPage() {
             />
           </TabsContent>
           <TabsContent value="past">
-            <PlanList plans={past} emptyText="No past plans." />
+            <PlanList plans={past} search={planSearch} emptyText="No past plans." />
           </TabsContent>
         </Tabs>
       )}
