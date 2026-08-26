@@ -30,6 +30,7 @@ supabase/.temp
 CLAUDE.md
 GROK.md
 PHASES.md
+grok-resume.bat
 
 # Editor directories and files
 .vscode/*
