@@ -3,11 +3,14 @@
  *
  * The raw lyrics string is the single source of truth: sections are derived
  * on every render from header lines the team already types (e.g. "[Verse 1]",
- * "Chorus:", "PRE-CHORUS 2") and are never persisted. Each section carries
- * character offsets into the original string, so the reorder / duplicate /
- * delete operations below are pure string splices — text outside the spliced
- * region survives byte-for-byte, including CRLF line endings and chord-chart
- * fragments pasted from the web.
+ * "Chorus:", "PRE-CHORUS 2") and are never persisted. Only the base `lyrics`
+ * text is parsed — it owns the song's structure; the native, meaning and chord
+ * layers are line-parallel to it and carry no headers of their own.
+ *
+ * Each section carries character offsets into the original string. The
+ * reorder / duplicate / delete operations that consume them live in
+ * `lyric-layers.ts`, which converts these offsets to line ranges so one
+ * rearrangement can be applied to all four layers at once.
  */
 
 export interface LyricSection {
@@ -108,7 +111,7 @@ export function matchLyricSectionHeader(
  * (the UI then falls back to a plain textarea). Non-blank text before the
  * first header becomes an "Unlabeled" section so no content can be lost by
  * a reorder; blank leading whitespace is instead preserved as a preamble by
- * the splice helpers.
+ * the splice helpers in `lyric-layers.ts`.
  */
 export function parseLyricSections(text: string): LyricSection[] {
   if (!text) return []
@@ -145,59 +148,4 @@ export function parseLyricSections(text: string): LyricSection[] {
     })
   }
   return sections
-}
-
-const eolOf = (text: string) => (text.includes('\r\n') ? '\r\n' : '\n')
-
-/**
- * Move the section at `from` to position `to` (arrayMove semantics) and
- * return the new lyrics text. Untouched sections are reassembled from exact
- * substrings; only a chunk that lacked a trailing newline (the old final
- * section) gains a blank-line separator when it lands mid-text.
- */
-export function moveLyricSection(
-  text: string,
-  sections: LyricSection[],
-  from: number,
-  to: number,
-): string {
-  if (from === to || !sections[from] || !sections[to]) return text
-  const eol = eolOf(text)
-  const preamble = text.slice(0, sections[0].start)
-  const chunks = sections.map((s) => text.slice(s.start, s.end))
-  const [moved] = chunks.splice(from, 1)
-  chunks.splice(to, 0, moved)
-  return (
-    preamble +
-    chunks
-      .map((c, i) =>
-        i < chunks.length - 1 && !/\r?\n$/.test(c) ? `${c}${eol}${eol}` : c,
-      )
-      .join('')
-  )
-}
-
-/** Insert a copy of the section right after itself, blank-line separated. */
-export function duplicateLyricSection(
-  text: string,
-  sections: LyricSection[],
-  index: number,
-): string {
-  const s = sections[index]
-  if (!s) return text
-  const eol = eolOf(text)
-  const chunk = text.slice(s.start, s.end)
-  const sep = /\r?\n\r?\n$/.test(chunk) ? '' : /\r?\n$/.test(chunk) ? eol : eol + eol
-  return text.slice(0, s.end) + sep + chunk + text.slice(s.end)
-}
-
-/** Remove the section (header line + its lyrics) from the text. */
-export function removeLyricSection(
-  text: string,
-  sections: LyricSection[],
-  index: number,
-): string {
-  const s = sections[index]
-  if (!s) return text
-  return text.slice(0, s.start) + text.slice(s.end)
 }

@@ -1,5 +1,6 @@
 import { addDays, addSeconds, format, parseISO } from 'date-fns'
 import type { Enums, Tables } from '@/types/database'
+import { layersOfRow, type LayeredLyrics } from '@/features/services/lyric-layers'
 import { timesOverlap } from '@/features/scheduling/scheduling-utils'
 
 export type Plan = Tables<'plans'>
@@ -386,6 +387,8 @@ export interface LyricsSheetEntry {
   bpm: number | null
   meter: string | null
   lyrics: string | null
+  /** The base text plus its native / meaning / chord layers (#139). */
+  layers: LayeredLyrics
 }
 
 /**
@@ -421,6 +424,7 @@ export function buildLyricsSheet(
         bpm: info?.arrangement.bpm ?? null,
         meter: info?.arrangement.meter ?? null,
         lyrics: (pinned ?? latest)?.lyrics ?? null,
+        layers: layersOfRow(pinned ?? latest ?? null),
       }
     })
 }

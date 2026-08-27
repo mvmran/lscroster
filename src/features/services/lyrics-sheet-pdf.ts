@@ -1,4 +1,5 @@
 import { format, parseISO } from 'date-fns'
+import { zipLyricLines } from '@/features/services/lyric-layers'
 import { lyricsSheetMeta, type LyricsSheetEntry } from '@/features/services/service-utils'
 
 export interface LyricsSheetPdfOptions {
@@ -7,6 +8,19 @@ export interface LyricsSheetPdfOptions {
   planDate: string
   churchName?: string | null
   entries: LyricsSheetEntry[]
+  /** Print the English gloss under each line (#139). */
+  meaning?: boolean
+  /**
+   * Print chords above each line (#139). Chords are positioned by column, so
+   * this also switches the lyrics to a monospace face — a proportional one
+   * slides every chord off the syllable it belongs to.
+   *
+   * The native-script layer is deliberately not offered here: jsPDF's core
+   * fonts carry no Indic glyphs, and even with an embedded Noto face its
+   * shaping neither forms conjuncts nor reorders pre-base vowel signs. The
+   * Latin transliteration is what makes this sheet printable at all.
+   */
+  chords?: boolean
 }
 
 /**
@@ -88,13 +102,14 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
     style: 'normal' | 'bold' | 'italic',
     color: number,
     lineHeight: number,
+    font: 'helvetica' | 'courier' = 'helvetica',
   ) {
-    doc.setFont('helvetica', style)
+    doc.setFont(font, style)
     doc.setFontSize(size)
     const lines = doc.splitTextToSize(text, colWidth) as string[]
     for (const line of lines) {
       if (y + lineHeight > contentBottom) advanceColumn()
-      doc.setFont('helvetica', style)
+      doc.setFont(font, style)
       doc.setFontSize(size)
       doc.setTextColor(color)
       doc.text(line, colX(), y)
@@ -105,6 +120,9 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
   const TITLE_SIZE = 11
   const META_SIZE = 8
   const LYRIC_SIZE = 9.5
+  const MEANING_SIZE = 8
+  const MEANING_LH = 3.6
+  const CHORD_LH = 3.8
   const TITLE_LH = 5.2
   const META_LH = 4
   const LYRIC_LH = 4.3
@@ -123,12 +141,20 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
     y += 1
 
     if (entry.lyrics && entry.lyrics.trim()) {
-      const rawLines = entry.lyrics.replace(/\r\n/g, '\n').split('\n')
-      for (const raw of rawLines) {
-        if (raw.trim() === '') {
+      // Chords sit above the line they belong to, so the two share a
+      // monospace grid and the columns the team typed survive onto paper.
+      const lyricFont = opts.chords ? 'courier' : 'helvetica'
+      for (const line of zipLyricLines(entry.layers)) {
+        if (line.text.trim() === '') {
           if (!atColumnTop()) y += STANZA_GAP // preserve stanza breaks
-        } else {
-          drawWrapped(raw, LYRIC_SIZE, 'normal', 30, LYRIC_LH)
+          continue
+        }
+        if (opts.chords && line.chords.trim() !== '') {
+          drawWrapped(line.chords, LYRIC_SIZE, 'bold', 110, CHORD_LH, 'courier')
+        }
+        drawWrapped(line.text, LYRIC_SIZE, 'normal', 30, LYRIC_LH, lyricFont)
+        if (opts.meaning && line.meaning.trim() !== '') {
+          drawWrapped(line.meaning, MEANING_SIZE, 'italic', 125, MEANING_LH)
         }
       }
     } else {

@@ -144,6 +144,7 @@ Only plans that endpoint 1 would list are servable: published, and dated inside 
       "meter": "3/4",
       "lyricsVersion": 3,
       "lyrics": "[Verse 1]\nAmazing grace, how sweet the sound\n…",
+      "nativeLanguage": null,
       "sections": [
         {
           "type": "verse",
@@ -186,6 +187,11 @@ Only plans that endpoint 1 would list are servable: published, and dated inside 
   `null` when no lyrics exist.
 - `lyrics` — the raw lyrics text, exactly as entered (may contain `[Verse 1]`-style
   header lines). Provided for completeness; prefer `sections` for slide building.
+  For a multi-lingual song this is the **transliteration** — the singable text in
+  Latin script; the original script is a layer (see §6.1).
+- `nativeLanguage` — ISO 639 code (`"ml"`, `"hi"`) naming the language of the native
+  layer, or `null` when the song has none. Use it to pick a font that can shape the
+  script.
 - `sections` — the lyrics split into slide-ready sections (see §6). Empty only when
   `lyrics` is `null`.
 - `sourceSongs` — one entry per library song behind the item (two or more for a
@@ -221,6 +227,37 @@ chunking is just array slicing, no text parsing needed.
 - If the church entered lyrics without any section headers, each blank-line-separated
   stanza becomes one section of type `other` with a `null` label — so `sections` is
   always usable whenever lyrics exist.
+
+### 6.1 Layers (multi-lingual songs)
+
+A song may carry up to three extra texts alongside its lyrics: the **native** script
+(Malayalam, Hindi …), an English **meaning**, and **chords**. When present, the section
+gains a `layers` object whose arrays are **index-parallel to `lines`** — `layers.native[2]`
+is the native-script text for `lines[2]`:
+
+```json
+{
+  "type": "verse",
+  "label": "Verse 1",
+  "lines": ["ninte sneham etra valuthu", "ente aathmaave"],
+  "layers": {
+    "native": ["...", "..."],
+    "meaning": ["How great is your love", "O my soul"],
+    "chords": ["Am        F", "C         G"]
+  }
+}
+```
+
+- `layers` is **absent** when the song has no layers at all, and each key inside it is
+  absent when that particular layer is empty for this section. Never assume a key exists.
+- When a key is present its array is exactly `lines.length` long; entries may be `""`
+  where that line has no annotation.
+- `lines` is unchanged and is still the text to project. Layers are for the operator's
+  confidence monitor, a bilingual lower third, or a chord view — treat them as optional.
+- `chords` entries are column-aligned against the corresponding `lines` entry, so render
+  them in a monospace face if you show them above the line.
+- Render `native` with a font that shapes the script named by `nativeLanguage`; a font
+  without Indic shaping will produce broken conjuncts and misplaced vowel signs.
 
 ---
 

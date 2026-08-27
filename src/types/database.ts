@@ -1540,6 +1540,10 @@ export type Database = {
           created_at: string
           id: string
           lyrics: string
+          lyrics_chords: string | null
+          lyrics_meaning: string | null
+          lyrics_native: string | null
+          native_language: string | null
           updated_at: string
           version: number
         }
@@ -1548,6 +1552,10 @@ export type Database = {
           created_at?: string
           id?: string
           lyrics: string
+          lyrics_chords?: string | null
+          lyrics_meaning?: string | null
+          lyrics_native?: string | null
+          native_language?: string | null
           updated_at?: string
           version?: number
         }
@@ -1556,6 +1564,10 @@ export type Database = {
           created_at?: string
           id?: string
           lyrics?: string
+          lyrics_chords?: string | null
+          lyrics_meaning?: string | null
+          lyrics_native?: string | null
+          native_language?: string | null
           updated_at?: string
           version?: number
         }

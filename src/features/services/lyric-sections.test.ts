@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  duplicateLyricSection,
   matchLyricSectionHeader,
-  moveLyricSection,
   parseLyricSections,
-  removeLyricSection,
 } from '@/features/services/lyric-sections'
 
 describe('matchLyricSectionHeader', () => {
@@ -92,79 +89,3 @@ describe('parseLyricSections', () => {
   })
 })
 
-describe('moveLyricSection', () => {
-  it('reorders sections and preserves all content', () => {
-    const sections = parseLyricSections(SONG)
-    const moved = moveLyricSection(SONG, sections, 2, 1)
-    expect(parseLyricSections(moved).map((s) => s.label)).toEqual(['Verse 1', 'Verse 2', 'Chorus'])
-    expect(moved).toContain('Through many dangers')
-    expect(moved).toContain('Praise God')
-  })
-
-  it('adds a separator when the old final section moves mid-text', () => {
-    const sections = parseLyricSections(SONG)
-    const moved = moveLyricSection(SONG, sections, 2, 0)
-    expect(moved.startsWith('[Verse 2]\nThrough many dangers\n\n[Verse 1]')).toBe(true)
-  })
-
-  it('is a byte-exact round trip when moved back', () => {
-    const sections = parseLyricSections(SONG)
-    const there = moveLyricSection(SONG, sections, 0, 1)
-    const back = moveLyricSection(there, parseLyricSections(there), 1, 0)
-    // the round trip may only differ by the separator added to the old tail
-    expect(back.replace(/\n+$/, '')).toBe(SONG)
-  })
-
-  it('preserves a blank preamble before the first header', () => {
-    const text = '\n\n[Verse 1]\nA\n\n[Chorus]\nB'
-    const sections = parseLyricSections(text)
-    expect(moveLyricSection(text, sections, 0, 1)).toBe('\n\n[Chorus]\nB\n\n[Verse 1]\nA\n\n')
-  })
-
-  it('returns the text unchanged for a no-op or bad index', () => {
-    const sections = parseLyricSections(SONG)
-    expect(moveLyricSection(SONG, sections, 1, 1)).toBe(SONG)
-    expect(moveLyricSection(SONG, sections, 5, 0)).toBe(SONG)
-  })
-})
-
-describe('duplicateLyricSection', () => {
-  it('inserts a copy right after the section', () => {
-    const sections = parseLyricSections(SONG)
-    const dup = duplicateLyricSection(SONG, sections, 1)
-    expect(parseLyricSections(dup).map((s) => s.label)).toEqual([
-      'Verse 1',
-      'Chorus',
-      'Chorus',
-      'Verse 2',
-    ])
-    expect(dup.match(/Praise God/g)).toHaveLength(2)
-  })
-
-  it('separates the copy with a blank line when duplicating the tail', () => {
-    const sections = parseLyricSections(SONG)
-    const dup = duplicateLyricSection(SONG, sections, 2)
-    expect(dup.endsWith('Through many dangers\n\n[Verse 2]\nThrough many dangers')).toBe(true)
-  })
-
-  it('uses CRLF separators in CRLF text', () => {
-    const text = '[Verse 1]\r\nA\r\n\r\n[Chorus]\r\nB'
-    const sections = parseLyricSections(text)
-    const dup = duplicateLyricSection(text, sections, 1)
-    expect(dup).toBe('[Verse 1]\r\nA\r\n\r\n[Chorus]\r\nB\r\n\r\n[Chorus]\r\nB')
-  })
-})
-
-describe('removeLyricSection', () => {
-  it('removes the header line and its lyrics exactly', () => {
-    const sections = parseLyricSections(SONG)
-    const removed = removeLyricSection(SONG, sections, 1)
-    expect(removed).toBe('[Verse 1]\nAmazing grace\nhow sweet the sound\n\n[Verse 2]\nThrough many dangers')
-  })
-
-  it('can remove an Unlabeled leading section', () => {
-    const text = 'Oh oh oh\n\n[Verse 1]\nAmazing grace'
-    const sections = parseLyricSections(text)
-    expect(removeLyricSection(text, sections, 0)).toBe('[Verse 1]\nAmazing grace')
-  })
-})

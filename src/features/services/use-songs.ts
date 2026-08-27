@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import type { LayeredLyrics } from '@/features/services/lyric-layers'
 import type {
   ArrangementLyrics,
   Song,
@@ -457,19 +458,26 @@ export function useSaveArrangementLyrics(arrangementId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
-      lyrics,
+      layers,
       current,
       asNewVersion,
     }: {
-      lyrics: string
+      /** All four layers; they version together on the one row (#139). */
+      layers: LayeredLyrics
       /** The latest version row the editor was seeded from, if any. */
       current: ArrangementLyrics | null
       asNewVersion: boolean
     }) => {
+      const columns = {
+        lyrics: layers.lyrics,
+        lyrics_native: layers.native || null,
+        lyrics_meaning: layers.meaning || null,
+        lyrics_chords: layers.chords || null,
+      }
       if (current && !asNewVersion) {
         const { data, error } = await supabase
           .from('song_arrangement_lyrics')
-          .update({ lyrics })
+          .update(columns)
           .eq('id', current.id)
           .select()
           .single()
@@ -479,7 +487,7 @@ export function useSaveArrangementLyrics(arrangementId: string) {
       // Version numbers are assigned by a DB trigger (max + 1).
       const { data, error } = await supabase
         .from('song_arrangement_lyrics')
-        .insert({ arrangement_id: arrangementId, lyrics })
+        .insert({ arrangement_id: arrangementId, ...columns })
         .select()
         .single()
       if (error) throw new Error(error.message)

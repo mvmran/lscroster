@@ -235,6 +235,10 @@ Deno.serve(async (req) => {
     arrangement_id: string
     version: number
     lyrics: string
+    lyrics_native: string | null
+    lyrics_meaning: string | null
+    lyrics_chords: string | null
+    native_language: string | null
   }
   interface JunctionRow {
     arrangement_id: string
@@ -260,7 +264,9 @@ Deno.serve(async (req) => {
         .in('id', arrangementIds),
       admin
         .from('song_arrangement_lyrics')
-        .select('id, arrangement_id, version, lyrics')
+        .select(
+          'id, arrangement_id, version, lyrics, lyrics_native, lyrics_meaning, lyrics_chords, native_language',
+        )
         .in('arrangement_id', arrangementIds),
       admin
         .from('song_arrangement_songs')
@@ -308,7 +314,12 @@ Deno.serve(async (req) => {
       meter: arrangement?.meter ?? null,
       lyricsVersion: lyricsRow?.version ?? null,
       lyrics: lyricsRow?.lyrics ?? null,
-      sections: toApiSections(lyricsRow?.lyrics),
+      // Additive since apiVersion 1 (#139): `lyrics` and `sections[].lines`
+      // keep their exact meaning — the Latin singable text — so a client that
+      // predates the layers is unaffected. nativeLanguage is an ISO 639 code
+      // ('ml', 'hi') for whatever `sections[].layers.native` is written in.
+      nativeLanguage: lyricsRow?.native_language ?? null,
+      sections: toApiSections(lyricsRow?.lyrics, lyricsRow ?? null),
       sourceSongs: sources
         .filter((s) => s.songs)
         .sort((a, b) => a.sort_order - b.sort_order)

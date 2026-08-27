@@ -13,6 +13,8 @@ export interface ApiLyricSection {
   label: string | null
   /** Non-blank lyric lines, pre-split for slide chunking. */
   lines: string[]
+  /** Line-parallel native / meaning / chord text, when the song has any (#139). */
+  layers?: ApiLyricLayers
 }
 
 const KEYWORD_PATTERN = [
@@ -62,19 +64,54 @@ function matchHeader(line: string): { label: string; type: string } | null {
   return { label, type: kind }
 }
 
+
+/** One line of lyrics with whatever the other layers say about it (#139). */
+export interface ApiLyricLayers {
+  /** Original-script text, one entry per `lines` entry. */
+  native?: string[]
+  /** English gloss, one entry per `lines` entry. */
+  meaning?: string[]
+  /** Chords for the line, one entry per `lines` entry. */
+  chords?: string[]
+}
+
+/** The four stored texts, as they come off song_arrangement_lyrics. */
+export interface LyricLayerColumns {
+  lyrics_native: string | null
+  lyrics_meaning: string | null
+  lyrics_chords: string | null
+}
+
+/** A lyric line together with its index in the original text. */
+interface SourceLine {
+  text: string
+  index: number
+}
+
+function splitSourceLines(text: string): SourceLine[] {
+  return text.split('\n').map((text, index) => ({ text, index }))
+}
+
 /** Blank-line-separated stanzas as unlabeled sections. */
-function stanzaSections(text: string): ApiLyricSection[] {
-  return text
-    .replace(/\r\n/g, '\n')
-    .split(/\n\s*\n/)
-    .map((block) =>
-      block
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean),
-    )
-    .filter((lines) => lines.length > 0)
-    .map((lines) => ({ type: 'other', label: null, lines }))
+function stanzaSections(lines: SourceLine[]): Array<ApiLyricSection & { indices: number[] }> {
+  const sections: Array<ApiLyricSection & { indices: number[] }> = []
+  let current: SourceLine[] = []
+  const flush = () => {
+    if (current.length === 0) return
+    sections.push({
+      type: 'other',
+      label: null,
+      lines: current.map((l) => l.text.trim()),
+      indices: current.map((l) => l.index),
+    })
+    current = []
+  }
+  for (const line of lines) {
+    if (line.text.trim() === '') flush()
+    else current.push(line)
+  }
+  flush()
+  return sections
 }
 
 /**
@@ -82,35 +119,88 @@ function stanzaSections(text: string): ApiLyricSection[] {
  * open a labeled section; text before the first header — or the whole text
  * when there are no headers — falls back to unlabeled stanza sections, so the
  * result is non-empty whenever the lyrics contain any content.
+ *
+ * `layers` attaches the native / meaning / chord texts (#139). They are
+ * line-parallel to `raw`, so each section carries the layer entries for exactly
+ * the lines it kept — blank lines are dropped from `lines`, and the same lines
+ * are dropped from every layer, so the arrays stay the same length and index
+ * against each other.
  */
-export function toApiSections(raw: string | null | undefined): ApiLyricSection[] {
+export function toApiSections(
+  raw: string | null | undefined,
+  layers?: LyricLayerColumns | null,
+): ApiLyricSection[] {
   if (!raw || !raw.trim()) return []
   const text = raw.replace(/\r\n/g, '\n')
-  const lines = text.split('\n')
+  const lines = splitSourceLines(text)
 
-  const sections: ApiLyricSection[] = []
-  let preamble: string[] = []
-  let current: ApiLyricSection | null = null
+  const sections: Array<ApiLyricSection & { indices: number[] }> = []
+  let preamble: SourceLine[] = []
+  let current: (ApiLyricSection & { indices: number[] }) | null = null
 
   for (const line of lines) {
-    const header = matchHeader(line)
+    const header = matchHeader(line.text)
     if (header) {
       if (!current && preamble.length) {
-        sections.push(...stanzaSections(preamble.join('\n')))
+        sections.push(...stanzaSections(preamble))
         preamble = []
       }
-      current = { type: header.type, label: header.label, lines: [] }
+      current = { type: header.type, label: header.label, lines: [], indices: [] }
       sections.push(current)
       continue
     }
-    const trimmed = line.trim()
+    const trimmed = line.text.trim()
     if (current) {
-      if (trimmed) current.lines.push(trimmed)
+      if (trimmed) {
+        current.lines.push(trimmed)
+        current.indices.push(line.index)
+      }
     } else {
       preamble.push(line)
     }
   }
 
-  if (!current) return stanzaSections(text)
-  return sections.filter((s) => s.label !== null || s.lines.length > 0)
+  const result = !current
+    ? stanzaSections(lines)
+    : sections.filter((s) => s.label !== null || s.lines.length > 0)
+
+  return result.map(({ indices, ...section }) =>
+    attachLayers(section, indices, layers),
+  )
+}
+
+/**
+ * Pick each layer's entries for the lines a section kept. A layer that is empty
+ * — or blank on every line of this section — is left off entirely rather than
+ * shipped as an array of empty strings.
+ */
+function attachLayers(
+  section: ApiLyricSection,
+  indices: number[],
+  layers: LyricLayerColumns | null | undefined,
+): ApiLyricSection {
+  if (!layers) return section
+  // Chords are positioned by column, so their leading spaces are meaningful and
+  // only trailing padding is dropped. Native text and the gloss are prose.
+  const pick = (raw: string | null, keepIndent = false): string[] | undefined => {
+    if (!raw || !raw.trim()) return undefined
+    const all = raw.replace(/\r\n/g, '\n').split('\n')
+    const picked = indices.map((i) => {
+      const entry = all[i] ?? ''
+      return keepIndent ? entry.replace(/\s+$/, '') : entry.trim()
+    })
+    return picked.some((entry) => entry !== '') ? picked : undefined
+  }
+  const native = pick(layers.lyrics_native)
+  const meaning = pick(layers.lyrics_meaning)
+  const chords = pick(layers.lyrics_chords, true)
+  if (!native && !meaning && !chords) return section
+  return {
+    ...section,
+    layers: {
+      ...(native ? { native } : {}),
+      ...(meaning ? { meaning } : {}),
+      ...(chords ? { chords } : {}),
+    },
+  }
 }

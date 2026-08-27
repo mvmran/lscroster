@@ -29,13 +29,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Textarea } from '@/components/ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
-  duplicateLyricSection,
-  moveLyricSection,
-  parseLyricSections,
-  removeLyricSection,
-  type LyricSection,
-} from '@/features/services/lyric-sections'
+  alignLayer,
+  duplicateSectionLayers,
+  LAYER_LABELS,
+  layerLineMismatch,
+  lineCount,
+  LYRIC_LAYER_KEYS,
+  moveSectionLayers,
+  removeSectionLayers,
+  type LayeredLyrics,
+  type LyricLayerKey,
+} from '@/features/services/lyric-layers'
+import { parseLyricSections, type LyricSection } from '@/features/services/lyric-sections'
 import { cn } from '@/lib/utils'
 
 // One tint per section family, shared by the gutter chevrons, the extent
@@ -91,6 +98,9 @@ const CHEVRON_CLIP =
 // Style properties copied onto the hidden mirror so its text wraps exactly
 // like the textarea's, making marker offsets match the visible lines.
 const MIRROR_STYLE_PROPS = [
+  // Split mode turns wrapping off (see LyricPane) so one logical line is always
+  // one visual row; the mirror has to follow or its section offsets drift.
+  'white-space',
   'font-family',
   'font-size',
   'font-weight',
@@ -353,32 +363,116 @@ function FlowPill({
   )
 }
 
+
+// Both panes share an explicit leading so one logical line occupies the same
+// vertical row in each — and 1.5rem gives Malayalam/Devanagari conjuncts room
+// that the default `text-sm` leading clips.
+const PANE_LEADING = 'leading-6'
+
 /**
- * Lyrics textarea with a derived structure view. Section labels are parsed
- * live from header lines in the text ("[Verse 1]", "Chorus:", …) — shown as
- * colour-coded chevrons pointing at each section's first line, extent rails
- * marking how far each section runs, and a draggable flow strip above the
- * editor summarising the song's shape. Dragging a chevron or pill (or the
- * menu's Move up/down), Duplicate and Delete all rewrite the textarea text in
- * real time via offset-based splices — nothing about the structure is
- * persisted.
+ * Row numbers beside a pane. Only rendered in split mode, where wrapping is off
+ * and one logical line is therefore always one visual row — stacked on a phone
+ * the matching lines are half a screen apart, so the number is the only way to
+ * confirm you're editing line 14 against line 14.
+ *
+ * `pt` matches the textarea's 8px padding plus its 1px border.
+ */
+function LineNumbers({ count }: { count: number }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        'text-muted-foreground/50 w-7 shrink-0 select-none pt-[9px] pr-1.5 text-right font-mono text-base tabular-nums md:text-sm',
+        PANE_LEADING,
+      )}
+    >
+      {Array.from({ length: Math.max(count, 1) }, (_, i) => (
+        <div key={i}>{i + 1}</div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * The three layer buttons that open the split. Mutually exclusive — pressing
+ * the pressed-in one pops it out and closes the split. Rendered by the page so
+ * it can sit on the field's header row, right-aligned, where it reads as
+ * "beside the label" closed and "above the right pane" open.
+ */
+export function LyricLayerToggle({
+  layers,
+  value,
+  onChange,
+  disabled,
+}: {
+  layers: LayeredLyrics
+  value: LyricLayerKey | null
+  onChange: (next: LyricLayerKey | null) => void
+  disabled?: boolean
+}) {
+  return (
+    <ToggleGroup
+      type="single"
+      value={value ?? ''}
+      onValueChange={(next) => onChange(next === '' ? null : (next as LyricLayerKey))}
+      disabled={disabled}
+    >
+      {LYRIC_LAYER_KEYS.map((key) => (
+        <ToggleGroupItem
+          key={key}
+          value={key}
+          title={
+            value === key
+              ? `Hide the ${LAYER_LABELS[key].toLowerCase()} pane`
+              : `Edit ${LAYER_LABELS[key].toLowerCase()} text beside the lyrics, line by line`
+          }
+        >
+          {LAYER_LABELS[key]}
+          {layers[key].trim() !== '' && (
+            <span className="ml-1.5 size-1.5 rounded-full bg-current opacity-50" />
+          )}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  )
+}
+
+/**
+ * Lyrics editor with a derived structure view and an optional second pane.
+ *
+ * Section labels are parsed live from header lines in the base text
+ * ("[Verse 1]", "Chorus:", …) — shown as colour-coded chevrons pointing at each
+ * section's first line, extent rails marking how far each section runs, and a
+ * draggable flow strip above the editor summarising the song's shape. Dragging
+ * a chevron or pill (or the menu's Move up/down), Duplicate and Delete rewrite
+ * the text in real time; nothing about the structure is persisted.
+ *
+ * When a layer is selected the editor splits — vertically on a desktop,
+ * horizontally on a phone — with the base lyrics in the first pane and the
+ * layer in the second. Both panes turn wrapping off (`wrap="off"`), so one
+ * logical line is always one visual row and line N sits at the same height in
+ * both. Every section splice runs through `lyric-layers`, which applies the
+ * same line-range rearrangement to all four layers at once.
  */
 export function LyricsStructureEditor({
   id,
-  value,
+  layers,
+  activeLayer,
   onChange,
 }: {
   id?: string
-  value: string
-  onChange: (next: string) => void
+  layers: LayeredLyrics
+  activeLayer: LyricLayerKey | null
+  onChange: (next: LayeredLyrics) => void
 }) {
-  const sections = useMemo(() => parseLyricSections(value), [value])
+  const sections = useMemo(() => parseLyricSections(layers.lyrics), [layers.lyrics])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const rects = useSectionRects(textareaRef, value, sections)
+  const rects = useSectionRects(textareaRef, layers.lyrics, sections)
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   )
+  const split = activeLayer !== null
 
   const indexOfId = (dndId: string | number) => Number(String(dndId).slice(2))
 
@@ -389,39 +483,134 @@ export function LyricsStructureEditor({
   function handleDragEnd(event: DragEndEvent) {
     setActiveIndex(null)
     const { active, over } = event
-    ;(window as unknown as Record<string, unknown>).__lastDrag = {
-      active: active.id,
-      over: over?.id ?? null,
-      rect: event.active.rect.current.translated,
-    }
     if (over == null) return
     const from = indexOfId(active.id)
     const to = indexOfId(over.id)
-    if (from !== to) onChange(moveLyricSection(value, sections, from, to))
+    if (from !== to) onChange(moveSectionLayers(layers, sections, from, to))
   }
 
   const actionsFor = (index: number): SectionActions => ({
-    onDuplicate: () => onChange(duplicateLyricSection(value, sections, index)),
-    onMove: (to) => onChange(moveLyricSection(value, sections, index, to)),
-    onRemove: () => onChange(removeLyricSection(value, sections, index)),
+    onDuplicate: () => onChange(duplicateSectionLayers(layers, sections, index)),
+    onMove: (to) => onChange(moveSectionLayers(layers, sections, index, to)),
+    onRemove: () => onChange(removeSectionLayers(layers, sections, index)),
   })
 
-  const textarea = (
+  const baseTextarea = (
     <Textarea
       id={id}
       ref={textareaRef}
       rows={6}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={cn('font-mono text-sm', sections.length > 0 && 'pl-5')}
+      wrap={split ? 'off' : undefined}
+      value={layers.lyrics}
+      onChange={(e) => onChange({ ...layers, lyrics: e.target.value })}
+      className={cn(
+        'font-mono text-sm',
+        sections.length > 0 && 'pl-5',
+        split && `${PANE_LEADING} whitespace-pre`,
+      )}
     />
+  )
+
+  const baseColumn = (
+    <div className="flex min-w-0 flex-1 items-start gap-2">
+      {sections.length > 0 && (
+        <div className="relative w-7 shrink-0 self-stretch">
+          {sections.map((section, index) =>
+            rects[index] === undefined ? null : (
+              <div key={`c-${index}-${section.label}`}>
+                <div
+                  style={{
+                    top: rects[index].top + 2,
+                    height: Math.max(rects[index].height - 4, 16),
+                  }}
+                  className={cn(
+                    'absolute left-[calc(100%_+_7px)] w-0.5 rounded-full',
+                    tintOf(section.kind).rail,
+                  )}
+                />
+                <SectionChevron
+                  index={index}
+                  count={sections.length}
+                  section={section}
+                  rect={rects[index]}
+                  actions={actionsFor(index)}
+                />
+              </div>
+            ),
+          )}
+        </div>
+      )}
+      {split && <LineNumbers count={lineCount(layers.lyrics)} />}
+      <div className="min-w-0 flex-1">{baseTextarea}</div>
+    </div>
+  )
+
+  const layerColumn = activeLayer && (
+    <div className="flex min-w-0 flex-1 items-start gap-2">
+      <LineNumbers count={lineCount(layers[activeLayer])} />
+      <div className="min-w-0 flex-1">
+        <Textarea
+          rows={6}
+          wrap="off"
+          aria-label={`${LAYER_LABELS[activeLayer]} text, line by line against the lyrics`}
+          value={layers[activeLayer]}
+          onChange={(e) => onChange({ ...layers, [activeLayer]: e.target.value })}
+          className={cn(
+            'text-sm whitespace-pre',
+            PANE_LEADING,
+            // Chords align by column against the Latin base line, so they need
+            // the same monospace grid the lyrics pane uses. Native script and
+            // the English gloss are proportional text.
+            activeLayer === 'chords' ? 'font-mono' : 'font-sans',
+          )}
+        />
+      </div>
+    </div>
+  )
+
+  const mismatch = activeLayer
+    ? layerLineMismatch(layers).find((m) => m.key === activeLayer)
+    : undefined
+
+  const layerHint = activeLayer && (mismatch || layers[activeLayer] === '') && (
+    <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+      {layers[activeLayer] === '' ? (
+        <span>
+          Type the {LAYER_LABELS[activeLayer].toLowerCase()} text line by line
+          against the lyrics — line 1 here belongs to line 1 there.
+        </span>
+      ) : (
+        <span>
+          {LAYER_LABELS[activeLayer]} has {mismatch?.lines} lines against{' '}
+          {mismatch?.baseLines} in the lyrics, so they no longer line up.
+        </span>
+      )}
+      {(layers[activeLayer] === '' ||
+        (mismatch !== undefined && mismatch.lines < mismatch.baseLines)) && (
+        <button
+          type="button"
+          className="text-primary underline underline-offset-2"
+          onClick={() => onChange(alignLayer(layers, activeLayer))}
+        >
+          Add the missing blank lines
+        </button>
+      )}
+    </p>
+  )
+
+  const body = (
+    <div className={cn('flex gap-3', split ? 'flex-col md:flex-row' : 'flex-col')}>
+      {baseColumn}
+      {layerColumn}
+    </div>
   )
 
   if (sections.length === 0) {
     return (
       <div className="flex flex-col gap-1.5">
-        {textarea}
-        {value.trim() && (
+        {body}
+        {layerHint}
+        {layers.lyrics.trim() && (
           <p className="text-muted-foreground text-xs">
             Start a line with a section name — e.g.{' '}
             <span className="font-mono">[Verse 1]</span> or{' '}
@@ -457,31 +646,8 @@ export function LyricsStructureEditor({
             </span>
           ))}
         </div>
-        <div className="flex items-start gap-2">
-          <div className="relative w-7 shrink-0 self-stretch">
-            {sections.map((section, index) =>
-              rects[index] === undefined ? null : (
-                <div key={`c-${index}-${section.label}`}>
-                  <div
-                    style={{ top: rects[index].top + 2, height: Math.max(rects[index].height - 4, 16) }}
-                    className={cn(
-                      'absolute left-[calc(100%_+_7px)] w-0.5 rounded-full',
-                      tintOf(section.kind).rail,
-                    )}
-                  />
-                  <SectionChevron
-                    index={index}
-                    count={sections.length}
-                    section={section}
-                    rect={rects[index]}
-                    actions={actionsFor(index)}
-                  />
-                </div>
-              ),
-            )}
-          </div>
-          <div className="min-w-0 flex-1">{textarea}</div>
-        </div>
+        {body}
+        {layerHint}
       </div>
       <DragOverlay>
         {activeIndex !== null && sections[activeIndex] && (

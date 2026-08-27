@@ -42,6 +42,9 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
 - Arrangements per song — key, BPM, meter, reference recording, versioned lyrics
 - Medleys: one arrangement spanning several songs, counted for every song it
   contains
+- Multi-lingual songs: alongside the singable lyrics, each line can carry the
+  original script (Malayalam, Hindi …), an English meaning and chords, edited in
+  a side-by-side split and shown or hidden per reader
 
 **Scheduling**
 - Teams, positions, and per-person qualifications with trainee/qualified levels

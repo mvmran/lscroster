@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Archive,
   ArchiveRestore,
@@ -53,7 +53,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { useUnsavedChangesWarning } from '@/lib/use-unsaved-changes-warning'
-import { LyricsStructureEditor } from '@/features/services/lyrics-structure-editor'
+import {
+  LyricLayerToggle,
+  LyricsStructureEditor,
+} from '@/features/services/lyrics-structure-editor'
+import { LyricsReadView } from '@/features/services/lyrics-read-view'
+import {
+  layersOfRow,
+  normalizeForSave,
+  type LayeredLyrics,
+  type LyricLayerKey,
+} from '@/features/services/lyric-layers'
 import {
   formatPlanDate,
   formatPlanDateShort,
@@ -541,15 +551,21 @@ function ArrangementLyricsBlock({
   const save = useSaveArrangementLyrics(arrangement.id)
   const link = useLinkSongToArrangement(song.id)
   const unlink = useUnlinkSongFromArrangement(song.id)
-  const [lyrics, setLyrics] = useState<string | null>(null)
+  const [draft, setDraft] = useState<LayeredLyrics | null>(null)
+  const [activeLayer, setActiveLayer] = useState<LyricLayerKey | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [pendingLink, setPendingLink] = useState<{ id: string; title: string } | null>(null)
   const [pendingUnlink, setPendingUnlink] = useState<{ id: string; title: string } | null>(null)
   const [versionNotice, setVersionNotice] = useState(false)
   const [checkingPin, setCheckingPin] = useState(false)
 
-  const value = lyrics ?? current?.lyrics ?? ''
-  const dirty = value !== (current?.lyrics ?? '')
+  const saved = useMemo(() => layersOfRow(current ?? null), [current])
+  const value = draft ?? saved
+  const dirty =
+    value.lyrics !== saved.lyrics ||
+    value.native !== saved.native ||
+    value.meaning !== saved.meaning ||
+    value.chords !== saved.chords
   const linkedSongs = arrangement.linked_songs
 
   // Warn before navigating away (page unload or an in-app link) with unsaved
@@ -579,11 +595,11 @@ function ArrangementLyricsBlock({
   async function doSave(asNewVersion: boolean) {
     try {
       const saved = await save.mutateAsync({
-        lyrics: value.trim(),
+        layers: normalizeForSave(value),
         current: current ?? null,
         asNewVersion,
       })
-      setLyrics(null)
+      setDraft(null)
       toast.success(
         asNewVersion ? `Lyrics saved as version ${saved.version}` : 'Lyrics saved',
       )
@@ -607,7 +623,13 @@ function ArrangementLyricsBlock({
       })
       const appended = await fetchDefaultLyrics(target.id)
       if (appended && appended.trim()) {
-        setLyrics((value ? `${value.trimEnd()}\n\n` : '') + appended.trim())
+        // Only the base gains lines; the layers are padded out to match it on
+        // save, so the medley's second song simply has no annotations yet.
+        setDraft({
+          ...value,
+          lyrics:
+            (value.lyrics ? `${value.lyrics.trimEnd()}\n\n` : '') + appended.trim(),
+        })
         toast.success(`Linked ${target.title} — lyrics added below, save when ready`)
       } else {
         toast.success(`Linked ${target.title}`)
@@ -637,9 +659,7 @@ function ArrangementLyricsBlock({
         {lyricsPending ? (
           <Skeleton className="h-16 w-full" />
         ) : current?.lyrics ? (
-          <pre className="text-muted-foreground font-sans text-sm whitespace-pre-wrap">
-            {current.lyrics}
-          </pre>
+          <LyricsReadView layers={saved} />
         ) : null}
       </div>
     )
@@ -685,21 +705,30 @@ function ArrangementLyricsBlock({
       )}
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor={`arr-lyrics-${arrangement.id}`}>
-          Lyrics / Chords
-          {current && (
-            <span className="text-muted-foreground ml-1 font-normal">
-              · version {current.version}
-            </span>
-          )}
-        </Label>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Label htmlFor={`arr-lyrics-${arrangement.id}`}>
+            Lyrics
+            {current && (
+              <span className="text-muted-foreground ml-1 font-normal">
+                · version {current.version}
+              </span>
+            )}
+          </Label>
+          <LyricLayerToggle
+            layers={value}
+            value={activeLayer}
+            onChange={setActiveLayer}
+            disabled={lyricsPending}
+          />
+        </div>
         {lyricsPending ? (
           <Skeleton className="h-24 w-full" />
         ) : (
           <LyricsStructureEditor
             id={`arr-lyrics-${arrangement.id}`}
-            value={value}
-            onChange={setLyrics}
+            layers={value}
+            activeLayer={activeLayer}
+            onChange={setDraft}
           />
         )}
         {dirty && (

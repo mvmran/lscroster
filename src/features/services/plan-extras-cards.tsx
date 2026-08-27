@@ -25,6 +25,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { downloadLyricsSheetPdf } from '@/features/services/lyrics-sheet-pdf'
+import { LyricsReadView } from '@/features/services/lyrics-read-view'
+import { LAYER_LABELS } from '@/features/services/lyric-layers'
 import {
   buildArrangementIndex,
   buildLyricsSheet,
@@ -41,8 +43,12 @@ import { usePlanItems, usePlanLyrics } from '@/features/services/use-plan-items'
 import { usePlanTimeMutations, usePlanTimes } from '@/features/services/use-plan-times'
 import { useSongs } from '@/features/services/use-songs'
 import { useChurchSettings } from '@/features/settings/use-church-settings'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 const MAX_ATTACHMENT_MB = 25
+
+/** Layers the lyrics-sheet PDF can render (native script is not printable). */
+type PrintLayer = 'meaning' | 'chords'
 
 /** Labelled times (rehearsal, service…) shown in My Schedule and emails. */
 export function PlanTimesCard({
@@ -309,6 +315,9 @@ export function PlanMediaCard({
   const { data: lyricsById, isPending: lyricsPending } = usePlanLyrics(planId, items)
   const { data: settings } = useChurchSettings()
   const [generating, setGenerating] = useState(false)
+  // Which layers to print. Native script is not offered — jsPDF cannot shape
+  // Indic text (see LyricsSheetPdfOptions).
+  const [printLayers, setPrintLayers] = useState<PrintLayer[]>([])
   const [searchParams, setSearchParams] = useSearchParams()
   const autoDownloadFired = useRef(false)
 
@@ -324,6 +333,16 @@ export function PlanMediaCard({
         lyricsById ?? new Map(),
       ),
     [items, arrangementIndex, lyricsById],
+  )
+
+  // Only offer a layer the plan's songs actually carry, so the control stays
+  // invisible for an all-English setlist.
+  const printable = useMemo<PrintLayer[]>(
+    () =>
+      (['meaning', 'chords'] as const).filter((key) =>
+        entries.some((e) => e.layers[key].trim() !== ''),
+      ),
+    [entries],
   )
 
   const isPending = itemsPending || songsPending || lyricsPending
@@ -354,6 +373,8 @@ export function PlanMediaCard({
         planDate,
         churchName: settings?.name ?? null,
         entries,
+        meaning: printLayers.includes('meaning'),
+        chords: printLayers.includes('chords'),
       })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not create PDF')
@@ -371,12 +392,30 @@ export function PlanMediaCard({
             Lyrics sheet for the songs in this plan, in setlist order.
           </CardDescription>
         </div>
-        <span
-          className="inline-flex"
-          title={
-            entries.length === 0 ? 'No songs in the order of service yet' : undefined
-          }
-        >
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {printable.length > 0 && (
+            <ToggleGroup
+              type="multiple"
+              value={printLayers}
+              onValueChange={(next) => setPrintLayers(next as PrintLayer[])}
+            >
+              {printable.map((key) => (
+                <ToggleGroupItem
+                  key={key}
+                  value={key}
+                  title={`Include the ${LAYER_LABELS[key].toLowerCase()} layer in the printed sheet`}
+                >
+                  {LAYER_LABELS[key]}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          )}
+          <span
+            className="inline-flex"
+            title={
+              entries.length === 0 ? 'No songs in the order of service yet' : undefined
+            }
+          >
           <Button
             variant="outline"
             size="sm"
@@ -391,7 +430,8 @@ export function PlanMediaCard({
             )}
             Print
           </Button>
-        </span>
+          </span>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         <p className="text-sm font-medium">Lyrics Sheet</p>
@@ -414,9 +454,7 @@ export function PlanMediaCard({
                     <p className="text-muted-foreground text-xs">{meta}</p>
                   )}
                   {hasLyrics ? (
-                    <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
-                      {entry.lyrics}
-                    </p>
+                    <LyricsReadView layers={entry.layers} />
                   ) : (
                     <p className="text-muted-foreground text-sm italic">
                       No lyrics added
