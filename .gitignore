@@ -32,6 +32,10 @@ GROK.md
 PHASES.md
 grok-resume.bat
 
+# Syncthing folder marker + per-machine sync excludes
+.stfolder/
+.stignore
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

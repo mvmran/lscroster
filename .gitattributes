@@ -1,0 +1,17 @@
+# Normalise every text file to LF in the repository and in the working tree.
+# This repo is edited from both Windows and Linux machines (and synced between
+# them), so without this every round-trip rewrites whole files as CRLF and
+# produces a phantom diff across the entire tree.
+* text=auto eol=lf
+
+# Binary assets — never touch these.
+*.png binary
+*.svg text eol=lf
+*.docx binary
+*.pdf binary
+*.ico binary
+
+# Windows-only helper scripts genuinely need CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
