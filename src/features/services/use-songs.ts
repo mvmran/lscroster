@@ -491,10 +491,17 @@ export function useSaveArrangementLyrics(arrangementId: string) {
         if (error) throw new Error(error.message)
         return data as ArrangementLyrics
       }
-      // Version numbers are assigned by a DB trigger (max + 1).
+      // Version numbers are assigned by a DB trigger (max + 1). The editor
+      // has no field for native_language, so a new version must carry it
+      // forward from the row it supersedes — the projection API reads it off
+      // the latest version only.
       const { data, error } = await supabase
         .from('song_arrangement_lyrics')
-        .insert({ arrangement_id: arrangementId, ...columns })
+        .insert({
+          arrangement_id: arrangementId,
+          native_language: current?.native_language ?? null,
+          ...columns,
+        })
         .select()
         .single()
       if (error) throw new Error(error.message)
