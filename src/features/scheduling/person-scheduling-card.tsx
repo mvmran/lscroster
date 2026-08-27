@@ -213,6 +213,7 @@ function RecurringSection({ personId }: { personId: string }) {
                 className="size-8"
                 onClick={() => remove.mutate(r.id, { onError: (e) => toast.error(e.message) })}
                 aria-label="Remove recurring unavailability"
+                title="Remove this recurring unavailability"
               >
                 <X className="size-4" />
               </Button>
@@ -334,6 +335,7 @@ function PairingsSection({ personId }: { personId: string }) {
                     remove.mutate(pairing, { onError: (e) => toast.error(e.message) })
                   }
                   aria-label="Remove pairing"
+                  title="Remove this pairing"
                 >
                   <X className="size-4" />
                 </Button>

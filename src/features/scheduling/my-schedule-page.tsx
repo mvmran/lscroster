@@ -364,6 +364,7 @@ export function MySchedulePage() {
                         })
                       }
                       aria-label="Delete blockout"
+                      title="Delete this blockout"
                     >
                       <Trash2 className="size-4" />
                     </Button>

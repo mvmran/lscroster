@@ -93,6 +93,7 @@ function SendNow({ job, label }: { job: ScheduledJob; label: string }) {
     <button
       type="button"
       disabled={run.isPending}
+      title={`Send the ${label} emails right now instead of waiting for the schedule`}
       onClick={() =>
         run.mutate(job, {
           onSuccess: () =>
@@ -156,6 +157,7 @@ function SetlistRecipientsControl() {
               <button
                 type="button"
                 aria-label="Remove recipient"
+                title="Remove this recipient"
                 disabled={remove.isPending}
                 onClick={() => remove.mutate(r.id, { onError })}
                 className="hover:bg-muted-foreground/20 rounded-full p-0.5 disabled:opacity-50"

@@ -303,7 +303,12 @@ function PositionsCard({
                       >
                         Save
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setEditing(null)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditing(null)}
+                        title="Cancel renaming"
+                      >
                         <X className="size-4" />
                       </Button>
                     </div>
@@ -321,6 +326,7 @@ function PositionsCard({
                               className="size-8"
                               onClick={() => setReqDialog(position)}
                               aria-label={`${position.name} requirements`}
+                              title="Set how many people this position needs"
                             >
                               <SlidersHorizontal className="size-4" />
                             </Button>
@@ -332,6 +338,7 @@ function PositionsCard({
                                 setEditing({ id: position.id, name: position.name })
                               }
                               aria-label={`Rename ${position.name}`}
+                              title={`Rename ${position.name}`}
                             >
                               <Pencil className="size-4" />
                             </Button>
@@ -345,6 +352,7 @@ function PositionsCard({
                                 })
                               }
                               aria-label={`Delete ${position.name}`}
+                              title={`Delete ${position.name}`}
                             >
                               <Trash2 className="size-4" />
                             </Button>
@@ -521,6 +529,7 @@ function MembersCard({
                           className="size-8"
                           onClick={() => setMemberToRemove(member)}
                           aria-label={`Remove ${fullName(member.people)}`}
+                          title={`Remove ${fullName(member.people)} from this team`}
                         >
                           <X className="size-4" />
                         </Button>
@@ -765,11 +774,21 @@ export function TeamPage() {
           </div>
           {canGovern && (
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={openEdit}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openEdit}
+                title="Rename this team or change which services use it"
+              >
                 <Pencil className="size-4" />
                 Edit
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setConfirmDelete(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmDelete(true)}
+                title="Delete this team and its positions"
+              >
                 <Trash2 className="size-4" />
                 Delete
               </Button>

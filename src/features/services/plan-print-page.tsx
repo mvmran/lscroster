@@ -107,7 +107,12 @@ function DownloadPdfButton({
   }
 
   return (
-    <Button variant="outline" onClick={download} disabled={generating}>
+    <Button
+      variant="outline"
+      onClick={download}
+      disabled={generating}
+      title="Download the run sheet as a PDF"
+    >
       {generating ? (
         <Loader2 className="size-4 animate-spin" />
       ) : (

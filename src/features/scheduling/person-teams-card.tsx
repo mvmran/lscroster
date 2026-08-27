@@ -224,6 +224,7 @@ export function PersonTeamsCard({
                         className="size-8"
                         onClick={() => setMembershipToRemove(membership)}
                         aria-label={`Remove from ${membership.teams.name}`}
+                        title={`Remove from ${membership.teams.name}`}
                       >
                         <X className="size-4" />
                       </Button>

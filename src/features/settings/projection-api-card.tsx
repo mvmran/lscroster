@@ -97,6 +97,7 @@ function GenerateKeyDialog({
                 variant="outline"
                 onClick={copy}
                 aria-label="Copy key"
+                title="Copy the key"
               >
                 {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
               </Button>
@@ -175,6 +176,7 @@ function KeyRow({ apiKey }: { apiKey: ProjectionKey }) {
               onError: (e) => toast.error(e.message),
             })
           }
+          title={`Stop “${apiKey.label}” from accessing the projection API`}
         >
           Revoke
         </Button>

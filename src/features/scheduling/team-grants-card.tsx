@@ -126,6 +126,7 @@ export function TeamGrantCard({
                     className="size-8"
                     onClick={() => setGrantToRemove(grant)}
                     aria-label={`Remove ${fullName(grant.people)}`}
+                    title={`Remove this access for ${fullName(grant.people)}`}
                   >
                     <X className="size-4" />
                   </Button>

@@ -96,6 +96,7 @@ function LogoField({
             : 'border-zinc-200 bg-white hover:bg-zinc-50',
         )}
         aria-label={`Upload ${label.toLowerCase()} logo`}
+        title={`Upload the logo used on ${label.toLowerCase()} backgrounds`}
       >
         {upload.isPending ? (
           <Loader2
@@ -116,6 +117,7 @@ function LogoField({
           variant="secondary"
           className="absolute -top-2 -right-2 size-6 rounded-full border shadow-sm"
           aria-label={`Remove ${label.toLowerCase()} logo`}
+          title="Remove this logo"
           disabled={clear.isPending}
           onClick={() =>
             clear.mutate(

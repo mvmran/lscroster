@@ -340,11 +340,20 @@ export function PeoplePage() {
                 <SelectItem value="archive">{BULK_ACTION_LABELS.archive}</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={onGo} disabled={running}>
+            <Button
+              onClick={onGo}
+              disabled={running}
+              title="Run the chosen action on the selected people"
+            >
               {running && <Loader2 className="size-4 animate-spin" />}
               Go
             </Button>
-            <Button variant="ghost" onClick={clearSelection} disabled={running}>
+            <Button
+              variant="ghost"
+              onClick={clearSelection}
+              disabled={running}
+              title="Deselect everyone"
+            >
               Clear
             </Button>
           </div>
@@ -420,6 +429,7 @@ export function PeoplePage() {
                           checked={allVisibleSelected}
                           onCheckedChange={(c) => toggleAllVisible(c === true)}
                           aria-label="Select all people"
+                          title="Select everyone shown in the list below"
                         />
                       )}
                       Name
@@ -468,6 +478,7 @@ export function PeoplePage() {
                                 checked={selected}
                                 onCheckedChange={(c) => toggleOne(person.id, c === true)}
                                 aria-label={`Select ${fullName(person)}`}
+                                title={`Select ${fullName(person)}`}
                               />
                             </span>
                           )}

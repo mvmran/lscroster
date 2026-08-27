@@ -102,6 +102,11 @@ function UserRow({ person, isSelf }: { person: Person; isSelf: boolean }) {
           onCheckedChange={setActive}
           disabled={isSelf || updatePerson.isPending}
           aria-label={`Active status for ${fullName(person)}`}
+          title={
+            isSelf
+              ? 'You can’t deactivate your own account'
+              : `Turn sign-in access for ${fullName(person)} on or off`
+          }
         />
       </div>
     </div>

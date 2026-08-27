@@ -556,6 +556,7 @@ function SaveTemplateDialog({
                     size="icon"
                     disabled={templates.length === 0}
                     aria-label="Choose an existing template"
+                    title="Choose an existing template"
                   >
                     <ChevronDown className="size-4" />
                   </Button>
@@ -573,6 +574,7 @@ function SaveTemplateDialog({
                         type="button"
                         className="text-muted-foreground hover:text-destructive shrink-0 rounded p-1"
                         aria-label={`Delete ${t.name}`}
+                        title={`Delete ${t.name}`}
                         onClick={() => {
                           setMenuOpen(false)
                           setDeleting(t)

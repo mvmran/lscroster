@@ -174,7 +174,7 @@ export function SongsPage() {
         actions={
           <>
             <Button variant="outline" asChild>
-              <Link to="/songs/reports">
+              <Link to="/songs/reports" title="See how often each song has been used">
                 <ChartColumn className="size-4" />
                 <span className="hidden sm:inline">Usage</span>
               </Link>

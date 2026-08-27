@@ -138,6 +138,7 @@ export function InviteControls({ person }: { person: Person }) {
             onClick={() => setDetachOpen(true)}
             disabled={accountAccess.isPending}
             aria-label="Remove managing member"
+            title="Remove this managing member"
           >
             <Trash2 className="size-4" />
           </Button>
@@ -167,6 +168,7 @@ export function InviteControls({ person }: { person: Person }) {
                 variant="outline"
                 onClick={revoke}
                 disabled={revokeInvite.isPending}
+                title="Cancel this invitation — the emailed link stops working"
               >
                 <X className="size-4" />
                 Revoke
@@ -260,6 +262,7 @@ export function InviteControls({ person }: { person: Person }) {
                 variant="outline"
                 onClick={revoke}
                 disabled={revokeInvite.isPending}
+                title="Cancel this invitation — the emailed link stops working"
               >
                 <X className="size-4" />
                 Revoke
@@ -319,7 +322,13 @@ function ManualLinkDialog({
         </DialogHeader>
         <div className="flex gap-2">
           <Input readOnly value={manualLink ?? ''} className="font-mono text-xs" />
-          <Button variant="outline" size="icon" onClick={onCopy} aria-label="Copy link">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onCopy}
+            aria-label="Copy link"
+            title="Copy the link"
+          >
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
           </Button>
         </div>

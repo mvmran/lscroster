@@ -115,6 +115,7 @@ function SortableRequiredTeam({
         type="button"
         className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1"
         aria-label={`Drag ${name} to reorder`}
+        title="Drag to reorder"
         {...attributes}
         {...listeners}
       >
@@ -129,6 +130,7 @@ function SortableRequiredTeam({
         disabled={index === 0}
         onClick={() => onMove(index, -1)}
         aria-label={`Move ${name} up`}
+        title={`Move ${name} up`}
       >
         <ArrowUp className="size-4" />
       </Button>
@@ -140,6 +142,7 @@ function SortableRequiredTeam({
         disabled={index === count - 1}
         onClick={() => onMove(index, 1)}
         aria-label={`Move ${name} down`}
+        title={`Move ${name} down`}
       >
         <ArrowDown className="size-4" />
       </Button>
@@ -150,6 +153,7 @@ function SortableRequiredTeam({
         className="size-8"
         onClick={onRemove}
         aria-label={`Remove ${name}`}
+        title={`Remove ${name}`}
       >
         <X className="size-4" />
       </Button>
@@ -190,6 +194,7 @@ function SortableServiceTypeCard({
           type="button"
           className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1"
           aria-label={`Drag ${st.name} to reorder`}
+          title="Drag to reorder"
           {...attributes}
           {...listeners}
         >
@@ -207,6 +212,7 @@ function SortableServiceTypeCard({
           disabled={index === 0 || reordering}
           onClick={() => onMove(index, -1)}
           aria-label={`Move ${st.name} up`}
+          title={`Move ${st.name} up`}
         >
           <ArrowUp className="size-4" />
         </Button>
@@ -216,6 +222,7 @@ function SortableServiceTypeCard({
           disabled={index === count - 1 || reordering}
           onClick={() => onMove(index, 1)}
           aria-label={`Move ${st.name} down`}
+          title={`Move ${st.name} down`}
         >
           <ArrowDown className="size-4" />
         </Button>
@@ -224,6 +231,7 @@ function SortableServiceTypeCard({
           size="icon"
           onClick={onEdit}
           aria-label={`Edit ${st.name}`}
+          title={`Edit ${st.name}`}
         >
           <Pencil className="size-4" />
         </Button>
@@ -232,6 +240,7 @@ function SortableServiceTypeCard({
             size="icon"
             onClick={onDelete}
             aria-label={`Delete ${st.name}`}
+            title={`Delete ${st.name}`}
           >
             <Trash2 className="size-4" />
           </Button>

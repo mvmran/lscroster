@@ -289,6 +289,7 @@ export function PersonPage() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadPhoto.isPending}
                 aria-label="Change photo"
+                title="Upload a new photo"
               >
                 {uploadPhoto.isPending ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -304,6 +305,7 @@ export function PersonPage() {
                   onClick={onPhotoRemove}
                   disabled={removePhoto.isPending || uploadPhoto.isPending}
                   aria-label="Remove photo"
+                  title="Remove this photo"
                 >
                   {removePhoto.isPending ? (
                     <Loader2 className="size-3 animate-spin" />
@@ -498,6 +500,7 @@ export function PersonPage() {
                         variant="outline"
                         size="sm"
                         disabled={accountAccess.isPending || managesAnyone}
+                        title="Hide from the directory and disable sign-in — history is kept"
                       >
                         <Archive className="size-4" />
                         Archive
@@ -541,6 +544,7 @@ export function PersonPage() {
                         variant="outline"
                         size="sm"
                         disabled={accountAccess.isPending}
+                        title="Restore to the directory so they can be scheduled again"
                       >
                         <ArchiveRestore className="size-4" />
                         Reactivate
@@ -574,6 +578,7 @@ export function PersonPage() {
                       variant="destructive"
                       size="sm"
                       disabled={managesAnyone}
+                      title="Permanently remove this person and their history"
                     >
                       <Trash2 className="size-4" />
                       Delete

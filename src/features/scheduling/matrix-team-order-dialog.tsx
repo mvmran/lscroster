@@ -61,6 +61,7 @@ function SortableTeamRow({
         type="button"
         className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1"
         aria-label={`Drag ${team.name} to reorder`}
+        title="Drag to reorder"
         {...attributes}
         {...listeners}
       >
@@ -73,6 +74,7 @@ function SortableTeamRow({
         disabled={index === 0}
         onClick={() => onMove(index, -1)}
         aria-label={`Move ${team.name} up`}
+        title={`Move ${team.name} up`}
       >
         <ArrowUp className="size-4" />
       </Button>
@@ -82,6 +84,7 @@ function SortableTeamRow({
         disabled={index === count - 1}
         onClick={() => onMove(index, 1)}
         aria-label={`Move ${team.name} down`}
+        title={`Move ${team.name} down`}
       >
         <ArrowDown className="size-4" />
       </Button>

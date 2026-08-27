@@ -395,6 +395,7 @@ function RuleDialog({
                       variant="ghost"
                       size="icon"
                       aria-label="Remove this requirement"
+                      title="Remove this requirement"
                       onClick={() => setEffects((prev) => prev.filter((_, j) => j !== i))}
                     >
                       <Trash2 className="size-4" />
@@ -623,11 +624,13 @@ export function ConditionalRulesCard() {
                   checked={rule.enabled}
                   onCheckedChange={(checked) => toggle(rule, checked)}
                   aria-label={`Enable rule ${rule.name}`}
+                  title={`Turn ${rule.name} on or off`}
                 />
                 <Button
                   variant="ghost"
                   size="icon"
                   aria-label={`Edit rule ${rule.name}`}
+                  title={`Edit ${rule.name}`}
                   onClick={() => setDialog({ editing: rule })}
                 >
                   <Pencil className="size-4" />
@@ -636,6 +639,7 @@ export function ConditionalRulesCard() {
                   variant="ghost"
                   size="icon"
                   aria-label={`Delete rule ${rule.name}`}
+                  title={`Delete ${rule.name}`}
                   onClick={() => setPendingDelete(rule)}
                 >
                   <Trash2 className="size-4" />

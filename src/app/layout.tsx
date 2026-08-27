@@ -103,7 +103,13 @@ function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full"
+          aria-label="Account menu"
+          title="Your account"
+        >
           <Avatar className="size-8">
             <AvatarFallback>{initials || '?'}</AvatarFallback>
           </Avatar>
@@ -180,6 +186,7 @@ export function AppLayout() {
                 size="icon"
                 className="md:hidden"
                 aria-label="Open navigation"
+                title="Menu"
               >
                 <Menu className="size-5" />
               </Button>

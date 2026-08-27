@@ -293,6 +293,7 @@ function SectionChevron({
       <button
         type="button"
         aria-label={`Drag to move ${section.label}`}
+        title={`Drag to move ${section.label}`}
         className="shrink-0 cursor-grab touch-none py-1.5 pl-0.5 opacity-70 hover:opacity-100 active:cursor-grabbing"
         {...attributes}
         {...listeners}
@@ -348,6 +349,7 @@ function FlowPill({
       <button
         type="button"
         aria-label={`Drag to move ${section.label}`}
+        title={`Drag to move ${section.label}`}
         className="shrink-0 cursor-grab touch-none py-1 pl-1.5 opacity-70 hover:opacity-100 active:cursor-grabbing"
         {...attributes}
         {...listeners}
