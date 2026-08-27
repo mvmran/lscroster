@@ -305,12 +305,19 @@ export function useCreateArrangement(songId: string) {
         throw new Error(linkError.message)
       }
       // Seed the new arrangement's lyrics from the song's Default so the editor
-      // isn't blank (#131). Best-effort — an empty Default just leaves it blank.
+      // isn't blank (#131) — all four layers copied verbatim, so the native,
+      // meaning and chord lines stay parallel to the base text (#139).
+      // Best-effort — an empty Default just leaves it blank.
       const seed = await fetchDefaultLyrics(songId)
-      if (seed && seed.trim()) {
-        await supabase
-          .from('song_arrangement_lyrics')
-          .insert({ arrangement_id: data.id, lyrics: seed.trim() })
+      if (seed && seed.lyrics.trim()) {
+        await supabase.from('song_arrangement_lyrics').insert({
+          arrangement_id: data.id,
+          lyrics: seed.lyrics,
+          lyrics_native: seed.lyrics_native,
+          lyrics_meaning: seed.lyrics_meaning,
+          lyrics_chords: seed.lyrics_chords,
+          native_language: seed.native_language,
+        })
       }
       return data as SongArrangement
     },
@@ -519,20 +526,29 @@ export async function fetchDefaultArrangement(
   )
 }
 
+/** What a new arrangement is seeded from: every layer of the Default's lyrics. */
+export type DefaultLyricsSeed = Pick<
+  ArrangementLyrics,
+  'lyrics' | 'lyrics_native' | 'lyrics_meaning' | 'lyrics_chords' | 'native_language'
+>
+
 /**
- * The lyrics text to seed a newly linked medley song from: the latest version
- * of that song's Default arrangement (#130).
+ * The lyrics to seed a new arrangement or a newly linked medley song from:
+ * the latest version of that song's Default arrangement (#130), carrying all
+ * four layers (#139).
  */
-export async function fetchDefaultLyrics(songId: string): Promise<string | null> {
+export async function fetchDefaultLyrics(
+  songId: string,
+): Promise<DefaultLyricsSeed | null> {
   const def = await fetchDefaultArrangement(songId)
   if (!def) return null
   const { data, error } = await supabase
     .from('song_arrangement_lyrics')
-    .select('lyrics')
+    .select('lyrics, lyrics_native, lyrics_meaning, lyrics_chords, native_language')
     .eq('arrangement_id', def.id)
     .order('version', { ascending: false })
     .limit(1)
     .maybeSingle()
   if (error) throw new Error(error.message)
-  return data?.lyrics ?? null
+  return data
 }

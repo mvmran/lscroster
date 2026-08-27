@@ -650,7 +650,7 @@ function ArrangementLyricsBlock({
         songId: target.id,
         sortOrder: nextSort,
       })
-      const appended = await fetchDefaultLyrics(target.id)
+      const appended = (await fetchDefaultLyrics(target.id))?.lyrics
       if (appended && appended.trim()) {
         // Only the base gains lines; the layers are padded out to match it on
         // save, so the medley's second song simply has no annotations yet.
