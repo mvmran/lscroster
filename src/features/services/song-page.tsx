@@ -208,10 +208,21 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
         </div>
         {dirty && (
           <div className="flex justify-end">
-            <Button onClick={save} disabled={updateSong.isPending || !title.trim()}>
-              {updateSong.isPending && <Loader2 className="size-4 animate-spin" />}
-              Save changes
-            </Button>
+            {/* The span carries the "why is this greyed out" hint: a disabled
+                Button has pointer-events: none, so its own title never shows. */}
+            <span
+              className="inline-flex"
+              title={!title.trim() ? 'Give the song a title first' : undefined}
+            >
+              <Button
+                onClick={save}
+                disabled={updateSong.isPending || !title.trim()}
+                title="Save these song details"
+              >
+                {updateSong.isPending && <Loader2 className="size-4 animate-spin" />}
+                Save changes
+              </Button>
+            </span>
           </div>
         )}
       </CardContent>
@@ -247,6 +258,18 @@ function ArrangementForm({
   )
   const referenceUrlInvalid =
     referenceUrl.trim() !== '' && !/^https?:\/\/\S+$/.test(referenceUrl.trim())
+
+  // Mirrors the inline validation messages above, for the hover hint on the
+  // wrapper around a disabled Save button.
+  const saveBlockedReason = !name.trim()
+    ? 'Give the arrangement a name first'
+    : nameTaken
+      ? 'This song already has an arrangement with that name'
+      : bpmInvalid
+        ? 'BPM must be a whole number above 0'
+        : referenceUrlInvalid
+          ? 'The reference link must start with http:// or https://'
+          : undefined
 
   const dirty =
     name.trim() !== arrangement.name ||
@@ -393,26 +416,32 @@ function ArrangementForm({
             size="sm"
             onClick={() => setConfirmDelete(true)}
             disabled={remove.isPending}
+            title="Delete this arrangement and its lyrics"
           >
             <Trash2 className="size-4" />
             Delete arrangement
           </Button>
         )}
         {dirty && (
-          <Button
-            size="sm"
-            onClick={save}
-            disabled={
-              update.isPending ||
-              bpmInvalid ||
-              !name.trim() ||
-              nameTaken ||
-              referenceUrlInvalid
-            }
-          >
-            {update.isPending && <Loader2 className="size-4 animate-spin" />}
-            Save changes
-          </Button>
+          // The span carries the "why is this greyed out" hint: a disabled
+          // Button has pointer-events: none, so its own title never shows.
+          <span className="inline-flex" title={saveBlockedReason}>
+            <Button
+              size="sm"
+              onClick={save}
+              disabled={
+                update.isPending ||
+                bpmInvalid ||
+                !name.trim() ||
+                nameTaken ||
+                referenceUrlInvalid
+              }
+              title="Save this arrangement"
+            >
+              {update.isPending && <Loader2 className="size-4 animate-spin" />}
+              Save changes
+            </Button>
+          </span>
         )}
       </div>
 
@@ -680,6 +709,7 @@ function ArrangementLyricsBlock({
                     className="ml-1 opacity-70 hover:opacity-100"
                     onClick={() => setPendingUnlink(s)}
                     aria-label={`Unlink ${s.title}`}
+                    title={`Remove ${s.title} from this medley`}
                   >
                     <X className="size-3" />
                   </button>
@@ -692,6 +722,7 @@ function ArrangementLyricsBlock({
               className="h-7"
               onClick={() => setLinkOpen(true)}
               disabled={link.isPending}
+              title="Link another song to make this arrangement a medley"
             >
               <Link2 className="size-3.5" />
               Link a song
@@ -733,7 +764,11 @@ function ArrangementLyricsBlock({
         )}
         {dirty && (
           <div className="flex justify-end">
-            <Button onClick={onSaveClick} disabled={save.isPending || checkingPin}>
+            <Button
+              onClick={onSaveClick}
+              disabled={save.isPending || checkingPin}
+              title="Save these lyrics as a new version"
+            >
               {(save.isPending || checkingPin) && (
                 <Loader2 className="size-4 animate-spin" />
               )}
@@ -891,6 +926,7 @@ function AttachmentsSection({
                   open.mutate(attachment, { onError: (e) => toast.error(e.message) })
                 }
                 aria-label={`Download ${attachment.label}`}
+                title={`Download ${attachment.label}`}
               >
                 <Download className="size-4" />
               </Button>
@@ -906,6 +942,7 @@ function AttachmentsSection({
                     })
                   }
                   aria-label={`Delete ${attachment.label}`}
+                  title={`Delete ${attachment.label}`}
                 >
                   <Trash2 className="size-4" />
                 </Button>
@@ -927,6 +964,7 @@ function AttachmentsSection({
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
             disabled={upload.isPending}
+            title="Attach a chart, recording or PDF to this arrangement"
           >
             {upload.isPending ? (
               <Loader2 className="size-4 animate-spin" />
@@ -1014,6 +1052,7 @@ function ArrangementsCard({ song, canManage }: { song: Song; canManage: boolean 
                   size="sm"
                   onClick={addArrangement}
                   disabled={create.isPending}
+                  title="Add another version of this song with its own key and lyrics"
                 >
                   {create.isPending ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -1085,6 +1124,7 @@ function UsageCard({ songId }: { songId: string }) {
                   <Link
                     to={`/services/plans/${entry.plan_id}`}
                     className="hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                    title={`Open the ${entry.service_type_name} plan for ${formatPlanDate(entry.date!)}`}
                   >
                     <span className="flex-1">{formatPlanDate(entry.date!)}</span>
                     {entry.key_override && (
@@ -1130,7 +1170,9 @@ export function SongPage() {
         <Music className="size-8" />
         <p>This song doesn’t exist.</p>
         <Button variant="outline" asChild>
-          <Link to="/songs">Back to songs</Link>
+          <Link to="/songs" title="Back to the song list">
+            Back to songs
+          </Link>
         </Button>
       </div>
     )
@@ -1162,7 +1204,7 @@ export function SongPage() {
     <div className="flex flex-col gap-4">
       <div>
         <Button variant="ghost" size="sm" className="-ml-2 mb-1" asChild>
-          <Link to="/songs">
+          <Link to="/songs" title="Back to the song list">
             <ArrowLeft className="size-4" />
             Songs
           </Link>
@@ -1180,6 +1222,7 @@ export function SongPage() {
                   href={songSearchLinks(song.title, song.author).lyrics}
                   target="_blank"
                   rel="noopener noreferrer"
+                  title="Search the web for this song’s lyrics (opens a new tab)"
                 >
                   <Search className="size-4" />
                   Lyrics
@@ -1190,6 +1233,7 @@ export function SongPage() {
                   href={songSearchLinks(song.title, song.author).chords}
                   target="_blank"
                   rel="noopener noreferrer"
+                  title="Search the web for this song’s chords (opens a new tab)"
                 >
                   <Guitar className="size-4" />
                   Chords
@@ -1200,6 +1244,7 @@ export function SongPage() {
                   href={songSearchLinks(song.title, song.author).listen}
                   target="_blank"
                   rel="noopener noreferrer"
+                  title="Find a recording of this song (opens a new tab)"
                 >
                   <Play className="size-4" />
                   Listen
@@ -1214,6 +1259,11 @@ export function SongPage() {
                 size="sm"
                 onClick={toggleArchived}
                 disabled={updateSong.isPending}
+                title={
+                  song.status === 'active'
+                    ? 'Hide this song from the song list without deleting it'
+                    : 'Put this song back in the active song list'
+                }
               >
                 {song.status === 'active' ? (
                   <Archive className="size-4" />
@@ -1222,7 +1272,12 @@ export function SongPage() {
                 )}
                 {song.status === 'active' ? 'Archive' : 'Restore'}
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setConfirmDelete(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmDelete(true)}
+                title="Delete this song and all of its arrangements"
+              >
                 <Trash2 className="size-4" />
                 Delete
               </Button>
