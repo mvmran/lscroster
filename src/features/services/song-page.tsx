@@ -686,7 +686,7 @@ function ArrangementLyricsBlock({
 
       <div className="flex flex-col gap-2">
         <Label htmlFor={`arr-lyrics-${arrangement.id}`}>
-          Lyrics / chord chart (optional)
+          Lyrics / Chords
           {current && (
             <span className="text-muted-foreground ml-1 font-normal">
               · version {current.version}
