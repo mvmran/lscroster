@@ -33,6 +33,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
   alignLayer,
   duplicateSectionLayers,
+  findNonLatinLyrics,
   LAYER_LABELS,
   layerLineMismatch,
   lineCount,
@@ -565,6 +566,17 @@ export function LyricsStructureEditor({
     </div>
   )
 
+  // Non-Latin script in the base text (the save is blocked on the same check).
+  const stray = findNonLatinLyrics(layers.lyrics)
+  const scriptHint = stray && (
+    <p className="text-destructive text-xs">
+      Line {stray.line} of the lyrics is not Latin script ({stray.sample}). Type
+      the singable transliteration here, and use the{' '}
+      <span className="font-medium">{LAYER_LABELS.native}</span> button above for
+      the original script.
+    </p>
+  )
+
   const mismatch = activeLayer
     ? layerLineMismatch(layers).find((m) => m.key === activeLayer)
     : undefined
@@ -614,6 +626,7 @@ export function LyricsStructureEditor({
     return (
       <div className="flex flex-col gap-1.5">
         {body}
+        {scriptHint}
         {layerHint}
         {layers.lyrics.trim() && (
           <p className="text-muted-foreground text-xs">
@@ -652,6 +665,7 @@ export function LyricsStructureEditor({
           ))}
         </div>
         {body}
+        {scriptHint}
         {layerHint}
       </div>
       <DragOverlay>

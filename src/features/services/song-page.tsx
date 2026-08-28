@@ -59,6 +59,7 @@ import {
 } from '@/features/services/lyrics-structure-editor'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
 import {
+  findNonLatinLyrics,
   layersOfRow,
   normalizeForSave,
   type LayeredLyrics,
@@ -596,6 +597,9 @@ function ArrangementLyricsBlock({
     value.meaning !== saved.meaning ||
     value.chords !== saved.chords
   const linkedSongs = arrangement.linked_songs
+  // The base text must stay Latin — the editor shows which line strayed, and
+  // saving is blocked until it does, so a song can't lose its transliteration.
+  const scriptBlocked = findNonLatinLyrics(value.lyrics) !== null
 
   // Warn before navigating away (page unload or an in-app link) with unsaved
   // lyrics, and surface the dirty state so the parent can guard tab switches.
@@ -606,6 +610,7 @@ function ArrangementLyricsBlock({
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   async function onSaveClick() {
+    if (scriptBlocked) return
     setCheckingPin(true)
     try {
       const pinned = current ? await isLyricsVersionPinned(current.id) : false
@@ -764,16 +769,27 @@ function ArrangementLyricsBlock({
         )}
         {dirty && (
           <div className="flex justify-end">
-            <Button
-              onClick={onSaveClick}
-              disabled={save.isPending || checkingPin}
-              title="Save these lyrics as a new version"
+            {/* The reason for a blocked save rides on a wrapper: a disabled
+                button has pointer events off, so its own title never shows. */}
+            <span
+              className="inline-flex"
+              title={
+                scriptBlocked
+                  ? 'The lyrics have non-Latin characters — fix the line marked above first'
+                  : undefined
+              }
             >
-              {(save.isPending || checkingPin) && (
-                <Loader2 className="size-4 animate-spin" />
-              )}
-              Save changes
-            </Button>
+              <Button
+                onClick={onSaveClick}
+                disabled={save.isPending || checkingPin || scriptBlocked}
+                title="Save these lyrics as a new version"
+              >
+                {(save.isPending || checkingPin) && (
+                  <Loader2 className="size-4 animate-spin" />
+                )}
+                Save changes
+              </Button>
+            </span>
           </div>
         )}
       </div>

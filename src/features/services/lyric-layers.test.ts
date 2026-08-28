@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   duplicateSectionLayers,
   EMPTY_LAYERS,
+  findNonLatinLyrics,
   hasAnyLayer,
   layerLineMismatch,
   lineCount,
@@ -259,5 +260,25 @@ describe('splitChordLine', () => {
       .map((s) => (s.chord ? `[${s.text}]` : s.text))
       .join('')
     expect(back).toBe(line)
+  })
+})
+
+describe('findNonLatinLyrics', () => {
+  it('passes plain Latin lyrics, punctuation, digits and accents', () => {
+    expect(findNonLatinLyrics(SONG)).toBeNull()
+    expect(findNonLatinLyrics("[Verse 1]\nCafé — 2 x 'Hallelujah!'")).toBeNull()
+    expect(findNonLatinLyrics('')).toBeNull()
+  })
+
+  it('reports the first straying line and the characters on it', () => {
+    const found = findNonLatinLyrics('Amazing grace\nഅത്ഭുത കൃപ\nഎത്ര')
+    expect(found?.line).toBe(2)
+    expect(found?.sample).not.toBe('')
+    expect(found?.sample.length).toBeLessThanOrEqual(6)
+  })
+
+  it('catches other scripts too, not just Indic ones', () => {
+    expect(findNonLatinLyrics('Слава')?.line).toBe(1)
+    expect(findNonLatinLyrics('恵み')?.line).toBe(1)
   })
 })

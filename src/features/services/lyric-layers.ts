@@ -181,6 +181,43 @@ export function zipLyricLines(layers: LayeredLyrics): LyricLineTuple[] {
   }))
 }
 
+/**
+ * A letter (or a combining mark) belonging to some script other than Latin.
+ * Common and Inherited are excluded so digits, punctuation, spaces and the
+ * combining accents of "é" typed as e + U+0301 all read as Latin.
+ */
+const NON_LATIN_LETTER =
+  /(?![\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}])[\p{L}\p{M}]/u
+
+export interface NonLatinFinding {
+  /** 1-based number of the first offending line. */
+  line: number
+  /** The distinct offending characters on that line, a handful at most. */
+  sample: string
+}
+
+/**
+ * Find non-Latin script in the base lyrics.
+ *
+ * The base text is the singable Latin line — the transliteration for a
+ * multi-lingual song — and the native layer is where the original script
+ * belongs. Typing Malayalam into the base instead silently costs the song its
+ * transliteration and leaves the layers describing nothing, so the editor
+ * blocks the save and points at the first line that strayed.
+ */
+export function findNonLatinLyrics(text: string): NonLatinFinding | null {
+  const lines = toLines(text)
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]
+    if (!NON_LATIN_LETTER.test(line)) continue
+    const distinct = [
+      ...new Set(Array.from(line).filter((char) => NON_LATIN_LETTER.test(char))),
+    ]
+    return { line: i + 1, sample: distinct.slice(0, 6).join('') }
+  }
+  return null
+}
+
 /** One run of a chord line: either a bracketed chord, or the text around it. */
 export interface ChordSegment {
   /** True for a `[…]` token; its text is the chord name, brackets stripped. */
