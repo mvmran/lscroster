@@ -3,6 +3,7 @@ import {
   Archive,
   ArchiveRestore,
   ArrowLeft,
+  ClipboardPaste,
   Download,
   FileMusic,
   Guitar,
@@ -57,7 +58,9 @@ import {
   LyricLayerToggle,
   LyricsStructureEditor,
 } from '@/features/services/lyrics-structure-editor'
+import { LyricsImportDialog } from '@/features/services/lyrics-import-dialog'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
+import { appendImportedLyrics } from '@/features/services/lyric-import'
 import {
   findNonLatinLyrics,
   layersOfRow,
@@ -584,6 +587,7 @@ function ArrangementLyricsBlock({
   const [draft, setDraft] = useState<LayeredLyrics | null>(null)
   const [activeLayer, setActiveLayer] = useState<LyricLayerKey | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [pendingLink, setPendingLink] = useState<{ id: string; title: string } | null>(null)
   const [pendingUnlink, setPendingUnlink] = useState<{ id: string; title: string } | null>(null)
   const [versionNotice, setVersionNotice] = useState(false)
@@ -750,12 +754,25 @@ function ArrangementLyricsBlock({
               </span>
             )}
           </Label>
-          <LyricLayerToggle
-            layers={value}
-            value={activeLayer}
-            onChange={setActiveLayer}
-            disabled={lyricsPending}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <LyricLayerToggle
+              layers={value}
+              value={activeLayer}
+              onChange={setActiveLayer}
+              disabled={lyricsPending}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={lyricsPending}
+              onClick={() => setImportOpen(true)}
+              title="Paste a song in the Transliteration / Meaning format and add it to the end of these lyrics"
+            >
+              <ClipboardPaste className="size-4" />
+              Import
+            </Button>
+          </div>
         </div>
         {lyricsPending ? (
           <Skeleton className="h-24 w-full" />
@@ -793,6 +810,12 @@ function ArrangementLyricsBlock({
           </div>
         )}
       </div>
+
+      <LyricsImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImport={(imported) => setDraft(appendImportedLyrics(value, imported))}
+      />
 
       <LinkSongDialog
         open={linkOpen}
