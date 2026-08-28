@@ -243,7 +243,7 @@ is the native-script text for `lines[2]`:
   "layers": {
     "native": ["...", "..."],
     "meaning": ["How great is your love", "O my soul"],
-    "chords": ["Am        F", "C         G"]
+    "chords": ["[Am]ninte sneham [F]etra valuthu", "[C]ente [G]aathmaave"]
   }
 }
 ```
@@ -254,8 +254,13 @@ is the native-script text for `lines[2]`:
   where that line has no annotation.
 - `lines` is unchanged and is still the text to project. Layers are for the operator's
   confidence monitor, a bilingual lower third, or a chord view — treat them as optional.
-- `chords` entries are column-aligned against the corresponding `lines` entry, so render
-  them in a monospace face if you show them above the line.
+- `chords` entries mark each chord in ChordPro brackets — `[Am]` — either as a bare row
+  of chords or wrapped around the syllable the chord falls on, as above. Render them in
+  a proportional face and pick the bracketed chord out (bold, or your accent colour);
+  the brackets themselves are worth keeping or dimming rather than dropping, since they
+  are what separates a chord from the syllable beside it. Songs entered before this
+  convention may still carry space-aligned chords (`"Am        F"`), which render as
+  plain text with no bracket to highlight.
 - Render `native` with a font that shapes the script named by `nativeLanguage`; a font
   without Indic shaping will produce broken conjuncts and misplaced vowel signs.
 

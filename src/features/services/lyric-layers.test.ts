@@ -8,6 +8,7 @@ import {
   moveSectionLayers,
   padLayers,
   removeSectionLayers,
+  splitChordLine,
   toLines,
   zipLyricLines,
   type LayeredLyrics,
@@ -219,5 +220,44 @@ describe('zipLyricLines', () => {
   it('ignores a longer layer trailing lines', () => {
     const lines = zipLyricLines({ ...EMPTY_LAYERS, lyrics: 'a', meaning: 'x\ny' })
     expect(lines).toHaveLength(1)
+  })
+})
+
+describe('splitChordLine', () => {
+  it('picks out a bare chord row, brackets stripped', () => {
+    expect(splitChordLine('[G] [C]')).toEqual([
+      { chord: true, text: 'G' },
+      { chord: false, text: ' ' },
+      { chord: true, text: 'C' },
+    ])
+  })
+
+  it('keeps the syllables around an inline ChordPro chord', () => {
+    expect(splitChordLine('[G]Amazing [C]grace')).toEqual([
+      { chord: true, text: 'G' },
+      { chord: false, text: 'Amazing ' },
+      { chord: true, text: 'C' },
+      { chord: false, text: 'grace' },
+    ])
+  })
+
+  it('leaves a half-typed or empty bracket as plain text', () => {
+    expect(splitChordLine('[G')).toEqual([{ chord: false, text: '[G' }])
+    expect(splitChordLine('[]')).toEqual([{ chord: false, text: '[]' }])
+  })
+
+  it('handles a line with no chords, and an empty one', () => {
+    expect(splitChordLine('just words')).toEqual([
+      { chord: false, text: 'just words' },
+    ])
+    expect(splitChordLine('')).toEqual([])
+  })
+
+  it('round trips the line when the brackets are put back', () => {
+    const line = '  [Am7]Through [F#m]many [G/B]dangers  '
+    const back = splitChordLine(line)
+      .map((s) => (s.chord ? `[${s.text}]` : s.text))
+      .join('')
+    expect(back).toBe(line)
   })
 })

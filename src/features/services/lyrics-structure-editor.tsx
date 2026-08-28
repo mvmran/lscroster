@@ -506,7 +506,9 @@ export function LyricsStructureEditor({
       value={layers.lyrics}
       onChange={(e) => onChange({ ...layers, lyrics: e.target.value })}
       className={cn(
-        'font-mono text-sm',
+        // Proportional, like every other lyric surface — chords are
+        // placed by their brackets now, so no pane needs a monospace grid.
+        'font-sans text-sm',
         sections.length > 0 && 'pl-5',
         split && `${PANE_LEADING} whitespace-pre`,
       )}
@@ -557,14 +559,7 @@ export function LyricsStructureEditor({
           aria-label={`${LAYER_LABELS[activeLayer]} text, line by line against the lyrics`}
           value={layers[activeLayer]}
           onChange={(e) => onChange({ ...layers, [activeLayer]: e.target.value })}
-          className={cn(
-            'text-sm whitespace-pre',
-            PANE_LEADING,
-            // Chords align by column against the Latin base line, so they need
-            // the same monospace grid the lyrics pane uses. Native script and
-            // the English gloss are proportional text.
-            activeLayer === 'chords' ? 'font-mono' : 'font-sans',
-          )}
+          className={cn('text-sm whitespace-pre font-sans', PANE_LEADING)}
         />
       </div>
     </div>
@@ -580,6 +575,14 @@ export function LyricsStructureEditor({
         <span>
           Type the {LAYER_LABELS[activeLayer].toLowerCase()} text line by line
           against the lyrics — line 1 here belongs to line 1 there.
+          {activeLayer === 'chords' && (
+            <>
+              {' '}
+              Wrap each chord in brackets — <span className="font-mono">[G]</span> on
+              its own, or <span className="font-mono">[G]Amazing</span> ChordPro
+              style — and it is picked out above the line.
+            </>
+          )}
         </span>
       ) : (
         <span>

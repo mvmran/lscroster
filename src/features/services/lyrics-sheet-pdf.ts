@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns'
-import { zipLyricLines } from '@/features/services/lyric-layers'
+import { splitChordLine, zipLyricLines } from '@/features/services/lyric-layers'
 import { lyricsSheetMeta, type LyricsSheetEntry } from '@/features/services/service-utils'
 
 export interface LyricsSheetPdfOptions {
@@ -11,9 +11,9 @@ export interface LyricsSheetPdfOptions {
   /** Print the English gloss under each line (#139). */
   meaning?: boolean
   /**
-   * Print chords above each line (#139). Chords are positioned by column, so
-   * this also switches the lyrics to a monospace face — a proportional one
-   * slides every chord off the syllable it belongs to.
+   * Print chords above each line (#139). Chords are placed by their `[…]`
+   * brackets rather than by column, so the sheet stays in the proportional
+   * face throughout and each bracketed chord is simply set in bold.
    *
    * The native-script layer is deliberately not offered here: jsPDF's core
    * fonts carry no Indic glyphs, and even with an embedded Noto face its
@@ -102,19 +102,59 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
     style: 'normal' | 'bold' | 'italic',
     color: number,
     lineHeight: number,
-    font: 'helvetica' | 'courier' = 'helvetica',
   ) {
-    doc.setFont(font, style)
+    doc.setFont('helvetica', style)
     doc.setFontSize(size)
     const lines = doc.splitTextToSize(text, colWidth) as string[]
     for (const line of lines) {
       if (y + lineHeight > contentBottom) advanceColumn()
-      doc.setFont(font, style)
+      doc.setFont('helvetica', style)
       doc.setFontSize(size)
       doc.setTextColor(color)
       doc.text(line, colX(), y)
       y += lineHeight
     }
+  }
+
+  /**
+   * A chord line, with its `[…]` chords in bold and anything between them (the
+   * syllables of a full ChordPro line) in the lighter body weight.
+   *
+   * jsPDF draws one style per call, so this lays the line out piece by piece
+   * and measures as it goes — `drawWrapped` can't mix weights within a line.
+   * Pieces break at whitespace, and a row that wraps drops the space it broke
+   * on so the continuation starts hard against the margin.
+   */
+  function drawChordLine(line: string, size: number, lineHeight: number) {
+    const pieces = splitChordLine(line).flatMap((segment) =>
+      (segment.chord ? `[${segment.text}]` : segment.text)
+        .split(/(\s+)/)
+        .filter((part) => part !== '')
+        .map((text) => ({ text, chord: segment.chord })),
+    )
+    const measure = (piece: { text: string; chord: boolean }) => {
+      doc.setFont('helvetica', piece.chord ? 'bold' : 'normal')
+      doc.setFontSize(size)
+      return doc.getTextWidth(piece.text)
+    }
+
+    if (y + lineHeight > contentBottom) advanceColumn()
+    let x = colX()
+    for (const piece of pieces) {
+      const width = measure(piece)
+      if (x > colX() && x + width > colX() + colWidth) {
+        y += lineHeight
+        if (y + lineHeight > contentBottom) advanceColumn()
+        x = colX()
+        if (piece.text.trim() === '') continue
+      }
+      doc.setFont('helvetica', piece.chord ? 'bold' : 'normal')
+      doc.setFontSize(size)
+      doc.setTextColor(piece.chord ? 60 : 120)
+      doc.text(piece.text, x, y)
+      x += width
+    }
+    y += lineHeight
   }
 
   const TITLE_SIZE = 11
@@ -141,18 +181,17 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
     y += 1
 
     if (entry.lyrics && entry.lyrics.trim()) {
-      // Chords sit above the line they belong to, so the two share a
-      // monospace grid and the columns the team typed survive onto paper.
-      const lyricFont = opts.chords ? 'courier' : 'helvetica'
+      // Chords sit above the line they belong to, bracketed rather than
+      // column-positioned, so the whole sheet stays proportional.
       for (const line of zipLyricLines(entry.layers)) {
         if (line.text.trim() === '') {
           if (!atColumnTop()) y += STANZA_GAP // preserve stanza breaks
           continue
         }
         if (opts.chords && line.chords.trim() !== '') {
-          drawWrapped(line.chords, LYRIC_SIZE, 'bold', 110, CHORD_LH, 'courier')
+          drawChordLine(line.chords, LYRIC_SIZE, CHORD_LH)
         }
-        drawWrapped(line.text, LYRIC_SIZE, 'normal', 30, LYRIC_LH, lyricFont)
+        drawWrapped(line.text, LYRIC_SIZE, 'normal', 30, LYRIC_LH)
         if (opts.meaning && line.meaning.trim() !== '') {
           drawWrapped(line.meaning, MEANING_SIZE, 'italic', 125, MEANING_LH)
         }

@@ -181,6 +181,41 @@ export function zipLyricLines(layers: LayeredLyrics): LyricLineTuple[] {
   }))
 }
 
+/** One run of a chord line: either a bracketed chord, or the text around it. */
+export interface ChordSegment {
+  /** True for a `[…]` token; its text is the chord name, brackets stripped. */
+  chord: boolean
+  text: string
+}
+
+/** A `[…]` chord token: no nested bracket, no newline, never empty. */
+const CHORD_TOKEN = /\[([^\][\n]+)\]/g
+
+/**
+ * Split a chord line into its bracketed chords and the text between them
+ * (ChordPro notation).
+ *
+ * The chord layer used to position chords by counting spaces, which forced the
+ * whole sheet into a monospace face. Brackets carry that placement instead, so
+ * both conventions now read correctly in a proportional font: a bare chord row
+ * (`[G] [C]`) or a full ChordPro line (`[G]Amazing [C]grace`).
+ *
+ * An unclosed or empty bracket is not a chord — it stays plain text, so a
+ * half-typed line never flickers between styles as it is written.
+ */
+export function splitChordLine(line: string): ChordSegment[] {
+  const segments: ChordSegment[] = []
+  let cursor = 0
+  for (const match of line.matchAll(CHORD_TOKEN)) {
+    const start = match.index ?? cursor
+    if (start > cursor) segments.push({ chord: false, text: line.slice(cursor, start) })
+    segments.push({ chord: true, text: match[1] })
+    cursor = start + match[0].length
+  }
+  if (cursor < line.length) segments.push({ chord: false, text: line.slice(cursor) })
+  return segments
+}
+
 /**
  * A section's half-open line range within the base text. Offsets come from
  * `parseLyricSections`, which reads the base alone.
