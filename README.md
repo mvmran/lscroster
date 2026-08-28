@@ -45,6 +45,8 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
 - Multi-lingual songs: alongside the singable lyrics, each line can carry the
   original script (Malayalam, Hindi …), an English meaning and chords, edited in
   a side-by-side split and shown or hidden per reader
+- Import a pasted song straight into those layers, and write chords in ChordPro
+  brackets — `[G]Amazing [C]grace` — highlighted on screen and in the PDF
 
 **Scheduling**
 - Teams, positions, and per-person qualifications with trainee/qualified levels
