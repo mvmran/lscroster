@@ -432,7 +432,9 @@ export function LyricLayerToggle({
         >
           {LAYER_LABELS[key]}
           {layers[key].trim() !== '' && (
-            <span className="ml-1.5 size-1.5 rounded-full bg-current opacity-50" />
+            // Accent, not the button's own text colour: the dot says this
+            // layer already carries text, worth spotting before pressing.
+            <span className="bg-primary ml-1.5 size-1.5 rounded-full" />
           )}
         </ToggleGroupItem>
       ))}

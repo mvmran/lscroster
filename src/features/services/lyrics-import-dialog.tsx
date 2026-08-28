@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -7,10 +7,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { parseImportedLyrics } from "@/features/services/lyric-import";
-import type { LayeredLyrics } from "@/features/services/lyric-layers";
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { parseImportedLyrics } from '@/features/services/lyric-import'
+import type { LayeredLyrics } from '@/features/services/lyric-layers'
+
+const PLACEHOLDER = [
+  'Verse 1',
+  '<native script>',
+  'Transliteration',
+  '<singable text>',
+  'Meaning',
+  '<English meaning>',
+].join('\n')
 
 /**
  * Paste a song in the team's plain-text format and add it to the editor.
@@ -25,30 +34,30 @@ export function LyricsImportDialog({
   onOpenChange,
   onImport,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onImport: (layers: LayeredLyrics) => void;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onImport: (layers: LayeredLyrics) => void
 }) {
-  const [text, setText] = useState("");
-  const parsed = useMemo(() => parseImportedLyrics(text), [text]);
-  const empty = parsed.layers.lyrics === "";
+  const [text, setText] = useState('')
+  const parsed = useMemo(() => parseImportedLyrics(text), [text])
+  const empty = parsed.layers.lyrics === ''
 
   function close(next: boolean) {
-    if (!next) setText("");
-    onOpenChange(next);
+    if (!next) setText('')
+    onOpenChange(next)
   }
 
   const summary = empty
-    ? "Nothing to import yet."
+    ? 'Nothing to import yet.'
     : [
         parsed.sections === 0
-          ? "No section headers"
-          : `${parsed.sections} section${parsed.sections === 1 ? "" : "s"}`,
-        parsed.hasNative ? "native" : null,
-        parsed.hasMeaning ? "meaning" : null,
+          ? 'No section headers'
+          : `${parsed.sections} section${parsed.sections === 1 ? '' : 's'}`,
+        parsed.hasNative ? 'native' : null,
+        parsed.hasMeaning ? 'meaning' : null,
       ]
         .filter(Boolean)
-        .join(" · ");
+        .join(' · ')
 
   return (
     <Dialog open={open} onOpenChange={close}>
@@ -56,9 +65,9 @@ export function LyricsImportDialog({
         <DialogHeader>
           <DialogTitle>Import lyrics</DialogTitle>
           <DialogDescription>
-            Paste the song below. Lines under a{" "}
-            <span className="font-mono">Transliteration</span> heading become
-            the lyrics, the text above it the native script, and lines under{" "}
+            Paste the song below. Lines under a{' '}
+            <span className="font-mono">Transliteration</span> heading become the
+            lyrics, the text above it the native script, and lines under{' '}
             <span className="font-mono">Meaning</span> the English meaning — an
             English song with neither heading imports as lyrics alone. Whatever
             you import is added to the end of the editor; nothing already there
@@ -71,9 +80,7 @@ export function LyricsImportDialog({
           rows={14}
           autoFocus
           aria-label="Lyrics to import"
-          placeholder={
-            "Verse 1\n<native script>\nTransliteration\n<singable text>\nMeaning\n<English meaning>"
-          }
+          placeholder={PLACEHOLDER}
           className="min-h-40 flex-1 font-sans text-sm"
         />
         <p className="text-muted-foreground text-xs">{summary}</p>
@@ -81,16 +88,18 @@ export function LyricsImportDialog({
           <Button type="button" variant="outline" onClick={() => close(false)}>
             Cancel
           </Button>
+          {/* A disabled button swallows its own title, so the reason rides on
+              a wrapper span instead. */}
           <span
             className="inline-flex"
-            title={empty ? "Paste a song above first" : undefined}
+            title={empty ? 'Paste a song above first' : undefined}
           >
             <Button
               type="button"
               disabled={empty}
               onClick={() => {
-                onImport(parsed.layers);
-                close(false);
+                onImport(parsed.layers)
+                close(false)
               }}
               title="Add the pasted song to the end of the lyrics"
             >
@@ -100,5 +109,5 @@ export function LyricsImportDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
