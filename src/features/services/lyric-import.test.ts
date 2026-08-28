@@ -79,6 +79,17 @@ describe('parseImportedLyrics', () => {
     expect(lineCount(layers.meaning)).toBe(lineCount(layers.lyrics))
   })
 
+  it('accepts Translation as a spelling of the transliteration keyword', () => {
+    const { layers, hasNative, hasMeaning } = parseImportedLyrics(
+      ['Verse 1', 'നാ', 'Translation', 'naa', 'Meaning', 'one'].join('\n'),
+    )
+    expect(hasNative).toBe(true)
+    expect(hasMeaning).toBe(true)
+    expect(toLines(layers.lyrics)).toContain('naa')
+    expect(toLines(layers.native)).toContain('നാ')
+    expect(toLines(layers.meaning)).toContain('one')
+  })
+
   it('imports a plain English song as lyrics only', () => {
     const { layers, hasNative, hasMeaning, sections } = parseImportedLyrics(
       'Verse 1\nAmazing grace how sweet the sound\n\nChorus\nHow great thou art',

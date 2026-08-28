@@ -13,10 +13,10 @@
  * <English gloss>
  * ```
  *
- * `Transliteration` and `Meaning` are the only keywords — everything before the
- * first of them is native script when the section transliterates, and plain
- * lyrics when it does not, so an English song with neither keyword imports as
- * lyrics alone.
+ * `Transliteration` (or `Translation`) and `Meaning` are the only keywords —
+ * everything before the first of them is native script when the section
+ * transliterates, and plain lyrics when it does not, so an English song with
+ * neither keyword imports as lyrics alone.
  *
  * The editor's layers are line-parallel, which the source format is not: a
  * section's three texts routinely differ in length. Sections are therefore
@@ -27,7 +27,9 @@
 import { hasAnyLayer, toLines, type LayeredLyrics } from '@/features/services/lyric-layers'
 import { matchLyricSectionHeader } from '@/features/services/lyric-sections'
 
-const TRANSLITERATION_RE = /^\s*transliterations?\s*:?\s*$/i
+// "Translation" is accepted alongside "Transliteration": the teams label the
+// singable Latin text either way, and the English gloss is always "Meaning".
+const TRANSLITERATION_RE = /^\s*(?:trans(?:liter|l)ations?)\s*:?\s*$/i
 const MEANING_RE = /^\s*meanings?\s*:?\s*$/i
 
 export interface ParsedImport {
@@ -82,7 +84,7 @@ function splitAtHeaders(
   return blocks
 }
 
-/** Split one section's body at its `Transliteration` / `Meaning` keywords. */
+/** Split one section's body at its transliteration / `Meaning` keywords. */
 function splitAtKeywords(body: string[]): Omit<Block, 'header'> {
   const lead: string[] = []
   const main: string[] = []
@@ -101,7 +103,7 @@ function splitAtKeywords(body: string[]): Omit<Block, 'header'> {
     }
   }
 
-  // Without a Transliteration keyword the leading text *is* the lyrics — that
+  // Without a transliteration keyword the leading text *is* the lyrics — that
   // is every English song, and the reason one is never forced to translate.
   if (transliterated) {
     return {
