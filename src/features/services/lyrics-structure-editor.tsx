@@ -607,10 +607,15 @@ export function LyricsStructureEditor({
     </button>
   )
 
+  // Blank covers both an untouched pane and one holding only the rows the
+  // "add the missing blank lines" button just seeded: neither has text to be
+  // out of step, so both get the guidance rather than a drift warning.
+  const layerBlank = activeLayer !== null && layers[activeLayer].trim() === ''
+
   const layerHint = activeLayer &&
-    (mismatch || layers[activeLayer] === '' || canDraftMeaning) && (
+    (mismatch || layerBlank) && (
     <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-      {layers[activeLayer] === '' ? (
+      {layerBlank || !mismatch ? (
         <span>
           Type the {LAYER_LABELS[activeLayer].toLowerCase()} text line by line
           against the lyrics — line 1 here belongs to line 1 there.
@@ -625,8 +630,8 @@ export function LyricsStructureEditor({
         </span>
       ) : (
         <span>
-          {LAYER_LABELS[activeLayer]} has {mismatch?.lines} lines against{' '}
-          {mismatch?.baseLines} in the lyrics, so they no longer line up.
+          {LAYER_LABELS[activeLayer]} has {mismatch.lines} lines against{' '}
+          {mismatch.baseLines} in the lyrics, so they no longer line up.
         </span>
       )}
       {(layers[activeLayer] === '' ||
