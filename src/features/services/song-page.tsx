@@ -14,6 +14,7 @@ import {
   Play,
   Plus,
   Search,
+  Sparkles,
   Trash2,
   Upload,
   X,
@@ -61,13 +62,19 @@ import {
 import { LyricsImportDialog } from '@/features/services/lyrics-import-dialog'
 import {
   useGenerateMeaning,
+  useLyricsAssistAvailable,
   useMeaningGenerationAvailable,
-} from '@/features/services/use-meaning'
+  usePolishTransliteration,
+  useSuggestSections,
+  useSuggestTags,
+} from '@/features/services/use-lyrics-ai'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
 import { appendImportedLyrics } from '@/features/services/lyric-import'
 import {
   findNonLatinLyrics,
+  insertSectionHeaders,
   layersOfRow,
+  lyricParagraphs,
   normalizeForSave,
   type LayeredLyrics,
   type LyricLayerKey,
@@ -117,6 +124,9 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
   const [ccli, setCcli] = useState(song.ccli_number ?? '')
   const [copyright, setCopyright] = useState(song.copyright ?? '')
   const [tags, setTags] = useState(song.tags.join(', '))
+  const { data: songs } = useSongs()
+  const { data: assistAvailable } = useLyricsAssistAvailable(canManage)
+  const suggestTags = useSuggestTags()
 
   const dirty =
     title !== song.title ||
@@ -124,6 +134,42 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
     ccli !== (song.ccli_number ?? '') ||
     copyright !== (song.copyright ?? '') ||
     tags !== song.tags.join(', ')
+
+  /**
+   * Read the song's lyrics and offer tags for them.
+   *
+   * Only ever adds: the suggestions are merged into whatever is in the field,
+   * so a tag someone typed can't be replaced by a machine's idea of a better
+   * one. The library's existing vocabulary goes with the request, which is what
+   * stops every song inventing its own near-synonym.
+   */
+  async function suggest() {
+    try {
+      const seed = await fetchDefaultLyrics(song.id)
+      const lyrics = seed?.lyrics ?? ''
+      const native = seed?.lyrics_native ?? ''
+      if (lyrics.trim() === '' && native.trim() === '') {
+        toast.info('Add the lyrics first — that is what the tags are read from.')
+        return
+      }
+      const existing = parseTagsInput(tags)
+      const suggested = await suggestTags.mutateAsync({
+        title: title.trim(),
+        lyrics,
+        native,
+        known: [...new Set((songs ?? []).flatMap((s) => s.tags))],
+        existing,
+      })
+      if (suggested.length === 0) {
+        toast.info('Nothing new to suggest — the tags it thought of are already here.')
+        return
+      }
+      setTags([...existing, ...suggested].join(', '))
+      toast.success('Tags suggested — edit them, then press Save changes')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not suggest tags')
+    }
+  }
 
   async function save() {
     if (!title.trim()) return
@@ -207,12 +253,31 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="sd-tags">Tags</Label>
-          <Input
-            id="sd-tags"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            placeholder="fast, opener, christmas — comma separated"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id="sd-tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="fast, opener, christmas — comma separated"
+            />
+            {assistAvailable && (
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0"
+                disabled={suggestTags.isPending}
+                onClick={suggest}
+                title="Read the lyrics and suggest tags — they are added to the ones already here"
+              >
+                {suggestTags.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+                Suggest
+              </Button>
+            )}
+          </div>
         </div>
         {dirty && (
           <div className="flex justify-end">
@@ -596,7 +661,11 @@ function ArrangementLyricsBlock({
   const [pendingUnlink, setPendingUnlink] = useState<{ id: string; title: string } | null>(null)
   const [versionNotice, setVersionNotice] = useState(false)
   const { data: meaningAvailable } = useMeaningGenerationAvailable()
+  const { data: assistAvailable } = useLyricsAssistAvailable()
   const generateMeaning = useGenerateMeaning()
+  const polish = usePolishTransliteration()
+  const suggestSections = useSuggestSections()
+  const [confirmPolish, setConfirmPolish] = useState(false)
   const [checkingPin, setCheckingPin] = useState(false)
 
   const saved = useMemo(() => layersOfRow(current ?? null), [current])
@@ -653,6 +722,65 @@ function ArrangementLyricsBlock({
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : 'Could not draft the meaning',
+      )
+    }
+  }
+
+  /**
+   * Rewrite the lyrics pane from the native script beside it.
+   *
+   * Unlike the meaning draft this replaces text rather than filling a blank
+   * pane, so it is asked for twice — once by pressing the link, once in the
+   * dialog that explains what is about to change. It still only touches the
+   * buffer: the version in the database is whatever was last saved.
+   */
+  async function polishTransliteration() {
+    setConfirmPolish(false)
+    try {
+      const lyrics = await polish.mutateAsync({
+        native: value.native,
+        lyrics: value.lyrics,
+        language: current?.native_language ?? null,
+      })
+      if (lyrics.trim() === '') {
+        toast.error('Nothing came back — the lyrics are unchanged.')
+        return
+      }
+      setDraft({ ...value, lyrics })
+      toast.success('Transliteration polished — check it over before saving')
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not polish the transliteration',
+      )
+    }
+  }
+
+  /**
+   * Name the song's paragraphs — Verse 1, Chorus, Bridge.
+   *
+   * The header lines go into every layer at once (`insertSectionHeaders`), which
+   * is the only way they can be added without pushing the native text and the
+   * meaning a row out of step for the rest of the song.
+   */
+  async function labelSections() {
+    const paragraphs = lyricParagraphs(value.lyrics)
+    try {
+      const labels = await suggestSections.mutateAsync({
+        paragraphs: paragraphs.map((p) => p.lines),
+      })
+      const headers = paragraphs.map((p, i) => ({
+        before: p.start,
+        label: labels[i] ?? '',
+      }))
+      if (headers.every((h) => h.label === '')) {
+        toast.error('No sections came back — type a header like [Verse 1] instead.')
+        return
+      }
+      setDraft(insertSectionHeaders(value, headers))
+      toast.success('Sections labelled — check them over before saving')
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not label the sections',
       )
     }
   }
@@ -811,6 +939,12 @@ function ArrangementLyricsBlock({
             onChange={setDraft}
             onGenerateMeaning={meaningAvailable ? draftMeaning : undefined}
             generatingMeaning={generateMeaning.isPending}
+            onPolishTransliteration={
+              assistAvailable ? () => setConfirmPolish(true) : undefined
+            }
+            polishingTransliteration={polish.isPending}
+            onLabelSections={assistAvailable ? labelSections : undefined}
+            labellingSections={suggestSections.isPending}
           />
         )}
         {dirty && (
@@ -886,6 +1020,27 @@ function ArrangementLyricsBlock({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmUnlink}>Unlink</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmPolish} onOpenChange={setConfirmPolish}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rewrite the transliteration?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Every line of the lyrics pane that has native script beside it is
+              replaced by a version read back from that script — section headers
+              and anything with no native text beside it are left alone. It goes
+              into the editor only: nothing is saved until you press Save
+              changes, and the version in the database is untouched until then.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={polishTransliteration}>
+              Rewrite it
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

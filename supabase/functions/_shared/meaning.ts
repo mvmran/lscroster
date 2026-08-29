@@ -4,6 +4,12 @@
 // them without `Deno.serve` binding a port. They carry the invariant that
 // matters: whatever the model returns, the meaning layer must come back with
 // exactly one line per input line.
+//
+// The wire-level plumbing moved to `gemini.ts` when a second function started
+// calling the model; `extractText` is re-exported so its tests — and the
+// invariant they guard — stay where the rest of this function's are.
+
+export { extractText } from './gemini.ts'
 
 export function buildPrompt(
   language: string | null | undefined,
@@ -29,48 +35,6 @@ export function buildPrompt(
     '',
     ...lines.map((line, i) => `${i + 1}. ${line}`),
   ].join('\n')
-}
-
-/**
- * Pull the model's text out of the response.
- *
- * The wire shape is `steps[].content[]` blocks of `{type:'text',text}`;
- * `output_text` is an SDK helper, not a field, though it is checked first in
- * case that changes. Only `model_output` steps are read: a response can carry
- * the `user_input` step as well, and sweeping up every text block anywhere in
- * the payload prepends the prompt to the answer and breaks the JSON parse.
- * `outputs` is the pre-May-2026 name for the same array.
- *
- * An unrecognised shape yields '' — which surfaces as a logged 502 rather than
- * a plausible-looking gloss built out of the wrong text.
- */
-export function extractText(payload: unknown): string {
-  const root = (payload ?? {}) as Record<string, unknown>
-  if (typeof root.output_text === 'string') return root.output_text
-
-  const isRecord = (v: unknown): v is Record<string, unknown> =>
-    typeof v === 'object' && v !== null
-
-  const textOf = (content: unknown): string =>
-    Array.isArray(content)
-      ? content
-          .filter(
-            (block) =>
-              isRecord(block) && block.type === 'text' && typeof block.text === 'string',
-          )
-          .map((block) => (block as { text: string }).text)
-          .join('')
-      : ''
-
-  const steps = Array.isArray(root.steps)
-    ? root.steps
-    : Array.isArray(root.outputs)
-      ? root.outputs
-      : []
-  return steps
-    .filter((step) => isRecord(step) && step.type === 'model_output')
-    .map((step) => textOf((step as Record<string, unknown>).content))
-    .join('')
 }
 
 /** Force the model's array back to one entry per input line. */

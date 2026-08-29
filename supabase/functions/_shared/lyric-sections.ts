@@ -54,7 +54,7 @@ function titleCase(kind: string): string {
     .join('-')
 }
 
-function matchHeader(line: string): { label: string; type: string } | null {
+export function matchHeader(line: string): { label: string; type: string } | null {
   const m = HEADER_RE.exec(line)
   if (!m) return null
   let kind = m[1].toLowerCase()

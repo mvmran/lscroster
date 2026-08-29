@@ -169,15 +169,23 @@ npx supabase secrets set RESEND_API_KEY=re_xxx EMAIL_FROM=onboarding@resend.dev 
 | `APP_URL` | how emails build their links — must have no trailing slash |
 | `CRON_SECRET` | proves an incoming job request came from your own scheduler |
 
-### Optional: drafting a song's meaning
+### Optional: AI help with songs
 
-Songs in a language other than English can carry three texts — the native
-script, a singable transliteration, and the English meaning. The transliteration
-is generated for you offline and costs nothing. The **meaning** is a translation,
-which needs a language model, so it is opt-in and billed to you.
+Four things around a song can be drafted for you by a language model. All four
+are opt-in, billed to you, and switched on by the same key:
 
-Skip this and everything else still works: the editor simply doesn't offer the
-button, and anyone can type the meaning by hand as before.
+- the **meaning** — the English sense of each line of a song written in another
+  language (the transliteration itself is generated offline and costs nothing,
+  but a translation needs a model)
+- a **polished transliteration** — the offline romaniser gets every letter right
+  and the word breaks wrong; this reads the original script and returns what a
+  singer would actually write
+- **suggested tags** — read from the lyrics, reusing the tags your library
+  already uses
+- **section labels** — Verse 1, Chorus, Bridge across a song that has none
+
+Skip this and everything else still works: the buttons simply never appear, and
+anyone can type all four by hand as before.
 
 To switch it on, get a key from
 [Google AI Studio](https://aistudio.google.com/apikey) and set it:
@@ -188,23 +196,30 @@ npx supabase secrets set GEMINI_API_KEY=<your-key>
 
 | Secret | What it does |
 | --- | --- |
-| `GEMINI_API_KEY` | authenticates with the Gemini API — its presence is what enables the feature |
+| `GEMINI_API_KEY` | authenticates with the Gemini API — its presence is what enables all four |
 | `GEMINI_MODEL` | optional; defaults to `gemini-3.5-flash-lite`, the cheapest model that does this well |
 
-The key never reaches the browser: the app calls the `generate-meaning` Edge
-Function, which holds the key and calls Google. Only admins and leaders may
-use it — the same people who may edit lyrics.
+The key never reaches the browser: the app calls the `generate-meaning` and
+`lyrics-assist` Edge Functions, which hold the key and call Google. Only admins
+and leaders may use them — the same people who may edit songs.
 
-A drafted meaning lands in the editor for review and is only stored when
-someone presses **Save changes**, so nothing is written to your database
-without a human reading it first. Expect to correct it: it is a first draft,
-and a machine has no idea what your church means by half of these lines.
+Everything drafted lands in the editor for review and is only stored when
+someone presses **Save changes**, so nothing is written to your database without
+a human reading it first. Expect to correct it: it is a first draft, and a
+machine has no idea what your church means by half of these lines.
 
-Two places use it: the **Meaning** pane's "draft it from the native text" link,
-and **Import lyrics** — a paste that brings native script but no meaning has one
-drafted as it is added, so the lyrics, native and meaning panes all arrive
-filled. The import dialog says "meaning will be drafted" before you press
-**Add to lyrics** whenever it is about to spend a call.
+Where you'll find them:
+
+| Where | What it does |
+| --- | --- |
+| **Meaning** pane → "draft it from the native text" | fills an empty meaning pane; it never overwrites a gloss someone wrote |
+| **Native** pane → "Polish the transliteration" | rewrites the lyrics pane from the original script, after a dialog that says so — section headers and lines with no native text beside them are left alone |
+| Lyrics with no section labels → "Label them for me" | names each paragraph Verse 1, Chorus, Bridge … |
+| **Tags** → **Suggest** | adds tags read from the lyrics; it only ever adds, never removes what you typed |
+| **Import lyrics** | a paste that brings native script has its transliteration polished and, where the paste has no meaning, a meaning drafted — so the lyrics, native and meaning panes all arrive filled |
+
+The import dialog says what it is about to draft before you press **Add to
+lyrics**, so you always know when a call is about to be spent.
 
 ---
 

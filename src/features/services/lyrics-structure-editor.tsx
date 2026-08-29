@@ -37,6 +37,7 @@ import {
   LAYER_LABELS,
   layerLineMismatch,
   lineCount,
+  lyricParagraphs,
   LYRIC_LAYER_KEYS,
   moveSectionLayers,
   removeSectionLayers,
@@ -466,6 +467,10 @@ export function LyricsStructureEditor({
   onChange,
   onGenerateMeaning,
   generatingMeaning,
+  onPolishTransliteration,
+  polishingTransliteration,
+  onLabelSections,
+  labellingSections,
 }: {
   id?: string
   layers: LayeredLyrics
@@ -474,8 +479,17 @@ export function LyricsStructureEditor({
   /** Draft the meaning from the native text; absent when not configured. */
   onGenerateMeaning?: () => void
   generatingMeaning?: boolean
+  /** Rewrite the base text from the native script; absent when not configured. */
+  onPolishTransliteration?: () => void
+  polishingTransliteration?: boolean
+  /** Name the paragraphs Verse / Chorus / Bridge; absent when not configured. */
+  onLabelSections?: () => void
+  labellingSections?: boolean
 }) {
   const sections = useMemo(() => parseLyricSections(layers.lyrics), [layers.lyrics])
+  // Only offered where there is more than one paragraph to tell apart: a single
+  // "Verse 1" over the whole song is structure in name alone.
+  const paragraphs = useMemo(() => lyricParagraphs(layers.lyrics), [layers.lyrics])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const rects = useSectionRects(textareaRef, layers.lyrics, sections)
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
@@ -648,6 +662,27 @@ export function LyricsStructureEditor({
     </p>
   )
 
+  // Offered from the native pane, because that is the text it reads — and only
+  // once there is both a script to read and a line to rewrite.
+  const polishHint = activeLayer === 'native' &&
+    onPolishTransliteration !== undefined &&
+    layers.native.trim() !== '' &&
+    layers.lyrics.trim() !== '' && (
+      <p className="text-muted-foreground text-xs">
+        <button
+          type="button"
+          className="text-primary underline underline-offset-2 disabled:opacity-60"
+          disabled={polishingTransliteration}
+          onClick={onPolishTransliteration}
+        >
+          {polishingTransliteration ? 'Polishing…' : 'Polish the transliteration'}
+        </button>{' '}
+        — the lyrics pane is rewritten from this script, spelled the way a
+        singer would read it aloud. Nothing is saved until you press Save
+        changes.
+      </p>
+    )
+
   const body = (
     <div className={cn('flex gap-3', split ? 'flex-col md:flex-row' : 'flex-col')}>
       {baseColumn}
@@ -661,12 +696,26 @@ export function LyricsStructureEditor({
         {body}
         {scriptHint}
         {layerHint}
+        {polishHint}
         {layers.lyrics.trim() && (
-          <p className="text-muted-foreground text-xs">
-            Start a line with a section name — e.g.{' '}
-            <span className="font-mono">[Verse 1]</span> or{' '}
-            <span className="font-mono">Chorus:</span> — to get draggable
-            section labels.
+          <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <span>
+              Start a line with a section name — e.g.{' '}
+              <span className="font-mono">[Verse 1]</span> or{' '}
+              <span className="font-mono">Chorus:</span> — to get draggable
+              section labels.
+            </span>
+            {onLabelSections !== undefined && paragraphs.length > 1 && (
+              <button
+                type="button"
+                className="text-primary underline underline-offset-2 disabled:opacity-60"
+                disabled={labellingSections}
+                onClick={onLabelSections}
+                title="Read the song and name each paragraph — Verse 1, Chorus, Bridge"
+              >
+                {labellingSections ? 'Labelling…' : 'Label them for me'}
+              </button>
+            )}
           </p>
         )}
       </div>
@@ -700,6 +749,7 @@ export function LyricsStructureEditor({
         {body}
         {scriptHint}
         {layerHint}
+        {polishHint}
       </div>
       <DragOverlay>
         {activeIndex !== null && sections[activeIndex] && (

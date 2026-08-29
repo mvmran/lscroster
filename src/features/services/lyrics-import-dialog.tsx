@@ -22,8 +22,10 @@ import {
 import { matchLyricSectionHeader } from '@/features/services/lyric-sections'
 import {
   useGenerateMeaning,
+  useLyricsAssistAvailable,
   useMeaningGenerationAvailable,
-} from '@/features/services/use-meaning'
+  usePolishTransliteration,
+} from '@/features/services/use-lyrics-ai'
 import { toLines, type LayeredLyrics } from '@/features/services/lyric-layers'
 
 const PLACEHOLDER = [
@@ -70,7 +72,9 @@ export function LyricsImportDialog({
   const parsed = useMemo(() => parseImportedLyrics(source), [source])
   const labelled = toLines(text).some((line) => matchLyricSectionHeader(line) !== null)
   const { data: meaningAvailable } = useMeaningGenerationAvailable()
+  const { data: assistAvailable } = useLyricsAssistAvailable()
   const generateMeaning = useGenerateMeaning()
+  const polish = usePolishTransliteration()
   // A native-only paste leaves the base blank; `lyrics` then holds headers
   // alone, or nothing at all when the paste had none.
   const empty = parsed.layers.lyrics === '' && parsed.layers.native === ''
@@ -79,6 +83,9 @@ export function LyricsImportDialog({
   // model's. Otherwise native script is enough to draft one, whatever the
   // script: the model reads languages the romaniser cannot.
   const drafting = meaningAvailable === true && parsed.hasNative && !parsed.hasMeaning
+  // The offline romaniser gets every letter right and the word breaks wrong,
+  // so a generated draft is read back by the model before it lands.
+  const polishing = assistAvailable === true && generating
 
   function close(next: boolean) {
     if (!next) setText('')
@@ -93,11 +100,28 @@ export function LyricsImportDialog({
       // team to type. Losing a pasted song to a network hiccup is the one
       // outcome worth ruling out.
       let layers = parsed.layers
+      let romanised = false
       if (parsed.script && parsed.needsTransliteration) {
         try {
           layers = await withGeneratedTransliteration(layers, parsed.script)
+          romanised = true
         } catch {
           toast.warning('Could not generate a transliteration — the base is blank.')
+        }
+      }
+      // The scheme-based draft is letter-accurate and never idiomatic. A model
+      // that can see both texts fixes the word breaks — and if it can't, the
+      // draft it was given is already in the layers.
+      if (romanised && polishing) {
+        try {
+          const lyrics = await polish.mutateAsync({
+            native: layers.native,
+            lyrics: layers.lyrics,
+            language: parsed.script?.language ?? null,
+          })
+          if (lyrics.trim() !== '') layers = { ...layers, lyrics }
+        } catch {
+          toast.warning('Could not polish the transliteration — the draft is in as-is.')
         }
       }
       // Same bargain for the meaning: it is drafted from the native text so
@@ -131,7 +155,9 @@ export function LyricsImportDialog({
         parsed.hasNative ? 'native' : null,
         parsed.hasMeaning ? 'meaning' : drafting ? 'meaning will be drafted' : null,
         generating
-          ? 'transliteration will be generated'
+          ? polishing
+            ? 'transliteration will be generated and polished'
+            : 'transliteration will be generated'
           : parsed.needsTransliteration
             ? 'no transliteration — that script needs typing by hand'
             : null,
@@ -213,7 +239,7 @@ export function LyricsImportDialog({
               title="Add the pasted song to the end of the lyrics"
             >
               {working && <Loader2 className="size-4 animate-spin" />}
-              {working && drafting ? 'Drafting…' : 'Add to lyrics'}
+              {working && (drafting || polishing) ? 'Drafting…' : 'Add to lyrics'}
             </Button>
           </span>
         </DialogFooter>

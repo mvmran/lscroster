@@ -15,13 +15,8 @@
 import { z } from 'npm:zod@4'
 import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
-import { alignToLines, buildPrompt, extractText } from '../_shared/meaning.ts'
-
-// The Interactions API; `generation_config.thinking_level` is "minimal" because
-// this model cannot turn thinking off entirely, and a line-by-line gloss is the
-// kind of work that gains nothing from deliberation.
-const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/interactions'
-const DEFAULT_MODEL = 'gemini-3.5-flash-lite'
+import { askForStrings, GeminiError, geminiConfigured } from '../_shared/gemini.ts'
+import { alignToLines, buildPrompt } from '../_shared/meaning.ts'
 
 /** Guard against a runaway paste: a long hymn is well under this. */
 const MAX_LINES = 400
@@ -54,9 +49,9 @@ Deno.serve(async (req) => {
   const parsed = schema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return jsonResponse({ error: 'Invalid request' }, 400)
 
-  const apiKey = Deno.env.get('GEMINI_API_KEY')
-  if (parsed.data.probe) return jsonResponse({ configured: Boolean(apiKey) })
-  if (!apiKey) {
+  const configured = geminiConfigured()
+  if (parsed.data.probe) return jsonResponse({ configured })
+  if (!configured) {
     // Not an error the user caused: the church has chosen not to enable it.
     return jsonResponse({ configured: false, error: 'not_configured' }, 503)
   }
@@ -68,54 +63,19 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: `More than ${MAX_LINES} lines` }, 413)
   }
 
-  let response: Response
+  let entries: string[]
   try {
-    response = await fetch(ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        model: Deno.env.get('GEMINI_MODEL') ?? DEFAULT_MODEL,
-        input: buildPrompt(parsed.data.language, lines),
-        generation_config: { thinking_level: 'minimal' },
-        response_format: {
-          type: 'text',
-          mime_type: 'application/json',
-          schema: { type: 'array', items: { type: 'string' } },
-        },
-      }),
-    })
+    entries = await askForStrings(
+      buildPrompt(parsed.data.language, lines),
+      'generate-meaning',
+    )
   } catch (error) {
-    console.error('generate-meaning: request failed', error)
-    return jsonResponse({ error: 'Could not reach the translation service' }, 502)
+    if (error instanceof GeminiError) {
+      return jsonResponse({ error: error.message }, error.status)
+    }
+    throw error
   }
 
-  if (!response.ok) {
-    // The body carries Google's own reason (bad key, quota, model name); it is
-    // logged for the admin and not returned, since it can name the model.
-    console.error('generate-meaning: HTTP', response.status, await response.text())
-    return jsonResponse({ error: `Translation service returned ${response.status}` }, 502)
-  }
-
-  // Structured output should be bare JSON, but a fenced block costs one line
-  // to survive and a whole call to fail on.
-  const text = extractText(await response.json())
-    .trim()
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/```$/, '')
-  let entries: unknown
-  try {
-    entries = JSON.parse(text)
-  } catch {
-    console.error('generate-meaning: response was not JSON:', text.slice(0, 500))
-    return jsonResponse({ error: 'Translation service returned no usable text' }, 502)
-  }
-  if (!Array.isArray(entries)) {
-    return jsonResponse({ error: 'Translation service returned no usable text' }, 502)
-  }
-
-  const meaning = alignToLines(
-    entries.map((entry) => (typeof entry === 'string' ? entry : '')),
-    lines,
-  )
+  const meaning = alignToLines(entries, lines)
   return jsonResponse({ meaning: meaning.join('\n'), lines: meaning.length })
 })
