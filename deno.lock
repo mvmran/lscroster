@@ -1,0 +1,72 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@std/assert@1": "1.0.19",
+    "jsr:@std/internal@^1.0.12": "1.0.14"
+  },
+  "jsr": {
+    "@std/assert@1.0.19": {
+      "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/internal@1.0.14": {
+      "integrity": "291516b3d4c35024d6ffbc0a9df5bf4c64116e05b50012cf846710152d2ffdf7"
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@dnd-kit/core@^6.3.1",
+        "npm:@dnd-kit/modifiers@9",
+        "npm:@dnd-kit/sortable@10",
+        "npm:@dnd-kit/utilities@^3.2.2",
+        "npm:@eslint/js@^10.0.1",
+        "npm:@fontsource-variable/geist@^5.2.9",
+        "npm:@hookform/resolvers@^5.4.0",
+        "npm:@indic-transliteration/sanscript@^1.3.3",
+        "npm:@resvg/resvg-js@^2.6.2",
+        "npm:@supabase/supabase-js@^2.108.1",
+        "npm:@tailwindcss/vite@^4.3.0",
+        "npm:@tanstack/react-query@^5.101.0",
+        "npm:@types/node@^24.12.3",
+        "npm:@types/papaparse@^5.5.2",
+        "npm:@types/react-dom@^19.2.3",
+        "npm:@types/react@^19.2.14",
+        "npm:@vitejs/plugin-react@^6.0.1",
+        "npm:class-variance-authority@~0.7.1",
+        "npm:clsx@^2.1.1",
+        "npm:date-fns-tz@^3.2.0",
+        "npm:date-fns@^4.4.0",
+        "npm:docx@^9.7.1",
+        "npm:eslint-plugin-react-hooks@^7.1.1",
+        "npm:eslint-plugin-react-refresh@~0.5.2",
+        "npm:eslint@^10.3.0",
+        "npm:globals@^17.6.0",
+        "npm:jspdf-autotable@^5.0.8",
+        "npm:jspdf@^4.2.1",
+        "npm:lucide-react@^1.17.0",
+        "npm:next-themes@~0.4.6",
+        "npm:papaparse@^5.5.3",
+        "npm:radix-ui@^1.5.0",
+        "npm:react-day-picker@^10.0.1",
+        "npm:react-dom@^19.2.6",
+        "npm:react-hook-form@^7.78.0",
+        "npm:react-router-dom@^7.18.0",
+        "npm:react@^19.2.6",
+        "npm:shadcn@^4.11.0",
+        "npm:sonner@^2.0.7",
+        "npm:supabase@^2.107.0",
+        "npm:tailwind-merge@^3.6.0",
+        "npm:tailwindcss@^4.3.0",
+        "npm:tw-animate-css@^1.4.0",
+        "npm:typescript-eslint@^8.59.2",
+        "npm:typescript@~6.0.2",
+        "npm:vite@^8.0.12",
+        "npm:vitest@^3.2.6",
+        "npm:zod@^4.4.3"
+      ]
+    }
+  }
+}

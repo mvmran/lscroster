@@ -19,8 +19,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      # The Edge Functions are Deno, and outside tsconfig/eslint entirely.
+      # Without this they ship unchecked and fail at runtime instead.
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run check:functions
+      - run: npm run test:functions
       - run: npm run build
