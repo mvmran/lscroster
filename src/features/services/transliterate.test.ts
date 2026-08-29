@@ -50,6 +50,17 @@ describe('transliterate', () => {
     expect(out).toBe('kaalvari karayaan martthi')
   })
 
+  it('drops the zero-width joiners of legacy chillu encoding', async () => {
+    // Most existing song documents write a chillu as consonant + virama + ZWJ
+    // rather than as the atomic character. Sanscript maps neither joiner, so
+    // they used to survive into the base — invisible there, but carried into
+    // the projection API, the PDF sheets and every other export.
+    const legacy = 'എന്\u200d\u200d\u200d ജീവനേക്കാളും നീ'
+    const out = await romanise(legacy)
+    expect(out).toBe('en jeevanekkaalum nee')
+    expect(out).not.toMatch(/[\u200B-\u200D\uFEFF]/)
+  })
+
   it('writes the Malayalam digraphs the Kerala way', async () => {
     expect(await romanise('കഴിഞ്ഞു')).toBe('kazhinju') // ഴ zh, ഞ്ഞ nj
   })

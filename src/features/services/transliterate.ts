@@ -97,8 +97,23 @@ const CHILLU: Record<string, string> = {
   'ൿ': 'ക്', // ൿ → ക്
 }
 
-const expandChillu = (text: string): string =>
-  text.replace(/[ൺ-ൿ]/g, (char) => CHILLU[char] ?? char)
+/**
+ * Zero-width formatting characters, dropped before romanising.
+ *
+ * Malayalam has two encodings for a chillu: the atomic characters above, and
+ * the older consonant + virama + ZWJ sequence that most existing song documents
+ * are still written in. Sanscript maps neither the joiner nor the non-joiner,
+ * so they survived into the generated Latin text — invisible in the editor, and
+ * carried on into every export. They affect rendering only, never the sound, so
+ * dropping them is safe: ന്‍ and ന് both romanise to a bare "n".
+ *
+ * Only the generated text is cleaned. The native layer keeps them, because it
+ * is the team's own text and the joiners are what make it render correctly.
+ */
+const ZERO_WIDTH = /[\u200B-\u200D\uFEFF]/g
+
+const normaliseNative = (text: string): string =>
+  text.replace(ZERO_WIDTH, '').replace(/[ൺ-ൿ]/g, (char) => CHILLU[char] ?? char)
 
 /**
  * ISO 15919 digraphs that are already house style. Listed so the single-letter
@@ -182,7 +197,7 @@ export async function transliterate(
     .split('\n')
     .map((line) => {
       if (line.trim() === '') return ''
-      const iso = sanscript.t(expandChillu(line), script.scheme, 'iso')
+      const iso = sanscript.t(normaliseNative(line), script.scheme, 'iso')
       return toAscii(iso, script.dravidian)
     })
     .join('\n')
