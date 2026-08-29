@@ -4,6 +4,7 @@ import {
   parseImportedLyrics,
   withGeneratedMeaning,
   withGeneratedTransliteration,
+  withVerseHeadings,
 } from '@/features/services/lyric-import'
 import { EMPTY_LAYERS, lineCount, toLines } from '@/features/services/lyric-layers'
 
@@ -280,5 +281,86 @@ describe('withGeneratedMeaning', () => {
   it('drops a draft that came back empty', () => {
     const layers = { ...EMPTY_LAYERS, lyrics: 'one\ntwo', native: 'a\nb' }
     expect(withGeneratedMeaning(layers, '  \n ')).toEqual(layers)
+  })
+})
+
+describe('withVerseHeadings', () => {
+  const ENGLISH = [
+    'Amazing Grace',
+    '',
+    'Amazing grace how sweet the sound',
+    'That saved a wretch like me',
+    '',
+    'I once was lost but now am found',
+    'Was blind but now I see',
+    '',
+  ].join('\n')
+
+  it('numbers the paragraphs and leaves the title alone', () => {
+    expect(toLines(withVerseHeadings(ENGLISH))).toEqual([
+      'Amazing Grace',
+      '',
+      'Verse 1',
+      'Amazing grace how sweet the sound',
+      'That saved a wretch like me',
+      '',
+      'Verse 2',
+      'I once was lost but now am found',
+      'Was blind but now I see',
+      '',
+    ])
+  })
+
+  it('leaves a paste that already names a section — even one — untouched', () => {
+    const partly = ENGLISH.replace('I once was lost', 'Chorus\nI once was lost')
+    expect(withVerseHeadings(partly)).toBe(partly)
+    expect(withVerseHeadings(MULTILINGUAL)).toBe(MULTILINGUAL)
+  })
+
+  it('keeps a keyword block with the verse above it', () => {
+    // A blank line between a verse's three texts must not split the section:
+    // the transliteration would land in a verse of its own, its native lines
+    // stranded in the one before.
+    const spaced = [
+      'ആ കരതാരിൽ',
+      '',
+      'Transliteration',
+      'aa karathaaril',
+      '',
+      'Meaning',
+      'Into those hands',
+      '',
+      'കാൽവറി നാഥാ',
+      '',
+      'Transliteration',
+      'kaalvari natha',
+    ].join('\n')
+    const headed = withVerseHeadings(spaced)
+    expect(toLines(headed).filter((line) => line.startsWith('Verse'))).toEqual([
+      'Verse 1',
+      'Verse 2',
+    ])
+    expect(toLines(headed)[0]).toBe('Verse 1')
+
+    const parsed = parseImportedLyrics(headed)
+    expect(parsed.sections).toBe(2)
+    expect(toLines(parsed.layers.lyrics)).toContain('aa karathaaril')
+    expect(toLines(parsed.layers.native)).toContain('ആ കരതാരിൽ')
+    expect(lineCount(parsed.layers.native)).toBe(lineCount(parsed.layers.lyrics))
+    expect(lineCount(parsed.layers.meaning)).toBe(lineCount(parsed.layers.lyrics))
+  })
+
+  it('adds nothing when there is only one paragraph to label', () => {
+    const one = 'Amazing grace how sweet the sound\nThat saved a wretch like me'
+    expect(withVerseHeadings(one)).toBe(one)
+    expect(withVerseHeadings(`Amazing Grace\n\n${one}`)).toBe(`Amazing Grace\n\n${one}`)
+    expect(withVerseHeadings('')).toBe('')
+  })
+
+  it('feeds the parser sections it can build layers from', () => {
+    const parsed = parseImportedLyrics(withVerseHeadings(ENGLISH))
+    expect(parsed.sections).toBe(2)
+    expect(parsed.hasNative).toBe(false)
+    expect(toLines(parsed.layers.lyrics)).toContain('Verse 2')
   })
 })

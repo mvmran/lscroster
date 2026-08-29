@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -15,12 +16,14 @@ import {
   parseImportedLyrics,
   withGeneratedMeaning,
   withGeneratedTransliteration,
+  withVerseHeadings,
 } from '@/features/services/lyric-import'
+import { matchLyricSectionHeader } from '@/features/services/lyric-sections'
 import {
   useGenerateMeaning,
   useMeaningGenerationAvailable,
 } from '@/features/services/use-meaning'
-import type { LayeredLyrics } from '@/features/services/lyric-layers'
+import { toLines, type LayeredLyrics } from '@/features/services/lyric-layers'
 
 const PLACEHOLDER = [
   'Verse 1',
@@ -49,8 +52,16 @@ export function LyricsImportDialog({
   onImport: (layers: LayeredLyrics) => void
 }) {
   const [text, setText] = useState('')
+  const [numbering, setNumbering] = useState(true)
   const [working, setWorking] = useState(false)
-  const parsed = useMemo(() => parseImportedLyrics(text), [text])
+  // Numbering rewrites the paste before it is parsed, so the summary below
+  // counts the sections that will actually land — headings included.
+  const source = useMemo(
+    () => (numbering ? withVerseHeadings(text) : text),
+    [text, numbering],
+  )
+  const parsed = useMemo(() => parseImportedLyrics(source), [source])
+  const labelled = toLines(text).some((line) => matchLyricSectionHeader(line) !== null)
   const { data: meaningAvailable } = useMeaningGenerationAvailable()
   const generateMeaning = useGenerateMeaning()
   // A native-only paste leaves the base blank; `lyrics` then holds headers
@@ -148,6 +159,23 @@ export function LyricsImportDialog({
           placeholder={PLACEHOLDER}
           className="min-h-40 flex-1 font-sans text-sm"
         />
+        <div className="flex items-start gap-2 text-xs">
+          <Checkbox
+            id="import-number-sections"
+            checked={numbering}
+            onCheckedChange={(next) => setNumbering(next === true)}
+          />
+          <label
+            htmlFor="import-number-sections"
+            className="text-muted-foreground cursor-pointer"
+          >
+            Number the paragraphs as <span className="font-mono">Verse 1</span>,{' '}
+            <span className="font-mono">Verse 2</span> …
+            {labelled && (
+              <> — not this paste, though: it already names its own sections.</>
+            )}
+          </label>
+        </div>
         <p className="text-muted-foreground text-xs">{summary}</p>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => close(false)}>

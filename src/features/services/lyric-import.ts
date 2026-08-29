@@ -51,6 +51,64 @@ import {
 const TRANSLITERATION_RE = /^\s*transliterations?\s*:?\s*$/i
 const MEANING_RE = /^\s*(?:meanings?|translations?)\s*:?\s*$/i
 
+/**
+ * Number a paste's paragraphs as "Verse 1", "Verse 2" … so an unstructured
+ * song arrives with the section pills the editor is built around.
+ *
+ * A paragraph is a run of non-blank lines; blank lines separate them, which is
+ * how every team writes a song out in the first place. Three rules keep it from
+ * guessing wrong:
+ *
+ * - A paste that already names a section anywhere — even one "Chorus" among
+ *   six unlabelled verses — is left exactly as it is. Half-labelled text is a
+ *   deliberate act, and renumbering around it would fight the person who did it.
+ * - A paragraph that opens with `Transliteration` or `Meaning` continues the
+ *   section above it rather than starting a new one, so a paste that puts a
+ *   blank line between a verse's three texts keeps them in one section — a
+ *   header wedged in there would strand the transliteration in a section of its
+ *   own, with its native lines left behind in the previous one.
+ * - A lone first line reads as the song's title, not as a one-line verse, so it
+ *   keeps its place above "Verse 1" instead of becoming it — unless a keyword
+ *   block follows it, which makes it a verse's native text after all.
+ *
+ * Nothing is added to a paste with only one paragraph to label: a single
+ * "Verse 1" over the whole song is structure in name alone.
+ */
+export function withVerseHeadings(text: string): string {
+  const lines = toLines(text)
+  if (lines.some((line) => matchLyricSectionHeader(line) !== null)) return text
+
+  const paragraphs = lines.reduce<number[]>((acc, line, i) => {
+    if (line.trim() !== '' && (lines[i - 1] ?? '').trim() === '') acc.push(i)
+    return acc
+  }, [])
+  const opensKeyword = (start: number) =>
+    TRANSLITERATION_RE.test(lines[start]) || MEANING_RE.test(lines[start])
+  const starts = paragraphs.filter((start) => !opensKeyword(start))
+
+  // A lone opening line is the title — unless a Transliteration or Meaning
+  // block follows it, which makes it the first line of a verse's native text
+  // rather than a name for the song.
+  const titled =
+    starts.length > 1 &&
+    starts[0] === paragraphs[0] &&
+    (lines[paragraphs[0] + 1] ?? '').trim() === '' &&
+    paragraphs[1] !== undefined &&
+    !opensKeyword(paragraphs[1])
+  const labelled = titled ? starts.slice(1) : starts
+  if (labelled.length < 2) return text
+
+  // Joined with LF: the result is only ever handed straight back to
+  // `parseImportedLyrics`, which splits on either ending and joins with LF.
+  const numbered = new Map(labelled.map((start, i) => [start, `Verse ${i + 1}`]))
+  return lines
+    .flatMap((line, i) => {
+      const header = numbered.get(i)
+      return header === undefined ? [line] : [header, line]
+    })
+    .join('\n')
+}
+
 export interface ParsedImport {
   /** The layers to append. `chords` is always empty — the format has none. */
   layers: LayeredLyrics
