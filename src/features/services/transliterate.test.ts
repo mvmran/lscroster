@@ -71,7 +71,7 @@ describe('transliterate', () => {
     // these characters are composition-excluded — so the nukta used to survive
     // into the Latin text as "taaka़ta".
     const out = await romanise('तू मेरी ताक़त है')
-    expect(out).toBe('too meree taaqata hai')
+    expect(out).toBe('too meree taaqat hai')
     expect(out).not.toMatch(/\p{Script=Devanagari}/u)
   })
 
@@ -85,7 +85,7 @@ describe('transliterate', () => {
     return Promise.all([romanise(combining), romanise(precomposed)]).then(
       ([a, b]) => {
         expect(a).toBe(b)
-        expect(a).toBe('taaqata')
+        expect(a).toBe('taaqat')
       },
     )
   })
@@ -93,7 +93,38 @@ describe('transliterate', () => {
   it('leaves Devanagari dentals alone', async () => {
     // "th" for a dental t is a Dravidian convention; applying it to Hindi would
     // turn every "tum" into "thum".
-    expect(await romanise('यीशु मसीह प्रभु')).toBe('yeeshu maseeha prabhu')
+    expect(await romanise('यीशु मसीह प्रभु')).toBe('yeeshu maseeh prabhu')
+  })
+
+  it('drops the inherent final vowel for Indo-Aryan scripts', async () => {
+    // ISO spells every inherent vowel out — "masīha", "prēma", "dharma" — but
+    // Hindi neither says nor writes that last one.
+    expect(await romanise('मसीह')).toBe('maseeh')
+    expect(await romanise('प्रेम')).toBe('prem')
+    expect(await romanise('धर्म')).toBe('dharm')
+    // A real long ā is not an inherent vowel, and a single syllable keeps its
+    // vowel rather than collapsing to a bare consonant.
+    expect(await romanise('कहता')).toBe('kahataa')
+    expect(await romanise('ना')).toBe('naa')
+  })
+
+  it('keeps the inherent final vowel for Dravidian scripts', async () => {
+    // Malayalam sounds it, so the same rule would be wrong here.
+    expect(await romanise('കരുണാമയാ')).toBe('karunaamayaa')
+  })
+
+  it('leaves Latin words in a Devanagari line alone', async () => {
+    // Romanised output is all lower case, so a capital marks text the team
+    // typed — schwa deletion must not turn "Alleluia" into "Allelui".
+    expect(await romanise('यीशु (Verse 1) Alleluia')).toBe('yeeshu (Verse 1) Alleluia')
+  })
+
+  it('writes ച as "ch" and ങ്ങ as "ng"', async () => {
+    // ISO writes a bare "c"; nobody sings "collaan".
+    expect(await romanise('ചൊല്ലാൻ')).toBe('chollaan')
+    expect(await romanise('അങ്ങയെപോലെ')).toBe('angayepole')
+    // ച്ഛ is "cch" in ISO and must survive the cc/c rules whole.
+    expect(await romanise('അച്ഛൻ')).toBe('acchan')
   })
 
   it('keeps the line count exactly, blank lines included', async () => {

@@ -25,9 +25,11 @@ export interface IndicScript {
   /** Unicode script property that identifies the text. */
   test: RegExp
   /**
-   * Dravidian scripts take the Kerala/Tamil convention of writing the dental
-   * stop `t` as "th" ("karathaaril", not "karataril"). Applying that to
-   * Devanagari would turn every Hindi "tum" into "thum", so it is opt-in.
+   * Dravidian or Indo-Aryan, which decides two conventions. Dravidian scripts
+   * write the dental stop `t` as "th" ("karathaaril", not "karataril") —
+   * applying that to Devanagari would turn every Hindi "tum" into "thum".
+   * Indo-Aryan scripts drop the inherent final vowel, so Hindi is "prem" and
+   * "dharm" where Malayalam keeps its "-a".
    */
   dravidian: boolean
 }
@@ -159,7 +161,9 @@ const normaliseNative = (text: string): string =>
  * rules below can't touch them — without this, mapping "t" to "th" would turn
  * the "th" of ഥ into "thh".
  */
-const KEEP = ['kh', 'gh', 'ch', 'jh', 'ph', 'bh', 'th', 'dh', 'sh', 'ai', 'au']
+// 'cch' (ച്ഛ, "acchan") is listed so the `cc` rule below can't cut it in half
+// and leave a stray "h"; longest-match-first does the rest.
+const KEEP = ['cch', 'kh', 'gh', 'ch', 'jh', 'ph', 'bh', 'th', 'dh', 'sh', 'ai', 'au']
 
 /**
  * ISO 15919 → the ASCII romanisation the teams actually sing from: long vowels
@@ -171,6 +175,10 @@ const ASCII: Record<string, string> = {
   'ḍh': 'dh',
   'ññ': 'nj',
   'ṅk': 'nk',
+  'ṅṅ': 'ng', // ങ്ങ — "angayepole", not "angngayepole"
+  'cc': 'cch',
+  'c': 'ch', // ച/च — "chollaan", "chalo"; ISO writes a bare "c"
+
   'ā': 'aa',
   'ī': 'ee',
   'ū': 'oo',
@@ -201,6 +209,32 @@ const ASCII: Record<string, string> = {
 const DRAVIDIAN: Record<string, string> = { ...ASCII, tt: 'tth', t: 'th' }
 
 const escapeRe = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * Drop the inherent final vowel, for Indo-Aryan scripts only.
+ *
+ * ISO 15919 spells out every inherent vowel, so मसीह comes back "masīha" and
+ * ताक़त "tāqata" — but Hindi doesn't pronounce that last one, and nobody writes
+ * it: "maseeh", "taaqat", "prem", "dharm". Dravidian languages *do* sound it
+ * (Malayalam's "onnu", "karunaamayaa"), which is why this is opt-in.
+ *
+ * A single trailing "a" is the inherent vowel; "aa" is a real long ā and stays.
+ * The vowel is kept when nothing but consonants would remain, so a one-syllable
+ * "na" doesn't collapse to "n". Words containing a capital are skipped
+ * altogether — romanised output is all lower case, so a capital means Latin
+ * text the team typed into the line, and "Alleluia" must not become "Allelui".
+ *
+ * Medial schwa deletion (Hindi "kahta" for कहता) is a harder rule and is left
+ * alone; the draft is corrected by a human either way.
+ */
+function dropFinalSchwa(text: string): string {
+  return text.replace(/[A-Za-z]+/g, (word) => {
+    if (/[A-Z]/.test(word)) return word
+    if (!word.endsWith('a') || word.endsWith('aa')) return word
+    const stem = word.slice(0, -1)
+    return /[aeiou]/.test(stem) ? stem : word
+  })
+}
 
 /** One pass, longest token first, so "ṭh" beats "ṭ" and KEEP beats everything. */
 function toAscii(iso: string, dravidian: boolean): string {
@@ -237,7 +271,8 @@ export async function transliterate(
     .map((line) => {
       if (line.trim() === '') return ''
       const iso = sanscript.t(normaliseNative(line), script.scheme, 'iso')
-      return toAscii(iso, script.dravidian)
+      const ascii = toAscii(iso, script.dravidian)
+      return script.dravidian ? ascii : dropFinalSchwa(ascii)
     })
     .join('\n')
 }
