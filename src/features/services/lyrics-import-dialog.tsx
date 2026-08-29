@@ -13,8 +13,13 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import {
   parseImportedLyrics,
+  withGeneratedMeaning,
   withGeneratedTransliteration,
 } from '@/features/services/lyric-import'
+import {
+  useGenerateMeaning,
+  useMeaningGenerationAvailable,
+} from '@/features/services/use-meaning'
 import type { LayeredLyrics } from '@/features/services/lyric-layers'
 
 const PLACEHOLDER = [
@@ -46,10 +51,16 @@ export function LyricsImportDialog({
   const [text, setText] = useState('')
   const [working, setWorking] = useState(false)
   const parsed = useMemo(() => parseImportedLyrics(text), [text])
+  const { data: meaningAvailable } = useMeaningGenerationAvailable()
+  const generateMeaning = useGenerateMeaning()
   // A native-only paste leaves the base blank; `lyrics` then holds headers
   // alone, or nothing at all when the paste had none.
   const empty = parsed.layers.lyrics === '' && parsed.layers.native === ''
   const generating = parsed.needsTransliteration && parsed.script !== null
+  // A paste that brought its own gloss is left alone — the team's words beat a
+  // model's. Otherwise native script is enough to draft one, whatever the
+  // script: the model reads languages the romaniser cannot.
+  const drafting = meaningAvailable === true && parsed.hasNative && !parsed.hasMeaning
 
   function close(next: boolean) {
     if (!next) setText('')
@@ -71,6 +82,21 @@ export function LyricsImportDialog({
           toast.warning('Could not generate a transliteration — the base is blank.')
         }
       }
+      // Same bargain for the meaning: it is drafted from the native text so
+      // the three layers land together, but a failed call never costs the
+      // paste — the pane simply stays empty, with the editor's own
+      // "draft it from the native text" link still there.
+      if (drafting) {
+        try {
+          const meaning = await generateMeaning.mutateAsync({
+            native: layers.native,
+            language: parsed.script?.language ?? null,
+          })
+          layers = withGeneratedMeaning(layers, meaning)
+        } catch {
+          toast.warning('Could not draft the meaning — the meaning layer is empty.')
+        }
+      }
       onImport(layers)
       close(false)
     } finally {
@@ -85,7 +111,7 @@ export function LyricsImportDialog({
           ? 'No section headers'
           : `${parsed.sections} section${parsed.sections === 1 ? '' : 's'}`,
         parsed.hasNative ? 'native' : null,
-        parsed.hasMeaning ? 'meaning' : null,
+        parsed.hasMeaning ? 'meaning' : drafting ? 'meaning will be drafted' : null,
         generating
           ? 'transliteration will be generated'
           : parsed.needsTransliteration
@@ -107,7 +133,8 @@ export function LyricsImportDialog({
             <span className="font-mono">Meaning</span> (or{' '}
             <span className="font-mono">Translation</span>) the English meaning —
             an English song with neither heading imports as lyrics alone. Paste
-            native script on its own and a transliteration is drafted for you to
+            native script on its own and a transliteration — and, where a
+            meaning is missing, an English meaning — is drafted for you to
             correct. Whatever you import is added to the end of the editor;
             nothing already there is replaced.
           </DialogDescription>
@@ -139,7 +166,7 @@ export function LyricsImportDialog({
               title="Add the pasted song to the end of the lyrics"
             >
               {working && <Loader2 className="size-4 animate-spin" />}
-              Add to lyrics
+              {working && drafting ? 'Drafting…' : 'Add to lyrics'}
             </Button>
           </span>
         </DialogFooter>

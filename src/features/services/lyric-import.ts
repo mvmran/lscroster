@@ -30,6 +30,7 @@
  */
 
 import {
+  alignLayer,
   findNonLatinLyrics,
   hasAnyLayer,
   toLines,
@@ -238,6 +239,24 @@ export async function withGeneratedTransliteration(
     line.trim() === '' && (native[i] ?? '').trim() !== '' ? (romanised[i] ?? '') : line,
   )
   return { ...layers, lyrics: lyrics.join('\n') }
+}
+
+/**
+ * Fill the meaning layer of an import with the draft `generate-meaning` made
+ * from its native text.
+ *
+ * The function answers one entry per line it was sent, so a draft taken from
+ * `layers.native` — which the parser already padded against the base — arrives
+ * line-parallel. `alignLayer` is a belt-and-braces pad to the base's height for
+ * the case where it does not, and a draft that came back blank is dropped
+ * rather than written as a column of nothing.
+ */
+export function withGeneratedMeaning(
+  layers: LayeredLyrics,
+  drafted: string,
+): LayeredLyrics {
+  if (drafted.trim() === '') return layers
+  return alignLayer({ ...layers, meaning: drafted }, 'meaning')
 }
 
 /**

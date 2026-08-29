@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   appendImportedLyrics,
   parseImportedLyrics,
+  withGeneratedMeaning,
   withGeneratedTransliteration,
 } from '@/features/services/lyric-import'
 import { EMPTY_LAYERS, lineCount, toLines } from '@/features/services/lyric-layers'
@@ -247,5 +248,37 @@ describe('appendImportedLyrics', () => {
   it('is a no-op when there is nothing to import', () => {
     const current = { ...EMPTY_LAYERS, lyrics: 'existing' }
     expect(appendImportedLyrics(current, EMPTY_LAYERS)).toEqual(current)
+  })
+})
+
+describe('withGeneratedMeaning', () => {
+  // What the `generate-meaning` function answers: one entry per line of the
+  // native text it was sent, blank against a header or a blank row.
+  const draftFor = (native: string) =>
+    toLines(native)
+      .map((line) => (line.trim() === '' ? '' : `meaning of ${line}`))
+      .join('\n')
+
+  it('lands the draft line-parallel to a native-only import', async () => {
+    const parsed = parseImportedLyrics('Verse 1\nആ കരതാരിൽ\nകാൽവറി')
+    const filled = withGeneratedMeaning(
+      await withGeneratedTransliteration(parsed.layers, parsed.script!),
+      draftFor(parsed.layers.native),
+    )
+    expect(lineCount(filled.meaning)).toBe(lineCount(filled.lyrics))
+    expect(toLines(filled.meaning)).toContain('meaning of ആ കരതാരിൽ')
+    // The header row keeps its blank, so line N still belongs to line N.
+    expect(toLines(filled.meaning)[toLines(filled.lyrics).indexOf('Verse 1')]).toBe('')
+  })
+
+  it('pads a short draft out to the base rather than leaving it adrift', () => {
+    const layers = { ...EMPTY_LAYERS, lyrics: 'one\ntwo\nthree', native: 'a\nb\nc' }
+    const filled = withGeneratedMeaning(layers, 'first')
+    expect(toLines(filled.meaning)).toEqual(['first', '', ''])
+  })
+
+  it('drops a draft that came back empty', () => {
+    const layers = { ...EMPTY_LAYERS, lyrics: 'one\ntwo', native: 'a\nb' }
+    expect(withGeneratedMeaning(layers, '  \n ')).toEqual(layers)
   })
 })

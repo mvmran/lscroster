@@ -200,6 +200,12 @@ someone presses **Save changes**, so nothing is written to your database
 without a human reading it first. Expect to correct it: it is a first draft,
 and a machine has no idea what your church means by half of these lines.
 
+Two places use it: the **Meaning** pane's "draft it from the native text" link,
+and **Import lyrics** — a paste that brings native script but no meaning has one
+drafted as it is added, so the lyrics, native and meaning panes all arrive
+filled. The import dialog says "meaning will be drafted" before you press
+**Add to lyrics** whenever it is about to spend a call.
+
 ---
 
 ## Step 7 — Switch on the scheduled emails
