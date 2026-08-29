@@ -417,6 +417,12 @@ verify_jwt = false
 [functions.request-password-reset]
 verify_jwt = false
 
+# Drafting a meaning layer costs money, so it is admin/leader only and the
+# function checks that itself; GEMINI_API_KEY is optional and the feature
+# switches itself off when it is unset (docs/SETUP.md, optional step).
+[functions.generate-meaning]
+verify_jwt = true
+
 [functions.send-requests]
 verify_jwt = true
 

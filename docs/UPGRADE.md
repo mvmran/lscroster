@@ -76,6 +76,9 @@ npx supabase functions deploy
 ```
 
 Safe to run every time even when nothing changed — deploying is idempotent.
+New functions are picked up automatically; one of them, `generate-meaning`, does
+nothing at all unless you have set the optional `GEMINI_API_KEY` secret
+(docs/SETUP.md step 6), so there is nothing to do here if you don't want it.
 
 ### 5. Release the new app
 

@@ -169,6 +169,37 @@ npx supabase secrets set RESEND_API_KEY=re_xxx EMAIL_FROM=onboarding@resend.dev 
 | `APP_URL` | how emails build their links — must have no trailing slash |
 | `CRON_SECRET` | proves an incoming job request came from your own scheduler |
 
+### Optional: drafting a song's meaning
+
+Songs in a language other than English can carry three texts — the native
+script, a singable transliteration, and the English meaning. The transliteration
+is generated for you offline and costs nothing. The **meaning** is a translation,
+which needs a language model, so it is opt-in and billed to you.
+
+Skip this and everything else still works: the editor simply doesn't offer the
+button, and anyone can type the meaning by hand as before.
+
+To switch it on, get a key from
+[Google AI Studio](https://aistudio.google.com/apikey) and set it:
+
+```bash
+npx supabase secrets set GEMINI_API_KEY=<your-key>
+```
+
+| Secret | What it does |
+| --- | --- |
+| `GEMINI_API_KEY` | authenticates with the Gemini API — its presence is what enables the feature |
+| `GEMINI_MODEL` | optional; defaults to `gemini-3.5-flash-lite`, the cheapest model that does this well |
+
+The key never reaches the browser: the app calls the `generate-meaning` Edge
+Function, which holds the key and calls Google. Only admins and leaders may
+use it — the same people who may edit lyrics.
+
+A drafted meaning lands in the editor for review and is only stored when
+someone presses **Save changes**, so nothing is written to your database
+without a human reading it first. Expect to correct it: it is a first draft,
+and a machine has no idea what your church means by half of these lines.
+
 ---
 
 ## Step 7 — Switch on the scheduled emails

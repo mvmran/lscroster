@@ -59,6 +59,10 @@ import {
   LyricsStructureEditor,
 } from '@/features/services/lyrics-structure-editor'
 import { LyricsImportDialog } from '@/features/services/lyrics-import-dialog'
+import {
+  useGenerateMeaning,
+  useMeaningGenerationAvailable,
+} from '@/features/services/use-meaning'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
 import { appendImportedLyrics } from '@/features/services/lyric-import'
 import {
@@ -591,6 +595,8 @@ function ArrangementLyricsBlock({
   const [pendingLink, setPendingLink] = useState<{ id: string; title: string } | null>(null)
   const [pendingUnlink, setPendingUnlink] = useState<{ id: string; title: string } | null>(null)
   const [versionNotice, setVersionNotice] = useState(false)
+  const { data: meaningAvailable } = useMeaningGenerationAvailable()
+  const generateMeaning = useGenerateMeaning()
   const [checkingPin, setCheckingPin] = useState(false)
 
   const saved = useMemo(() => layersOfRow(current ?? null), [current])
@@ -627,6 +633,27 @@ function ArrangementLyricsBlock({
       toast.error(error instanceof Error ? error.message : 'Could not save lyrics')
     } finally {
       setCheckingPin(false)
+    }
+  }
+
+  async function draftMeaning() {
+    try {
+      const meaning = await generateMeaning.mutateAsync({
+        native: value.native,
+        language: current?.native_language ?? null,
+      })
+      if (meaning.trim() === '') {
+        toast.error('No meaning came back — try again, or type it by hand.')
+        return
+      }
+      // Into the draft, not the database: it is reviewed and saved like any
+      // other edit, the same as an imported transliteration.
+      setDraft({ ...value, meaning })
+      toast.success('Meaning drafted — check it over before saving')
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not draft the meaning',
+      )
     }
   }
 
@@ -782,6 +809,8 @@ function ArrangementLyricsBlock({
             layers={value}
             activeLayer={activeLayer}
             onChange={setDraft}
+            onGenerateMeaning={meaningAvailable ? draftMeaning : undefined}
+            generatingMeaning={generateMeaning.isPending}
           />
         )}
         {dirty && (

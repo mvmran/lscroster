@@ -464,11 +464,16 @@ export function LyricsStructureEditor({
   layers,
   activeLayer,
   onChange,
+  onGenerateMeaning,
+  generatingMeaning,
 }: {
   id?: string
   layers: LayeredLyrics
   activeLayer: LyricLayerKey | null
   onChange: (next: LayeredLyrics) => void
+  /** Draft the meaning from the native text; absent when not configured. */
+  onGenerateMeaning?: () => void
+  generatingMeaning?: boolean
 }) {
   const sections = useMemo(() => parseLyricSections(layers.lyrics), [layers.lyrics])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -583,7 +588,27 @@ export function LyricsStructureEditor({
     ? layerLineMismatch(layers).find((m) => m.key === activeLayer)
     : undefined
 
-  const layerHint = activeLayer && (mismatch || layers[activeLayer] === '') && (
+  // Drafting only ever fills an empty meaning pane: overwriting a gloss someone
+  // wrote, on one click with no undo, is not a trade worth making.
+  const canDraftMeaning =
+    activeLayer === 'meaning' &&
+    onGenerateMeaning !== undefined &&
+    layers.meaning.trim() === '' &&
+    layers.native.trim() !== ''
+
+  const draftMeaningButton = canDraftMeaning && (
+    <button
+      type="button"
+      className="text-primary underline underline-offset-2 disabled:opacity-60"
+      disabled={generatingMeaning}
+      onClick={onGenerateMeaning}
+    >
+      {generatingMeaning ? 'Drafting…' : 'Draft it from the native text'}
+    </button>
+  )
+
+  const layerHint = activeLayer &&
+    (mismatch || layers[activeLayer] === '' || canDraftMeaning) && (
     <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
       {layers[activeLayer] === '' ? (
         <span>
@@ -614,6 +639,7 @@ export function LyricsStructureEditor({
           Add the missing blank lines
         </button>
       )}
+      {draftMeaningButton}
     </p>
   )
 
