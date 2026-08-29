@@ -15,9 +15,11 @@ jobs:
       VITE_SUPABASE_ANON_KEY: ci-placeholder
     steps:
       - uses: actions/checkout@v5
+      # Pinned to the version the maintainer's machine runs, so a green
+      # `npm run ci` locally means a green pipeline. Vite 8 needs >= 20.19.
       - uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version: 20
           cache: npm
       # The Edge Functions are Deno, and outside tsconfig/eslint entirely.
       # Without this they ship unchecked and fail at runtime instead.
