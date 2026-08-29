@@ -112,8 +112,47 @@ const CHILLU: Record<string, string> = {
  */
 const ZERO_WIDTH = /[\u200B-\u200D\uFEFF]/g
 
+/**
+ * Nukta consonants — क़ "qa", ज़ "za", ड़ "ṛa" — also have two encodings: one
+ * precomposed character, or the base consonant plus a combining nukta. Only the
+ * precomposed form is in sanscript's tables, and `normalize('NFC')` will not
+ * produce it: every one of them sits on Unicode's composition-exclusion list,
+ * so NFC leaves the pair alone and the nukta survives into the Latin text
+ * ("taaka़ta" for ताक़त).
+ *
+ * The pairs are derived from the engine's own Unicode tables rather than typed
+ * out here — each precomposed character's NFD decomposition is exactly the
+ * sequence it should replace. Unassigned code points in these blocks decompose
+ * to themselves and are skipped.
+ */
+const NUKTA_BLOCKS: Array<[number, number]> = [
+  [0x0958, 0x095f], // Devanagari
+  [0x09dc, 0x09df], // Bengali
+  [0x0a59, 0x0a5e], // Gurmukhi
+  [0x0b5c, 0x0b5d], // Oriya
+]
+
+const NUKTA = (() => {
+  const pairs: Array<[string, string]> = []
+  for (const [first, last] of NUKTA_BLOCKS) {
+    for (let cp = first; cp <= last; cp += 1) {
+      const composed = String.fromCodePoint(cp)
+      const decomposed = composed.normalize('NFD')
+      if (decomposed.length > 1) pairs.push([decomposed, composed])
+    }
+  }
+  return {
+    pattern: new RegExp(pairs.map(([decomposed]) => decomposed).join('|'), 'g'),
+    composed: new Map(pairs),
+  }
+})()
+
+/** Zero-width first, then nukta, then chillu: each step feeds the next. */
 const normaliseNative = (text: string): string =>
-  text.replace(ZERO_WIDTH, '').replace(/[ൺ-ൿ]/g, (char) => CHILLU[char] ?? char)
+  text
+    .replace(ZERO_WIDTH, '')
+    .replace(NUKTA.pattern, (match) => NUKTA.composed.get(match) ?? match)
+    .replace(/[ൺ-ൿ]/g, (char) => CHILLU[char] ?? char)
 
 /**
  * ISO 15919 digraphs that are already house style. Listed so the single-letter

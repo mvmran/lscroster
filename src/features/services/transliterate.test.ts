@@ -65,6 +65,31 @@ describe('transliterate', () => {
     expect(await romanise('കഴിഞ്ഞു')).toBe('kazhinju') // ഴ zh, ഞ്ഞ nj
   })
 
+  it('composes a nukta written as base consonant + combining mark', async () => {
+    // ताक़त as क + U+093C rather than the precomposed क़ (U+0958). Only the
+    // precomposed form is in sanscript's tables, and NFC will not produce it —
+    // these characters are composition-excluded — so the nukta used to survive
+    // into the Latin text as "taaka़ta".
+    const out = await romanise('तू मेरी ताक़त है')
+    expect(out).toBe('too meree taaqata hai')
+    expect(out).not.toMatch(/\p{Script=Devanagari}/u)
+  })
+
+  it('reads the precomposed nukta character identically', () => {
+    // Escapes, not literals: a Devanagari literal in this file is liable to be
+    // normalised back to the combining form, which would make the two sides
+    // identical and the comparison vacuous.
+    const combining = '\u0924\u093E\u0915\u093C\u0924' // त ा क + nukta त
+    const precomposed = '\u0924\u093E\u0958\u0924' // त ा क़ त
+    expect(combining).not.toBe(precomposed)
+    return Promise.all([romanise(combining), romanise(precomposed)]).then(
+      ([a, b]) => {
+        expect(a).toBe(b)
+        expect(a).toBe('taaqata')
+      },
+    )
+  })
+
   it('leaves Devanagari dentals alone', async () => {
     // "th" for a dental t is a Dravidian convention; applying it to Hindi would
     // turn every "tum" into "thum".
