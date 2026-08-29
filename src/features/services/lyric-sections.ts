@@ -4,8 +4,9 @@
  * The raw lyrics string is the single source of truth: sections are derived
  * on every render from header lines the team already types (e.g. "[Verse 1]",
  * "Chorus:", "PRE-CHORUS 2") and are never persisted. Only the base `lyrics`
- * text is parsed — it owns the song's structure; the native, meaning and chord
- * layers are line-parallel to it and carry no headers of their own.
+ * text is parsed — it decides where the sections begin. The native, meaning and
+ * chord layers are line-parallel to it and may repeat the same header on the
+ * same row, which keeps them in step; read views show it once.
  *
  * Each section carries character offsets into the original string. The
  * reorder / duplicate / delete operations that consume them live in

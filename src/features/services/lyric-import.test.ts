@@ -8,6 +8,7 @@ import {
   withVerseHeadings,
 } from '@/features/services/lyric-import'
 import { EMPTY_LAYERS, lineCount, toLines } from '@/features/services/lyric-layers'
+import { matchLyricSectionHeader } from '@/features/services/lyric-sections'
 
 /** The format the team pastes: title, then a header + three texts per section. */
 const MULTILINGUAL = [
@@ -51,12 +52,14 @@ describe('parseImportedLyrics', () => {
     expect(lineCount(layers.meaning)).toBe(lineCount(layers.lyrics))
   })
 
-  it('leaves the layers blank beside a header line', () => {
+  it('repeats a header line in every layer that has text', () => {
+    // The layers are edited beside the lyrics, so each one carries the label of
+    // the verse it belongs to. Read views print the header once.
     const { layers } = parseImportedLyrics(MULTILINGUAL)
     const at = toLines(layers.lyrics).indexOf('Verse 1')
     expect(at).toBeGreaterThan(-1)
-    expect(toLines(layers.native)[at]).toBe('')
-    expect(toLines(layers.meaning)[at]).toBe('')
+    expect(toLines(layers.native)[at]).toBe('Verse 1')
+    expect(toLines(layers.meaning)[at]).toBe('Verse 1')
   })
 
   it('starts the next section after the longest text of the last one', () => {
@@ -79,7 +82,7 @@ describe('parseImportedLyrics', () => {
     const lyrics = toLines(layers.lyrics)
     const meaning = toLines(layers.meaning)
     expect(meaning[lyrics.indexOf('Verse 2')]).toBe('')
-    expect(meaning.filter((l) => l !== '')).toEqual(['one', 'two', 'three'])
+    expect(meaning.filter((l) => l !== '')).toEqual(['Verse 1', 'one', 'two', 'three'])
     expect(lineCount(layers.meaning)).toBe(lineCount(layers.lyrics))
   })
 
@@ -258,7 +261,11 @@ describe('withGeneratedMeaning', () => {
   // native text it was sent, blank against a header or a blank row.
   const draftFor = (native: string) =>
     toLines(native)
-      .map((line) => (line.trim() === '' ? '' : `meaning of ${line}`))
+      .map((line) =>
+        line.trim() === '' || matchLyricSectionHeader(line) !== null
+          ? ''
+          : `meaning of ${line}`,
+      )
       .join('\n')
 
   it('lands the draft line-parallel to a native-only import', async () => {

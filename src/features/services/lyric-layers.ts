@@ -3,13 +3,20 @@
  *
  * A song's lyrics are four parallel texts. `lyrics` is the primary singable
  * text in Latin script — the transliteration for a multi-lingual song, simply
- * the lyrics for an English one — and it alone owns the section headers
- * ("[Verse 1]") and the line structure. The other three are line-parallel to
- * it: **line N of every layer belongs to line N of `lyrics`**, with blank rows
- * where a line has no annotation.
+ * the lyrics for an English one — and it alone owns the line structure. The
+ * other three are line-parallel to it: **line N of every layer belongs to line
+ * N of `lyrics`**, with blank rows where a line has no annotation.
  *
- * That invariant is what lets the structure editor reorder a chorus and carry
- * its native text, meaning and chords along with it. It is maintained by
+ * Section headers ("[Verse 1]") are the exception to "one text owns it": the
+ * base decides where the sections are, and every layer is free to repeat the
+ * header on the same row. Teams paste songs whose layers already carry their
+ * own headers, and deleting them by hand is what used to knock the layers out
+ * of step. Read views show the header once — `zipLyricLines` drops the layer
+ * entries on a header row — so the repetition costs nothing but the row it
+ * already needed.
+ *
+ * That parallelism is what lets the structure editor reorder a chorus and
+ * carry its native text, meaning and chords along with it. It is maintained by
  * padding shorter layers to the base's line count on save (`padLayers`) and by
  * routing every section splice through the operations below, which apply one
  * line-range permutation identically to all four texts.
@@ -21,7 +28,10 @@
  * a chunk that lacked a trailing newline could.
  */
 
-import type { LyricSection } from '@/features/services/lyric-sections'
+import {
+  matchLyricSectionHeader,
+  type LyricSection,
+} from '@/features/services/lyric-sections'
 
 export const LYRIC_LAYER_KEYS = ['native', 'meaning', 'chords'] as const
 
@@ -29,7 +39,7 @@ export const LYRIC_LAYER_KEYS = ['native', 'meaning', 'chords'] as const
 export type LyricLayerKey = (typeof LYRIC_LAYER_KEYS)[number]
 
 export interface LayeredLyrics {
-  /** Primary singable text, Latin script. Owns headers and line structure. */
+  /** Primary singable text, Latin script. Owns the line structure. */
   lyrics: string
   /** Original script — Malayalam, Hindi … */
   native: string
@@ -161,24 +171,100 @@ export interface LyricLineTuple {
   native: string
   meaning: string
   chords: string
+  /** True when this line is a section header rather than words to sing. */
+  header: boolean
 }
 
 /**
  * Zip the four texts into per-line tuples for read views (plan, lyrics sheet,
  * projection API). Driven by the base, so a longer layer's extra lines are
  * ignored here — they show up in the editor, where they can be fixed.
+ *
+ * A header row comes back with its layers blank. Every layer may carry the
+ * same "Verse 1" so that the four texts stay line-parallel while they are
+ * edited, but a sheet that printed the label once per layer would say it three
+ * times before the first word of the verse.
  */
 export function zipLyricLines(layers: LayeredLyrics): LyricLineTuple[] {
   const base = toLines(layers.lyrics)
   const native = toLines(layers.native)
   const meaning = toLines(layers.meaning)
   const chords = toLines(layers.chords)
-  return base.map((text, i) => ({
-    text,
-    native: native[i] ?? '',
-    meaning: meaning[i] ?? '',
-    chords: chords[i] ?? '',
-  }))
+  return base.map((text, i) => {
+    const header = matchLyricSectionHeader(text) !== null
+    return {
+      text,
+      native: header ? '' : (native[i] ?? ''),
+      meaning: header ? '' : (meaning[i] ?? ''),
+      chords: header ? '' : (chords[i] ?? ''),
+      header,
+    }
+  })
+}
+
+/** A run of non-blank lines, with where it starts in the text it came from. */
+export interface LyricParagraph {
+  /** Index of the paragraph's first line. */
+  start: number
+  lines: string[]
+}
+
+/**
+ * Split a text into its blank-line-separated paragraphs.
+ *
+ * This is how every team writes a song out, and it is the unit the section
+ * labeller works in: one label per paragraph, inserted before `start`.
+ */
+export function lyricParagraphs(text: string): LyricParagraph[] {
+  const paragraphs: LyricParagraph[] = []
+  let current: LyricParagraph | null = null
+  toLines(text).forEach((line, i) => {
+    if (line.trim() === '') {
+      current = null
+      return
+    }
+    if (current === null) {
+      current = { start: i, lines: [] }
+      paragraphs.push(current)
+    }
+    current.lines.push(line)
+  })
+  return paragraphs
+}
+
+/**
+ * Insert section header lines into the base *and* every layer beside it.
+ *
+ * `before` is a line index in the base text; the label is inserted above that
+ * line. Every non-empty layer gains the same line at the same index, which is
+ * the only way the layers can survive the insertion — a header added to the
+ * base alone would push every layer one row out of step for the rest of the
+ * song. Read views drop the repeats (`zipLyricLines`).
+ *
+ * Layers are padded to the base's height first, so a short one gains its
+ * headers at the right rows rather than losing the ones past its end.
+ */
+export function insertSectionHeaders(
+  layers: LayeredLyrics,
+  headers: Array<{ before: number; label: string }>,
+): LayeredLyrics {
+  const wanted = new Map(
+    headers.filter((h) => h.label.trim() !== '').map((h) => [h.before, h.label.trim()]),
+  )
+  if (wanted.size === 0) return layers
+  const padded = padLayers(layers)
+  const eol = eolOf(padded.lyrics)
+  const next = { ...padded }
+  for (const key of ALL_KEYS) {
+    if (padded[key] === '') continue
+    next[key] = toLines(padded[key])
+      .flatMap((line, i) => {
+        const label = wanted.get(i)
+        return label === undefined ? [line] : [label, line]
+      })
+      .join(eol)
+  }
+  return next
 }
 
 /**

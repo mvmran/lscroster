@@ -251,12 +251,14 @@ export function parseImportedLyrics(text: string): ParsedImport {
       native.push('')
       meaning.push('')
     }
-    // The header belongs to the lyrics alone; the layers get a blank beside it.
+    // The header opens every layer that has text, not the lyrics alone: the
+    // four texts are edited side by side, and a layer whose verses are labelled
+    // like the lyrics beside them is the one a person can actually read. Read
+    // views print it once (`zipLyricLines`).
     const head = block.header === null ? [] : [block.header]
-    const blank = block.header === null ? [] : ['']
     const sectionLyrics = [...head, ...block.main]
-    const sectionNative = block.native.length === 0 ? [] : [...blank, ...block.native]
-    const sectionMeaning = block.meaning.length === 0 ? [] : [...blank, ...block.meaning]
+    const sectionNative = block.native.length === 0 ? [] : [...head, ...block.native]
+    const sectionMeaning = block.meaning.length === 0 ? [] : [...head, ...block.meaning]
     const height = Math.max(
       sectionLyrics.length,
       sectionNative.length,

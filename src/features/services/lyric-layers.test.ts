@@ -6,6 +6,8 @@ import {
   hasAnyLayer,
   layerLineMismatch,
   lineCount,
+  insertSectionHeaders,
+  lyricParagraphs,
   moveSectionLayers,
   padLayers,
   removeSectionLayers,
@@ -213,8 +215,8 @@ describe('zipLyricLines', () => {
   it('is driven by the base and blanks out missing layer lines', () => {
     const lines = zipLyricLines({ ...EMPTY_LAYERS, lyrics: 'a\nb', meaning: 'x' })
     expect(lines).toEqual([
-      { text: 'a', native: '', meaning: 'x', chords: '' },
-      { text: 'b', native: '', meaning: '', chords: '' },
+      { text: 'a', native: '', meaning: 'x', chords: '', header: false },
+      { text: 'b', native: '', meaning: '', chords: '', header: false },
     ])
   })
 
@@ -280,5 +282,96 @@ describe('findNonLatinLyrics', () => {
   it('catches other scripts too, not just Indic ones', () => {
     expect(findNonLatinLyrics('Слава')?.line).toBe(1)
     expect(findNonLatinLyrics('恵み')?.line).toBe(1)
+  })
+})
+
+describe('zipLyricLines section headers', () => {
+  it('shows a header once, not once per layer', () => {
+    // The layers repeat the header so they stay line-parallel in the editor;
+    // a sheet that printed all four would say "Verse 1" three times over.
+    const lines = zipLyricLines({
+      lyrics: '[Verse 1]\nAmazing grace',
+      native: '[Verse 1]\nഅത്ഭുത കൃപ',
+      meaning: '[Verse 1]\nAmazing grace',
+      chords: '',
+    })
+    expect(lines[0]).toEqual({
+      text: '[Verse 1]',
+      native: '',
+      meaning: '',
+      chords: '',
+      header: true,
+    })
+    expect(lines[1].native).toBe('അത്ഭുത കൃപ')
+  })
+})
+
+describe('lyricParagraphs', () => {
+  it('splits on blank lines and remembers where each one starts', () => {
+    expect(lyricParagraphs('one\ntwo\n\n\nthree')).toEqual([
+      { start: 0, lines: ['one', 'two'] },
+      { start: 4, lines: ['three'] },
+    ])
+  })
+
+  it('has nothing to say about empty or blank text', () => {
+    expect(lyricParagraphs('')).toEqual([])
+    expect(lyricParagraphs('\n\n')).toEqual([])
+  })
+})
+
+describe('insertSectionHeaders', () => {
+  const layers: LayeredLyrics = {
+    lyrics: 'Amazing grace\n\nPraise God',
+    native: 'അത്ഭുത കൃപ\n\nദൈവത്തെ',
+    meaning: '',
+    chords: '',
+  }
+
+  it('adds the header to the base and to every layer beside it', () => {
+    const next = insertSectionHeaders(layers, [
+      { before: 0, label: 'Verse 1' },
+      { before: 2, label: 'Chorus' },
+    ])
+    expect(toLines(next.lyrics)).toEqual([
+      'Verse 1',
+      'Amazing grace',
+      '',
+      'Chorus',
+      'Praise God',
+    ])
+    // A header added to the base alone would push the native text one row down
+    // for the rest of the song.
+    expect(lineCount(next.native)).toBe(lineCount(next.lyrics))
+    expect(toLines(next.native)[3]).toBe('Chorus')
+    expect(next.meaning).toBe('')
+  })
+
+  it('skips the paragraphs the labeller had no name for', () => {
+    const next = insertSectionHeaders(layers, [
+      { before: 0, label: '' },
+      { before: 2, label: 'Chorus' },
+    ])
+    expect(toLines(next.lyrics)).toEqual([
+      'Amazing grace',
+      '',
+      'Chorus',
+      'Praise God',
+    ])
+  })
+
+  it('is a no-op when nothing was labelled', () => {
+    expect(insertSectionHeaders(layers, [{ before: 0, label: '  ' }])).toBe(layers)
+  })
+
+  it('lands the headers where the editor will parse them as sections', () => {
+    const next = insertSectionHeaders(layers, [
+      { before: 0, label: 'Verse 1' },
+      { before: 2, label: 'Chorus' },
+    ])
+    expect(parseLyricSections(next.lyrics).map((s) => s.label)).toEqual([
+      'Verse 1',
+      'Chorus',
+    ])
   })
 })
