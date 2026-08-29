@@ -150,8 +150,11 @@ export function LyricsImportDialog({
             nothing already there is replaced.
           </DialogDescription>
         </DialogHeader>
-        {/* Songs are pasted whole, so the box takes whatever height the dialog
-            has left; the floor only rises once there is a screen to raise it on. */}
+        {/* Songs are pasted whole, so the box is sixteen rows and takes any
+            height the dialog has spare. It has no floor beyond the phone's:
+            one taller than a short laptop leaves for the rows below it would
+            push the footer into a squeeze, and squeezed buttons are exactly
+            what a paste dialog must not have. */}
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -159,9 +162,9 @@ export function LyricsImportDialog({
           autoFocus
           aria-label="Lyrics to import"
           placeholder={PLACEHOLDER}
-          className="min-h-48 flex-1 font-sans text-sm sm:min-h-[22rem]"
+          className="min-h-48 flex-1 font-sans text-sm"
         />
-        <div className="flex items-start gap-2 text-xs">
+        <div className="flex shrink-0 items-start gap-2 text-xs">
           <Checkbox
             id="import-number-sections"
             checked={numbering}
@@ -178,8 +181,10 @@ export function LyricsImportDialog({
             )}
           </label>
         </div>
-        <p className="text-muted-foreground text-xs">{summary}</p>
-        <DialogFooter>
+        <p className="text-muted-foreground shrink-0 text-xs">{summary}</p>
+        {/* items-center: the wrapped button is a flex container of its own, so
+            the row must centre both children rather than let either stretch. */}
+        <DialogFooter className="shrink-0 sm:items-center">
           <Button type="button" variant="outline" onClick={() => close(false)}>
             Cancel
           </Button>
@@ -189,8 +194,12 @@ export function LyricsImportDialog({
             className="inline-flex"
             title={empty ? 'Paste a song above first' : undefined}
           >
+            {/* Cancel is a flex item and stretches when the footer stacks on a
+                phone; this one sits inside the title wrapper, so it has to be
+                told to, or the two buttons end up different widths. */}
             <Button
               type="button"
+              className="w-full sm:w-auto"
               disabled={empty || working}
               onClick={add}
               title="Add the pasted song to the end of the lyrics"
