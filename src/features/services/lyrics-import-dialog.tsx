@@ -134,7 +134,7 @@ export function LyricsImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="flex max-h-[90svh] flex-col sm:max-w-3xl">
+      <DialogContent className="flex max-h-[85svh] flex-col sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Import lyrics</DialogTitle>
           <DialogDescription>
@@ -155,11 +155,11 @@ export function LyricsImportDialog({
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          rows={20}
+          rows={16}
           autoFocus
           aria-label="Lyrics to import"
           placeholder={PLACEHOLDER}
-          className="min-h-48 flex-1 font-sans text-sm sm:min-h-[26rem]"
+          className="min-h-48 flex-1 font-sans text-sm sm:min-h-[22rem]"
         />
         <div className="flex items-start gap-2 text-xs">
           <Checkbox
