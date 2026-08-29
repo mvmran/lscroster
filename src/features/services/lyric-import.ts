@@ -13,7 +13,7 @@
  * <English gloss>
  * ```
  *
- * `Transliteration` (or `Translation`) and `Meaning` are the only keywords —
+ * `Transliteration` and `Meaning` (or `Translation`) are the only keywords —
  * everything before the first of them is native script when the section
  * transliterates, and plain lyrics when it does not, so an English song with
  * neither keyword imports as lyrics alone.
@@ -42,10 +42,13 @@ import {
   type IndicScript,
 } from '@/features/services/transliterate'
 
-// "Translation" is accepted alongside "Transliteration": the teams label the
-// singable Latin text either way, and the English gloss is always "Meaning".
-const TRANSLITERATION_RE = /^\s*(?:trans(?:liter|l)ations?)\s*:?\s*$/i
-const MEANING_RE = /^\s*meanings?\s*:?\s*$/i
+// "Translation" heads the English gloss, not the singable Latin text: a
+// translation carries the sense across, a transliteration only the sound. It is
+// therefore a synonym for "Meaning" — and, since the two words share a prefix,
+// the transliteration pattern is anchored to the full word so it can't swallow
+// one for the other.
+const TRANSLITERATION_RE = /^\s*transliterations?\s*:?\s*$/i
+const MEANING_RE = /^\s*(?:meanings?|translations?)\s*:?\s*$/i
 
 export interface ParsedImport {
   /** The layers to append. `chords` is always empty — the format has none. */

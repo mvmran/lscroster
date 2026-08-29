@@ -102,11 +102,11 @@ export function LyricsImportDialog({
           <DialogTitle>Import lyrics</DialogTitle>
           <DialogDescription>
             Paste the song below. Lines under a{' '}
-            <span className="font-mono">Transliteration</span> (or{' '}
-            <span className="font-mono">Translation</span>) heading become the
+            <span className="font-mono">Transliteration</span> heading become the
             lyrics, the text above it the native script, and lines under{' '}
-            <span className="font-mono">Meaning</span> the English meaning — an
-            English song with neither heading imports as lyrics alone. Paste
+            <span className="font-mono">Meaning</span> (or{' '}
+            <span className="font-mono">Translation</span>) the English meaning —
+            an English song with neither heading imports as lyrics alone. Paste
             native script on its own and a transliteration is drafted for you to
             correct. Whatever you import is added to the end of the editor;
             nothing already there is replaced.

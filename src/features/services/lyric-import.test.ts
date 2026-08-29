@@ -80,15 +80,42 @@ describe('parseImportedLyrics', () => {
     expect(lineCount(layers.meaning)).toBe(lineCount(layers.lyrics))
   })
 
-  it('accepts Translation as a spelling of the transliteration keyword', () => {
+  it('accepts Translation as a spelling of the meaning keyword', () => {
+    // A translation carries the sense across, a transliteration only the sound:
+    // "Translation" heads the English gloss, never the singable Latin text.
     const { layers, hasNative, hasMeaning } = parseImportedLyrics(
-      ['Verse 1', 'നാ', 'Translation', 'naa', 'Meaning', 'one'].join('\n'),
+      ['Verse 1', 'നാ', 'Transliteration', 'naa', 'Translation', 'one'].join('\n'),
     )
     expect(hasNative).toBe(true)
     expect(hasMeaning).toBe(true)
     expect(toLines(layers.lyrics)).toContain('naa')
     expect(toLines(layers.native)).toContain('നാ')
     expect(toLines(layers.meaning)).toContain('one')
+  })
+
+  it('keeps Transliteration and Translation apart despite the shared prefix', () => {
+    const { layers } = parseImportedLyrics(
+      ['Verse 1', 'Transliteration', 'sound', 'Translation', 'sense'].join('\n'),
+    )
+    expect(toLines(layers.lyrics)).toContain('sound')
+    expect(toLines(layers.lyrics)).not.toContain('sense')
+    expect(toLines(layers.meaning)).toContain('sense')
+    expect(toLines(layers.meaning)).not.toContain('sound')
+  })
+
+  it('drafts the base for native text glossed under Translation', async () => {
+    // No Transliteration heading at all: the native text still routes to its
+    // own layer, Translation fills the meaning, and the base is generated.
+    const parsed = parseImportedLyrics(
+      ['Verse 1', 'ആ കരതാരിൽ', 'Translation', 'Into those hands'].join('\n'),
+    )
+    expect(parsed.hasNative).toBe(true)
+    expect(parsed.hasMeaning).toBe(true)
+    expect(parsed.needsTransliteration).toBe(true)
+    const filled = await withGeneratedTransliteration(parsed.layers, parsed.script!)
+    expect(toLines(filled.lyrics)).toContain('aa karathaaril')
+    expect(toLines(filled.meaning)).toContain('Into those hands')
+    expect(lineCount(filled.lyrics)).toBe(lineCount(filled.native))
   })
 
   it('routes a native-only section to the native layer, not the base', async () => {
