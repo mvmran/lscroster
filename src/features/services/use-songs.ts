@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { LayeredLyrics } from '@/features/services/lyric-layers'
+import { resolveNativeLanguage } from '@/features/services/transliterate'
 import type {
   ArrangementLyrics,
   Song,
@@ -480,6 +481,10 @@ export function useSaveArrangementLyrics(arrangementId: string) {
         lyrics_native: layers.native || null,
         lyrics_meaning: layers.meaning || null,
         lyrics_chords: layers.chords || null,
+        // Detected from the native layer's script, and only ever filled in —
+        // the projection API reads it to label what `sections[].layers.native`
+        // is written in, and there is no field for it in the editor.
+        native_language: resolveNativeLanguage(current?.native_language, layers.native),
       }
       if (current && !asNewVersion) {
         const { data, error } = await supabase
@@ -491,15 +496,14 @@ export function useSaveArrangementLyrics(arrangementId: string) {
         if (error) throw new Error(error.message)
         return data as ArrangementLyrics
       }
-      // Version numbers are assigned by a DB trigger (max + 1). The editor
-      // has no field for native_language, so a new version must carry it
-      // forward from the row it supersedes — the projection API reads it off
-      // the latest version only.
+      // Version numbers are assigned by a DB trigger (max + 1). `columns`
+      // already carries native_language forward from the row this supersedes,
+      // so a new version never loses it — the projection API reads it off the
+      // latest version only.
       const { data, error } = await supabase
         .from('song_arrangement_lyrics')
         .insert({
           arrangement_id: arrangementId,
-          native_language: current?.native_language ?? null,
           ...columns,
         })
         .select()

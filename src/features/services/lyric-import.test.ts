@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   appendImportedLyrics,
   parseImportedLyrics,
+  withGeneratedTransliteration,
 } from '@/features/services/lyric-import'
 import { EMPTY_LAYERS, lineCount, toLines } from '@/features/services/lyric-layers'
 
@@ -88,6 +89,70 @@ describe('parseImportedLyrics', () => {
     expect(toLines(layers.lyrics)).toContain('naa')
     expect(toLines(layers.native)).toContain('നാ')
     expect(toLines(layers.meaning)).toContain('one')
+  })
+
+  it('routes a native-only section to the native layer, not the base', async () => {
+    // No Transliteration keyword and non-Latin text: this used to land in the
+    // base, which must stay Latin, so the save was blocked with no way out.
+    const parsed = parseImportedLyrics('Verse 1\nആ കരതാരിൽ\nകാൽവറി')
+    expect(parsed.hasNative).toBe(true)
+    expect(parsed.needsTransliteration).toBe(true)
+    expect(parsed.script).toMatchObject({ scheme: 'malayalam', language: 'ml' })
+    expect(toLines(parsed.layers.lyrics).filter((l) => l !== '')).toEqual(['Verse 1'])
+    expect(toLines(parsed.layers.native)).toContain('ആ കരതാരിൽ')
+
+    const filled = await withGeneratedTransliteration(parsed.layers, parsed.script!)
+    expect(toLines(filled.lyrics)).toContain('aa karathaaril')
+    expect(lineCount(filled.lyrics)).toBe(lineCount(filled.native))
+  })
+
+  it('leaves the base blank for a script it cannot romanise', () => {
+    const parsed = parseImportedLyrics('Verse 1\nСлава Богу')
+    expect(parsed.hasNative).toBe(true)
+    expect(parsed.needsTransliteration).toBe(true)
+    // Nothing is guessed at — the team types this one.
+    expect(parsed.script).toBeNull()
+    expect(toLines(parsed.layers.lyrics).filter((l) => l !== '')).toEqual(['Verse 1'])
+    expect(toLines(parsed.layers.native)).toContain('Слава Богу')
+  })
+
+  it('generates only where the base is blank, keeping written transliterations', async () => {
+    const mixed = [
+      'Verse 1',
+      'ആ കരതാരിൽ',
+      'Transliteration',
+      'the human wrote this',
+      '',
+      'Verse 2',
+      'കാൽവറി',
+    ].join('\n')
+    const parsed = parseImportedLyrics(mixed)
+    expect(parsed.needsTransliteration).toBe(true)
+    const filled = await withGeneratedTransliteration(parsed.layers, parsed.script!)
+    const lyrics = toLines(filled.lyrics)
+    expect(lyrics).toContain('the human wrote this')
+    expect(lyrics).toContain('kaalvari')
+    expect(lineCount(filled.lyrics)).toBe(lineCount(filled.native))
+  })
+
+  it('keeps a headerless native-only paste through the append', () => {
+    // The base is blank here — an unromanisable script with no header line to
+    // put in it. Collapsing it to '' used to drop the whole import silently,
+    // because appendImportedLyrics measures the layers against the base.
+    const parsed = parseImportedLyrics('Слава Богу\nвовеки')
+    const appended = appendImportedLyrics(EMPTY_LAYERS, parsed.layers)
+    expect(appended.native).toBe('Слава Богу\nвовеки')
+
+    const onto = appendImportedLyrics(
+      { ...EMPTY_LAYERS, lyrics: 'Amazing grace\nhow sweet' },
+      parsed.layers,
+    )
+    expect(lineCount(onto.native)).toBe(lineCount(onto.lyrics))
+  })
+
+  it('reports no transliteration needed for an ordinary multi-lingual paste', () => {
+    const parsed = parseImportedLyrics(MULTILINGUAL)
+    expect(parsed.needsTransliteration).toBe(false)
   })
 
   it('imports a plain English song as lyrics only', () => {

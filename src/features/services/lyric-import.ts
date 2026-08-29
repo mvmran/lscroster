@@ -18,14 +18,29 @@
  * transliterates, and plain lyrics when it does not, so an English song with
  * neither keyword imports as lyrics alone.
  *
+ * A section with no keyword whose text is *not* Latin is native script all the
+ * same: it moves to the native layer, and `withGeneratedTransliteration` drafts
+ * the base text from it (see `transliterate.ts`). A script we cannot romanise
+ * leaves the base blank for the team to type.
+ *
  * The editor's layers are line-parallel, which the source format is not: a
  * section's three texts routinely differ in length. Sections are therefore
  * aligned at their first line and padded to their tallest text, so a short
  * gloss never drags the next verse out of step with its own native lines.
  */
 
-import { hasAnyLayer, toLines, type LayeredLyrics } from '@/features/services/lyric-layers'
+import {
+  findNonLatinLyrics,
+  hasAnyLayer,
+  toLines,
+  type LayeredLyrics,
+} from '@/features/services/lyric-layers'
 import { matchLyricSectionHeader } from '@/features/services/lyric-sections'
+import {
+  detectIndicScript,
+  transliterate,
+  type IndicScript,
+} from '@/features/services/transliterate'
 
 // "Translation" is accepted alongside "Transliteration": the teams label the
 // singable Latin text either way, and the English gloss is always "Meaning".
@@ -39,6 +54,13 @@ export interface ParsedImport {
   sections: number
   hasNative: boolean
   hasMeaning: boolean
+  /**
+   * True when a section arrived as native script with no transliteration, so
+   * its base text is blank and waiting to be generated (or typed).
+   */
+  needsTransliteration: boolean
+  /** The Indic script that native text is in, or null if we can't romanise it. */
+  script: IndicScript | null
 }
 
 /** Drop blank lines from both ends, keeping any inside the block. */
@@ -119,12 +141,26 @@ function splitAtKeywords(body: string[]): Omit<Block, 'header'> {
   }
 }
 
+/**
+ * A section with no transliteration keyword whose text is not Latin is native
+ * script, not lyrics.
+ *
+ * Without this it landed in the base layer, which must stay Latin, and the save
+ * was blocked with no way forward. Moving it to the native layer leaves the base
+ * holding only the header — ready for `withGeneratedTransliteration` to fill, or
+ * for the team to type when the script is one we can't romanise.
+ */
+function routeNativeOnly(block: Block): Block {
+  if (block.native.length > 0) return block
+  if (findNonLatinLyrics(block.main.join('\n')) === null) return block
+  return { ...block, native: block.main, main: [] }
+}
+
 /** Parse pasted text into the layers it would add. */
 export function parseImportedLyrics(text: string): ParsedImport {
-  const blocks: Block[] = splitAtHeaders(toLines(text)).map(({ header, body }) => ({
-    header,
-    ...splitAtKeywords(body),
-  }))
+  const blocks: Block[] = splitAtHeaders(toLines(text)).map(({ header, body }) =>
+    routeNativeOnly({ header, ...splitAtKeywords(body) }),
+  )
 
   const lyrics: string[] = []
   const native: string[] = []
@@ -156,9 +192,17 @@ export function parseImportedLyrics(text: string): ParsedImport {
   const used = (lines: string[]) =>
     lines.some((line) => line.trim() !== '') ? lines.join('\n') : ''
 
+  // The base keeps its blank rows whenever a layer has text. A script we can't
+  // romanise leaves the base empty, and collapsing it to '' would cost the
+  // layers their alignment — and drop the import outright, since
+  // `appendImportedLyrics` measures everything against the base's line count.
+  const anyText = [lyrics, native, meaning].some((lines) =>
+    lines.some((line) => line.trim() !== ''),
+  )
+
   return {
     layers: {
-      lyrics: used(lyrics),
+      lyrics: anyText ? lyrics.join('\n') : '',
       native: used(native),
       meaning: used(meaning),
       chords: '',
@@ -166,7 +210,31 @@ export function parseImportedLyrics(text: string): ParsedImport {
     sections: blocks.filter((block) => block.header !== null).length,
     hasNative: native.some((line) => line.trim() !== ''),
     hasMeaning: meaning.some((line) => line.trim() !== ''),
+    needsTransliteration: blocks.some(
+      (block) => block.native.length > 0 && block.main.length === 0,
+    ),
+    script: detectIndicScript(native.join('\n')),
   }
+}
+
+/**
+ * Fill the blank base lines of a native-only import with a generated draft.
+ *
+ * Only blank base lines that have native text beside them are written, so a
+ * paste that mixes transliterated sections with native-only ones keeps every
+ * transliteration the team already wrote. The layers stay line-parallel because
+ * `transliterate` preserves the native text's line count exactly.
+ */
+export async function withGeneratedTransliteration(
+  layers: LayeredLyrics,
+  script: IndicScript,
+): Promise<LayeredLyrics> {
+  const romanised = toLines(await transliterate(layers.native, script))
+  const native = toLines(layers.native)
+  const lyrics = toLines(layers.lyrics).map((line, i) =>
+    line.trim() === '' && (native[i] ?? '').trim() !== '' ? (romanised[i] ?? '') : line,
+  )
+  return { ...layers, lyrics: lyrics.join('\n') }
 }
 
 /**
@@ -180,7 +248,7 @@ export function appendImportedLyrics(
   current: LayeredLyrics,
   imported: LayeredLyrics,
 ): LayeredLyrics {
-  if (imported.lyrics === '') return current
+  if (imported.lyrics === '' && !hasAnyLayer(imported)) return current
   if (current.lyrics.trim() === '' && !hasAnyLayer(current)) return imported
 
   const currentBase = toLines(current.lyrics)

@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -9,7 +11,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { parseImportedLyrics } from '@/features/services/lyric-import'
+import {
+  parseImportedLyrics,
+  withGeneratedTransliteration,
+} from '@/features/services/lyric-import'
 import type { LayeredLyrics } from '@/features/services/lyric-layers'
 
 const PLACEHOLDER = [
@@ -39,12 +44,38 @@ export function LyricsImportDialog({
   onImport: (layers: LayeredLyrics) => void
 }) {
   const [text, setText] = useState('')
+  const [working, setWorking] = useState(false)
   const parsed = useMemo(() => parseImportedLyrics(text), [text])
-  const empty = parsed.layers.lyrics === ''
+  // A native-only paste leaves the base blank; `lyrics` then holds headers
+  // alone, or nothing at all when the paste had none.
+  const empty = parsed.layers.lyrics === '' && parsed.layers.native === ''
+  const generating = parsed.needsTransliteration && parsed.script !== null
 
   function close(next: boolean) {
     if (!next) setText('')
     onOpenChange(next)
+  }
+
+  async function add() {
+    setWorking(true)
+    try {
+      // Generation loads a ~110KB chunk on demand. If that fails — offline, a
+      // stale cache — the paste still goes in, with the base left blank for the
+      // team to type. Losing a pasted song to a network hiccup is the one
+      // outcome worth ruling out.
+      let layers = parsed.layers
+      if (parsed.script && parsed.needsTransliteration) {
+        try {
+          layers = await withGeneratedTransliteration(layers, parsed.script)
+        } catch {
+          toast.warning('Could not generate a transliteration — the base is blank.')
+        }
+      }
+      onImport(layers)
+      close(false)
+    } finally {
+      setWorking(false)
+    }
   }
 
   const summary = empty
@@ -55,6 +86,11 @@ export function LyricsImportDialog({
           : `${parsed.sections} section${parsed.sections === 1 ? '' : 's'}`,
         parsed.hasNative ? 'native' : null,
         parsed.hasMeaning ? 'meaning' : null,
+        generating
+          ? 'transliteration will be generated'
+          : parsed.needsTransliteration
+            ? 'no transliteration — that script needs typing by hand'
+            : null,
       ]
         .filter(Boolean)
         .join(' · ')
@@ -70,9 +106,10 @@ export function LyricsImportDialog({
             <span className="font-mono">Translation</span>) heading become the
             lyrics, the text above it the native script, and lines under{' '}
             <span className="font-mono">Meaning</span> the English meaning — an
-            English song with neither heading imports as lyrics alone. Whatever
-            you import is added to the end of the editor; nothing already there
-            is replaced.
+            English song with neither heading imports as lyrics alone. Paste
+            native script on its own and a transliteration is drafted for you to
+            correct. Whatever you import is added to the end of the editor;
+            nothing already there is replaced.
           </DialogDescription>
         </DialogHeader>
         <Textarea
@@ -97,13 +134,11 @@ export function LyricsImportDialog({
           >
             <Button
               type="button"
-              disabled={empty}
-              onClick={() => {
-                onImport(parsed.layers)
-                close(false)
-              }}
+              disabled={empty || working}
+              onClick={add}
               title="Add the pasted song to the end of the lyrics"
             >
+              {working && <Loader2 className="size-4 animate-spin" />}
               Add to lyrics
             </Button>
           </span>
