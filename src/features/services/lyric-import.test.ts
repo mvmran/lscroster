@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   appendImportedLyrics,
+  nextVerseNumber,
   parseImportedLyrics,
   withGeneratedMeaning,
   withGeneratedTransliteration,
@@ -348,6 +349,26 @@ describe('withVerseHeadings', () => {
     expect(toLines(parsed.layers.native)).toContain('ആ കരതാരിൽ')
     expect(lineCount(parsed.layers.native)).toBe(lineCount(parsed.layers.lyrics))
     expect(lineCount(parsed.layers.meaning)).toBe(lineCount(parsed.layers.lyrics))
+  })
+
+  it('carries on from the verses the editor already holds', () => {
+    // The import lands after them, so restarting at 1 would leave the song
+    // with two "Verse 1"s.
+    const current = 'Verse 1\nHoly, holy, holy\n\nChorus\nLord God almighty'
+    expect(nextVerseNumber(current)).toBe(2)
+    const headed = withVerseHeadings(ENGLISH, nextVerseNumber(current))
+    expect(toLines(headed).filter((line) => line.startsWith('Verse'))).toEqual([
+      'Verse 2',
+      'Verse 3',
+    ])
+  })
+
+  it('starts at 1 against lyrics with no verses of their own', () => {
+    expect(nextVerseNumber('')).toBe(1)
+    expect(nextVerseNumber('Chorus\nHow great thou art')).toBe(1)
+    // An unnumbered "Verse" is the first one by any reading.
+    expect(nextVerseNumber('Verse\nHow great thou art')).toBe(2)
+    expect(nextVerseNumber('Verse 1\na\n\nVerse 7\nb')).toBe(8)
   })
 
   it('adds nothing when there is only one paragraph to label', () => {

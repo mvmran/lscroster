@@ -843,6 +843,7 @@ function ArrangementLyricsBlock({
       <LyricsImportDialog
         open={importOpen}
         onOpenChange={setImportOpen}
+        existingLyrics={value.lyrics}
         onImport={(imported) => setDraft(appendImportedLyrics(value, imported))}
       />
 

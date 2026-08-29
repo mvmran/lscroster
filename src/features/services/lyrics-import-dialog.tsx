@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  nextVerseNumber,
   parseImportedLyrics,
   withGeneratedMeaning,
   withGeneratedTransliteration,
@@ -46,19 +47,25 @@ export function LyricsImportDialog({
   open,
   onOpenChange,
   onImport,
+  existingLyrics = '',
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   onImport: (layers: LayeredLyrics) => void
+  /** What the editor already holds — the import lands after it. */
+  existingLyrics?: string
 }) {
   const [text, setText] = useState('')
   const [numbering, setNumbering] = useState(true)
   const [working, setWorking] = useState(false)
+  // The import lands after whatever the editor holds, so the count carries on
+  // from the last verse already there rather than restarting at 1.
+  const from = useMemo(() => nextVerseNumber(existingLyrics), [existingLyrics])
   // Numbering rewrites the paste before it is parsed, so the summary below
   // counts the sections that will actually land — headings included.
   const source = useMemo(
-    () => (numbering ? withVerseHeadings(text) : text),
-    [text, numbering],
+    () => (numbering ? withVerseHeadings(text, from) : text),
+    [text, numbering, from],
   )
   const parsed = useMemo(() => parseImportedLyrics(source), [source])
   const labelled = toLines(text).some((line) => matchLyricSectionHeader(line) !== null)
@@ -174,8 +181,9 @@ export function LyricsImportDialog({
             htmlFor="import-number-sections"
             className="text-muted-foreground cursor-pointer"
           >
-            Number the paragraphs as <span className="font-mono">Verse 1</span>,{' '}
-            <span className="font-mono">Verse 2</span> …
+            Number the paragraphs as{' '}
+            <span className="font-mono">Verse {from}</span>,{' '}
+            <span className="font-mono">Verse {from + 1}</span> …
             {labelled && (
               <> — not this paste, though: it already names its own sections.</>
             )}

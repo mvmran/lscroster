@@ -73,8 +73,24 @@ const MEANING_RE = /^\s*(?:meanings?|translations?)\s*:?\s*$/i
  *
  * Nothing is added to a paste with only one paragraph to label: a single
  * "Verse 1" over the whole song is structure in name alone.
+ *
+ * `from` is where the count starts. An import lands at the end of lyrics that
+ * may already have verses of their own, and a song with two "Verse 1"s is worse
+ * than one with none — `nextVerseNumber` reads the editor and carries on from
+ * there.
  */
-export function withVerseHeadings(text: string): string {
+/** The verse number an import should start at, given the lyrics it joins. */
+export function nextVerseNumber(lyrics: string): number {
+  const numbers = toLines(lyrics).map((line) => {
+    const header = matchLyricSectionHeader(line)
+    if (header === null || header.kind !== 'verse') return 0
+    // "Verse" with no designator is the song's first verse by any reading.
+    return Number.parseInt(header.label.replace(/\D+/g, ''), 10) || 1
+  })
+  return Math.max(0, ...numbers) + 1
+}
+
+export function withVerseHeadings(text: string, from = 1): string {
   const lines = toLines(text)
   if (lines.some((line) => matchLyricSectionHeader(line) !== null)) return text
 
@@ -100,7 +116,7 @@ export function withVerseHeadings(text: string): string {
 
   // Joined with LF: the result is only ever handed straight back to
   // `parseImportedLyrics`, which splits on either ending and joins with LF.
-  const numbered = new Map(labelled.map((start, i) => [start, `Verse ${i + 1}`]))
+  const numbered = new Map(labelled.map((start, i) => [start, `Verse ${from + i}`]))
   return lines
     .flatMap((line, i) => {
       const header = numbered.get(i)
