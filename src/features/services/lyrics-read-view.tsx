@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { chordsIn, parseSongKey } from '@/features/services/chord-notation'
+import { useChordNotation } from '@/features/services/use-chord-notation'
 import {
   hasAnyLayer,
   LAYER_LABELS,
@@ -52,16 +54,28 @@ function ChordLine({ text }: { text: string }) {
  *
  * Falls back to the plain text when no layer carries anything, which is every
  * English song and every song entered before this existed.
+ *
+ * Chords arrive as they are stored — numbers of the key — and are read back in
+ * `songKey`, so the sheet shows the chords of the key this plan actually plays
+ * the song in. `songKey` therefore wants the plan item's key override where
+ * there is one, not the arrangement's own key.
  */
 export function LyricsReadView({
   layers,
+  songKey,
   className,
 }: {
   layers: LayeredLyrics
+  /** The key to read the chord numbers back in. Without it they stay numbers. */
+  songKey?: string | null
   className?: string
 }) {
   const available = LYRIC_LAYER_KEYS.filter((key) => layers[key].trim() !== '')
   const [shown, setShown] = useState<LyricLayerKey[]>([])
+  // Read-only here: the switch that sets this lives once per screen, on the
+  // card around these songs, because the choice is one the whole sheet shares.
+  const [notation] = useChordNotation()
+  const chords = chordsIn(layers.chords, notation, parseSongKey(songKey))
 
   if (!hasAnyLayer(layers)) {
     return (
@@ -97,7 +111,7 @@ export function LyricsReadView({
         ))}
       </ToggleGroup>
       <div className="text-sm">
-        {zipLyricLines(layers).map((line, i) => (
+        {zipLyricLines({ ...layers, chords }).map((line, i) => (
           <div key={i} className={line.text.trim() === '' ? 'h-3' : 'py-0.5'}>
             {on('chords') && line.chords.trim() !== '' && (
               <ChordLine text={line.chords} />

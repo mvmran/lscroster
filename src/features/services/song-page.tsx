@@ -56,7 +56,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { useUnsavedChangesWarning } from '@/lib/use-unsaved-changes-warning'
 import {
-  ChordNotationToggle,
   LyricLayerToggle,
   LyricsStructureEditor,
 } from '@/features/services/lyrics-structure-editor'
@@ -70,12 +69,12 @@ import {
   useSuggestTags,
 } from '@/features/services/use-lyrics-ai'
 import {
-  chordsToLetters,
   chordsToNumbers,
   hasChordTokens,
   parseSongKey,
-  type ChordNotation,
 } from '@/features/services/chord-notation'
+import { ChordNotationToggle } from '@/features/services/chord-notation-toggle'
+import { useChordNotation } from '@/features/services/use-chord-notation'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
 import { appendImportedLyrics } from '@/features/services/lyric-import'
 import {
@@ -666,35 +665,6 @@ function LinkSongDialog({
  * Lyrics are versioned — editing a version that a published plan pinned
  * creates a new version after warning, so past plans never change.
  */
-/**
- * Which notation this person reads chords in, remembered across songs.
- *
- * A preference of the reader, not of the song: a band that thinks in numbers
- * thinks in numbers for the whole library, and nothing about the stored text
- * changes either way. Kept in `localStorage` rather than on the person's row
- * because it is worth nothing to anyone else and costs a round trip to fetch.
- */
-const CHORD_NOTATION_KEY = 'lscroster.chord-notation'
-
-function storedChordNotation(): ChordNotation {
-  try {
-    return localStorage.getItem(CHORD_NOTATION_KEY) === 'numbers'
-      ? 'numbers'
-      : 'letters'
-  } catch {
-    // Private mode, or storage turned off — letters is the safe default.
-    return 'letters'
-  }
-}
-
-function rememberChordNotation(notation: ChordNotation) {
-  try {
-    localStorage.setItem(CHORD_NOTATION_KEY, notation)
-  } catch {
-    // Not worth a message: the choice still holds for this page.
-  }
-}
-
 function ArrangementLyricsBlock({
   song,
   arrangement,
@@ -726,7 +696,7 @@ function ArrangementLyricsBlock({
   const suggestSections = useSuggestSections()
   const [confirmPolish, setConfirmPolish] = useState(false)
   const [checkingPin, setCheckingPin] = useState(false)
-  const [notation, setNotation] = useState<ChordNotation>(storedChordNotation)
+  const [notation, setNotation] = useChordNotation()
 
   const saved = useMemo(() => layersOfRow(current ?? null), [current])
   const value = draft ?? saved
@@ -924,9 +894,7 @@ function ArrangementLyricsBlock({
         {lyricsPending ? (
           <Skeleton className="h-16 w-full" />
         ) : current?.lyrics ? (
-          <LyricsReadView
-            layers={{ ...saved, chords: chordsToLetters(saved.chords, songKey) }}
-          />
+          <LyricsReadView layers={saved} songKey={arrangement.song_key} />
         ) : null}
       </div>
     )
@@ -990,15 +958,12 @@ function ArrangementLyricsBlock({
               onChange={setActiveLayer}
               disabled={lyricsPending}
             />
-            {/* Always on the row, live only while the chord pane is open —
-                see `ChordNotationToggle`: the layer buttons must not shift. */}
+            {/* Live whether or not the chord pane is open: the choice is
+                shared with the plan's lyrics sheet and outlives this screen. */}
             <ChordNotationToggle
               value={notation}
-              onChange={(next) => {
-                setNotation(next)
-                rememberChordNotation(next)
-              }}
-              disabled={lyricsPending || activeLayer !== 'chords'}
+              onChange={setNotation}
+              disabled={lyricsPending}
             />
             <Button
               type="button"

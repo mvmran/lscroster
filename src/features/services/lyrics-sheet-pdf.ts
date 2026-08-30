@@ -1,4 +1,5 @@
 import { format, parseISO } from 'date-fns'
+import { chordsIn, parseSongKey, type ChordNotation } from '@/features/services/chord-notation'
 import { splitChordLine, zipLyricLines } from '@/features/services/lyric-layers'
 import { lyricsSheetMeta, type LyricsSheetEntry } from '@/features/services/service-utils'
 
@@ -21,6 +22,13 @@ export interface LyricsSheetPdfOptions {
    * Latin transliteration is what makes this sheet printable at all.
    */
   chords?: boolean
+  /**
+   * Which notation to print the chords in. They are stored as numbers of the
+   * key, so this is a choice about the printout, not a conversion of the song
+   * — and it follows the switch on screen, so what is printed is what was
+   * being read when Print was pressed.
+   */
+  notation?: ChordNotation
 }
 
 /**
@@ -183,7 +191,12 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
     if (entry.lyrics && entry.lyrics.trim()) {
       // Chords sit above the line they belong to, bracketed rather than
       // column-positioned, so the whole sheet stays proportional.
-      for (const line of zipLyricLines(entry.layers)) {
+      // Read the stored numbers back in the key this plan plays the song in.
+      const layers = {
+        ...entry.layers,
+        chords: chordsIn(entry.layers.chords, opts.notation ?? 'numbers', parseSongKey(entry.key)),
+      }
+      for (const line of zipLyricLines(layers)) {
         if (line.text.trim() === '') {
           if (!atColumnTop()) y += STANZA_GAP // preserve stanza breaks
           continue

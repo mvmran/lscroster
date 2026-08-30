@@ -25,7 +25,9 @@ import {
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { downloadLyricsSheetPdf } from '@/features/services/lyrics-sheet-pdf'
+import { ChordNotationToggle } from '@/features/services/chord-notation-toggle'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
+import { useChordNotation } from '@/features/services/use-chord-notation'
 import { LAYER_LABELS } from '@/features/services/lyric-layers'
 import {
   buildArrangementIndex,
@@ -318,6 +320,9 @@ export function PlanMediaCard({
   // Which layers to print. Native script is not offered — jsPDF cannot shape
   // Indic text (see LyricsSheetPdfOptions).
   const [printLayers, setPrintLayers] = useState<PrintLayer[]>([])
+  // Shared with the switch above each song below, and with the lyrics editor:
+  // what is printed is what was on screen when Print was pressed.
+  const [notation, setNotation] = useChordNotation()
   const [searchParams, setSearchParams] = useSearchParams()
   const autoDownloadFired = useRef(false)
 
@@ -375,6 +380,7 @@ export function PlanMediaCard({
         entries,
         meaning: printLayers.includes('meaning'),
         chords: printLayers.includes('chords'),
+        notation,
       })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not create PDF')
@@ -409,6 +415,11 @@ export function PlanMediaCard({
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
+          )}
+          {/* After the Chord print toggle, the way it follows the Chord layer
+              button everywhere else. Never dimmed — see ChordNotationToggle. */}
+          {printable.includes('chords') && (
+            <ChordNotationToggle value={notation} onChange={setNotation} />
           )}
           <span
             className="inline-flex"
@@ -454,7 +465,7 @@ export function PlanMediaCard({
                     <p className="text-muted-foreground text-xs">{meta}</p>
                   )}
                   {hasLyrics ? (
-                    <LyricsReadView layers={entry.layers} />
+                    <LyricsReadView layers={entry.layers} songKey={entry.key} />
                   ) : (
                     <p className="text-muted-foreground text-sm italic">
                       No lyrics added
