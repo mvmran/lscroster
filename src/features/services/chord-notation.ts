@@ -195,6 +195,34 @@ function convertLayer(
     .join('\n')
 }
 
+/**
+ * Does this token parse as a chord, ignoring what key it is in?
+ *
+ * A structural test, not a conversion: it asks whether the text is *shaped*
+ * like a chord, which is what a reader needs when deciding whether a row of
+ * a pasted chart is chords or words. Both halves of a slash chord must pass,
+ * matching `convertChord`.
+ */
+function isChordIn(token: string, root: RegExp): boolean {
+  const parts = token.split('/')
+  if (parts.length > 2) return false
+  return parts.every((part) => {
+    const text = part.trim()
+    const match = root.exec(text)
+    return match !== null && SUFFIX.test(text.slice(match[0].length))
+  })
+}
+
+/** True for a chord written with a letter root: `G`, `Am7`, `D/F#`. */
+export function isLetterChord(token: string): boolean {
+  return isChordIn(token, CHORD_ROOT)
+}
+
+/** True for a chord in either notation — what a `[…]` token is tested against. */
+export function isChordToken(token: string): boolean {
+  return isChordIn(token, CHORD_ROOT) || isChordIn(token, NUMBER_ROOT)
+}
+
 /** A whole chord layer from letters to numbers. Unchanged without a key. */
 export function chordsToNumbers(text: string, key: SongKey | null): string {
   return convertLayer(text, letterToNumber, key)

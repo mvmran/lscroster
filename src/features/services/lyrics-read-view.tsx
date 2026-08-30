@@ -4,6 +4,7 @@ import { chordsIn, parseSongKey } from '@/features/services/chord-notation'
 import { useChordNotation } from '@/features/services/use-chord-notation'
 import {
   hasAnyLayer,
+  isInlineChordLine,
   LAYER_LABELS,
   LYRIC_LAYER_KEYS,
   splitChordLine,
@@ -18,13 +19,22 @@ import { cn } from '@/lib/utils'
  *
  * The brackets are kept, dimmed: they are what separates a chord from the
  * syllable it sits against in a full ChordPro line ("[G]Amazing"), where weight
- * and colour alone would read as one run-on word. Anything outside a bracket is
- * left in the muted body style, so a bare chord row looks like chords and an
- * inline line looks like lyrics with chords over them.
+ * and colour alone would read as one run-on word.
+ *
+ * `inline` says the line carries the lyric's own words, which is what an
+ * imported chord chart produces. It then stands in for the lyric line rather
+ * than sitting above it, so the words are set at full size in the body colour
+ * — printing them twice, once greyed and once not, is the alternative. A bare
+ * row of chords keeps the muted style and stays above the line it belongs to.
  */
-function ChordLine({ text }: { text: string }) {
+function ChordLine({ text, inline }: { text: string; inline?: boolean }) {
   return (
-    <div className="text-muted-foreground text-xs whitespace-pre-wrap">
+    <div
+      className={cn(
+        'whitespace-pre-wrap',
+        inline ? 'text-sm' : 'text-muted-foreground text-xs',
+      )}
+    >
       {splitChordLine(text).map((segment, i) =>
         segment.chord ? (
           <span key={i} className="text-primary font-semibold">
@@ -45,7 +55,8 @@ function ChordLine({ text }: { text: string }) {
  *
  * Chords sit **above** the line they belong to — that is where a musician reads
  * them, even though the editor puts them beside it — with the native script and
- * the English gloss below. Layers are toggled per reader and default to off, so
+ * the English gloss below. A chord line imported from a chord chart carries the
+ * lyric's own words, and stands in for the lyric row instead. Layers are toggled per reader and default to off, so
  * the sheet still opens as plain lyrics for everyone who only wants to sing.
  *
  * Every layer is set in the proportional body face: chords are placed by
@@ -111,24 +122,29 @@ export function LyricsReadView({
         ))}
       </ToggleGroup>
       <div className="text-sm">
-        {zipLyricLines({ ...layers, chords }).map((line, i) => (
-          <div key={i} className={line.text.trim() === '' ? 'h-3' : 'py-0.5'}>
-            {on('chords') && line.chords.trim() !== '' && (
-              <ChordLine text={line.chords} />
-            )}
-            <div className="whitespace-pre-wrap">{line.text}</div>
-            {on('native') && line.native.trim() !== '' && (
-              <div className="text-muted-foreground whitespace-pre-wrap">
-                {line.native}
-              </div>
-            )}
-            {on('meaning') && line.meaning.trim() !== '' && (
-              <div className="text-muted-foreground text-xs italic whitespace-pre-wrap">
-                {line.meaning}
-              </div>
-            )}
-          </div>
-        ))}
+        {zipLyricLines({ ...layers, chords }).map((line, i) => {
+          const showChords = on('chords') && line.chords.trim() !== ''
+          // An inline chord line already holds the words, so the lyric row
+          // below it would be a second copy of them.
+          const replaced = showChords && isInlineChordLine(line.chords)
+          const blank = line.text.trim() === '' && !showChords
+          return (
+            <div key={i} className={blank ? 'h-3' : 'py-0.5'}>
+              {showChords && <ChordLine text={line.chords} inline={replaced} />}
+              {!replaced && <div className="whitespace-pre-wrap">{line.text}</div>}
+              {on('native') && line.native.trim() !== '' && (
+                <div className="text-muted-foreground whitespace-pre-wrap">
+                  {line.native}
+                </div>
+              )}
+              {on('meaning') && line.meaning.trim() !== '' && (
+                <div className="text-muted-foreground text-xs italic whitespace-pre-wrap">
+                  {line.meaning}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

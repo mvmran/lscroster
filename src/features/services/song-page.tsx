@@ -1040,6 +1040,7 @@ function ArrangementLyricsBlock({
         open={importOpen}
         onOpenChange={setImportOpen}
         existingLyrics={value.lyrics}
+        songKey={arrangement.song_key}
         onImport={(imported) => setDraft(appendImportedLyrics(value, imported))}
       />
 

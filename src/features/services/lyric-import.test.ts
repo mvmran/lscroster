@@ -7,6 +7,7 @@ import {
   withGeneratedTransliteration,
   withVerseHeadings,
 } from '@/features/services/lyric-import'
+import { mergeChordRows } from '@/features/services/chord-chart'
 import { EMPTY_LAYERS, lineCount, toLines } from '@/features/services/lyric-layers'
 import { matchLyricSectionHeader } from '@/features/services/lyric-sections'
 
@@ -395,5 +396,66 @@ describe('withVerseHeadings', () => {
     expect(parsed.sections).toBe(2)
     expect(parsed.hasNative).toBe(false)
     expect(toLines(parsed.layers.lyrics)).toContain('Verse 2')
+  })
+})
+
+describe('chord charts', () => {
+  const CHART = [
+    'Verse 1',
+    '       D         D7        G        D',
+    "T'was grace that taught my heart to fear",
+    '    D7        Bm     A ',
+    'And grace my fears relieved',
+  ].join('\n')
+
+  it('imports the words as lyrics and the chords as their own layer', () => {
+    const parsed = parseImportedLyrics(CHART)
+    expect(parsed.layers.lyrics).toBe(
+      [
+        'Verse 1',
+        "T'was grace that taught my heart to fear",
+        'And grace my fears relieved',
+      ].join('\n'),
+    )
+    expect(parsed.layers.chords).toBe(
+      [
+        '',
+        "T'was g[D]race that [D7]taught my [G]heart to [D]fear",
+        'And [D7]grace my f[Bm]ears re[A]lieved',
+      ].join('\n'),
+    )
+    expect(parsed.hasChords).toBe(true)
+  })
+
+  it('keeps the chord layer line-parallel with the base', () => {
+    const parsed = parseImportedLyrics(CHART)
+    expect(lineCount(parsed.layers.chords)).toBe(lineCount(parsed.layers.lyrics))
+  })
+
+  it('leaves chords empty for a paste that has none', () => {
+    const parsed = parseImportedLyrics('Verse 1\nAmazing grace how sweet the sound')
+    expect(parsed.layers.chords).toBe('')
+    expect(parsed.hasChords).toBe(false)
+  })
+
+  it('does not let a chord row start a numbered verse', () => {
+    // The row belongs to the line beneath it, so numbering has to see the
+    // paragraphs after the merge, not before.
+    const text = [
+      '  G   C',
+      'Amazing grace how sweet',
+      '  D',
+      'the sound',
+      '',
+      '  G   C',
+      'That saved a wretch',
+      '  D',
+      'like me',
+    ].join('\n')
+    const numbered = withVerseHeadings(mergeChordRows(text), 1)
+    expect(toLines(numbered).filter((l) => l.startsWith('Verse '))).toEqual([
+      'Verse 1',
+      'Verse 2',
+    ])
   })
 })

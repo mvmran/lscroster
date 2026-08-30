@@ -23,12 +23,18 @@
  * the base text from it (see `transliterate.ts`). A script we cannot romanise
  * leaves the base blank for the team to type.
  *
+ * A paste may also be a chord chart — chords written above the words, the way
+ * every chord site publishes them. Those rows are recognised and converted to
+ * ChordPro on the way in (`chord-chart.ts`); the words are unaffected, so a
+ * chart imports as ordinary lyrics with a chord layer beside them.
+ *
  * The editor's layers are line-parallel, which the source format is not: a
  * section's three texts routinely differ in length. Sections are therefore
  * aligned at their first line and padded to their tallest text, so a short
  * gloss never drags the next verse out of step with its own native lines.
  */
 
+import { mergeChordRows, splitInlineChords } from '@/features/services/chord-chart'
 import {
   alignLayer,
   findNonLatinLyrics,
@@ -127,12 +133,19 @@ export function withVerseHeadings(text: string, from = 1): string {
 }
 
 export interface ParsedImport {
-  /** The layers to append. `chords` is always empty — the format has none. */
+  /**
+   * The layers to append. `chords` is filled when the paste was a chord chart
+   * — chords written above the words — and empty otherwise. They arrive in
+   * whatever notation the chart used; the caller numbers them against the
+   * arrangement's key before they are stored.
+   */
   layers: LayeredLyrics
   /** Header lines found ("Verse 1", "Chorus"), for the dialog's summary. */
   sections: number
   hasNative: boolean
   hasMeaning: boolean
+  /** True when chord rows were recognised above the lyrics. */
+  hasChords: boolean
   /**
    * True when a section arrived as native script with no transliteration, so
    * its base text is blank and waiting to be generated (or typed).
@@ -237,8 +250,12 @@ function routeNativeOnly(block: Block): Block {
 
 /** Parse pasted text into the layers it would add. */
 export function parseImportedLyrics(text: string): ParsedImport {
-  const blocks: Block[] = splitAtHeaders(toLines(text)).map(({ header, body }) =>
-    routeNativeOnly({ header, ...splitAtKeywords(body) }),
+  // Chord rows are folded into the lines they sit over before anything else
+  // looks at the text, so the rest of the pipeline sees one line per lyric
+  // line and its sections, keywords and padding are unaffected by them.
+  // Idempotent, so it costs nothing when the caller has already done it.
+  const blocks: Block[] = splitAtHeaders(toLines(mergeChordRows(text))).map(
+    ({ header, body }) => routeNativeOnly({ header, ...splitAtKeywords(body) }),
   )
 
   const lyrics: string[] = []
@@ -281,16 +298,22 @@ export function parseImportedLyrics(text: string): ParsedImport {
     lines.some((line) => line.trim() !== ''),
   )
 
+  // The chords have ridden through the pipeline inside the base text, which
+  // is what kept them aligned to their own lines; this puts them back in the
+  // layer they belong to and leaves the base holding the words alone.
+  const base = splitInlineChords(anyText ? lyrics.join('\n') : '')
+
   return {
     layers: {
-      lyrics: anyText ? lyrics.join('\n') : '',
+      lyrics: base.lyrics,
       native: used(native),
       meaning: used(meaning),
-      chords: '',
+      chords: base.chords,
     },
     sections: blocks.filter((block) => block.header !== null).length,
     hasNative: native.some((line) => line.trim() !== ''),
     hasMeaning: meaning.some((line) => line.trim() !== ''),
+    hasChords: base.chords !== '',
     needsTransliteration: blocks.some(
       (block) => block.native.length > 0 && block.main.length === 0,
     ),

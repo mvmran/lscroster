@@ -1,6 +1,10 @@
 import { format, parseISO } from 'date-fns'
 import { chordsIn, parseSongKey, type ChordNotation } from '@/features/services/chord-notation'
-import { splitChordLine, zipLyricLines } from '@/features/services/lyric-layers'
+import {
+  isInlineChordLine,
+  splitChordLine,
+  zipLyricLines,
+} from '@/features/services/lyric-layers'
 import { lyricsSheetMeta, type LyricsSheetEntry } from '@/features/services/service-utils'
 
 export interface LyricsSheetPdfOptions {
@@ -133,7 +137,12 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
    * Pieces break at whitespace, and a row that wraps drops the space it broke
    * on so the continuation starts hard against the margin.
    */
-  function drawChordLine(line: string, size: number, lineHeight: number) {
+  function drawChordLine(
+    line: string,
+    size: number,
+    lineHeight: number,
+    wordColor: number,
+  ) {
     const pieces = splitChordLine(line).flatMap((segment) =>
       (segment.chord ? `[${segment.text}]` : segment.text)
         .split(/(\s+)/)
@@ -158,7 +167,7 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
       }
       doc.setFont('helvetica', piece.chord ? 'bold' : 'normal')
       doc.setFontSize(size)
-      doc.setTextColor(piece.chord ? 60 : 120)
+      doc.setTextColor(piece.chord ? 60 : wordColor)
       doc.text(piece.text, x, y)
       x += width
     }
@@ -197,14 +206,24 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
         chords: chordsIn(entry.layers.chords, opts.notation ?? 'numbers', parseSongKey(entry.key)),
       }
       for (const line of zipLyricLines(layers)) {
-        if (line.text.trim() === '') {
+        const showChords = opts.chords && line.chords.trim() !== ''
+        // An inline chord line carries the words its chords are anchored to,
+        // so it is drawn *as* the lyric row — at the lyric's leading and in
+        // the lyric's ink — rather than as a lighter row above a second copy.
+        const replaced = showChords && isInlineChordLine(line.chords)
+        if (line.text.trim() === '' && !showChords) {
           if (!atColumnTop()) y += STANZA_GAP // preserve stanza breaks
           continue
         }
-        if (opts.chords && line.chords.trim() !== '') {
-          drawChordLine(line.chords, LYRIC_SIZE, CHORD_LH)
+        if (showChords) {
+          drawChordLine(
+            line.chords,
+            LYRIC_SIZE,
+            replaced ? LYRIC_LH : CHORD_LH,
+            replaced ? 30 : 120,
+          )
         }
-        drawWrapped(line.text, LYRIC_SIZE, 'normal', 30, LYRIC_LH)
+        if (!replaced) drawWrapped(line.text, LYRIC_SIZE, 'normal', 30, LYRIC_LH)
         if (opts.meaning && line.meaning.trim() !== '') {
           drawWrapped(line.meaning, MEANING_SIZE, 'italic', 125, MEANING_LH)
         }

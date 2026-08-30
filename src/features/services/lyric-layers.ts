@@ -369,6 +369,20 @@ export function splitChordLine(line: string): ChordSegment[] {
 }
 
 /**
+ * Is this chord line a whole ChordPro line, or a bare row of chords?
+ *
+ * A line imported from a chord chart carries the words its chords are anchored
+ * to ("T'was g[D]race"); one typed by hand in the editor is usually just the
+ * chords ("[G] [C]"). Read views need to tell them apart, because the first is
+ * drawn *in place of* the lyric line and the second above it.
+ */
+export function isInlineChordLine(line: string): boolean {
+  return splitChordLine(line).some(
+    (segment) => !segment.chord && segment.text.trim() !== '',
+  )
+}
+
+/**
  * A section's half-open line range within the base text. Offsets come from
  * `parseLyricSections`, which reads the base alone.
  */

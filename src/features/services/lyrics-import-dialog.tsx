@@ -12,6 +12,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { mergeChordRows } from '@/features/services/chord-chart'
+import { chordsToNumbers, parseSongKey } from '@/features/services/chord-notation'
 import {
   nextVerseNumber,
   parseImportedLyrics,
@@ -50,12 +52,19 @@ export function LyricsImportDialog({
   onOpenChange,
   onImport,
   existingLyrics = '',
+  songKey = null,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   onImport: (layers: LayeredLyrics) => void
   /** What the editor already holds — the import lands after it. */
   existingLyrics?: string
+  /**
+   * The arrangement's key, used to number an imported chart's chords. Without
+   * one they land as letters and the editor's save guard asks for a key, which
+   * then numbers them — so a keyless song imports fine and is caught on save.
+   */
+  songKey?: string | null
 }) {
   const [text, setText] = useState('')
   const [numbering, setNumbering] = useState(true)
@@ -63,11 +72,14 @@ export function LyricsImportDialog({
   // The import lands after whatever the editor holds, so the count carries on
   // from the last verse already there rather than restarting at 1.
   const from = useMemo(() => nextVerseNumber(existingLyrics), [existingLyrics])
+  // Chord rows are folded into their lyric lines before the paragraphs are
+  // counted, so a chart's chords can't be mistaken for the start of a verse.
+  const merged = useMemo(() => mergeChordRows(text), [text])
   // Numbering rewrites the paste before it is parsed, so the summary below
   // counts the sections that will actually land — headings included.
   const source = useMemo(
-    () => (numbering ? withVerseHeadings(text, from) : text),
-    [text, numbering, from],
+    () => (numbering ? withVerseHeadings(merged, from) : merged),
+    [merged, numbering, from],
   )
   const parsed = useMemo(() => parseImportedLyrics(source), [source])
   const labelled = toLines(text).some((line) => matchLyricSectionHeader(line) !== null)
@@ -139,7 +151,12 @@ export function LyricsImportDialog({
           toast.warning('Could not draft the meaning — the meaning layer is empty.')
         }
       }
-      onImport(layers)
+      // Chords are stored as numbers of the key, and the editor's buffer holds
+      // them that way too, so a chart's letters are converted here rather than
+      // left for the save to do — the pane would otherwise show letters while
+      // the switch said numbers. A no-op when there is no key, or none found.
+      const chords = chordsToNumbers(layers.chords, parseSongKey(songKey))
+      onImport({ ...layers, chords })
       close(false)
     } finally {
       setWorking(false)
@@ -152,6 +169,7 @@ export function LyricsImportDialog({
         parsed.sections === 0
           ? 'No section headers'
           : `${parsed.sections} section${parsed.sections === 1 ? '' : 's'}`,
+        parsed.hasChords ? 'chords' : null,
         parsed.hasNative ? 'native' : null,
         parsed.hasMeaning ? 'meaning' : drafting ? 'meaning will be drafted' : null,
         generating
@@ -179,11 +197,17 @@ export function LyricsImportDialog({
             an English song with neither heading imports as lyrics alone. Paste
             native script on its own and a transliteration — and, where a
             meaning is missing, an English meaning — is drafted for you to
-            correct. Whatever you import is added to the end of the editor;
-            nothing already there is replaced.
+            correct. Chords written above the words are recognised too and
+            become the chord layer. Whatever you import is added to the end of
+            the editor; nothing already there is replaced.
           </DialogDescription>
         </DialogHeader>
-        {/* Songs are pasted whole, so the box is sixteen rows and takes any
+        {/* Monospaced: a chord chart's chords are positioned by the column
+            they sit at, and in a proportional face they look misaligned when
+            they are not — inviting a "fix" that moves them onto the wrong
+            syllable. The grid is what makes the paste readable as written.
+
+            Songs are pasted whole, so the box is sixteen rows and takes any
             height the dialog has spare. It has no floor beyond the phone's:
             one taller than a short laptop leaves for the rows below it would
             push the footer into a squeeze, and squeezed buttons are exactly
@@ -195,7 +219,7 @@ export function LyricsImportDialog({
           autoFocus
           aria-label="Lyrics to import"
           placeholder={PLACEHOLDER}
-          className="min-h-48 flex-1 font-sans text-sm"
+          className="min-h-48 flex-1 font-mono text-sm"
         />
         <div className="flex shrink-0 items-start gap-2 text-xs">
           <Checkbox
