@@ -363,13 +363,27 @@ export function formatLastScheduled(date: string | null) {
  * Pre-filled web-search links for a song (issue #22). Each opens a search in a
  * new tab — we never pull results into the app. The query is built from data
  * already on the page (title + author); no new data, no scraping, no API.
+ *
+ * **Chords** searches Worship Together rather than Ultimate Guitar: it is the
+ * publisher's own site, so a hit brings the chord chart, the original key and
+ * the tempo together, written by the people who wrote the song.
+ *
+ * Its search lives in the URL *fragment* (a Cludo widget reads
+ * `#?cludoquery=…` on load), which is unusual but is exactly what the site's
+ * own search box produces. Worth knowing why it isn't a direct song link:
+ * Worship Together addresses a song as `/songs/<title>-<artist>/`, which is
+ * guessable — `man-of-sorrows-hillsong-worship` resolves — but only when our
+ * `author` happens to match the artist they credit. `goodness-of-god-bethel-
+ * music` 404s although the song is on the site, and their slugs routinely name
+ * several writers. A search always lands somewhere useful and puts the song
+ * first; a guessed slug is a 404 in front of someone mid-rehearsal.
  */
 export function songSearchLinks(title: string, author?: string | null) {
   const base = `${title} ${author ?? ''}`.trim()
   const q = encodeURIComponent(base)
   return {
     lyrics: `https://www.google.com/search?q=${encodeURIComponent(`${base} lyrics`)}`,
-    chords: `https://www.ultimate-guitar.com/search.php?search_type=title&value=${q}`,
+    chords: `https://www.worshiptogether.com/search-results/#?cludoquery=${q}&cludopage=1`,
     listen: `https://www.youtube.com/results?search_query=${q}`,
   }
 }

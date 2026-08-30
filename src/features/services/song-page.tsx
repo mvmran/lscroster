@@ -1459,7 +1459,7 @@ export function SongPage() {
                   href={songSearchLinks(song.title, song.author).chords}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title="Search the web for this song’s chords (opens a new tab)"
+                  title="Find this song’s chords and original key on Worship Together (opens a new tab)"
                 >
                   <Guitar className="size-4" />
                   Chords

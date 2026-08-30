@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   comparePlansByDateTime,
   findClashingPlans,
+  songSearchLinks,
   weeklyDates,
   type ClashCandidate,
   type PlanChronological,
@@ -201,5 +202,38 @@ describe('comparePlansByDateTime', () => {
         p('2026-07-05', 'Adults Service', '10:00:00'),
       ]),
     ).toEqual(['2026-07-05 Adults Service', '2026-07-05 Kids Church'])
+  })
+})
+
+describe('songSearchLinks', () => {
+  it('sends the chord search to Worship Together, title and artist together', () => {
+    // The query lives in the fragment because that is where Worship Together's
+    // own search box puts it — a Cludo widget reads `#?cludoquery=` on load.
+    expect(songSearchLinks('Man of Sorrows', 'Hillsong Worship').chords).toBe(
+      'https://www.worshiptogether.com/search-results/' +
+        '#?cludoquery=Man%20of%20Sorrows%20Hillsong%20Worship&cludopage=1',
+    )
+  })
+
+  it('searches on the title alone when the song has no author', () => {
+    expect(songSearchLinks('Man of Sorrows').chords).toBe(
+      'https://www.worshiptogether.com/search-results/' +
+        '#?cludoquery=Man%20of%20Sorrows&cludopage=1',
+    )
+    expect(songSearchLinks('Man of Sorrows', null).chords).toBe(
+      songSearchLinks('Man of Sorrows').chords,
+    )
+  })
+
+  it('escapes a title that would otherwise break the query', () => {
+    const { chords } = songSearchLinks("O Praise the Name (Anástasis)", 'Hillsong')
+    expect(chords).toContain('An%C3%A1stasis')
+    expect(chords).not.toContain(' ')
+  })
+
+  it('leaves the lyrics and listen searches alone', () => {
+    const links = songSearchLinks('Amazing Grace', 'John Newton')
+    expect(links.lyrics).toContain('google.com/search')
+    expect(links.listen).toContain('youtube.com/results')
   })
 })
