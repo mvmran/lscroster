@@ -56,6 +56,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { useUnsavedChangesWarning } from '@/lib/use-unsaved-changes-warning'
 import {
+  ChordNotationToggle,
   LyricLayerToggle,
   LyricsStructureEditor,
 } from '@/features/services/lyrics-structure-editor'
@@ -68,6 +69,13 @@ import {
   useSuggestSections,
   useSuggestTags,
 } from '@/features/services/use-lyrics-ai'
+import {
+  chordsToLetters,
+  chordsToNumbers,
+  hasChordTokens,
+  parseSongKey,
+  type ChordNotation,
+} from '@/features/services/chord-notation'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
 import { appendImportedLyrics } from '@/features/services/lyric-import'
 import {
@@ -318,6 +326,7 @@ function ArrangementForm({
 }) {
   const update = useUpdateArrangement(songId)
   const remove = useDeleteArrangement(songId)
+  const { data: lyrics } = useArrangementLyrics(arrangement.id)
   const [name, setName] = useState(arrangement.name)
   const [songKey, setSongKey] = useState(arrangement.song_key ?? '')
   const [bpm, setBpm] = useState(arrangement.bpm?.toString() ?? '')
@@ -332,6 +341,12 @@ function ArrangementForm({
   )
   const referenceUrlInvalid =
     referenceUrl.trim() !== '' && !/^https?:\/\/\S+$/.test(referenceUrl.trim())
+  // Chords are stored as numbers of the key (see `chord-notation`), so once a
+  // chord is saved the key is part of reading them, not a label beside them:
+  // clearing it — or typing something that isn't a key — would leave the layer
+  // meaningless. The lyrics editor blocks the mirror image of this.
+  const keyUnreadable =
+    hasChordTokens(lyrics?.lyrics_chords) && parseSongKey(songKey) === null
 
   // Mirrors the inline validation messages above, for the hover hint on the
   // wrapper around a disabled Save button.
@@ -343,7 +358,9 @@ function ArrangementForm({
         ? 'BPM must be a whole number above 0'
         : referenceUrlInvalid
           ? 'The reference link must start with http:// or https://'
-          : undefined
+          : keyUnreadable
+            ? 'This arrangement has chords saved, so it needs a key'
+            : undefined
 
   const dirty =
     name.trim() !== arrangement.name ||
@@ -388,6 +405,7 @@ function ArrangementForm({
 
   function save() {
     if (bpmInvalid || !name.trim() || nameTaken || referenceUrlInvalid) return
+    if (keyUnreadable) return
     update.mutate(
       {
         id: arrangement.id,
@@ -440,7 +458,17 @@ function ArrangementForm({
             value={songKey}
             onChange={(e) => setSongKey(e.target.value)}
             placeholder="e.g. G"
+            aria-invalid={keyUnreadable}
           />
+          {keyUnreadable && (
+            <p className="text-destructive text-xs">
+              This arrangement has chords saved, and they are stored as numbers
+              of the key — give it a key they can be read against, like{' '}
+              <span className="font-mono">G</span>,{' '}
+              <span className="font-mono">Am</span> or{' '}
+              <span className="font-mono">Bb</span>.
+            </p>
+          )}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor={`arr-bpm-${arrangement.id}`}>BPM</Label>
@@ -508,7 +536,8 @@ function ArrangementForm({
                 bpmInvalid ||
                 !name.trim() ||
                 nameTaken ||
-                referenceUrlInvalid
+                referenceUrlInvalid ||
+                keyUnreadable
               }
               title="Save this arrangement"
             >
@@ -637,6 +666,35 @@ function LinkSongDialog({
  * Lyrics are versioned — editing a version that a published plan pinned
  * creates a new version after warning, so past plans never change.
  */
+/**
+ * Which notation this person reads chords in, remembered across songs.
+ *
+ * A preference of the reader, not of the song: a band that thinks in numbers
+ * thinks in numbers for the whole library, and nothing about the stored text
+ * changes either way. Kept in `localStorage` rather than on the person's row
+ * because it is worth nothing to anyone else and costs a round trip to fetch.
+ */
+const CHORD_NOTATION_KEY = 'lscroster.chord-notation'
+
+function storedChordNotation(): ChordNotation {
+  try {
+    return localStorage.getItem(CHORD_NOTATION_KEY) === 'numbers'
+      ? 'numbers'
+      : 'letters'
+  } catch {
+    // Private mode, or storage turned off — letters is the safe default.
+    return 'letters'
+  }
+}
+
+function rememberChordNotation(notation: ChordNotation) {
+  try {
+    localStorage.setItem(CHORD_NOTATION_KEY, notation)
+  } catch {
+    // Not worth a message: the choice still holds for this page.
+  }
+}
+
 function ArrangementLyricsBlock({
   song,
   arrangement,
@@ -668,6 +726,7 @@ function ArrangementLyricsBlock({
   const suggestSections = useSuggestSections()
   const [confirmPolish, setConfirmPolish] = useState(false)
   const [checkingPin, setCheckingPin] = useState(false)
+  const [notation, setNotation] = useState<ChordNotation>(storedChordNotation)
 
   const saved = useMemo(() => layersOfRow(current ?? null), [current])
   const value = draft ?? saved
@@ -680,6 +739,11 @@ function ArrangementLyricsBlock({
   // The base text must stay Latin — the editor shows which line strayed, and
   // saving is blocked until it does, so a song can't lose its transliteration.
   const scriptBlocked = findNonLatinLyrics(value.lyrics) !== null
+  // Chords are stored as numbers of the key, so the key is what makes them
+  // mean anything. Without one there is nothing to number them against, and
+  // saving them as typed would leave a layer nobody could read back.
+  const songKey = useMemo(() => parseSongKey(arrangement.song_key), [arrangement.song_key])
+  const chordsNeedKey = songKey === null && hasChordTokens(value.chords)
 
   // Warn before navigating away (page unload or an in-app link) with unsaved
   // lyrics, and surface the dirty state so the parent can guard tab switches.
@@ -690,7 +754,7 @@ function ArrangementLyricsBlock({
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   async function onSaveClick() {
-    if (scriptBlocked) return
+    if (scriptBlocked || chordsNeedKey) return
     setCheckingPin(true)
     try {
       const pinned = current ? await isLyricsVersionPinned(current.id) : false
@@ -790,7 +854,13 @@ function ArrangementLyricsBlock({
   async function doSave(asNewVersion: boolean) {
     try {
       const saved = await save.mutateAsync({
-        layers: normalizeForSave(value),
+        // Numbers are the stored form whichever notation the pane was in.
+        // The conversion is idempotent, so this also quietly renumbers a
+        // layer typed before chords were stored this way.
+        layers: normalizeForSave({
+          ...value,
+          chords: chordsToNumbers(value.chords, songKey),
+        }),
         current: current ?? null,
         asNewVersion,
       })
@@ -854,7 +924,9 @@ function ArrangementLyricsBlock({
         {lyricsPending ? (
           <Skeleton className="h-16 w-full" />
         ) : current?.lyrics ? (
-          <LyricsReadView layers={saved} />
+          <LyricsReadView
+            layers={{ ...saved, chords: chordsToLetters(saved.chords, songKey) }}
+          />
         ) : null}
       </div>
     )
@@ -918,6 +990,16 @@ function ArrangementLyricsBlock({
               onChange={setActiveLayer}
               disabled={lyricsPending}
             />
+            {/* Always on the row, live only while the chord pane is open —
+                see `ChordNotationToggle`: the layer buttons must not shift. */}
+            <ChordNotationToggle
+              value={notation}
+              onChange={(next) => {
+                setNotation(next)
+                rememberChordNotation(next)
+              }}
+              disabled={lyricsPending || activeLayer !== 'chords'}
+            />
             <Button
               type="button"
               variant="outline"
@@ -947,10 +1029,21 @@ function ArrangementLyricsBlock({
             polishingTransliteration={polish.isPending}
             onLabelSections={assistAvailable ? labelSections : undefined}
             labellingSections={suggestSections.isPending}
+            chordNotation={notation}
+            songKey={songKey}
           />
         )}
         {dirty && (
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {chordsNeedKey && (
+              <p className="text-destructive mr-auto text-xs">
+                Give this arrangement a key and save it before saving chords.
+                Chords are stored as numbers of the key —{' '}
+                <span className="font-mono">[1]</span>,{' '}
+                <span className="font-mono">[4]</span>, <span className="font-mono">[5]</span>{' '}
+                — so without one there is nothing to number them against.
+              </p>
+            )}
             {/* The reason for a blocked save rides on a wrapper: a disabled
                 button has pointer events off, so its own title never shows. */}
             <span
@@ -958,12 +1051,14 @@ function ArrangementLyricsBlock({
               title={
                 scriptBlocked
                   ? 'The lyrics have non-Latin characters — fix the line marked above first'
-                  : undefined
+                  : chordsNeedKey
+                    ? 'Set the arrangement’s key first — chords are stored by number'
+                    : undefined
               }
             >
               <Button
                 onClick={onSaveClick}
-                disabled={save.isPending || checkingPin || scriptBlocked}
+                disabled={save.isPending || checkingPin || scriptBlocked || chordsNeedKey}
                 title="Save these lyrics as a new version"
               >
                 {(save.isPending || checkingPin) && (

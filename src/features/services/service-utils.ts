@@ -1,5 +1,6 @@
 import { addDays, addSeconds, format, parseISO } from 'date-fns'
 import type { Enums, Tables } from '@/types/database'
+import { chordsToLetters, parseSongKey } from '@/features/services/chord-notation'
 import { layersOfRow, type LayeredLyrics } from '@/features/services/lyric-layers'
 import { timesOverlap } from '@/features/scheduling/scheduling-utils'
 
@@ -431,14 +432,19 @@ export function buildLyricsSheet(
       const latest = i.arrangement_id
         ? latestByArrangement.get(i.arrangement_id)
         : undefined
+      const key = i.key_override ?? info?.arrangement.song_key ?? null
+      const layers = layersOfRow(pinned ?? latest ?? null)
       return {
         songItemId: i.id,
         title: info ? arrangementDisplayTitle(info) : i.title,
-        key: i.key_override ?? info?.arrangement.song_key ?? null,
+        key,
         bpm: info?.arrangement.bpm ?? null,
         meter: info?.arrangement.meter ?? null,
         lyrics: (pinned ?? latest)?.lyrics ?? null,
-        layers: layersOfRow(pinned ?? latest ?? null),
+        // Chords are stored as numbers of the key, so the sheet reads them
+        // back in whatever key this plan plays the song in — a key override
+        // transposes the chord chart with it, for nothing.
+        layers: { ...layers, chords: chordsToLetters(layers.chords, parseSongKey(key)) },
       }
     })
 }

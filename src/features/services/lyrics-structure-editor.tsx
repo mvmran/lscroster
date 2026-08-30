@@ -44,6 +44,12 @@ import {
   type LayeredLyrics,
   type LyricLayerKey,
 } from '@/features/services/lyric-layers'
+import {
+  chordsIn,
+  chordsToNumbers,
+  type ChordNotation,
+  type SongKey,
+} from '@/features/services/chord-notation'
 import { parseLyricSections, type LyricSection } from '@/features/services/lyric-sections'
 import { cn } from '@/lib/utils'
 
@@ -444,6 +450,93 @@ export function LyricLayerToggle({
 }
 
 /**
+ * Letters or numbers for the chord pane.
+ *
+ * An old-style sliding switch: the notation being read is the one you can see,
+ * and the knob covers the other. Two words' worth of meaning in the width of a
+ * word — this sits on a header row that already carries three layer buttons and
+ * an Import button, and a labelled pair of buttons crowded it.
+ *
+ * Both labels are the accent colour and the knob a lighter shade of it, so the
+ * control reads as one object whichever way it is thrown, and the state is told
+ * by which character is showing rather than by a colour that has to be learnt.
+ *
+ * It stays on the row while the chord pane is shut, dimmed, rather than being
+ * taken out of the flow: the layer buttons beside it would otherwise slide
+ * sideways every time the pane opened, and a control that moves under the
+ * finger reaching for it is worse than one that is briefly of no use.
+ */
+export function ChordNotationToggle({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: ChordNotation
+  onChange: (next: ChordNotation) => void
+  disabled?: boolean
+}) {
+  const numbers = value === 'numbers'
+  return (
+    // A disabled button swallows its own title, so the hint rides on a wrapper
+    // span — which is exactly when the hint matters most.
+    <span
+      className="inline-flex"
+      title={
+        disabled
+          ? 'Open the Chord pane to switch between letter and number chords'
+          : numbers
+            ? 'Chords are numbers of the key — switch to letters'
+            : 'Chords are letters — switch to numbers of the key'
+      }
+    >
+    <button
+      type="button"
+      role="switch"
+      aria-checked={numbers}
+      aria-label="Chord notation"
+      disabled={disabled}
+      onClick={() => onChange(numbers ? 'letters' : 'numbers')}
+      className="border-primary/25 bg-primary/25 focus-visible:ring-ring/50 relative inline-flex h-6 w-11 shrink-0 items-center rounded-md border transition-colors outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {/* The one under the knob is hidden outright rather than left for the
+          knob to cover: the knob is a tint over the track, not an opaque cap,
+          and a label showing faintly through it would say both at once. */}
+      <span
+        className={cn(
+          'text-primary z-0 flex w-1/2 justify-center font-mono text-[11px] font-semibold transition-opacity',
+          numbers && 'opacity-0',
+        )}
+      >
+        G
+      </span>
+      <span
+        className={cn(
+          'text-primary z-0 flex w-1/2 justify-center font-mono text-[11px] font-semibold transition-opacity',
+          !numbers && 'opacity-0',
+        )}
+      >
+        1
+      </span>
+      <span
+        aria-hidden
+        className={cn(
+          // Inset on every side so the track shows as a slot around it, and
+          // exactly half the track wide — so one full width of travel carries
+          // it from covering the left label to covering the right one.
+          // `accent` is the light end of the brand ramp, which reads as the
+          // raised face on a pale track; in dark mode the ramp runs the other
+          // way, so the knob takes a stronger tint to stay the lighter of the
+          // two rather than reading as a hole cut in the track.
+          'bg-accent dark:bg-primary/45 ring-primary/25 dark:ring-primary/40 pointer-events-none absolute inset-y-0.5 left-0.5 z-10 w-[calc(50%-2px)] rounded-sm shadow-sm ring-1 transition-transform',
+          numbers ? 'translate-x-0' : 'translate-x-full',
+        )}
+      />
+    </button>
+    </span>
+  )
+}
+
+/**
  * Lyrics editor with a derived structure view and an optional second pane.
  *
  * Section labels are parsed live from header lines in the base text
@@ -471,6 +564,8 @@ export function LyricsStructureEditor({
   polishingTransliteration,
   onLabelSections,
   labellingSections,
+  chordNotation = 'letters',
+  songKey = null,
 }: {
   id?: string
   layers: LayeredLyrics
@@ -485,6 +580,10 @@ export function LyricsStructureEditor({
   /** Name the paragraphs Verse / Chorus / Bridge; absent when not configured. */
   onLabelSections?: () => void
   labellingSections?: boolean
+  /** Which notation the chord pane is read and typed in. */
+  chordNotation?: ChordNotation
+  /** The arrangement's key, for converting chords. Null when it has none. */
+  songKey?: SongKey | null
 }) {
   const sections = useMemo(() => parseLyricSections(layers.lyrics), [layers.lyrics])
   // Only offered where there is more than one paragraph to tell apart: a single
@@ -571,6 +670,27 @@ export function LyricsStructureEditor({
     </div>
   )
 
+  // The buffer holds chords the way they are stored — in numbers — and the
+  // pane converts on the way in and out, so the notation toggle is a view of
+  // one text rather than an edit to it. Both conversions leave anything they
+  // don't recognise alone, so a half-typed chord survives the round trip and
+  // the pane never fights the person typing in it.
+  const paneValue =
+    activeLayer === 'chords'
+      ? chordsIn(layers.chords, chordNotation, songKey)
+      : activeLayer === null
+        ? ''
+        : layers[activeLayer]
+
+  function onPaneChange(text: string) {
+    if (activeLayer === null) return
+    const next =
+      activeLayer === 'chords' && chordNotation === 'letters'
+        ? chordsToNumbers(text, songKey)
+        : text
+    onChange({ ...layers, [activeLayer]: next })
+  }
+
   const layerColumn = activeLayer && (
     <div className="flex min-w-0 flex-1 items-start gap-2">
       <LineNumbers count={lineCount(layers[activeLayer])} />
@@ -579,8 +699,8 @@ export function LyricsStructureEditor({
           rows={6}
           wrap="off"
           aria-label={`${LAYER_LABELS[activeLayer]} text, line by line against the lyrics`}
-          value={layers[activeLayer]}
-          onChange={(e) => onChange({ ...layers, [activeLayer]: e.target.value })}
+          value={paneValue}
+          onChange={(e) => onPaneChange(e.target.value)}
           className={cn('text-sm whitespace-pre font-sans', PANE_LEADING)}
         />
       </div>
@@ -636,9 +756,15 @@ export function LyricsStructureEditor({
           {activeLayer === 'chords' && (
             <>
               {' '}
-              Wrap each chord in brackets — <span className="font-mono">[G]</span> on
-              its own, or <span className="font-mono">[G]Amazing</span> ChordPro
-              style — and it is picked out above the line.
+              Wrap each chord in brackets —{' '}
+              <span className="font-mono">
+                [{chordNotation === 'numbers' ? '1' : 'G'}]
+              </span>{' '}
+              on its own, or{' '}
+              <span className="font-mono">
+                [{chordNotation === 'numbers' ? '1' : 'G'}]Amazing
+              </span>{' '}
+              ChordPro style — and it is picked out above the line.
             </>
           )}
         </span>
