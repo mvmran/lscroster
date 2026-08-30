@@ -261,6 +261,15 @@ is the native-script text for `lines[2]`:
   are what separates a chord from the syllable beside it. Songs entered before this
   convention may still carry space-aligned chords (`"Am        F"`), which render as
   plain text with no bracket to highlight.
+- **Notation.** Chords are *stored* as numbers of the key (the Nashville system, where a
+  chord is named by its degree — `1`, `4`, `6m`), and the API converts them on the way
+  out. Which notation you receive is one instance-wide setting, at
+  **Settings → Projection API → Chords sent to projection**; it is **`letters`** unless
+  an admin changes it, which is what this API has always sent. A client that wants to
+  offer both should read `key` and convert, not assume — and either way, treat a
+  bracketed token it cannot parse (`[Bridge]`, `[x2]`) as plain text.
+- Each song's chords are sent in **that song's `key`**, the plan's key override included,
+  so two songs on one plan can arrive in different keys and both are correct.
 - Render `native` with a font that shapes the script named by `nativeLanguage`; a font
   without Indic shaping will produce broken conjuncts and misplaced vowel signs.
 

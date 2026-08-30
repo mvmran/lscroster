@@ -127,6 +127,7 @@ export type Database = {
           name: string
           notify_on_publish: boolean
           nudge_hour: number
+          projection_chord_notation: string
           reminder_days_before: number
           reminder_hour: number
           request_nudge_days: number
@@ -148,6 +149,7 @@ export type Database = {
           name: string
           notify_on_publish?: boolean
           nudge_hour?: number
+          projection_chord_notation?: string
           reminder_days_before?: number
           reminder_hour?: number
           request_nudge_days?: number
@@ -169,6 +171,7 @@ export type Database = {
           name?: string
           notify_on_publish?: boolean
           nudge_hour?: number
+          projection_chord_notation?: string
           reminder_days_before?: number
           reminder_hour?: number
           request_nudge_days?: number

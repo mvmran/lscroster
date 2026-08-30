@@ -21,8 +21,19 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
+import {
+  useChurchSettings,
+  useUpdateChurchSettings,
+} from '@/features/settings/use-church-settings'
 import {
   useCreateProjectionKey,
   useProjectionKeys,
@@ -186,6 +197,55 @@ function KeyRow({ apiKey }: { apiKey: ProjectionKey }) {
 }
 
 /**
+ * Which notation the projection API sends chords in.
+ *
+ * Chords are stored as numbers of the key, and in the app each person flips
+ * between the two with a switch of their own. The feed has nobody to ask: it
+ * lands on one screen a whole band reads off, so the choice is the instance's
+ * and it is made here — a plain select rather than that switch, because this
+ * is a system setting, not a reading preference, and it is saved the moment
+ * it changes.
+ */
+function ChordNotationField() {
+  const { data: settings } = useChurchSettings()
+  const update = useUpdateChurchSettings()
+
+  if (!settings) return <Skeleton className="h-9 w-full max-w-xs" />
+
+  return (
+    <div className="flex flex-col gap-2 border-t pt-3">
+      <Label htmlFor="projection-chord-notation">Chords sent to projection</Label>
+      <Select
+        value={settings.projection_chord_notation}
+        onValueChange={(value) =>
+          update.mutate(
+            { id: settings.id, values: { projection_chord_notation: value } },
+            {
+              onSuccess: () => toast.success('Projection chord notation saved'),
+              onError: (e) => toast.error(e.message),
+            },
+          )
+        }
+        disabled={update.isPending}
+      >
+        <SelectTrigger id="projection-chord-notation" className="w-full max-w-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="letters">Letters — G, Am, C</SelectItem>
+          <SelectItem value="numbers">Numbers of the key — 1, 2m, 4</SelectItem>
+        </SelectContent>
+      </Select>
+      <p className="text-muted-foreground text-xs">
+        Applies to every device using the API, whatever notation anyone has
+        chosen for themselves in the app. Each song is sent in the key its plan
+        plays it in.
+      </p>
+    </div>
+  )
+}
+
+/**
  * Admin management of projection API keys (issue #135): the credentials the
  * Mac projection software uses against the projection-api Edge Function.
  * Docs for the projection developer: docs/PROJECTION-API.md.
@@ -225,6 +285,7 @@ export function ProjectionApiCard() {
             Generate key
           </Button>
         </div>
+        <ChordNotationField />
         <GenerateKeyDialog open={dialogOpen} onOpenChange={setDialogOpen} />
       </CardContent>
     </Card>

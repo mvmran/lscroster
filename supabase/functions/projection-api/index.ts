@@ -11,6 +11,11 @@
 
 import { serviceClient } from '../_shared/auth.ts'
 import { addDaysISO, sha256Hex, todayInTimezone } from '../_shared/scheduling.ts'
+import {
+  chordsToLetters,
+  parseSongKey,
+  type ChordNotation,
+} from '../_shared/chord-notation.ts'
 import { toApiSections } from '../_shared/lyric-sections.ts'
 
 const API_VERSION = 1
@@ -118,9 +123,16 @@ Deno.serve(async (req) => {
 
   const { data: church } = await admin
     .from('church_settings')
-    .select('name, timezone')
+    .select('name, timezone, projection_chord_notation')
     .maybeSingle()
   const timezone = church?.timezone ?? 'Australia/Sydney'
+  // Chords are stored as numbers of the key. Which notation goes down the wire
+  // is an instance setting rather than a reader's, because there is no reader
+  // to ask here and what this feeds is one screen the whole band reads off.
+  // Letters unless an admin says otherwise: that is what this API has always
+  // sent, so an instance that upgrades keeps parsing exactly what it did.
+  const notation: ChordNotation =
+    church?.projection_chord_notation === 'numbers' ? 'numbers' : 'letters'
   const today = todayInTimezone(timezone)
   const windowFrom = addDaysISO(today, -WINDOW_DAYS_BACK)
   const windowTo = addDaysISO(today, WINDOW_DAYS_AHEAD)
@@ -305,11 +317,23 @@ Deno.serve(async (req) => {
     const lyricsRow =
       pinned ?? (arrangementId ? latestByArrangement.get(arrangementId) : undefined)
     const sources = (arrangementId ? sourceSongsByArrangement.get(arrangementId) : []) ?? []
+    // The key this plan plays the song in, which is also the key its stored
+    // chord numbers are read back in — so an item's key override transposes
+    // the chords that go out with it.
+    const key = (item.key_override as string | null) ?? arrangement?.song_key ?? null
+    const projected: LyricsRow | null = !lyricsRow
+      ? null
+      : {
+        ...lyricsRow,
+        lyrics_chords: notation === 'letters'
+          ? chordsToLetters(lyricsRow.lyrics_chords ?? '', parseSongKey(key))
+          : (lyricsRow.lyrics_chords ?? ''),
+      }
     return {
       order: idx + 1,
       title: item.title as string,
       arrangement: arrangement?.name ?? null,
-      key: (item.key_override as string | null) ?? arrangement?.song_key ?? null,
+      key,
       bpm: arrangement?.bpm ?? null,
       meter: arrangement?.meter ?? null,
       lyricsVersion: lyricsRow?.version ?? null,
@@ -319,7 +343,7 @@ Deno.serve(async (req) => {
       // predates the layers is unaffected. nativeLanguage is an ISO 639 code
       // ('ml', 'hi') for whatever `sections[].layers.native` is written in.
       nativeLanguage: lyricsRow?.native_language ?? null,
-      sections: toApiSections(lyricsRow?.lyrics, lyricsRow ?? null),
+      sections: toApiSections(lyricsRow?.lyrics, projected),
       sourceSongs: sources
         .filter((s) => s.songs)
         .sort((a, b) => a.sort_order - b.sort_order)
