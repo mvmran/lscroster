@@ -233,6 +233,35 @@ export function lyricParagraphs(text: string): LyricParagraph[] {
 }
 
 /**
+ * Copy the base's section headers onto the blank rows of one layer.
+ *
+ * A layer written by hand picks the headers up as they are typed, and an
+ * import brings them along; a layer drafted by a model comes back blank on
+ * those rows, because a header is structure rather than something to translate.
+ * Copying them in afterwards is what makes a drafted pane read like the panes
+ * beside it — labelled verses rather than an unbroken column of lines.
+ *
+ * Only blank rows are written, so nothing a person put on a header row is
+ * overwritten, and the line count never changes.
+ */
+export function mirrorSectionHeaders(
+  layers: LayeredLyrics,
+  key: LyricLayerKey,
+): LayeredLyrics {
+  if (layers[key] === '') return layers
+  const base = toLines(layers.lyrics)
+  const lines = toLines(layers[key])
+  let changed = false
+  const next = lines.map((line, i) => {
+    const header = base[i] === undefined ? null : matchLyricSectionHeader(base[i])
+    if (header === null || line.trim() !== '') return line
+    changed = true
+    return base[i]
+  })
+  return changed ? { ...layers, [key]: next.join(eolOf(layers.lyrics)) } : layers
+}
+
+/**
  * Insert section header lines into the base *and* every layer beside it.
  *
  * `before` is a line index in the base text; the label is inserted above that

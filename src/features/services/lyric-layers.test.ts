@@ -8,6 +8,7 @@ import {
   lineCount,
   insertSectionHeaders,
   lyricParagraphs,
+  mirrorSectionHeaders,
   moveSectionLayers,
   padLayers,
   removeSectionLayers,
@@ -373,5 +374,49 @@ describe('insertSectionHeaders', () => {
       'Verse 1',
       'Chorus',
     ])
+  })
+})
+
+describe('mirrorSectionHeaders', () => {
+  it('labels the blank header rows of a drafted layer', () => {
+    // The model is asked to leave a header row blank — a header is structure,
+    // not a line to translate — so the pane would otherwise read unlabelled
+    // while every pane beside it names its verses.
+    const next = mirrorSectionHeaders(
+      {
+        lyrics: '[Verse 1]\nAmazing grace\n\n[Chorus]\nPraise God',
+        native: '',
+        meaning: '\nAmazing grace\n\n\nPraise God',
+        chords: '',
+      },
+      'meaning',
+    )
+    expect(toLines(next.meaning)).toEqual([
+      '[Verse 1]',
+      'Amazing grace',
+      '',
+      '[Chorus]',
+      'Praise God',
+    ])
+  })
+
+  it('never overwrites what someone put on a header row', () => {
+    const layers: LayeredLyrics = {
+      lyrics: '[Verse 1]\nAmazing grace',
+      native: '',
+      meaning: 'first verse\nAmazing grace',
+      chords: '',
+    }
+    expect(mirrorSectionHeaders(layers, 'meaning')).toBe(layers)
+  })
+
+  it('leaves an unused layer empty', () => {
+    const layers: LayeredLyrics = {
+      lyrics: '[Verse 1]\nAmazing grace',
+      native: '',
+      meaning: '',
+      chords: '',
+    }
+    expect(mirrorSectionHeaders(layers, 'meaning').meaning).toBe('')
   })
 })

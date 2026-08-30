@@ -75,6 +75,7 @@ import {
   insertSectionHeaders,
   layersOfRow,
   lyricParagraphs,
+  mirrorSectionHeaders,
   normalizeForSave,
   type LayeredLyrics,
   type LyricLayerKey,
@@ -716,8 +717,9 @@ function ArrangementLyricsBlock({
         return
       }
       // Into the draft, not the database: it is reviewed and saved like any
-      // other edit, the same as an imported transliteration.
-      setDraft({ ...value, meaning })
+      // other edit, the same as an imported transliteration. The headers come
+      // from the base, since the model is asked to leave those rows blank.
+      setDraft(mirrorSectionHeaders({ ...value, meaning }, 'meaning'))
       toast.success('Meaning drafted — check it over before saving')
     } catch (error) {
       toast.error(

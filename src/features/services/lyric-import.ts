@@ -33,6 +33,7 @@ import {
   alignLayer,
   findNonLatinLyrics,
   hasAnyLayer,
+  mirrorSectionHeaders,
   toLines,
   type LayeredLyrics,
 } from '@/features/services/lyric-layers'
@@ -326,13 +327,20 @@ export async function withGeneratedTransliteration(
  * line-parallel. `alignLayer` is a belt-and-braces pad to the base's height for
  * the case where it does not, and a draft that came back blank is dropped
  * rather than written as a column of nothing.
+ *
+ * The model is asked to leave a section header blank — a header is structure,
+ * not a line to translate — so the headers are copied across afterwards and the
+ * pane reads like the ones beside it.
  */
 export function withGeneratedMeaning(
   layers: LayeredLyrics,
   drafted: string,
 ): LayeredLyrics {
   if (drafted.trim() === '') return layers
-  return alignLayer({ ...layers, meaning: drafted }, 'meaning')
+  return mirrorSectionHeaders(
+    alignLayer({ ...layers, meaning: drafted }, 'meaning'),
+    'meaning',
+  )
 }
 
 /**

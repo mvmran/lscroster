@@ -276,8 +276,13 @@ describe('withGeneratedMeaning', () => {
     )
     expect(lineCount(filled.meaning)).toBe(lineCount(filled.lyrics))
     expect(toLines(filled.meaning)).toContain('meaning of ആ കരതാരിൽ')
-    // The header row keeps its blank, so line N still belongs to line N.
-    expect(toLines(filled.meaning)[toLines(filled.lyrics).indexOf('Verse 1')]).toBe('')
+    // The model leaves a header row blank; the header is copied across after,
+    // so the pane reads like the ones beside it and line N still belongs to
+    // line N.
+    expect(toLines(filled.meaning)[toLines(filled.lyrics).indexOf('Verse 1')]).toBe(
+      'Verse 1',
+    )
+    expect(lineCount(filled.meaning)).toBe(lineCount(filled.lyrics))
   })
 
   it('pads a short draft out to the base rather than leaving it adrift', () => {
