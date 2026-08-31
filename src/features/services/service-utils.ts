@@ -438,7 +438,8 @@ export function buildLyricsSheet(
         // chord numbers are read back in — so a key override transposes the
         // chord chart along with the label, for nothing.
         key: i.key_override ?? info?.arrangement.song_key ?? null,
-        bpm: info?.arrangement.bpm ?? null,
+        // Tempo follows the same rule: this plan's, else the arrangement's.
+        bpm: i.bpm_override ?? info?.arrangement.bpm ?? null,
         meter: info?.arrangement.meter ?? null,
         lyrics: (pinned ?? latest)?.lyrics ?? null,
         // Chords stay as stored (numbers); the reader and the PDF convert,

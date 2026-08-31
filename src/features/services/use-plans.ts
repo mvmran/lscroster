@@ -80,6 +80,7 @@ type CopiedItem = {
   title: string
   arrangement_id: string | null
   key_override: string | null
+  bpm_override: number | null
   length_seconds: number
   description: string | null
 }
@@ -91,11 +92,11 @@ async function fetchSourceItems(
     source.kind === 'template'
       ? supabase
           .from('plan_template_items')
-          .select('sort_order, kind, title, arrangement_id, key_override, length_seconds, description')
+          .select('sort_order, kind, title, arrangement_id, key_override, bpm_override, length_seconds, description')
           .eq('template_id', source.id)
       : supabase
           .from('plan_items')
-          .select('sort_order, kind, title, arrangement_id, key_override, length_seconds, description')
+          .select('sort_order, kind, title, arrangement_id, key_override, bpm_override, length_seconds, description')
           .eq('plan_id', source.id)
   const { data, error } = await query.order('sort_order')
   if (error) throw new Error(error.message)

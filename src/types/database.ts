@@ -826,6 +826,7 @@ export type Database = {
       plan_items: {
         Row: {
           arrangement_id: string | null
+          bpm_override: number | null
           created_at: string
           description: string | null
           id: string
@@ -840,6 +841,7 @@ export type Database = {
         }
         Insert: {
           arrangement_id?: string | null
+          bpm_override?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -854,6 +856,7 @@ export type Database = {
         }
         Update: {
           arrangement_id?: string | null
+          bpm_override?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -968,6 +971,7 @@ export type Database = {
       plan_template_items: {
         Row: {
           arrangement_id: string | null
+          bpm_override: number | null
           created_at: string
           description: string | null
           id: string
@@ -981,6 +985,7 @@ export type Database = {
         }
         Insert: {
           arrangement_id?: string | null
+          bpm_override?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -994,6 +999,7 @@ export type Database = {
         }
         Update: {
           arrangement_id?: string | null
+          bpm_override?: number | null
           created_at?: string
           description?: string | null
           id?: string

@@ -52,25 +52,33 @@ function ItemForm({
   const kind: PlanItemKind = item?.kind ?? (state.mode === 'create' ? state.kind : 'item')
   const info = item?.arrangement_id ? arrangements.get(item.arrangement_id) : undefined
   const arrangementKey = info?.arrangement.song_key ?? null
+  const arrangementBpm = info?.arrangement.bpm ?? null
 
   const [title, setTitle] = useState(item?.title ?? '')
   const [length, setLength] = useState(
     formatLength(item?.length_seconds ?? DEFAULT_ITEM_LENGTH[kind]),
   )
   const [keyOverride, setKeyOverride] = useState(item?.key_override ?? '')
+  const [bpmOverride, setBpmOverride] = useState(item?.bpm_override?.toString() ?? '')
   const [description, setDescription] = useState(item?.description ?? '')
 
   const lengthSeconds = parseLengthInput(length)
   const lengthInvalid = lengthSeconds === null
+  // Blank means "whatever the arrangement says", which is the common case and
+  // must stay valid; anything typed has to be a whole tempo, as the column says.
+  const bpmValue = bpmOverride.trim() === '' ? null : Number(bpmOverride)
+  const bpmInvalid =
+    bpmValue !== null && (!Number.isInteger(bpmValue) || bpmValue <= 0)
   const pending = createItem.isPending || updateItem.isPending
 
   async function save() {
     const trimmed = title.trim()
-    if (!trimmed || lengthSeconds === null) return
+    if (!trimmed || lengthSeconds === null || bpmInvalid) return
     const values = {
       title: trimmed,
       length_seconds: lengthSeconds,
       key_override: keyOverride.trim() || null,
+      bpm_override: bpmValue,
       description: description.trim() || null,
     }
     try {
@@ -130,6 +138,30 @@ function ItemForm({
                 )}
               </div>
             )}
+            {/* Third cell of the two-column grid, so it wraps onto a row of
+                its own rather than widening the dialog. */}
+            {kind === 'song' && (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="pi-bpm">BPM</Label>
+                <Input
+                  id="pi-bpm"
+                  value={bpmOverride}
+                  onChange={(e) => setBpmOverride(e.target.value)}
+                  inputMode="numeric"
+                  placeholder={arrangementBpm?.toString() ?? 'e.g. 72'}
+                  aria-invalid={bpmInvalid}
+                />
+                {bpmInvalid ? (
+                  <p className="text-destructive text-sm">Whole number above 0</p>
+                ) : (
+                  arrangementBpm !== null && (
+                    <p className="text-muted-foreground text-xs">
+                      Leave blank for the arrangement’s tempo ({arrangementBpm}).
+                    </p>
+                  )
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -166,7 +198,10 @@ function ItemForm({
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button onClick={save} disabled={pending || !title.trim() || lengthInvalid}>
+        <Button
+          onClick={save}
+          disabled={pending || !title.trim() || lengthInvalid || bpmInvalid}
+        >
           {pending && <Loader2 className="size-4 animate-spin" />}
           {item ? 'Save' : 'Add'}
         </Button>

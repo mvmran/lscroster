@@ -100,6 +100,7 @@ export function useSaveAsTemplate() {
             title: item.title,
             arrangement_id: item.arrangement_id,
             key_override: item.key_override,
+            bpm_override: item.bpm_override,
             length_seconds: item.length_seconds,
             description: item.description,
           }))
@@ -162,6 +163,7 @@ export function useUpdateTemplate() {
           title: item.title,
           arrangement_id: item.arrangement_id,
           key_override: item.key_override,
+          bpm_override: item.bpm_override,
           length_seconds: item.length_seconds,
           description: item.description,
         }))

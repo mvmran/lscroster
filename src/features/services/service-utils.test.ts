@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildLyricsSheet,
   comparePlansByDateTime,
   findClashingPlans,
+  lyricsSheetMeta,
   songSearchLinks,
   weeklyDates,
+  type ArrangementInfo,
+  type ArrangementLyrics,
   type ClashCandidate,
   type PlanChronological,
+  type PlanItem,
+  type SongArrangement,
 } from '@/features/services/service-utils'
 
 describe('weeklyDates (issue #72)', () => {
@@ -235,5 +241,76 @@ describe('songSearchLinks', () => {
     const links = songSearchLinks('Amazing Grace', 'John Newton')
     expect(links.lyrics).toContain('google.com/search')
     expect(links.listen).toContain('youtube.com/results')
+  })
+})
+
+describe('buildLyricsSheet key and tempo', () => {
+  const arrangement: SongArrangement = {
+    id: 'arr-1',
+    name: 'Default',
+    song_key: 'D',
+    bpm: 72,
+    meter: '4/4',
+    is_default: true,
+    sort_order: 0,
+    reference_url: null,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  }
+  const info: ArrangementInfo = {
+    arrangement,
+    songs: [{ id: 'song-1', title: 'Amazing Grace' }],
+  }
+  const arrangements = new Map([['arr-1', info]])
+  const lyrics = new Map<string, ArrangementLyrics>()
+
+  function songItem(overrides: Partial<PlanItem>): PlanItem {
+    return {
+      id: 'item-1',
+      plan_id: 'plan-1',
+      sort_order: 0,
+      kind: 'song',
+      title: 'Amazing Grace',
+      arrangement_id: 'arr-1',
+      lyrics_id: null,
+      key_override: null,
+      bpm_override: null,
+      length_seconds: 240,
+      description: null,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      ...overrides,
+    }
+  }
+
+  it('falls back to the arrangement when the plan overrides nothing', () => {
+    const [entry] = buildLyricsSheet([songItem({})], arrangements, lyrics)
+    expect(entry.key).toBe('D')
+    expect(entry.bpm).toBe(72)
+    expect(lyricsSheetMeta(entry)).toBe('Key D  ·  72 BPM  ·  4/4')
+  })
+
+  it('prefers the plan’s own key and tempo when it sets them', () => {
+    const [entry] = buildLyricsSheet(
+      [songItem({ key_override: 'G', bpm_override: 60 })],
+      arrangements,
+      lyrics,
+    )
+    expect(entry.key).toBe('G')
+    expect(entry.bpm).toBe(60)
+  })
+
+  it('overrides the two independently', () => {
+    const [slower] = buildLyricsSheet([songItem({ bpm_override: 60 })], arrangements, lyrics)
+    expect(slower.key).toBe('D')
+    expect(slower.bpm).toBe(60)
+
+    const [transposed] = buildLyricsSheet(
+      [songItem({ key_override: 'G' })],
+      arrangements,
+      lyrics,
+    )
+    expect(transposed.key).toBe('G')
+    expect(transposed.bpm).toBe(72)
   })
 })
