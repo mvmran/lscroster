@@ -3,6 +3,7 @@ import {
   Clock,
   Download,
   FileText,
+  Headphones,
   Loader2,
   Music,
   Paperclip,
@@ -34,6 +35,7 @@ import {
   buildLyricsSheet,
   formatStartTime,
   lyricsSheetMeta,
+  playableUrl,
 } from '@/features/services/service-utils'
 import {
   useDeletePlanAttachment,
@@ -458,11 +460,26 @@ export function PlanMediaCard({
             {entries.map((entry) => {
               const meta = lyricsSheetMeta(entry)
               const hasLyrics = !!entry.lyrics && entry.lyrics.trim().length > 0
+              const reference = playableUrl(entry.referenceUrl)
               return (
                 <div key={entry.songItemId} className="flex flex-col gap-1">
                   <h3 className="font-semibold leading-tight">{entry.title}</h3>
-                  {meta && (
-                    <p className="text-muted-foreground text-xs">{meta}</p>
+                  {(meta || reference) && (
+                    <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                      {meta && <span>{meta}</span>}
+                      {reference && (
+                        <a
+                          href={reference}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          title="Open the reference recording in a new tab"
+                          className="border-primary/25 bg-primary/10 text-primary hover:bg-primary/20 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium"
+                        >
+                          <Headphones className="size-3" />
+                          Listen
+                        </a>
+                      )}
+                    </div>
                   )}
                   {hasLyrics ? (
                     <LyricsReadView layers={entry.layers} songKey={entry.key} />

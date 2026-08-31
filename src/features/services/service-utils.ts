@@ -400,6 +400,8 @@ export interface LyricsSheetEntry {
   key: string | null
   bpm: number | null
   meter: string | null
+  /** The arrangement's reference recording, for the "Listen" link. */
+  referenceUrl: string | null
   lyrics: string | null
   /** The base text plus its native / meaning / chord layers (#139). */
   layers: LayeredLyrics
@@ -441,12 +443,28 @@ export function buildLyricsSheet(
         // Tempo follows the same rule: this plan's, else the arrangement's.
         bpm: i.bpm_override ?? info?.arrangement.bpm ?? null,
         meter: info?.arrangement.meter ?? null,
+        // The recording this arrangement follows. Nothing overrides it — it
+        // belongs to the arrangement, not to a plan that happens to use it.
+        referenceUrl: info?.arrangement.reference_url ?? null,
         lyrics: (pinned ?? latest)?.lyrics ?? null,
         // Chords stay as stored (numbers); the reader and the PDF convert,
         // because which notation to show is the reader's choice, not the data's.
         layers: layersOfRow(pinned ?? latest ?? null),
       }
     })
+}
+
+/**
+ * A reference recording safe to hand to an `href`, or null.
+ *
+ * The song page validates the field on save, but this is what actually renders
+ * the link, and a stored value predating that check — or written by any future
+ * path — must not be able to smuggle in a `javascript:` URL. Only http(s) is
+ * ever linked; anything else is treated as no link at all.
+ */
+export function playableUrl(url: string | null | undefined): string | null {
+  const trimmed = (url ?? '').trim()
+  return /^https?:\/\/\S+$/i.test(trimmed) ? trimmed : null
 }
 
 /** "Key G  ·  72 BPM  ·  4/4" from an entry, or '' when none are set. */

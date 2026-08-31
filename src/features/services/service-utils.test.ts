@@ -4,6 +4,7 @@ import {
   comparePlansByDateTime,
   findClashingPlans,
   lyricsSheetMeta,
+  playableUrl,
   songSearchLinks,
   weeklyDates,
   type ArrangementInfo,
@@ -253,7 +254,7 @@ describe('buildLyricsSheet key and tempo', () => {
     meter: '4/4',
     is_default: true,
     sort_order: 0,
-    reference_url: null,
+    reference_url: 'https://youtu.be/demo',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   }
@@ -287,6 +288,7 @@ describe('buildLyricsSheet key and tempo', () => {
     const [entry] = buildLyricsSheet([songItem({})], arrangements, lyrics)
     expect(entry.key).toBe('D')
     expect(entry.bpm).toBe(72)
+    expect(entry.referenceUrl).toBe('https://youtu.be/demo')
     expect(lyricsSheetMeta(entry)).toBe('Key D  ·  72 BPM  ·  4/4')
   })
 
@@ -312,5 +314,22 @@ describe('buildLyricsSheet key and tempo', () => {
     )
     expect(transposed.key).toBe('G')
     expect(transposed.bpm).toBe(72)
+  })
+})
+
+describe('playableUrl', () => {
+  it('passes an ordinary http(s) link through', () => {
+    expect(playableUrl('https://youtu.be/abc')).toBe('https://youtu.be/abc')
+    expect(playableUrl('  http://example.com/x  ')).toBe('http://example.com/x')
+  })
+
+  it('refuses anything that is not a web link', () => {
+    // The song page validates on save, but this is what builds the href — a
+    // scheme that can run code must never reach it.
+    expect(playableUrl('javascript:alert(1)')).toBeNull()
+    expect(playableUrl('data:text/html,<script>')).toBeNull()
+    expect(playableUrl('youtu.be/abc')).toBeNull()
+    expect(playableUrl('')).toBeNull()
+    expect(playableUrl(null)).toBeNull()
   })
 })
