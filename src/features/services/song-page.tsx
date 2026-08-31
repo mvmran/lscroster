@@ -680,6 +680,7 @@ function ArrangementLyricsBlock({
 }) {
   const { data: current, isPending: lyricsPending } = useArrangementLyrics(arrangement.id)
   const save = useSaveArrangementLyrics(arrangement.id)
+  const updateArrangement = useUpdateArrangement(song.id)
   const link = useLinkSongToArrangement(song.id)
   const unlink = useUnlinkSongFromArrangement(song.id)
   const [draft, setDraft] = useState<LayeredLyrics | null>(null)
@@ -1041,7 +1042,34 @@ function ArrangementLyricsBlock({
         onOpenChange={setImportOpen}
         existingLyrics={value.lyrics}
         songKey={arrangement.song_key}
+        songBpm={arrangement.bpm}
+        songMeter={arrangement.meter}
         onImport={(imported) => setDraft(appendImportedLyrics(value, imported))}
+        onApplyMetadata={(meta) => {
+          // Only what the file actually said; a field it omitted keeps what
+          // the arrangement already has. Written straight away rather than
+          // riding along with the lyrics save: the box says "set the
+          // arrangement's key", and the lyrics may sit unsaved for a while.
+          updateArrangement.mutate(
+            {
+              id: arrangement.id,
+              values: {
+                ...(meta.key ? { song_key: meta.key } : {}),
+                ...(meta.bpm ? { bpm: meta.bpm } : {}),
+                ...(meta.meter ? { meter: meta.meter } : {}),
+              },
+            },
+            {
+              onSuccess: () => toast.success('Arrangement updated from the file.'),
+              onError: (error) =>
+                toast.error(
+                  error instanceof Error
+                    ? error.message
+                    : 'Could not update the arrangement',
+                ),
+            },
+          )
+        }}
       />
 
       <LinkSongDialog
@@ -1520,7 +1548,7 @@ export function SongPage() {
                   href={songSearchLinks(song.title, song.author).chords}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title="Find this song’s chords and original key on Worship Together (opens a new tab)"
+                  title="Search the web for this song’s chords (opens a new tab)"
                 >
                   <Guitar className="size-4" />
                   Chords

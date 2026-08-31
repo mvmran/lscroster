@@ -12,11 +12,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { mergeChordRows } from '@/features/services/chord-chart'
 import { chordsToNumbers, parseSongKey } from '@/features/services/chord-notation'
+import { hasMetadata, type ImportedMetadata } from '@/features/services/chordpro-directives'
 import {
   nextVerseNumber,
   parseImportedLyrics,
+  prepareImport,
   withGeneratedMeaning,
   withGeneratedTransliteration,
   withVerseHeadings,
@@ -53,6 +54,9 @@ export function LyricsImportDialog({
   onImport,
   existingLyrics = '',
   songKey = null,
+  songBpm = null,
+  songMeter = null,
+  onApplyMetadata,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -60,26 +64,33 @@ export function LyricsImportDialog({
   /** What the editor already holds — the import lands after it. */
   existingLyrics?: string
   /**
-   * The arrangement's key, used to number an imported chart's chords. Without
-   * one they land as letters and the editor's save guard asks for a key, which
-   * then numbers them — so a keyless song imports fine and is caught on save.
+   * The arrangement's key, used to number an imported chart's chords when the
+   * paste doesn't name its own. Without either they land as letters and the
+   * editor's save guard asks for a key, which then numbers them — so a keyless
+   * song imports fine and is caught on save.
    */
   songKey?: string | null
+  songBpm?: number | null
+  songMeter?: string | null
+  /** Set the arrangement's key, tempo and meter from a ChordPro header. */
+  onApplyMetadata?: (meta: ImportedMetadata) => void
 }) {
   const [text, setText] = useState('')
   const [numbering, setNumbering] = useState(true)
+  const [applyMeta, setApplyMeta] = useState(true)
   const [working, setWorking] = useState(false)
   // The import lands after whatever the editor holds, so the count carries on
   // from the last verse already there rather than restarting at 1.
   const from = useMemo(() => nextVerseNumber(existingLyrics), [existingLyrics])
-  // Chord rows are folded into their lyric lines before the paragraphs are
-  // counted, so a chart's chords can't be mistaken for the start of a verse.
-  const merged = useMemo(() => mergeChordRows(text), [text])
+  // Directives are resolved and chord rows folded into their lyric lines
+  // before the paragraphs are counted, so neither a `{comment: Verse}` nor a
+  // chart's chords can be mistaken for the start of a verse.
+  const prepared = useMemo(() => prepareImport(text), [text])
   // Numbering rewrites the paste before it is parsed, so the summary below
   // counts the sections that will actually land — headings included.
   const source = useMemo(
-    () => (numbering ? withVerseHeadings(merged, from) : merged),
-    [merged, numbering, from],
+    () => (numbering ? withVerseHeadings(prepared.text, from) : prepared.text),
+    [prepared, numbering, from],
   )
   const parsed = useMemo(() => parseImportedLyrics(source), [source])
   const labelled = toLines(text).some((line) => matchLyricSectionHeader(line) !== null)
@@ -99,8 +110,27 @@ export function LyricsImportDialog({
   // so a generated draft is read back by the model before it lands.
   const polishing = assistAvailable === true && generating
 
+  const meta = prepared.metadata
+  const offered = onApplyMetadata !== undefined && hasMetadata(meta)
+  // What ticking the box would replace. Only a value that is *there and
+  // different* is a loss worth warning about — filling a blank is not.
+  const replaced = [
+    meta.key && songKey && meta.key !== songKey ? `key ${songKey}` : null,
+    meta.bpm && songBpm && meta.bpm !== songBpm ? `${songBpm} BPM` : null,
+    meta.meter && songMeter && meta.meter !== songMeter ? songMeter : null,
+  ].filter(Boolean)
+
+  const fromFile = [
+    meta.key ? `key ${meta.key}` : null,
+    meta.bpm ? `${meta.bpm} BPM` : null,
+    meta.meter,
+  ].filter(Boolean)
+
   function close(next: boolean) {
-    if (!next) setText('')
+    if (!next) {
+      setText('')
+      setApplyMeta(true)
+    }
     onOpenChange(next)
   }
 
@@ -155,8 +185,17 @@ export function LyricsImportDialog({
       // them that way too, so a chart's letters are converted here rather than
       // left for the save to do — the pane would otherwise show letters while
       // the switch said numbers. A no-op when there is no key, or none found.
-      const chords = chordsToNumbers(layers.chords, parseSongKey(songKey))
+      //
+      // The *file's* key wins over the arrangement's, because that is the key
+      // its chords are written in. Numbering against it and reading back in
+      // the arrangement's key is what transposes a chart from the key it was
+      // published in to the key this church plays it in.
+      const chords = chordsToNumbers(
+        layers.chords,
+        parseSongKey(prepared.metadata.key ?? songKey),
+      )
       onImport({ ...layers, chords })
+      if (offered && applyMeta) onApplyMetadata?.(meta)
       close(false)
     } finally {
       setWorking(false)
@@ -239,6 +278,31 @@ export function LyricsImportDialog({
             )}
           </label>
         </div>
+        {offered && (
+          <div className="flex shrink-0 items-start gap-2 text-xs">
+            <Checkbox
+              id="import-apply-metadata"
+              checked={applyMeta}
+              onCheckedChange={(next) => setApplyMeta(next === true)}
+            />
+            <label
+              htmlFor="import-apply-metadata"
+              className="text-muted-foreground cursor-pointer"
+            >
+              Also set the arrangement’s{' '}
+              <span className="text-foreground font-medium">
+                {fromFile.join(' · ')}
+              </span>{' '}
+              from the file
+              {replaced.length > 0 && (
+                <span className="text-destructive">
+                  {' '}
+                  — replaces the {replaced.join(' · ')} already set.
+                </span>
+              )}
+            </label>
+          </div>
+        )}
         <p className="text-muted-foreground shrink-0 text-xs">{summary}</p>
         {/* items-center: the wrapped button is a flex container of its own, so
             the row must centre both children rather than let either stretch. */}

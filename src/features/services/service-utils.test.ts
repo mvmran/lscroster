@@ -213,19 +213,15 @@ describe('comparePlansByDateTime', () => {
 })
 
 describe('songSearchLinks', () => {
-  it('sends the chord search to Worship Together, title and artist together', () => {
-    // The query lives in the fragment because that is where Worship Together's
-    // own search box puts it — a Cludo widget reads `#?cludoquery=` on load.
+  it('sends the chord search to the web, title and artist together', () => {
     expect(songSearchLinks('Man of Sorrows', 'Hillsong Worship').chords).toBe(
-      'https://www.worshiptogether.com/search-results/' +
-        '#?cludoquery=Man%20of%20Sorrows%20Hillsong%20Worship&cludopage=1',
+      'https://www.google.com/search?q=Man%20of%20Sorrows%20Hillsong%20Worship%20chords',
     )
   })
 
   it('searches on the title alone when the song has no author', () => {
     expect(songSearchLinks('Man of Sorrows').chords).toBe(
-      'https://www.worshiptogether.com/search-results/' +
-        '#?cludoquery=Man%20of%20Sorrows&cludopage=1',
+      'https://www.google.com/search?q=Man%20of%20Sorrows%20chords',
     )
     expect(songSearchLinks('Man of Sorrows', null).chords).toBe(
       songSearchLinks('Man of Sorrows').chords,
@@ -233,15 +229,19 @@ describe('songSearchLinks', () => {
   })
 
   it('escapes a title that would otherwise break the query', () => {
-    const { chords } = songSearchLinks("O Praise the Name (Anástasis)", 'Hillsong')
+    const { chords } = songSearchLinks('O Praise the Name (An\u00e1stasis)', 'Hillsong')
     expect(chords).toContain('An%C3%A1stasis')
     expect(chords).not.toContain(' ')
   })
 
-  it('leaves the lyrics and listen searches alone', () => {
+  it('asks for lyrics, chords and a recording separately', () => {
     const links = songSearchLinks('Amazing Grace', 'John Newton')
-    expect(links.lyrics).toContain('google.com/search')
+    expect(links.lyrics).toContain('lyrics')
+    expect(links.chords).toContain('chords')
     expect(links.listen).toContain('youtube.com/results')
+    // The word that distinguishes them must not leak into the others.
+    expect(links.lyrics).not.toContain('chords')
+    expect(links.chords).not.toContain('lyrics')
   })
 })
 

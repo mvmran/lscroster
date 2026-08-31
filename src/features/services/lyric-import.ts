@@ -36,6 +36,10 @@
 
 import { mergeChordRows, splitInlineChords } from '@/features/services/chord-chart'
 import {
+  stripDirectives,
+  type ImportedMetadata,
+} from '@/features/services/chordpro-directives'
+import {
   alignLayer,
   findNonLatinLyrics,
   hasAnyLayer,
@@ -43,7 +47,10 @@ import {
   toLines,
   type LayeredLyrics,
 } from '@/features/services/lyric-layers'
-import { matchLyricSectionHeader } from '@/features/services/lyric-sections'
+import {
+  matchLyricSectionHeader,
+  REPEAT_MARKER_RE,
+} from '@/features/services/lyric-sections'
 import {
   detectIndicScript,
   transliterate,
@@ -91,8 +98,10 @@ export function nextVerseNumber(lyrics: string): number {
   const numbers = toLines(lyrics).map((line) => {
     const header = matchLyricSectionHeader(line)
     if (header === null || header.kind !== 'verse') return 0
+    // The designator, not the label: a label may carry a repeat count too
+    // ("Verse 2 ×3"), and stripping non-digits from that reads it as verse 23.
     // "Verse" with no designator is the song's first verse by any reading.
-    return Number.parseInt(header.label.replace(/\D+/g, ''), 10) || 1
+    return Number.parseInt(header.designator ?? '', 10) || 1
   })
   return Math.max(0, ...numbers) + 1
 }
@@ -146,6 +155,8 @@ export interface ParsedImport {
   hasMeaning: boolean
   /** True when chord rows were recognised above the lyrics. */
   hasChords: boolean
+  /** What a ChordPro file said about itself, for the dialog to offer. */
+  metadata: ImportedMetadata
   /**
    * True when a section arrived as native script with no transliteration, so
    * its base text is blank and waiting to be generated (or typed).
@@ -248,13 +259,130 @@ function routeNativeOnly(block: Block): Block {
   return { ...block, native: block.main, main: [] }
 }
 
+/**
+ * Replace every "REPEAT CHORUS" line with the section it names.
+ *
+ * Charts save a page by naming a section instead of printing it again, which
+ * is fine on paper and useless here: the line is not a header, so it lands
+ * among the words and gets sung, and the running order loses the section
+ * altogether — the one thing a projectionist following the plan needs.
+ *
+ * The copy is taken from the nearest matching section *above* the marker,
+ * header line and all, and is a copy in the plainest sense: a one-time
+ * transformation of the paste, reviewed in the editor before it is saved.
+ * Nothing references anything afterwards, so nothing can go stale.
+ *
+ * Every layer is spliced together, and the source lines are taken from the
+ * same rows of each, so the four texts stay parallel and the chords come along
+ * with the words they sit on. A marker naming a section that isn't there
+ * becomes a bare header, which is at least structure rather than a lyric.
+ */
+function expandRepeatMarkers(layers: Record<'lyrics' | 'native' | 'meaning', string[]>) {
+  const source = layers.lyrics
+  const LAYERS = ['lyrics', 'native', 'meaning'] as const
+  const headerAt = (i: number) => matchLyricSectionHeader(source[i] ?? '')
+
+  /**
+   * Where a section's words run: from its header to the next one, with the
+   * blank lines at either edge left out. `limit` stops the scan short, which
+   * is what keeps a section from swallowing the marker that named it.
+   *
+   * `from === end` means the section has nothing under it at all. A section
+   * whose only body is a row of chords is *not* empty by this test, because
+   * the chords are still inline in the base at this point — which is exactly
+   * why an intro of `[C]` stands wordless and is left alone.
+   */
+  function bodyOf(start: number, limit = source.length) {
+    let end = start + 1
+    while (end < limit && headerAt(end) === null) end += 1
+    let from = start + 1
+    while (from < end && (source[from] ?? '').trim() === '') from += 1
+    while (end > from && (source[end - 1] ?? '').trim() === '') end -= 1
+    return { from, end }
+  }
+
+  for (let i = 0; i < source.length; i += 1) {
+    const marker = REPEAT_MARKER_RE.exec(source[i])
+    const header = marker ? null : headerAt(i)
+
+    let kind: string
+    let wanted: string | null
+    if (marker) {
+      kind = marker[1].toLowerCase().replace(/^pre[\s-]?chorus$/, 'pre-chorus')
+      wanted = marker[2] ?? null
+    } else if (header) {
+      // A section named with nothing under it is the same shorthand written a
+      // different way: charts print "Chorus" on its own where the words have
+      // already been given in full above.
+      if (bodyOf(i).from < bodyOf(i).end) continue
+      kind = header.kind
+      wanted = header.designator
+    } else {
+      continue
+    }
+
+    // The nearest section above that matches — by kind, and by number when one
+    // was given ("REPEAT VERSE 2") — and that has words of its own to copy.
+    let start = -1
+    for (let j = i - 1; j >= 0; j -= 1) {
+      const above = headerAt(j)
+      if (!above || above.kind !== kind) continue
+      if (wanted !== null && above.designator !== wanted) continue
+      const body = bodyOf(j, i)
+      if (body.from >= body.end) continue
+      start = j
+      break
+    }
+
+    if (start === -1) {
+      // An empty section with nothing above it to fill it is simply an empty
+      // section; only a marker line needs turning into one.
+      if (!marker) continue
+      // Leave a header so it is structure, not something to sing.
+      const label = kind.charAt(0).toUpperCase() + kind.slice(1)
+      for (const key of LAYERS) layers[key][i] = key === 'lyrics' ? label : ''
+      continue
+    }
+
+    if (marker) {
+      // The marker line becomes the whole section, header and all.
+      const { end } = bodyOf(start, i)
+      const count = end - start
+      for (const key of LAYERS) layers[key].splice(i, 1, ...layers[key].slice(start, end))
+      // Skip past what was just inserted; its own header must not re-match.
+      i += count - 1
+    } else {
+      // The header is already there — and is the one to keep, since it may
+      // carry a repeat count the original did not ("Chorus ×3"). Only the
+      // words are copied, in underneath it.
+      const { from, end } = bodyOf(start, i)
+      for (const key of LAYERS) layers[key].splice(i + 1, 0, ...layers[key].slice(from, end))
+      i += end - from
+    }
+  }
+}
+
+/**
+ * Everything a paste needs before its layers can be read: its ChordPro
+ * directives resolved, then its chord rows folded into the lines they sit over.
+ *
+ * Both are line-level rewrites and both must happen before anything counts
+ * paragraphs or splits sections, so the dialog runs them once and hands the
+ * result to `parseImportedLyrics` and `withVerseHeadings` alike. Both are
+ * idempotent, so the parser can run them again for a caller that hasn't.
+ */
+export function prepareImport(text: string): {
+  text: string
+  metadata: ImportedMetadata
+} {
+  const stripped = stripDirectives(text)
+  return { text: mergeChordRows(stripped.text), metadata: stripped.metadata }
+}
+
 /** Parse pasted text into the layers it would add. */
 export function parseImportedLyrics(text: string): ParsedImport {
-  // Chord rows are folded into the lines they sit over before anything else
-  // looks at the text, so the rest of the pipeline sees one line per lyric
-  // line and its sections, keywords and padding are unaffected by them.
-  // Idempotent, so it costs nothing when the caller has already done it.
-  const blocks: Block[] = splitAtHeaders(toLines(mergeChordRows(text))).map(
+  const prepared = prepareImport(text)
+  const blocks: Block[] = splitAtHeaders(toLines(prepared.text)).map(
     ({ header, body }) => routeNativeOnly({ header, ...splitAtKeywords(body) }),
   )
 
@@ -298,22 +426,43 @@ export function parseImportedLyrics(text: string): ParsedImport {
     lines.some((line) => line.trim() !== ''),
   )
 
+  // Before the chords are lifted out, so a repeated section is copied with the
+  // chords still inline on its lines and needs no separate splice.
+  expandRepeatMarkers({ lyrics, native, meaning })
+
   // The chords have ridden through the pipeline inside the base text, which
   // is what kept them aligned to their own lines; this puts them back in the
   // layer they belong to and leaves the base holding the words alone.
   const base = splitInlineChords(anyText ? lyrics.join('\n') : '')
 
-  return {
-    layers: {
+  // The chord layer is cut from the base *after* the headers were put there,
+  // so it alone comes back blank on a header row — the native and meaning
+  // layers picked theirs up as their sections were assembled. Copying them in
+  // is what makes the four panes read alike in the editor: a header row that
+  // is labelled in one column and empty in the next looks like a mistake.
+  // Read views and the printed sheet still show one header, because
+  // `zipLyricLines` drops every layer's entry on a header row.
+  const layers = mirrorSectionHeaders(
+    {
       lyrics: base.lyrics,
       native: used(native),
       meaning: used(meaning),
       chords: base.chords,
     },
-    sections: blocks.filter((block) => block.header !== null).length,
+    'chords',
+  )
+
+  return {
+    layers,
+    // Counted from the finished base: an expanded repeat adds a section that
+    // the source blocks never had.
+    sections: toLines(base.lyrics).filter(
+      (line) => matchLyricSectionHeader(line) !== null,
+    ).length,
     hasNative: native.some((line) => line.trim() !== ''),
     hasMeaning: meaning.some((line) => line.trim() !== ''),
     hasChords: base.chords !== '',
+    metadata: prepared.metadata,
     needsTransliteration: blocks.some(
       (block) => block.native.length > 0 && block.main.length === 0,
     ),

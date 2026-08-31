@@ -364,26 +364,22 @@ export function formatLastScheduled(date: string | null) {
  * new tab — we never pull results into the app. The query is built from data
  * already on the page (title + author); no new data, no scraping, no API.
  *
- * **Chords** searches Worship Together rather than Ultimate Guitar: it is the
- * publisher's own site, so a hit brings the chord chart, the original key and
- * the tempo together, written by the people who wrote the song.
- *
- * Its search lives in the URL *fragment* (a Cludo widget reads
- * `#?cludoquery=…` on load), which is unusual but is exactly what the site's
- * own search box produces. Worth knowing why it isn't a direct song link:
- * Worship Together addresses a song as `/songs/<title>-<artist>/`, which is
- * guessable — `man-of-sorrows-hillsong-worship` resolves — but only when our
- * `author` happens to match the artist they credit. `goodness-of-god-bethel-
- * music` 404s although the song is on the site, and their slugs routinely name
- * several writers. A search always lands somewhere useful and puts the song
- * first; a guessed slug is a 404 in front of someone mid-rehearsal.
+ * **Chords** goes to a plain web search rather than to any one chord site. It
+ * used to search Worship Together, on the reasoning that the publisher's own
+ * page brings the chart, the original key and the tempo together — true when
+ * the song is theirs, and no help at all for a hymn or anything older. Sending
+ * people to a list of chord sites instead was worse again: it put a choice in
+ * front of them before they had seen a single result. A web search covers
+ * every site at once and ranks them, which is the job.
  */
 export function songSearchLinks(title: string, author?: string | null) {
   const base = `${title} ${author ?? ''}`.trim()
   const q = encodeURIComponent(base)
+  const google = (terms: string) =>
+    `https://www.google.com/search?q=${encodeURIComponent(`${base} ${terms}`)}`
   return {
-    lyrics: `https://www.google.com/search?q=${encodeURIComponent(`${base} lyrics`)}`,
-    chords: `https://www.worshiptogether.com/search-results/#?cludoquery=${q}&cludopage=1`,
+    lyrics: google('lyrics'),
+    chords: google('chords'),
     listen: `https://www.youtube.com/results?search_query=${q}`,
   }
 }

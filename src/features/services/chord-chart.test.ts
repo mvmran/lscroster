@@ -83,6 +83,39 @@ describe('splitInlineChords', () => {
     expect(chords).toBe('Am[G]azing\n\nhow [C]sweet')
   })
 
+  it('drops the indent a chart used to place its chords', () => {
+    // The two spaces only existed to push "Bm" over the right syllable in a
+    // monospaced view. Once it is a bracket they are noise in the words.
+    const { lyrics, chords } = splitInlineChords('[Bm]  You call me [A]out')
+    expect(lyrics).toBe('You call me out')
+    expect(chords).toBe('[Bm]You call me [A]out')
+  })
+
+  it('drops the same indent from both layers, chords kept in place', () => {
+    // The chord line stands in for the lyric row when it carries words, so if
+    // the two disagreed the line would shift as chords were switched off.
+    const { lyrics, chords } = splitInlineChords('[G]   I will [D]call upon')
+    expect(lyrics).toBe('I will call upon')
+    expect(chords).toBe('[G]I will [D]call upon')
+    expect(chords.replace(/\[[^\]]*\]/g, '')).toBe(lyrics)
+  })
+
+  it('drops a leading indent that comes before the first chord', () => {
+    const { lyrics, chords } = splitInlineChords('   You call [A]out')
+    expect(lyrics).toBe('You call out')
+    expect(chords).toBe('You call [A]out')
+  })
+
+  it('trims a line that has no chords at all', () => {
+    expect(splitInlineChords('   plain words').lyrics).toBe('plain words')
+  })
+
+  it('keeps the spacing inside a line', () => {
+    // Only the indent goes: "Pra  -  ise" is how the chart spells the melisma.
+    const { lyrics } = splitInlineChords('[F#m]Pra  -  [D]ise the [A]Lord')
+    expect(lyrics).toBe('Pra  -  ise the Lord')
+  })
+
   it('leaves a bracketed note to the band in the lyrics', () => {
     const { lyrics, chords } = splitInlineChords('[Verse 1]\n[x2] sing it')
     expect(lyrics).toBe('[Verse 1]\n[x2] sing it')
@@ -93,6 +126,19 @@ describe('splitInlineChords', () => {
     const { lyrics, chords } = splitInlineChords('[D]  [G]\nAm[C]azing')
     expect(lyrics).toBe('\nAmazing')
     expect(chords).toBe('[D]  [G]\nAm[C]azing')
+  })
+
+  it('reproduces the words of an indented chart exactly, indent aside', () => {
+    const { lyrics } = splitInlineChords('[Bm]  Where feet may [A/C#]fail')
+    expect(lyrics).toBe('Where feet may fail')
+  })
+
+  it('keeps the spacing of a bare chord row, which has no words to indent', () => {
+    // The gaps are what separate one chord from the next here.
+    expect(splitInlineChords('[D]   [G]  [A]').chords).toBe('[D]   [G]  [A]')
+    expect(splitInlineChords('[| Bm / / / | G / / / |]').chords).toBe(
+      '[| Bm / / / | G / / / |]',
+    )
   })
 
   it('reproduces the words exactly, brackets and all removed', () => {

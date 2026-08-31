@@ -27,7 +27,11 @@
  */
 
 import { isChordToken, isLetterChord } from '@/features/services/chord-notation'
-import { splitChordLine, toLines } from '@/features/services/lyric-layers'
+import {
+  splitChordLine,
+  toLines,
+  type ChordSegment,
+} from '@/features/services/lyric-layers'
 import { matchLyricSectionHeader } from '@/features/services/lyric-sections'
 
 /** One chord of a chord row, and the column it was written at. */
@@ -129,6 +133,32 @@ export function mergeChordRows(text: string): string {
 }
 
 /**
+ * Drop the same leading whitespace from a chord line that was dropped from its
+ * words, so the two lines stay the same text apart from the chords.
+ *
+ * A chart indents to put a chord over the right syllable — `[Bm]  You call me`
+ * — and once the chord is a bracket rather than a column, that padding is
+ * meaningless. The words lose it, so the chord line has to lose exactly as
+ * much or the two disagree: read views draw the chord line *in place of* the
+ * lyric when it carries words, and the line would jump left as chords are
+ * switched off. Chords are stepped over rather than counted, which is what
+ * keeps every chord against the syllable it was anchored to.
+ */
+function dropIndent(segments: ChordSegment[], count: number): string {
+  let left = count
+  return segments
+    .map((segment) => {
+      if (segment.chord) return `[${segment.text}]`
+      if (left === 0) return segment.text
+      const spaces = segment.text.length - segment.text.trimStart().length
+      const cut = Math.min(spaces, left)
+      left -= cut
+      return segment.text.slice(cut)
+    })
+    .join('')
+}
+
+/**
  * Lift inline chords out of a text into a line-parallel chord layer.
  *
  * The base keeps the words alone, so plain lyrics — the projection feed, a
@@ -150,19 +180,21 @@ export function splitInlineChords(text: string): { lyrics: string; chords: strin
     const isChord = (segment: (typeof segments)[number]) =>
       segment.chord && isChordToken(segment.text)
     if (!segments.some(isChord)) {
-      lyrics.push(line)
+      lyrics.push(line.trimStart())
       chords.push('')
       continue
     }
     found = true
-    chords.push(line)
-    lyrics.push(
-      segments
-        .filter((segment) => !isChord(segment))
-        .map((segment) => (segment.chord ? `[${segment.text}]` : segment.text))
-        .join('')
-        .trimEnd(),
-    )
+    const words = segments
+      .filter((segment) => !isChord(segment))
+      .map((segment) => (segment.chord ? `[${segment.text}]` : segment.text))
+      .join('')
+    // A bare row of chords has no words to indent, and its spacing is what
+    // separates one chord from the next — dropping it runs them together.
+    const indent =
+      words.trim() === '' ? 0 : words.length - words.trimStart().length
+    chords.push(dropIndent(segments, indent))
+    lyrics.push(words.slice(indent).trimEnd())
   }
 
   return { lyrics: lyrics.join('\n'), chords: found ? chords.join('\n') : '' }

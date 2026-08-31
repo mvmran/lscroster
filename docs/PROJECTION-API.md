@@ -261,6 +261,12 @@ is the native-script text for `lines[2]`:
   are what separates a chord from the syllable beside it. Songs entered before this
   convention may still carry space-aligned chords (`"Am        F"`), which render as
   plain text with no bracket to highlight.
+- A `chords` entry may also be a whole instrumental measure in bar-and-beat
+  notation — `"[| 6m / / / | 4 / / / | 1 / / / | 5 / / / |]"` — where `|` is a bar
+  line and `/` a beat holding the chord before it. It is one bracketed token, and
+  the chords inside it are converted with all the others, so it arrives in the
+  same notation as the rest of the song. Render the bars and slashes as they are.
+  `"[N.C.]"` means *no chord*: a passage sung unaccompanied.
 - **Notation.** Chords are *stored* as numbers of the key (the Nashville system, where a
   chord is named by its degree — `1`, `4`, `6m`), and the API converts them on the way
   out. Which notation you receive is one instance-wide setting, at

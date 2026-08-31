@@ -8,7 +8,12 @@ import {
   withVerseHeadings,
 } from '@/features/services/lyric-import'
 import { mergeChordRows } from '@/features/services/chord-chart'
-import { EMPTY_LAYERS, lineCount, toLines } from '@/features/services/lyric-layers'
+import {
+  EMPTY_LAYERS,
+  lineCount,
+  toLines,
+  zipLyricLines,
+} from '@/features/services/lyric-layers'
 import { matchLyricSectionHeader } from '@/features/services/lyric-sections'
 
 /** The format the team pastes: title, then a header + three texts per section. */
@@ -417,9 +422,11 @@ describe('chord charts', () => {
         'And grace my fears relieved',
       ].join('\n'),
     )
+    // The heading repeats in the chord layer so the two panes read alike;
+    // read views show it once (see "section headers across the layers").
     expect(parsed.layers.chords).toBe(
       [
-        '',
+        'Verse 1',
         "T'was g[D]race that [D7]taught my [G]heart to [D]fear",
         'And [D7]grace my f[Bm]ears re[A]lieved',
       ].join('\n'),
@@ -457,5 +464,256 @@ describe('chord charts', () => {
       'Verse 1',
       'Verse 2',
     ])
+  })
+})
+
+describe('REPEAT CHORUS markers', () => {
+  const SONG = [
+    'Chorus',
+    '[G]I will call upon Your Name',
+    '[G]And keep my eyes above the waves',
+    '',
+    'Verse 2',
+    '[Bm]Your grace abounds',
+    '',
+    'REPEAT CHORUS',
+    '',
+    'Bridge',
+    '[Bm]Spirit lead me',
+  ].join('\n')
+
+  it('writes the named section out again, words and chords', () => {
+    const parsed = parseImportedLyrics(SONG)
+    expect(toLines(parsed.layers.lyrics)).toEqual([
+      'Chorus',
+      'I will call upon Your Name',
+      'And keep my eyes above the waves',
+      '',
+      'Verse 2',
+      'Your grace abounds',
+      '',
+      'Chorus',
+      'I will call upon Your Name',
+      'And keep my eyes above the waves',
+      '',
+      'Bridge',
+      'Spirit lead me',
+    ])
+    // The copy brings its chords with it, on the same rows as its words.
+    expect(toLines(parsed.layers.chords)[8]).toBe('[G]I will call upon Your Name')
+    expect(lineCount(parsed.layers.chords)).toBe(lineCount(parsed.layers.lyrics))
+  })
+
+  it('counts the section it added', () => {
+    // Chorus, Verse 2, the repeated Chorus, Bridge.
+    expect(parseImportedLyrics(SONG).sections).toBe(4)
+  })
+
+  it('honours a designator on the marker', () => {
+    const text = [
+      'Verse 1',
+      'first verse',
+      '',
+      'Verse 2',
+      'second verse',
+      '',
+      'REPEAT VERSE 1',
+    ].join('\n')
+    const lines = toLines(parseImportedLyrics(text).layers.lyrics)
+    expect(lines.slice(-2)).toEqual(['Verse 1', 'first verse'])
+  })
+
+  it('leaves a header behind when there is nothing to copy', () => {
+    // Better an empty section than a line of words nobody meant to sing.
+    const lines = toLines(parseImportedLyrics('REPEAT CHORUS\nsome words').layers.lyrics)
+    expect(lines[0]).toBe('Chorus')
+  })
+
+  it('ignores a repeat count on the marker', () => {
+    const text = ['Chorus', 'sing it', '', 'REPEAT CHORUS X2'].join('\n')
+    const lines = toLines(parseImportedLyrics(text).layers.lyrics)
+    expect(lines.slice(-2)).toEqual(['Chorus', 'sing it'])
+  })
+})
+
+describe('a ChordPro file', () => {
+  const FILE = [
+    '{title:It Is Well With My Soul}',
+    '{key: C}',
+    '{tempo: 82}',
+    '{time: 4/4}',
+    '',
+    '{comment:Intro}',
+    '[C]',
+    '',
+    '{comment: Verse}',
+    'When p[C]eace, like a river,',
+    'a[F]ttendeth my [C]way',
+  ].join('\n')
+
+  it('reads its sections from the comment directives', () => {
+    const parsed = parseImportedLyrics(FILE)
+    // The empty block the directive header left behind is dropped, so the
+    // song opens on its first real section.
+    expect(toLines(parsed.layers.lyrics)).toEqual([
+      'Intro',
+      '',
+      '',
+      'Verse',
+      'When peace, like a river,',
+      'attendeth my way',
+    ])
+    expect(parsed.sections).toBe(2)
+  })
+
+  it('hands the file’s own key, tempo and meter back to the caller', () => {
+    expect(parseImportedLyrics(FILE).metadata).toMatchObject({
+      title: 'It Is Well With My Soul',
+      key: 'C',
+      bpm: 82,
+      meter: '4/4',
+    })
+  })
+
+  it('keeps the chords and drops nothing into the words', () => {
+    const parsed = parseImportedLyrics(FILE)
+    expect(parsed.hasChords).toBe(true)
+    expect(parsed.layers.lyrics).not.toContain('{')
+    expect(toLines(parsed.layers.chords)[4]).toBe('When p[C]eace, like a river,')
+  })
+
+  it('reports no metadata for a paste that carries none', () => {
+    expect(parseImportedLyrics('Verse 1\nAmazing grace').metadata).toEqual({
+      title: null,
+      artist: null,
+      key: null,
+      bpm: null,
+      meter: null,
+    })
+  })
+})
+
+describe('a section named with nothing under it', () => {
+  it('is filled from the section of the same name above it', () => {
+    const text = [
+      'Chorus',
+      'It is [C]well',
+      'with my [G]soul',
+      '',
+      'Verse 2',
+      'Though S[C]atan should buffet',
+      '',
+      'Chorus',
+    ].join('\n')
+    const lines = toLines(parseImportedLyrics(text).layers.lyrics)
+    expect(lines.slice(-3)).toEqual(['Chorus', 'It is well', 'with my soul'])
+  })
+
+  it('keeps its own heading, repeat count and all', () => {
+    // "Chorus x3" is what this pass of the song does; the words come from the
+    // chorus above, but how many times to sing them belongs to this heading.
+    const text = ['Chorus', 'sing it', '', 'Verse 1', 'words', '', 'Chorus x3'].join(
+      '\n',
+    )
+    const lines = toLines(parseImportedLyrics(text).layers.lyrics)
+    // The heading keeps the paste's own wording — the text is the user's, not
+    // ours to rewrite — and reads as "Chorus ×3" wherever a label is shown.
+    expect(lines.slice(-2)).toEqual(['Chorus x3', 'sing it'])
+    expect(matchLyricSectionHeader(lines.at(-2)!)?.label).toBe('Chorus ×3')
+  })
+
+  it('brings the chords with it, so an instrumental repeats too', () => {
+    const text = [
+      'Interlude',
+      '[C] [Dm] [F] [G]',
+      '',
+      'Verse 1',
+      'some [C]words',
+      '',
+      'Interlude',
+    ].join('\n')
+    const parsed = parseImportedLyrics(text)
+    expect(toLines(parsed.layers.chords).at(-1)).toBe('[C] [Dm] [F] [G]')
+  })
+
+  it('leaves a wordless intro alone — chords are content', () => {
+    // An Intro of nothing but chords is a real section, not a repeat: there is
+    // nothing missing from it, so nothing should be copied into it.
+    const text = ['Intro', '[C]', '', 'Verse 1', 'some [C]words'].join('\n')
+    const parsed = parseImportedLyrics(text)
+    expect(toLines(parsed.layers.lyrics)).toEqual([
+      'Intro',
+      '',
+      '',
+      'Verse 1',
+      'some words',
+    ])
+    expect(toLines(parsed.layers.chords)[1]).toBe('[C]')
+  })
+
+  it('leaves an empty section alone when nothing above it matches', () => {
+    const lines = toLines(parseImportedLyrics('Verse 1\nwords\n\nChorus').layers.lyrics)
+    expect(lines.at(-1)).toBe('Chorus')
+  })
+
+  it('does not fill a numbered section from a differently numbered one', () => {
+    const text = ['Verse 1', 'first', '', 'Verse 2'].join('\n')
+    const lines = toLines(parseImportedLyrics(text).layers.lyrics)
+    expect(lines.at(-1)).toBe('Verse 2')
+    expect(lines).not.toContain('first\nfirst')
+  })
+
+  it('does not copy from an empty section into another empty one', () => {
+    const text = ['Chorus', 'the words', '', 'Chorus', '', 'Chorus'].join('\n')
+    const lyrics = toLines(parseImportedLyrics(text).layers.lyrics)
+    expect(lyrics.filter((l) => l === 'the words')).toHaveLength(3)
+  })
+})
+
+describe('section headers across the layers', () => {
+  const SONG = [
+    'Verse 1',
+    'Amazing [G]grace how sweet',
+    '',
+    'Chorus',
+    'How [C]sweet the sound',
+  ].join('\n')
+
+  it('repeats the heading in the chord layer, beside the base', () => {
+    // The chord layer is cut from the base after the headers are placed, so
+    // it used to be the one pane that came back blank on a header row.
+    const parsed = parseImportedLyrics(SONG)
+    expect(toLines(parsed.layers.chords)).toEqual([
+      'Verse 1',
+      'Amazing [G]grace how sweet',
+      '',
+      'Chorus',
+      'How [C]sweet the sound',
+    ])
+  })
+
+  it('still shows one heading, not one per layer', () => {
+    // zipLyricLines drops every layer's entry on a header row, which is what
+    // keeps the repetition free — read views and the PDF both go through it.
+    const rows = zipLyricLines(parseImportedLyrics(SONG).layers)
+    for (const row of rows.filter((r) => r.header)) {
+      expect(row.chords).toBe('')
+      expect(row.native).toBe('')
+      expect(row.meaning).toBe('')
+    }
+    expect(rows.filter((r) => r.header).map((r) => r.text)).toEqual([
+      'Verse 1',
+      'Chorus',
+    ])
+  })
+
+  it('leaves a song with no chords without a chord layer', () => {
+    // Mirroring must not bring a column of headers into being on its own.
+    expect(parseImportedLyrics('Verse 1\nAmazing grace').layers.chords).toBe('')
+  })
+
+  it('keeps the layers the same length', () => {
+    const parsed = parseImportedLyrics(SONG)
+    expect(lineCount(parsed.layers.chords)).toBe(lineCount(parsed.layers.lyrics))
   })
 })

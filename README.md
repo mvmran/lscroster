@@ -45,8 +45,14 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
 - Multi-lingual songs: alongside the singable lyrics, each line can carry the
   original script (Malayalam, Hindi …), an English meaning and chords, edited in
   a side-by-side split and shown or hidden per reader
-- Import a pasted song straight into those layers, and write chords in ChordPro
-  brackets — `[G]Amazing [C]grace` — highlighted on screen and in the PDF
+- Import a pasted song straight into those layers, in whichever form the chord
+  site published it: ChordPro brackets (`[G]Amazing [C]grace`), a ChordPro file
+  with its own `{title}`/`{key}`/`{comment}` header, or chords written in a row
+  above the words — the column each one sits at says which syllable it belongs
+  to, and it is converted on the way in
+- Chords are stored as numbers of the key, so a plan that plays a song in
+  another key transposes the chart with it; read either notation at the flick
+  of a switch, on screen and in the PDF
 
 **Scheduling**
 - Teams, positions, and per-person qualifications with trainee/qualified levels
