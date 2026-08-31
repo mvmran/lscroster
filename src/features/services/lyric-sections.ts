@@ -56,11 +56,35 @@ const KEYWORD_PATTERN = [
   'descant',
 ].join('|')
 
+/**
+ * "REPEAT CHORUS" — a chart telling you to sing a section again rather than
+ * printing it twice.
+ *
+ * A widespread convention, and one nothing else here understands: the line is
+ * not a header, so it lands among the words and is sung. `expandRepeatMarkers`
+ * replaces it with the section it names. An explicit designator is honoured
+ * ("REPEAT VERSE 2"), and a trailing count is tolerated and ignored — how many
+ * times to sing it is the band's business, not the text's.
+ */
+export const REPEAT_MARKER_RE = new RegExp(
+  `^\\s*repeat\\s+(${KEYWORD_PATTERN})(?:\\s+(\\d{1,2}))?(?:\\s*[x×]\\s*\\d{1,2}|\\s*\\d{1,2}\\s*[x×])?\\s*:?\\s*$`,
+  'i',
+)
+
 // A header line is a section keyword alone on its line — optionally wrapped
 // in []/(), optionally numbered ("Verse 1", "Verse1") or lettered ("Verse A",
 // space required so lyric words like "Chorusa" can't match), optional colon.
+// A repeat count after the designator: "Bridge 1 X3", "Chorus x2", "Verse 2x",
+// "(x3)". Charts write how many times a section is sung as part of its heading,
+// and a heading we don't recognise is worse than useless — it lands in the
+// lyrics as a line to sing, and every line under it joins the section above.
+// Either order of the count and its "x" is accepted, and "×" as well as "x".
+const REPEAT_PATTERN =
+  '\\(?\\s*(?:[x×]\\s*(\\d{1,2})|(\\d{1,2})\\s*[x×])\\s*\\)?'
+
 const HEADER_RE = new RegExp(
-  `^\\s*[\\[(]?\\s*(${KEYWORD_PATTERN})(?:\\s*(\\d{1,2})|\\s+([A-Da-d]))?\\s*[\\])]?\\s*:?\\s*$`,
+  `^\\s*[\\[(]?\\s*(${KEYWORD_PATTERN})(?:\\s*(\\d{1,2})|\\s+([A-Da-d]))?` +
+    `(?:\\s*${REPEAT_PATTERN})?\\s*[\\])]?\\s*:?\\s*$`,
   'i',
 )
 
@@ -94,17 +118,27 @@ const KIND_ABBREVIATIONS: Record<string, string> = {
 }
 
 /** Match one line against the header grammar; null when it's lyric content. */
-export function matchLyricSectionHeader(
-  line: string,
-): { label: string; short: string; kind: string } | null {
+export function matchLyricSectionHeader(line: string): {
+  label: string
+  short: string
+  kind: string
+  /** The section's number or letter — "1" of "Verse 1" — or null. */
+  designator: string | null
+  /** How many times it is sung, when the heading says. */
+  repeat: number | null
+} | null {
   const m = HEADER_RE.exec(line)
   if (!m) return null
   let kind = m[1].toLowerCase()
   if (/^pre[\s-]?chorus$/.test(kind)) kind = 'pre-chorus'
-  const designator = m[2] ?? m[3]?.toUpperCase()
-  const label = designator ? `${titleCase(kind)} ${designator}` : titleCase(kind)
+  const designator = m[2] ?? m[3]?.toUpperCase() ?? null
+  const repeat = m[4] ?? m[5]
+  const named = designator ? `${titleCase(kind)} ${designator}` : titleCase(kind)
+  // The repeat rides on the full label but not on the pill: the pill is one to
+  // three characters by design, and "which bridge" is what it is there to say.
+  const label = repeat ? `${named} ×${repeat}` : named
   const short = `${KIND_ABBREVIATIONS[kind] ?? kind.charAt(0).toUpperCase()}${designator ?? ''}`
-  return { label, short, kind }
+  return { label, short, kind, designator, repeat: repeat ? Number(repeat) : null }
 }
 
 /**

@@ -42,8 +42,17 @@ const KEYWORD_PATTERN = [
 // A header line is a section keyword alone on its line — optionally wrapped
 // in []/(), optionally numbered ("Verse 1") or lettered ("Verse A"), optional
 // trailing colon. Identical grammar to the app-side parser.
+// A repeat count after the designator: "Bridge 1 X3", "Chorus x2", "Verse 2x",
+// "(x3)". Charts write how many times a section is sung as part of its heading,
+// and a heading we don't recognise is worse than useless — it lands in the
+// lyrics as a line to sing, and every line under it joins the section above.
+// Either order of the count and its "x" is accepted, and "×" as well as "x".
+const REPEAT_PATTERN =
+  '\\(?\\s*(?:[x×]\\s*(\\d{1,2})|(\\d{1,2})\\s*[x×])\\s*\\)?'
+
 const HEADER_RE = new RegExp(
-  `^\\s*[\\[(]?\\s*(${KEYWORD_PATTERN})(?:\\s*(\\d{1,2})|\\s+([A-Da-d]))?\\s*[\\])]?\\s*:?\\s*$`,
+  `^\\s*[\\[(]?\\s*(${KEYWORD_PATTERN})(?:\\s*(\\d{1,2})|\\s+([A-Da-d]))?` +
+    `(?:\\s*${REPEAT_PATTERN})?\\s*[\\])]?\\s*:?\\s*$`,
   'i',
 )
 
@@ -60,8 +69,9 @@ export function matchHeader(line: string): { label: string; type: string } | nul
   let kind = m[1].toLowerCase()
   if (/^pre[\s-]?chorus$/.test(kind)) kind = 'pre-chorus'
   const designator = m[2] ?? m[3]?.toUpperCase()
-  const label = designator ? `${titleCase(kind)} ${designator}` : titleCase(kind)
-  return { label, type: kind }
+  const repeat = m[4] ?? m[5]
+  const named = designator ? `${titleCase(kind)} ${designator}` : titleCase(kind)
+  return { label: repeat ? `${named} ×${repeat}` : named, type: kind }
 }
 
 

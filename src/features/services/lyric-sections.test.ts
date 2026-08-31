@@ -6,21 +6,21 @@ import {
 
 describe('matchLyricSectionHeader', () => {
   it('matches bracketed, bare, parenthesized and colon styles', () => {
-    expect(matchLyricSectionHeader('[Verse 1]')).toEqual({ label: 'Verse 1', short: 'V1', kind: 'verse' })
-    expect(matchLyricSectionHeader('Chorus:')).toEqual({ label: 'Chorus', short: 'C', kind: 'chorus' })
-    expect(matchLyricSectionHeader('(Bridge)')).toEqual({ label: 'Bridge', short: 'B', kind: 'bridge' })
-    expect(matchLyricSectionHeader('  Intro  ')).toEqual({ label: 'Intro', short: 'I', kind: 'intro' })
+    expect(matchLyricSectionHeader('[Verse 1]')).toEqual({ label: 'Verse 1', short: 'V1', kind: 'verse', designator: '1', repeat: null })
+    expect(matchLyricSectionHeader('Chorus:')).toEqual({ label: 'Chorus', short: 'C', kind: 'chorus', designator: null, repeat: null })
+    expect(matchLyricSectionHeader('(Bridge)')).toEqual({ label: 'Bridge', short: 'B', kind: 'bridge', designator: null, repeat: null })
+    expect(matchLyricSectionHeader('  Intro  ')).toEqual({ label: 'Intro', short: 'I', kind: 'intro', designator: null, repeat: null })
   })
 
   it('is case-insensitive and normalises the label', () => {
-    expect(matchLyricSectionHeader('VERSE 2')).toEqual({ label: 'Verse 2', short: 'V2', kind: 'verse' })
-    expect(matchLyricSectionHeader('pre chorus')).toEqual({ label: 'Pre-Chorus', short: 'PC', kind: 'pre-chorus' })
-    expect(matchLyricSectionHeader('PRE-CHORUS 2:')).toEqual({ label: 'Pre-Chorus 2', short: 'PC2', kind: 'pre-chorus' })
+    expect(matchLyricSectionHeader('VERSE 2')).toEqual({ label: 'Verse 2', short: 'V2', kind: 'verse', designator: '2', repeat: null })
+    expect(matchLyricSectionHeader('pre chorus')).toEqual({ label: 'Pre-Chorus', short: 'PC', kind: 'pre-chorus', designator: null, repeat: null })
+    expect(matchLyricSectionHeader('PRE-CHORUS 2:')).toEqual({ label: 'Pre-Chorus 2', short: 'PC2', kind: 'pre-chorus', designator: '2', repeat: null })
   })
 
   it('supports numeric and lettered designators', () => {
-    expect(matchLyricSectionHeader('Verse1')).toEqual({ label: 'Verse 1', short: 'V1', kind: 'verse' })
-    expect(matchLyricSectionHeader('Verse a')).toEqual({ label: 'Verse A', short: 'VA', kind: 'verse' })
+    expect(matchLyricSectionHeader('Verse1')).toEqual({ label: 'Verse 1', short: 'V1', kind: 'verse', designator: '1', repeat: null })
+    expect(matchLyricSectionHeader('Verse a')).toEqual({ label: 'Verse A', short: 'VA', kind: 'verse', designator: 'A', repeat: null })
   })
 
   it('rejects lyric lines that merely contain a keyword', () => {
@@ -31,7 +31,7 @@ describe('matchLyricSectionHeader', () => {
   })
 
   it('tolerates a trailing carriage return (CRLF text)', () => {
-    expect(matchLyricSectionHeader('[Chorus]\r')).toEqual({ label: 'Chorus', short: 'C', kind: 'chorus' })
+    expect(matchLyricSectionHeader('[Chorus]\r')).toEqual({ label: 'Chorus', short: 'C', kind: 'chorus', designator: null, repeat: null })
   })
 })
 
@@ -89,3 +89,34 @@ describe('parseLyricSections', () => {
   })
 })
 
+describe('repeat counts in a heading', () => {
+  it('reads the count and keeps it in the label, not the pill', () => {
+    const h = matchLyricSectionHeader('Bridge 1 X3')
+    expect(h).toMatchObject({ kind: 'bridge', label: 'Bridge 1 ×3', short: 'B1' })
+    expect(h?.designator).toBe('1')
+    expect(h?.repeat).toBe(3)
+  })
+
+  it('takes the count either way round, and in brackets', () => {
+    expect(matchLyricSectionHeader('Chorus x2')?.label).toBe('Chorus ×2')
+    expect(matchLyricSectionHeader('Chorus 2x')?.label).toBe('Chorus ×2')
+    expect(matchLyricSectionHeader('Chorus (x2)')?.label).toBe('Chorus ×2')
+    expect(matchLyricSectionHeader('Bridge 3 ×2')?.label).toBe('Bridge 3 ×2')
+  })
+
+  it('still reads a plain designator as a designator, not a count', () => {
+    const h = matchLyricSectionHeader('Verse 2')
+    expect(h?.label).toBe('Verse 2')
+    expect(h?.designator).toBe('2')
+    expect(h?.repeat).toBeNull()
+  })
+
+  it('tolerates the trailing whitespace charts leave behind', () => {
+    expect(matchLyricSectionHeader('Bridge 1 X3      ')?.label).toBe('Bridge 1 ×3')
+  })
+
+  it('is still not fooled by a lyric line', () => {
+    expect(matchLyricSectionHeader('Praise the Lord')).toBeNull()
+    expect(matchLyricSectionHeader('REPEAT CHORUS')).toBeNull()
+  })
+})
