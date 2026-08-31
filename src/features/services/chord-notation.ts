@@ -164,6 +164,21 @@ function convertChord(
   convert: (part: string, key: SongKey) => string | null,
   key: SongKey,
 ): string {
+  // A measure carries several chords between bar lines. Each is converted on
+  // its own and the bars, beat slashes and spacing are kept exactly as typed —
+  // the layout *is* the rhythm, so respacing it would lose the timing. A beat
+  // slash converts to itself, so it needs no case of its own.
+  if (token.includes('|')) {
+    return token.replace(/[^|\s]+/g, (piece) => convertOne(piece, convert, key))
+  }
+  return convertOne(token, convert, key)
+}
+
+function convertOne(
+  token: string,
+  convert: (part: string, key: SongKey) => string | null,
+  key: SongKey,
+): string {
   const parts = token.split('/')
   if (parts.length > 2) return token
   const converted: string[] = []
@@ -196,6 +211,41 @@ function convertLayer(
 }
 
 /**
+ * "No chord" — the standard marking for a passage sung unaccompanied.
+ *
+ * It carries no pitch, so nothing converts it, but it belongs with the chords
+ * rather than in the words: printed as a lyric it reads as something to sing.
+ */
+const NO_CHORD = /^n\.?c\.?$/i
+
+/**
+ * Bar-and-beat notation: `| A |`, `| F#m / / / | D / / / |`.
+ *
+ * How an instrumental section is written — the chords of each measure between
+ * bar lines, with `/` for the beats that hold the chord before it. Charts use
+ * it for intros, interludes and outros, where there are no words to hang a
+ * chord on.
+ *
+ * A bar line is what identifies it, which keeps the test conservative: ordinary
+ * bracketed prose has none. Everything between the bars must then be a chord or
+ * a beat slash, and at least one must be a chord, so `[| repeat |]` stays the
+ * note to the band that it is.
+ */
+function isMeasure(token: string): boolean {
+  if (!token.includes('|')) return false
+  const pieces = token.split(/[|\s]+/).filter((piece) => piece !== '')
+  return (
+    pieces.some((piece) => piece !== '/') &&
+    pieces.every(
+      (piece) =>
+        piece === '/' ||
+        isChordIn(piece, CHORD_ROOT) ||
+        isChordIn(piece, NUMBER_ROOT),
+    )
+  )
+}
+
+/**
  * Does this token parse as a chord, ignoring what key it is in?
  *
  * A structural test, not a conversion: it asks whether the text is *shaped*
@@ -218,9 +268,21 @@ export function isLetterChord(token: string): boolean {
   return isChordIn(token, CHORD_ROOT)
 }
 
-/** True for a chord in either notation — what a `[…]` token is tested against. */
+/**
+ * True for anything that belongs in the chord layer rather than the words.
+ *
+ * A chord in either notation, a measure of bar-and-beat notation, or `N.C.`.
+ * Everything else in brackets — `[Verse 1]`, `[x2]`, `[Capo 2]` — is prose and
+ * stays where it was written.
+ */
 export function isChordToken(token: string): boolean {
-  return isChordIn(token, CHORD_ROOT) || isChordIn(token, NUMBER_ROOT)
+  const text = token.trim()
+  return (
+    NO_CHORD.test(text) ||
+    isMeasure(text) ||
+    isChordIn(text, CHORD_ROOT) ||
+    isChordIn(text, NUMBER_ROOT)
+  )
 }
 
 /** A whole chord layer from letters to numbers. Unchanged without a key. */

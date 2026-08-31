@@ -79,3 +79,24 @@ Deno.test('a chord survives letters -> numbers -> letters in every key', () => {
     assertEquals(chordsToLetters(chordsToNumbers(chords, parsed), parsed), chords, key)
   }
 })
+
+Deno.test('chordsToLetters reads a measure back, bars and beats intact', () => {
+  // Instrumental sections are stored as measures. The projection API converts
+  // them like any other chord, so the client and this copy must agree.
+  const A = parseSongKey('A')
+  assertEquals(
+    chordsToLetters('[| 6m / / / | 4 / / / | 1 / / / | 5 / / / |]', A),
+    '[| F#m / / / | D / / / | A / / / | E / / / |]',
+  )
+  assertEquals(chordsToLetters('[| 1  |]', A), '[| A  |]')
+})
+
+Deno.test('a measure survives letters -> numbers -> letters', () => {
+  const A = parseSongKey('A')
+  const outro = '[| F#m / / / | D / / / | A / / / | E / / / |]'
+  assertEquals(chordsToLetters(chordsToNumbers(outro, A), A), outro)
+})
+
+Deno.test('chordsToLetters leaves N.C. alone', () => {
+  assertEquals(chordsToLetters('[N.C.]', parseSongKey('A')), '[N.C.]')
+})

@@ -4,6 +4,7 @@ import {
   chordsToLetters,
   chordsToNumbers,
   hasChordTokens,
+  isChordToken,
   parseSongKey,
 } from '@/features/services/chord-notation'
 
@@ -122,6 +123,46 @@ describe('round trip', () => {
   it.each(keys)('survives letters → numbers → letters in %s', (key) => {
     const parsed = parseSongKey(key)
     expect(chordsToLetters(chordsToNumbers(chords, parsed), parsed)).toBe(chords)
+  })
+})
+
+describe('bar-and-beat measures', () => {
+  const A = parseSongKey('A')
+
+  it('numbers every chord of a measure and keeps the bars and beats', () => {
+    // An outro is written as measures, not against words. The spacing is the
+    // rhythm, so it has to survive the round trip character for character.
+    const outro = '[| F#m / / / | D / / / | A / / / | E / / / |]'
+    const stored = '[| 6m / / / | 4 / / / | 1 / / / | 5 / / / |]'
+    expect(chordsToNumbers(outro, A)).toBe(stored)
+    expect(chordsToLetters(stored, A)).toBe(outro)
+  })
+
+  it('keeps a single-chord measure and its spacing', () => {
+    expect(chordsToNumbers('[| A  |]', A)).toBe('[| 1  |]')
+    expect(chordsToLetters('[| 1  |]', A)).toBe('[| A  |]')
+  })
+
+  it('transposes a measure with the rest of the song', () => {
+    const stored = '[| 6m / / / | 4 / / / |]'
+    expect(chordsToLetters(stored, parseSongKey('G'))).toBe('[| Em / / / | C / / / |]')
+  })
+
+  it('counts a measure as chords, and prose as prose', () => {
+    expect(isChordToken('| F#m / / / | D / / / |')).toBe(true)
+    expect(isChordToken('| A |')).toBe(true)
+    expect(isChordToken('N.C.')).toBe(true)
+    expect(isChordToken('NC')).toBe(true)
+    // A bar line alone is not a chord, and neither is a note to the band.
+    expect(isChordToken('| repeat |')).toBe(false)
+    expect(isChordToken('| / / / |')).toBe(false)
+    expect(isChordToken('Verse 1')).toBe(false)
+    expect(isChordToken('x2')).toBe(false)
+  })
+
+  it('leaves N.C. alone in both directions', () => {
+    expect(chordsToNumbers('[N.C.]', A)).toBe('[N.C.]')
+    expect(chordsToLetters('[N.C.]', A)).toBe('[N.C.]')
   })
 })
 

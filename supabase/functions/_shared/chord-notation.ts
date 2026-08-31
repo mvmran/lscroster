@@ -197,6 +197,21 @@ function convertChord(
   convert: (part: string, key: SongKey) => string | null,
   key: SongKey,
 ): string {
+  // A measure of bar-and-beat notation ("| 6m / / / | 4 / / / |") carries
+  // several chords between bar lines. Each is converted on its own and the
+  // bars, beat slashes and spacing are kept exactly as typed — the layout is
+  // the rhythm. A beat slash converts to itself, so it needs no case here.
+  if (token.includes('|')) {
+    return token.replace(/[^|\s]+/g, (piece) => convertOne(piece, convert, key))
+  }
+  return convertOne(token, convert, key)
+}
+
+function convertOne(
+  token: string,
+  convert: (part: string, key: SongKey) => string | null,
+  key: SongKey,
+): string {
   const parts = token.split('/')
   if (parts.length > 2) return token
   const converted: string[] = []
