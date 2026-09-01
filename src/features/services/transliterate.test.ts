@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   detectIndicScript,
+  detectLyricsLanguage,
   resolveNativeLanguage,
   transliterate,
 } from '@/features/services/transliterate'
@@ -155,5 +156,62 @@ describe('resolveNativeLanguage', () => {
     expect(resolveNativeLanguage(null, '')).toBeNull()
     expect(resolveNativeLanguage(null, 'Amazing grace')).toBeNull()
     expect(resolveNativeLanguage(null, 'Слава Богу')).toBeNull()
+  })
+})
+
+describe('detectLyricsLanguage', () => {
+  it('names the language of a song in its own script', () => {
+    const lyrics = ['Verse 1', 'aa karathaaril', 'ente naadha'].join('\n')
+    const native = ['Verse 1', 'ആ കരതാരിൽ', 'എന്റെ നാഥാ'].join('\n')
+    expect(detectLyricsLanguage(lyrics, native)).toBe('malayalam')
+  })
+
+  it('files an English song under english', () => {
+    expect(detectLyricsLanguage('Verse 1\nAmazing grace how sweet', '')).toBe('english')
+  })
+
+  it('reads a mashup by the song it opens with', () => {
+    // The leader thinks of this as the English song it starts as, even though
+    // the native layer further down is Malayalam.
+    const lyrics = [
+      'Verse 1',
+      'Amazing grace how sweet the sound',
+      '',
+      'Verse 2',
+      'aa karathaaril',
+    ].join('\n')
+    const native = ['Verse 1', '', '', 'Verse 2', 'ആ കരതാരിൽ'].join('\n')
+    expect(detectLyricsLanguage(lyrics, native)).toBe('english')
+  })
+
+  it('reads a mashup that opens the other way round', () => {
+    const lyrics = ['Verse 1', 'aa karathaaril', '', 'Verse 2', 'Amazing grace'].join(
+      '\n',
+    )
+    const native = ['Verse 1', 'ആ കരതാരിൽ', '', 'Verse 2', ''].join('\n')
+    expect(detectLyricsLanguage(lyrics, native)).toBe('malayalam')
+  })
+
+  it('looks past headers and blank lines to the first real words', () => {
+    const lyrics = ['', 'Intro', '', 'Chorus', 'yesuve nee'].join('\n')
+    const native = ['', 'Intro', '', 'Chorus', 'യേശുവേ നീ'].join('\n')
+    expect(detectLyricsLanguage(lyrics, native)).toBe('malayalam')
+  })
+
+  it('reads a native layer that has no transliteration yet', () => {
+    // Straight after an import the base can still be empty.
+    expect(detectLyricsLanguage('', 'ആ കരതാരിൽ')).toBe('malayalam')
+  })
+
+  it('falls back to english rather than returning nothing', () => {
+    expect(detectLyricsLanguage('', '')).toBe('english')
+    // A script we do not romanise names no tag of its own.
+    expect(detectLyricsLanguage('Slava Bogu', 'Слава Богу')).toBe('english')
+  })
+
+  it('tags each Indic script with the name a leader would search for', () => {
+    expect(detectLyricsLanguage('', 'யேசு')).toBe('tamil')
+    expect(detectLyricsLanguage('', 'यीशु मसीह')).toBe('hindi')
+    expect(detectLyricsLanguage('', 'ਯਿਸੂ')).toBe('punjabi')
   })
 })

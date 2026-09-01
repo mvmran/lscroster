@@ -16,12 +16,20 @@
  * empty, and the team types the transliteration themselves.
  */
 
+import { matchLyricSectionHeader } from '@/features/services/lyric-sections'
+
 /** A script we can romanise: how to detect it, and what to call it. */
 export interface IndicScript {
   /** Sanscript's Brahmic scheme name. */
   scheme: string
   /** ISO 639-1 code for `song_arrangement_lyrics.native_language`. */
   language: string
+  /**
+   * What a worship leader calls the language, lower-case, for the library tag
+   * (`detectLyricsLanguage`). The stored code is for machines — nobody searches
+   * a song list for "ml".
+   */
+  name: string
   /** Unicode script property that identifies the text. */
   test: RegExp
   /**
@@ -39,28 +47,79 @@ export interface IndicScript {
 // as if it were Sanskrit and renders ப்ப as "bhbh" and ச as "jh". The extended
 // one gives the correct "pp" and "c".
 const SCRIPTS: IndicScript[] = [
-  { scheme: 'malayalam', language: 'ml', test: /\p{Script=Malayalam}/u, dravidian: true },
+  {
+    scheme: 'malayalam',
+    language: 'ml',
+    name: 'malayalam',
+    test: /\p{Script=Malayalam}/u,
+    dravidian: true,
+  },
   {
     scheme: 'tamil_extended',
     language: 'ta',
+    name: 'tamil',
     test: /\p{Script=Tamil}/u,
     dravidian: true,
   },
-  { scheme: 'telugu', language: 'te', test: /\p{Script=Telugu}/u, dravidian: true },
-  { scheme: 'kannada', language: 'kn', test: /\p{Script=Kannada}/u, dravidian: true },
+  {
+    scheme: 'telugu',
+    language: 'te',
+    name: 'telugu',
+    test: /\p{Script=Telugu}/u,
+    dravidian: true,
+  },
+  {
+    scheme: 'kannada',
+    language: 'kn',
+    name: 'kannada',
+    test: /\p{Script=Kannada}/u,
+    dravidian: true,
+  },
   // Devanagari carries Hindi, Marathi, Nepali and Sanskrit alike; 'hi' is the
   // likeliest for a church song library and the field is only a display hint.
+  // The tag inherits that guess, and is editable like any other tag.
   {
     scheme: 'devanagari',
     language: 'hi',
+    name: 'hindi',
     test: /\p{Script=Devanagari}/u,
     dravidian: false,
   },
-  { scheme: 'bengali', language: 'bn', test: /\p{Script=Bengali}/u, dravidian: false },
-  { scheme: 'gujarati', language: 'gu', test: /\p{Script=Gujarati}/u, dravidian: false },
-  { scheme: 'gurmukhi', language: 'pa', test: /\p{Script=Gurmukhi}/u, dravidian: false },
-  { scheme: 'oriya', language: 'or', test: /\p{Script=Oriya}/u, dravidian: false },
-  { scheme: 'sinhala', language: 'si', test: /\p{Script=Sinhala}/u, dravidian: false },
+  {
+    scheme: 'bengali',
+    language: 'bn',
+    name: 'bengali',
+    test: /\p{Script=Bengali}/u,
+    dravidian: false,
+  },
+  {
+    scheme: 'gujarati',
+    language: 'gu',
+    name: 'gujarati',
+    test: /\p{Script=Gujarati}/u,
+    dravidian: false,
+  },
+  {
+    scheme: 'gurmukhi',
+    language: 'pa',
+    name: 'punjabi',
+    test: /\p{Script=Gurmukhi}/u,
+    dravidian: false,
+  },
+  {
+    scheme: 'oriya',
+    language: 'or',
+    name: 'odia',
+    test: /\p{Script=Oriya}/u,
+    dravidian: false,
+  },
+  {
+    scheme: 'sinhala',
+    language: 'si',
+    name: 'sinhala',
+    test: /\p{Script=Sinhala}/u,
+    dravidian: false,
+  },
 ]
 
 /** The script a native block is written in, or null if we can't romanise it. */
@@ -82,6 +141,42 @@ export function resolveNativeLanguage(
   native: string,
 ): string | null {
   return existing ?? detectIndicScript(native)?.language ?? null
+}
+
+/** What a song with no native script of its own is filed under. */
+const DEFAULT_LANGUAGE = 'english'
+
+/**
+ * The language to file a song under, as a library tag.
+ *
+ * A different question from `resolveNativeLanguage`, which answers "what script
+ * is in this text" for the romaniser and the model prompts. This one answers
+ * "where does a worship leader look for this song", and the two disagree on a
+ * mashup: a song that opens in English and turns to Malayalam has Malayalam in
+ * its native layer, but a leader hunting for it thinks of it as the English
+ * song it starts as. So this reads the *first* section that has words and stops
+ * there, rather than asking what appears anywhere.
+ *
+ * Detection is by Unicode script, which is exact for a song carrying its own
+ * native text and blind without one: a song typed as romanised Malayalam and
+ * nothing else reads as English here. The tag is a suggestion in an editable
+ * field, so a leader fixes that case the same way they fix any other tag.
+ */
+export function detectLyricsLanguage(lyrics: string, native: string): string {
+  const words = lyrics.split('\n')
+  const script = native.split('\n')
+  // The layers are line-parallel, but only after a save has padded them —
+  // a draft can have one shorter than the other, so walk the longer.
+  for (let i = 0; i < Math.max(words.length, script.length); i += 1) {
+    const line = words[i] ?? ''
+    const original = script[i] ?? ''
+    if (line.trim() === '' && original.trim() === '') continue
+    // A header is mirrored into both layers and names no language of its own.
+    if (matchLyricSectionHeader(line) !== null) continue
+    if (line.trim() === '' && matchLyricSectionHeader(original) !== null) continue
+    return detectIndicScript(original)?.name ?? DEFAULT_LANGUAGE
+  }
+  return DEFAULT_LANGUAGE
 }
 
 /**
