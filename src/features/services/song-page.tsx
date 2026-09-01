@@ -133,6 +133,7 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
   const [ccli, setCcli] = useState(song.ccli_number ?? '')
   const [copyright, setCopyright] = useState(song.copyright ?? '')
   const [tags, setTags] = useState(song.tags.join(', '))
+  const [notes, setNotes] = useState(song.notes ?? '')
   const { data: songs } = useSongs()
   const { data: assistAvailable } = useLyricsAssistAvailable(canManage)
   const suggestTags = useSuggestTags()
@@ -142,7 +143,8 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
     author !== (song.author ?? '') ||
     ccli !== (song.ccli_number ?? '') ||
     copyright !== (song.copyright ?? '') ||
-    tags !== song.tags.join(', ')
+    tags !== song.tags.join(', ') ||
+    notes !== (song.notes ?? '')
 
   /**
    * Read the song's lyrics and offer tags for them.
@@ -207,6 +209,7 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
           ccli_number: ccli.trim() || null,
           copyright: copyright.trim() || null,
           tags: parseTagsInput(tags),
+          notes: notes.trim() || null,
         },
       })
       toast.success('Song saved')
@@ -231,6 +234,12 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
               <dt className="text-muted-foreground">Tags</dt>
               <dd className="font-medium">{song.tags.join(', ') || '—'}</dd>
             </div>
+            {song.notes && (
+              <div className="col-span-2 sm:col-span-3">
+                <dt className="text-muted-foreground">Notes</dt>
+                <dd className="font-medium whitespace-pre-line">{song.notes}</dd>
+              </div>
+            )}
             {song.copyright && (
               <div className="col-span-2 sm:col-span-3">
                 <dt className="text-muted-foreground">Copyright</dt>
@@ -303,6 +312,22 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
               </Button>
             )}
           </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="sd-notes">Notes</Label>
+          {/* Roomier than Copyright: this is the box that fills up. Sunday
+              morning wants it readable at a glance, not scrolled. */}
+          <Textarea
+            id="sd-notes"
+            rows={4}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder={'e.g. Male key G, female key Bb\nUsually 72 BPM, drop the last chorus'}
+          />
+          <p className="text-muted-foreground text-xs">
+            For the team — suggested keys, tempo, anything worth remembering. Never
+            projected.
+          </p>
         </div>
         {dirty && (
           <div className="flex justify-end">
