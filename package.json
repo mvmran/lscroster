@@ -13,7 +13,7 @@
     "check:functions": "node scripts/check-edge-functions.mjs",
     "test:functions": "deno test --allow-read supabase/functions",
     "ci": "npm run lint && npm run typecheck && npm test && npm run check:functions && npm run test:functions && npm run build",
-    "db:types": "supabase gen types typescript --linked > src/types/database.ts",
+    "db:types": "SUPABASE_TELEMETRY_DISABLED=1 supabase gen types typescript --linked > src/types/database.ts",
     "db:demo": "docker exec -i supabase_db_lscroster psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/seeds/demo-data.sql",
     "db:demo:wipe": "docker exec -i supabase_db_lscroster psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/seeds/demo-wipe.sql"
   },
