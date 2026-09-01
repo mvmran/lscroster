@@ -185,6 +185,41 @@ function numberToLetter(token: string, key: SongKey): string | null {
   return `${LETTERS[letter]}${accidentalText(offset)}${rest}`
 }
 
+/** Does this token parse as a chord with the given root? The app's helper. */
+function isChordIn(token: string, root: RegExp): boolean {
+  const parts = token.split('/')
+  if (parts.length > 2) return false
+  return parts.every((part) => {
+    const text = part.trim()
+    const match = root.exec(text)
+    return match !== null && SUFFIX.test(text.slice(match[0].length))
+  })
+}
+
+/**
+ * Several chords in one token: `6m 1 5 4maj7`, `| 6m / / / | 4 / / / |`.
+ *
+ * An instrumental section is written as a run — the chords with no words to
+ * hang them on, sometimes with bar lines around each measure and `/` for the
+ * beats that hold the chord before it. The app stores it exactly as it was
+ * imported, so this file has to read it back.
+ *
+ * Every piece having to be a chord or a beat slash is what keeps the test
+ * conservative, so `[Verse 1]` and `[| repeat |]` stay prose.
+ */
+function isChordRun(token: string): boolean {
+  const pieces = token.split(/[|\s]+/).filter((piece) => piece !== '')
+  return (
+    pieces.some((piece) => piece !== '/') &&
+    pieces.every(
+      (piece) =>
+        piece === '/' ||
+        isChordIn(piece, CHORD_ROOT) ||
+        isChordIn(piece, NUMBER_ROOT),
+    )
+  )
+}
+
 /**
  * Convert one bracketed chord, slash bass and all.
  *
@@ -197,11 +232,12 @@ function convertChord(
   convert: (part: string, key: SongKey) => string | null,
   key: SongKey,
 ): string {
-  // A measure of bar-and-beat notation ("| 6m / / / | 4 / / / |") carries
-  // several chords between bar lines. Each is converted on its own and the
-  // bars, beat slashes and spacing are kept exactly as typed — the layout is
-  // the rhythm. A beat slash converts to itself, so it needs no case here.
-  if (token.includes('|')) {
+  // A run carries several chords in one token. Each is converted on its own
+  // and the bars, beat slashes and spacing are kept exactly as typed — the
+  // layout is the rhythm. A beat slash converts to itself, so it needs no case
+  // here. Prose is left to `convertOne`, which fails it whole: converting it
+  // piece by piece would turn the `1` of `[Verse 1]` into a chord letter.
+  if (isChordRun(token)) {
     return token.replace(/[^|\s]+/g, (piece) => convertOne(piece, convert, key))
   }
   return convertOne(token, convert, key)

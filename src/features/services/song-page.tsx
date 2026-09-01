@@ -972,7 +972,7 @@ function ArrangementLyricsBlock({
               size="sm"
               disabled={lyricsPending}
               onClick={() => setImportOpen(true)}
-              title="Paste a song in the Transliteration / Meaning format and add it to the end of these lyrics"
+              title="Paste a song — chords, native script, transliteration and meaning — and add it to the end of these lyrics"
             >
               <ClipboardPaste className="size-4" />
               Import

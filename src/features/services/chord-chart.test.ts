@@ -128,6 +128,16 @@ describe('splitInlineChords', () => {
     expect(chords).toBe('[D]  [G]\nAm[C]azing')
   })
 
+  it('lifts a whole run bracketed as one token', () => {
+    // A site publishing ChordPro brackets an intro's chords together rather
+    // than one at a time. Left in the base it reads as a line to sing.
+    const { lyrics, chords } = splitInlineChords(
+      'Intro\n[C#m E B Amaj7]\n\nVerse 1\nI have this [C#m]hope',
+    )
+    expect(lyrics).toBe('Intro\n\n\nVerse 1\nI have this hope')
+    expect(chords).toBe('\n[C#m E B Amaj7]\n\n\nI have this [C#m]hope')
+  })
+
   it('reproduces the words of an indented chart exactly, indent aside', () => {
     const { lyrics } = splitInlineChords('[Bm]  Where feet may [A/C#]fail')
     expect(lyrics).toBe('Where feet may fail')

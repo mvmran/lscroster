@@ -97,6 +97,22 @@ Deno.test('a measure survives letters -> numbers -> letters', () => {
   assertEquals(chordsToLetters(chordsToNumbers(outro, A), A), outro)
 })
 
+Deno.test('chordsToLetters reads a bar-less run back, spacing intact', () => {
+  // An intro imported from a ChordPro site is stored as one bracketed run.
+  // Left unconverted the projection would show the band raw numbers.
+  const E = parseSongKey('E')
+  assertEquals(chordsToLetters('[6m 1 5 4maj7]', E), '[C#m E B Amaj7]')
+  assertEquals(chordsToLetters('[6m  1]', E), '[C#m  E]')
+})
+
+Deno.test('chordsToLetters leaves a note to the band whole', () => {
+  // Converted piece by piece the `1` would come back as a chord letter.
+  const E = parseSongKey('E')
+  assertEquals(chordsToLetters('[Verse 1]', E), '[Verse 1]')
+  assertEquals(chordsToLetters('[Capo 2]', E), '[Capo 2]')
+  assertEquals(chordsToLetters('[| repeat |]', E), '[| repeat |]')
+})
+
 Deno.test('chordsToLetters leaves N.C. alone', () => {
   assertEquals(chordsToLetters('[N.C.]', parseSongKey('A')), '[N.C.]')
 })
