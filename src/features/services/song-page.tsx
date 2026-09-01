@@ -77,6 +77,7 @@ import { ChordNotationToggle } from '@/features/services/chord-notation-toggle'
 import { useChordNotation } from '@/features/services/use-chord-notation'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
 import { appendImportedLyrics } from '@/features/services/lyric-import'
+import { detectLyricsLanguage } from '@/features/services/transliterate'
 import {
   findNonLatinLyrics,
   insertSectionHeaders,
@@ -132,6 +133,7 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
   const [ccli, setCcli] = useState(song.ccli_number ?? '')
   const [copyright, setCopyright] = useState(song.copyright ?? '')
   const [tags, setTags] = useState(song.tags.join(', '))
+  const [notes, setNotes] = useState(song.notes ?? '')
   const { data: songs } = useSongs()
   const { data: assistAvailable } = useLyricsAssistAvailable(canManage)
   const suggestTags = useSuggestTags()
@@ -141,7 +143,8 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
     author !== (song.author ?? '') ||
     ccli !== (song.ccli_number ?? '') ||
     copyright !== (song.copyright ?? '') ||
-    tags !== song.tags.join(', ')
+    tags !== song.tags.join(', ') ||
+    notes !== (song.notes ?? '')
 
   /**
    * Read the song's lyrics and offer tags for them.
@@ -150,6 +153,11 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
    * so a tag someone typed can't be replaced by a machine's idea of a better
    * one. The library's existing vocabulary goes with the request, which is what
    * stops every song inventing its own near-synonym.
+   *
+   * The language is read from the script rather than asked for — the model is
+   * told not to tag it (see `tagsPrompt`), because a leader searching for the
+   * Malayalam songs needs every one of them spelled the same way, and only a
+   * detector guarantees that.
    */
   async function suggest() {
     try {
@@ -168,11 +176,22 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
         known: [...new Set((songs ?? []).flatMap((s) => s.tags))],
         existing,
       })
-      if (suggested.length === 0) {
+      // Language first: it is the one tag that is true of the whole song. The
+      // model is given `existing` and leaves those out, but it can still coin
+      // a tag someone has typed in a different case since — so both sources
+      // are filtered against the field, and against each other.
+      const taken = new Set(existing.map((tag) => tag.toLowerCase()))
+      const additions: string[] = []
+      for (const tag of [detectLyricsLanguage(lyrics, native), ...suggested]) {
+        if (taken.has(tag.toLowerCase())) continue
+        taken.add(tag.toLowerCase())
+        additions.push(tag)
+      }
+      if (additions.length === 0) {
         toast.info('Nothing new to suggest — the tags it thought of are already here.')
         return
       }
-      setTags([...existing, ...suggested].join(', '))
+      setTags([...existing, ...additions].join(', '))
       toast.success('Tags suggested — edit them, then press Save changes')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not suggest tags')
@@ -190,6 +209,7 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
           ccli_number: ccli.trim() || null,
           copyright: copyright.trim() || null,
           tags: parseTagsInput(tags),
+          notes: notes.trim() || null,
         },
       })
       toast.success('Song saved')
@@ -214,6 +234,12 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
               <dt className="text-muted-foreground">Tags</dt>
               <dd className="font-medium">{song.tags.join(', ') || '—'}</dd>
             </div>
+            {song.notes && (
+              <div className="col-span-2 sm:col-span-3">
+                <dt className="text-muted-foreground">Notes</dt>
+                <dd className="font-medium whitespace-pre-line">{song.notes}</dd>
+              </div>
+            )}
             {song.copyright && (
               <div className="col-span-2 sm:col-span-3">
                 <dt className="text-muted-foreground">Copyright</dt>
@@ -275,7 +301,7 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
                 className="shrink-0"
                 disabled={suggestTags.isPending}
                 onClick={suggest}
-                title="Read the lyrics and suggest tags — they are added to the ones already here"
+                title="Read the lyrics and suggest tags, the song's language included — they are added to the ones already here"
               >
                 {suggestTags.isPending ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -286,6 +312,22 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
               </Button>
             )}
           </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="sd-notes">Notes</Label>
+          {/* Roomier than Copyright: this is the box that fills up. Sunday
+              morning wants it readable at a glance, not scrolled. */}
+          <Textarea
+            id="sd-notes"
+            rows={4}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder={'e.g. Male key G, female key Bb\nUsually 72 BPM, drop the last chorus'}
+          />
+          <p className="text-muted-foreground text-xs">
+            For the team — suggested keys, tempo, anything worth remembering. Never
+            projected.
+          </p>
         </div>
         {dirty && (
           <div className="flex justify-end">
@@ -972,7 +1014,7 @@ function ArrangementLyricsBlock({
               size="sm"
               disabled={lyricsPending}
               onClick={() => setImportOpen(true)}
-              title="Paste a song in the Transliteration / Meaning format and add it to the end of these lyrics"
+              title="Paste a song — chords, native script, transliteration and meaning — and add it to the end of these lyrics"
             >
               <ClipboardPaste className="size-4" />
               Import

@@ -593,6 +593,36 @@ describe('a ChordPro file', () => {
   })
 })
 
+describe('an intro bracketed as one run of chords', () => {
+  const SONG = [
+    'Intro',
+    '[C#m E B Amaj7]',
+    '',
+    'Verse 1',
+    'I have this [C#m]hope ',
+    'As an anchor for [E]my soul',
+  ].join('\n')
+
+  it('puts the run in the chord layer, not in the words', () => {
+    const parsed = parseImportedLyrics(SONG)
+    expect(toLines(parsed.layers.lyrics)).toEqual([
+      'Intro',
+      '',
+      '',
+      'Verse 1',
+      'I have this hope',
+      'As an anchor for my soul',
+    ])
+    expect(toLines(parsed.layers.chords)[1]).toBe('[C#m E B Amaj7]')
+    expect(parsed.hasChords).toBe(true)
+  })
+
+  it('keeps the two layers line-parallel', () => {
+    const parsed = parseImportedLyrics(SONG)
+    expect(lineCount(parsed.layers.chords)).toBe(lineCount(parsed.layers.lyrics))
+  })
+})
+
 describe('a section named with nothing under it', () => {
   it('is filled from the section of the same name above it', () => {
     const text = [

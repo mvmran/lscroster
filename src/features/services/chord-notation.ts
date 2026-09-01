@@ -164,11 +164,13 @@ function convertChord(
   convert: (part: string, key: SongKey) => string | null,
   key: SongKey,
 ): string {
-  // A measure carries several chords between bar lines. Each is converted on
-  // its own and the bars, beat slashes and spacing are kept exactly as typed —
-  // the layout *is* the rhythm, so respacing it would lose the timing. A beat
-  // slash converts to itself, so it needs no case of its own.
-  if (token.includes('|')) {
+  // A run carries several chords in one token. Each is converted on its own
+  // and the bars, beat slashes and spacing are kept exactly as typed — the
+  // layout *is* the rhythm, so respacing it would lose the timing. A beat
+  // slash converts to itself, so it needs no case of its own. Prose is left to
+  // `convertOne`, which fails it whole: converting it piece by piece would
+  // renumber the `1` of `[Verse 1]`.
+  if (isChordRun(token)) {
     return token.replace(/[^|\s]+/g, (piece) => convertOne(piece, convert, key))
   }
   return convertOne(token, convert, key)
@@ -219,20 +221,21 @@ function convertLayer(
 const NO_CHORD = /^n\.?c\.?$/i
 
 /**
- * Bar-and-beat notation: `| A |`, `| F#m / / / | D / / / |`.
+ * Several chords in one token: `C#m E B Amaj7`, `| F#m / / / | D / / / |`.
  *
- * How an instrumental section is written — the chords of each measure between
- * bar lines, with `/` for the beats that hold the chord before it. Charts use
- * it for intros, interludes and outros, where there are no words to hang a
- * chord on.
+ * How an instrumental section is written — the chords of a run, sometimes with
+ * bar lines around each measure and `/` for the beats that hold the chord
+ * before it. Charts use it for intros, interludes and outros, where there are
+ * no words to hang a chord on, and a site that publishes in ChordPro brackets
+ * the whole run at once rather than one chord at a time.
  *
- * A bar line is what identifies it, which keeps the test conservative: ordinary
- * bracketed prose has none. Everything between the bars must then be a chord or
- * a beat slash, and at least one must be a chord, so `[| repeat |]` stays the
- * note to the band that it is.
+ * Every piece having to be a chord or a beat slash is what keeps the test
+ * conservative — the suffix whitelist fails ordinary words on their second
+ * letter, so `[Verse 1]`, `[Capo 2]` and `[| repeat |]` all stay the notes to
+ * the band that they are. At least one piece must be a chord, so a row of bare
+ * beat slashes doesn't qualify on its own.
  */
-function isMeasure(token: string): boolean {
-  if (!token.includes('|')) return false
+function isChordRun(token: string): boolean {
   const pieces = token.split(/[|\s]+/).filter((piece) => piece !== '')
   return (
     pieces.some((piece) => piece !== '/') &&
@@ -271,15 +274,15 @@ export function isLetterChord(token: string): boolean {
 /**
  * True for anything that belongs in the chord layer rather than the words.
  *
- * A chord in either notation, a measure of bar-and-beat notation, or `N.C.`.
- * Everything else in brackets — `[Verse 1]`, `[x2]`, `[Capo 2]` — is prose and
- * stays where it was written.
+ * A chord in either notation, a run of them with or without bar lines, or
+ * `N.C.`. Everything else in brackets — `[Verse 1]`, `[x2]`, `[Capo 2]` — is
+ * prose and stays where it was written.
  */
 export function isChordToken(token: string): boolean {
   const text = token.trim()
   return (
     NO_CHORD.test(text) ||
-    isMeasure(text) ||
+    isChordRun(text) ||
     isChordIn(text, CHORD_ROOT) ||
     isChordIn(text, NUMBER_ROOT)
   )

@@ -1707,6 +1707,7 @@ export type Database = {
           copyright: string | null
           created_at: string
           id: string
+          notes: string | null
           status: Database["public"]["Enums"]["song_status"]
           tags: string[]
           title: string
@@ -1718,6 +1719,7 @@ export type Database = {
           copyright?: string | null
           created_at?: string
           id?: string
+          notes?: string | null
           status?: Database["public"]["Enums"]["song_status"]
           tags?: string[]
           title: string
@@ -1729,6 +1731,7 @@ export type Database = {
           copyright?: string | null
           created_at?: string
           id?: string
+          notes?: string | null
           status?: Database["public"]["Enums"]["song_status"]
           tags?: string[]
           title?: string

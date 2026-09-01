@@ -166,6 +166,39 @@ describe('bar-and-beat measures', () => {
   })
 })
 
+describe('a run of chords in one bracket', () => {
+  const E = parseSongKey('E')
+
+  it('counts a bar-less run as chords', () => {
+    // How a site publishing ChordPro writes an intro: the whole run in one
+    // bracket, no bar lines, because there are no words to hang it on.
+    expect(isChordToken('C#m E B Amaj7')).toBe(true)
+    expect(isChordToken('G  C')).toBe(true)
+    expect(isChordToken('D / / /')).toBe(true)
+  })
+
+  it('still reads a note to the band as prose', () => {
+    // Every piece has to be a chord, and the suffix whitelist fails an
+    // ordinary word on its second letter — which is what keeps these out.
+    expect(isChordToken('Capo 2')).toBe(false)
+    expect(isChordToken('Verse 1')).toBe(false)
+    expect(isChordToken('play twice')).toBe(false)
+    expect(isChordToken('/ /')).toBe(false)
+  })
+
+  it('numbers every chord of a run and keeps the spacing', () => {
+    expect(chordsToNumbers('[C#m E B Amaj7]', E)).toBe('[6m 1 5 4maj7]')
+    expect(chordsToLetters('[6m 1 5 4maj7]', E)).toBe('[C#m E B Amaj7]')
+    expect(chordsToNumbers('[C#m  E]', E)).toBe('[6m  1]')
+  })
+
+  it('leaves prose whole rather than renumbering part of it', () => {
+    // Converted piece by piece the `1` would come back as a chord letter.
+    expect(chordsToLetters('[Verse 1]', E)).toBe('[Verse 1]')
+    expect(chordsToNumbers('[Capo 2]', E)).toBe('[Capo 2]')
+  })
+})
+
 describe('chordsIn', () => {
   it('returns the stored numbers untouched, or letters in the key', () => {
     expect(chordsIn('[1] [4]', 'numbers', G)).toBe('[1] [4]')
