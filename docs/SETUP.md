@@ -320,13 +320,26 @@ anyone.
 4. Add a DMARC record — a TXT record at `_dmarc.yourchurch.org` with the value
    `v=DMARC1; p=none;` — which meaningfully improves delivery to Gmail and
    Outlook.
-5. Point the app at the new sender:
+5. Point the app at the new sender. Verification covers the whole domain, so
+   any mailbox at it works and none of them has to exist as a real inbox.
+   Choose a name that will still read correctly in a year — `roster@`,
+   `office@`, `noreply@` — rather than one tied to a moment, like
+   `onboarding@` or `launch@`: every email the app ever sends comes from this
+   address, not just the first one.
+
+   Emails carry no Reply-To header. Recipients see your church's name as the
+   sender and anything they reply goes to this address, so use `noreply@`
+   unless somebody actually reads that mailbox. Nothing is lost by it —
+   scheduling requests are answered by the buttons in the email, never by
+   replying to it.
 
 ```bash
 npx supabase secrets set EMAIL_FROM=roster@yourchurch.org APP_URL=https://roster.yourchurch.org
 ```
 
-Secrets take effect on the next function call; no redeploy needed.
+Secrets take effect on the next function call; no redeploy needed. Changing
+the sender later is this same command on its own — existing emails already
+delivered are unaffected, and nothing in the database records the address.
 
 Send yourself a test: invite a second person (use another address you own) from
 **People → Add person → Invite**, and check **Settings → Email delivery**, which
