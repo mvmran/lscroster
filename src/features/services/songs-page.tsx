@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { ChartColumn, Loader2, Music, Plus, Search, TriangleAlert, X } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -44,7 +44,12 @@ import {
   MAX_SIMILAR_SHOWN,
   findSimilarSongs,
 } from '@/features/services/song-duplicates'
-import { useCreateSong, useSongs, useSongUsage } from '@/features/services/use-songs'
+import {
+  useCreateSong,
+  useSongs,
+  useSongUsage,
+  type SongUsage,
+} from '@/features/services/use-songs'
 
 function NewSongDialog({
   open,
@@ -172,6 +177,14 @@ function NewSongDialog({
   )
 }
 
+/**
+ * How long to wait after the last keystroke before filtering the list.
+ *
+ * Long enough that a word typed at speed filters once rather than once per
+ * letter, short enough that a pause still feels like an answer.
+ */
+const SEARCH_DEBOUNCE_MS = 500
+
 /** The status choices, and the guard against a hand-edited `?status=`. */
 const STATUS_FILTERS = ['active', 'archived', 'all']
 
@@ -180,6 +193,120 @@ function matchesSearch(song: Song, term: string) {
     .toLowerCase()
     .includes(term)
 }
+
+/**
+ * The rendered library.
+ *
+ * Split out and memoised because typing in the search box re-renders this
+ * page on every keystroke, and with a real library that is a hundred-odd
+ * rows of reconciliation for a change that cannot affect any of them — the
+ * filtered list only moves when the debounce fires. Given the same list it
+ * now re-renders nothing.
+ */
+const SongList = memo(function SongList({
+  filtered,
+  usage,
+  songSearch,
+  onOpen,
+}: {
+  filtered: Song[]
+  usage: Record<string, SongUsage> | undefined
+  songSearch: string
+  onOpen: (to: string) => void
+}) {
+  return (
+    <>
+        {/* Mobile cards */}
+        <div className="flex flex-col gap-2 md:hidden">
+          {filtered.map((song) => {
+            const lastUsed = usage?.[song.id]?.last_used ?? null
+            return (
+              <Link key={song.id} to={`/songs/${song.id}${songSearch}`}>
+                <Card className="py-3 transition-colors active:bg-accent">
+                  <CardContent className="flex items-center gap-3 px-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-medium">{song.title}</span>
+                        {song.status === 'archived' && (
+                          <Badge variant="outline">Archived</Badge>
+                        )}
+                      </div>
+                      <p className="text-muted-foreground truncate text-sm">
+                        {[song.author, lastUsed ? `last: ${formatPlanDateShort(lastUsed)}` : null]
+                          .filter(Boolean)
+                          .join(' · ') || '—'}
+                      </p>
+                    </div>
+                    {song.default_key && (
+                      <Badge variant="secondary">{song.default_key}</Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Desktop table */}
+        <Card className="hidden py-0 md:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Author</TableHead>
+                <TableHead>Key</TableHead>
+                <TableHead>Tags</TableHead>
+                <TableHead>Last scheduled</TableHead>
+                <TableHead className="text-right">Uses</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((song) => {
+                const stats = usage?.[song.id]
+                return (
+                  <TableRow
+                    key={song.id}
+                    className="cursor-pointer"
+                    onClick={() => onOpen(`/songs/${song.id}${songSearch}`)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{song.title}</span>
+                        {song.status === 'archived' && (
+                          <Badge variant="outline">Archived</Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {song.author ?? '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {song.default_key ?? '—'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {song.tags.map((tag) => (
+                          <Badge key={tag} variant="secondary">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {stats?.last_used ? formatPlanDateShort(stats.last_used) : '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-right">
+                      {stats?.use_count ?? 0}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+    </>
+  )
+})
 
 export function SongsPage() {
   const { data: songs, isPending, isError, error } = useSongs()
@@ -203,11 +330,49 @@ export function SongsPage() {
     tagParam && (songs?.some((s) => s.tags.includes(tagParam)) ?? true) ? tagParam : 'all'
   const statusParam = searchParams.get('status') ?? 'active'
   const statusFilter = STATUS_FILTERS.includes(statusParam) ? statusParam : 'active'
+
+  // What is in the box, which is deliberately not what the list is filtered
+  // by. Nothing about the search touches the server — the library is fetched
+  // once and filtered here — so the cost of a keystroke is re-rendering every
+  // row of a large library, and routing it through the URL adds a navigation
+  // on top. Typing now re-renders only the input; the list, and the `?q=`
+  // behind it, catch up when typing stops.
+  const [draft, setDraft] = useState(search)
+  const committedSearch = useRef(search)
+
+  // A search that changed anywhere else — Back, forward, the clear button —
+  // is adopted into the box. Guarded on what we last wrote so it can never
+  // clobber half-typed text with the value this page itself just committed.
+  useEffect(() => {
+    if (search === committedSearch.current) return
+    committedSearch.current = search
+    setDraft(search)
+  }, [search])
+
+  // Commit once typing pauses. The functional form reads the params as they
+  // are at that moment, so a tag or status chosen mid-word is never undone.
+  useEffect(() => {
+    if (draft === committedSearch.current) return
+    const timer = setTimeout(() => {
+      committedSearch.current = draft
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev)
+          if (draft === '') params.delete('q')
+          else params.set('q', draft)
+          return params
+        },
+        { replace: true },
+      )
+    }, SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [draft, setSearchParams])
   // Only non-default values are written, so an untouched list stays at a bare
   // `/songs`. replace: the filters are a view of this page, not places to go
   // Back through one keystroke at a time.
   const setFilters = (next: { q?: string; tag?: string; status?: string }) => {
-    const merged = { q: search, tag: tagFilter, status: statusFilter, ...next }
+    const merged = { q: draft, tag: tagFilter, status: statusFilter, ...next }
+    committedSearch.current = merged.q
     const params: Record<string, string> = {}
     if (merged.q !== '') params.q = merged.q
     if (merged.tag !== 'all') params.tag = merged.tag
@@ -267,16 +432,21 @@ export function SongsPage() {
         <div className="relative flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
-            value={search}
-            onChange={(e) => setFilters({ q: e.target.value })}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
             placeholder="Search by title, author or CCLI…"
             className="pl-9 pr-9"
             aria-label="Search songs"
           />
-          {search !== '' && (
+          {draft !== '' && (
             <button
               type="button"
-              onClick={() => setFilters({ q: '' })}
+              // Clearing is not typing: it takes effect at once rather than
+              // leaving the emptied box showing a stale list for half a second.
+              onClick={() => {
+                setDraft('')
+                setFilters({ q: '' })
+              }}
               // Full-height hit area: on a phone the glyph alone is a smaller
               // target than a thumb, and this sits beside the text you are
               // trying to tap into.
@@ -333,96 +503,12 @@ export function SongsPage() {
           }
         />
       ) : (
-        <>
-          {/* Mobile cards */}
-          <div className="flex flex-col gap-2 md:hidden">
-            {filtered.map((song) => {
-              const lastUsed = usage?.[song.id]?.last_used ?? null
-              return (
-                <Link key={song.id} to={`/songs/${song.id}${songSearch}`}>
-                  <Card className="py-3 transition-colors active:bg-accent">
-                    <CardContent className="flex items-center gap-3 px-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate font-medium">{song.title}</span>
-                          {song.status === 'archived' && (
-                            <Badge variant="outline">Archived</Badge>
-                          )}
-                        </div>
-                        <p className="text-muted-foreground truncate text-sm">
-                          {[song.author, lastUsed ? `last: ${formatPlanDateShort(lastUsed)}` : null]
-                            .filter(Boolean)
-                            .join(' · ') || '—'}
-                        </p>
-                      </div>
-                      {song.default_key && (
-                        <Badge variant="secondary">{song.default_key}</Badge>
-                      )}
-                    </CardContent>
-                  </Card>
-                </Link>
-              )
-            })}
-          </div>
-
-          {/* Desktop table */}
-          <Card className="hidden py-0 md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Author</TableHead>
-                  <TableHead>Key</TableHead>
-                  <TableHead>Tags</TableHead>
-                  <TableHead>Last scheduled</TableHead>
-                  <TableHead className="text-right">Uses</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((song) => {
-                  const stats = usage?.[song.id]
-                  return (
-                    <TableRow
-                      key={song.id}
-                      className="cursor-pointer"
-                      onClick={() => navigate(`/songs/${song.id}${songSearch}`)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{song.title}</span>
-                          {song.status === 'archived' && (
-                            <Badge variant="outline">Archived</Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {song.author ?? '—'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {song.default_key ?? '—'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {song.tags.map((tag) => (
-                            <Badge key={tag} variant="secondary">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {stats?.last_used ? formatPlanDateShort(stats.last_used) : '—'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-right">
-                        {stats?.use_count ?? 0}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </Card>
-        </>
+        <SongList
+          filtered={filtered}
+          usage={usage}
+          songSearch={songSearch}
+          onOpen={navigate}
+        />
       )}
 
       <NewSongDialog open={newSongOpen} onOpenChange={setNewSongOpen} songs={songs ?? []} />
