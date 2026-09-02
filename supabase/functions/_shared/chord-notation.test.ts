@@ -105,6 +105,15 @@ Deno.test('chordsToLetters reads a bar-less run back, spacing intact', () => {
   assertEquals(chordsToLetters('[6m  1]', E), '[C#m  E]')
 })
 
+Deno.test('a measure written with grouped beats survives the round trip', () => {
+  // Charts group the beats of a measure as often as they space them out, so
+  // "| C2 /// |" has to reach the band as chords, not as raw numbers.
+  const C = parseSongKey('C')
+  const intro = '[| C2 /// | F2 /// | Am7 /// | F2 /// |]'
+  assertEquals(chordsToNumbers(intro, C), '[| 12 /// | 42 /// | 6m7 /// | 42 /// |]')
+  assertEquals(chordsToLetters(chordsToNumbers(intro, C), C), intro)
+})
+
 Deno.test('chordsToLetters leaves a note to the band whole', () => {
   // Converted piece by piece the `1` would come back as a chord letter.
   const E = parseSongKey('E')

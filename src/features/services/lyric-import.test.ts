@@ -623,6 +623,56 @@ describe('an intro bracketed as one run of chords', () => {
   })
 })
 
+describe('an intro written as measures of chords and beats', () => {
+  // The shape "Set A Fire" (CCLI 5911299) is published in: the intro is one
+  // bracket holding whole measures — a chord and the beats it is held for —
+  // and the chorus hangs its chords on the words, one of them mid-word and
+  // one after the last word of the line. The words below are stand-ins; what
+  // is being tested is where the chords land.
+  const SONG = [
+    'Intro',
+    '[| C2 /// | F2 /// | Am7 /// | F2 /// |]',
+    '',
+    'Chorus 1',
+    '[C2]Set the kindling down below',
+    "[F2]What I cannot hold, and what I cannot kn[Am7]ow",
+    'I want more of this [C/E]song [F2]',
+    'I want more of this song',
+  ].join('\n')
+
+  it('puts the measures in the chord layer, bars and beats intact', () => {
+    const parsed = parseImportedLyrics(SONG)
+    expect(toLines(parsed.layers.chords)[1]).toBe('[| C2 /// | F2 /// | Am7 /// | F2 /// |]')
+    expect(parsed.hasChords).toBe(true)
+  })
+
+  it('leaves the intro out of the words', () => {
+    const parsed = parseImportedLyrics(SONG)
+    expect(toLines(parsed.layers.lyrics)).toEqual([
+      'Intro',
+      '',
+      '',
+      'Chorus 1',
+      'Set the kindling down below',
+      'What I cannot hold, and what I cannot know',
+      'I want more of this song',
+      'I want more of this song',
+    ])
+  })
+
+  it('keeps a slash chord and a chord after the last word', () => {
+    const parsed = parseImportedLyrics(SONG)
+    const chords = toLines(parsed.layers.chords)[6]
+    expect(chords).toContain('[C/E]')
+    expect(chords).toContain('[F2]')
+  })
+
+  it('keeps the two layers line-parallel', () => {
+    const parsed = parseImportedLyrics(SONG)
+    expect(lineCount(parsed.layers.chords)).toBe(lineCount(parsed.layers.lyrics))
+  })
+})
+
 describe('a section named with nothing under it', () => {
   it('is filled from the section of the same name above it', () => {
     const text = [

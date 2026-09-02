@@ -197,6 +197,15 @@ function isChordIn(token: string, root: RegExp): boolean {
 }
 
 /**
+ * The beats a chord holds for, written as slashes.
+ *
+ * Charts group them per measure as often as they space them out, so a bar is
+ * published as `| C2 /// |` as readily as `| C2 / / / |`. Both are beats, not
+ * notes: they carry no pitch and convert to themselves.
+ */
+const BEATS = /^\/+$/
+
+/**
  * Several chords in one token: `6m 1 5 4maj7`, `| 6m / / / | 4 / / / |`.
  *
  * An instrumental section is written as a run — the chords with no words to
@@ -210,10 +219,10 @@ function isChordIn(token: string, root: RegExp): boolean {
 function isChordRun(token: string): boolean {
   const pieces = token.split(/[|\s]+/).filter((piece) => piece !== '')
   return (
-    pieces.some((piece) => piece !== '/') &&
+    pieces.some((piece) => !BEATS.test(piece)) &&
     pieces.every(
       (piece) =>
-        piece === '/' ||
+        BEATS.test(piece) ||
         isChordIn(piece, CHORD_ROOT) ||
         isChordIn(piece, NUMBER_ROOT),
     )

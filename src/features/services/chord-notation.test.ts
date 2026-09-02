@@ -177,6 +177,14 @@ describe('a run of chords in one bracket', () => {
     expect(isChordToken('D / / /')).toBe(true)
   })
 
+  it('reads a group of beat slashes as beats, not as a word', () => {
+    // How Set A Fire's intro is published: each measure is its chord and the
+    // beats holding it, written as one group rather than separated slashes.
+    expect(isChordToken('| C2 /// | F2 /// | Am7 /// | F2 /// |')).toBe(true)
+    expect(isChordToken('| G //// | D //// |')).toBe(true)
+    expect(isChordToken('C2 /// F2')).toBe(true)
+  })
+
   it('still reads a note to the band as prose', () => {
     // Every piece has to be a chord, and the suffix whitelist fails an
     // ordinary word on its second letter — which is what keeps these out.
@@ -184,12 +192,24 @@ describe('a run of chords in one bracket', () => {
     expect(isChordToken('Verse 1')).toBe(false)
     expect(isChordToken('play twice')).toBe(false)
     expect(isChordToken('/ /')).toBe(false)
+    expect(isChordToken('/// ///')).toBe(false)
+    expect(isChordToken('| /// | /// |')).toBe(false)
   })
 
   it('numbers every chord of a run and keeps the spacing', () => {
     expect(chordsToNumbers('[C#m E B Amaj7]', E)).toBe('[6m 1 5 4maj7]')
     expect(chordsToLetters('[6m 1 5 4maj7]', E)).toBe('[C#m E B Amaj7]')
     expect(chordsToNumbers('[C#m  E]', E)).toBe('[6m  1]')
+  })
+
+  it('numbers a run of measures, keeping the bars and beat groups', () => {
+    const C = parseSongKey('C')
+    expect(chordsToNumbers('[| C2 /// | F2 /// | Am7 /// | F2 /// |]', C)).toBe(
+      '[| 12 /// | 42 /// | 6m7 /// | 42 /// |]',
+    )
+    expect(chordsToLetters('[| 12 /// | 42 /// | 6m7 /// | 42 /// |]', C)).toBe(
+      '[| C2 /// | F2 /// | Am7 /// | F2 /// |]',
+    )
   })
 
   it('leaves prose whole rather than renumbering part of it', () => {

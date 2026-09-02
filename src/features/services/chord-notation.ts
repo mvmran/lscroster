@@ -221,6 +221,15 @@ function convertLayer(
 const NO_CHORD = /^n\.?c\.?$/i
 
 /**
+ * The beats a chord holds for, written as slashes.
+ *
+ * Charts group them per measure as often as they space them out, so a bar is
+ * published as `| C2 /// |` as readily as `| C2 / / / |`. Both are beats, not
+ * notes: they carry no pitch and convert to themselves.
+ */
+const BEATS = /^\/+$/
+
+/**
  * Several chords in one token: `C#m E B Amaj7`, `| F#m / / / | D / / / |`.
  *
  * How an instrumental section is written — the chords of a run, sometimes with
@@ -238,10 +247,10 @@ const NO_CHORD = /^n\.?c\.?$/i
 function isChordRun(token: string): boolean {
   const pieces = token.split(/[|\s]+/).filter((piece) => piece !== '')
   return (
-    pieces.some((piece) => piece !== '/') &&
+    pieces.some((piece) => !BEATS.test(piece)) &&
     pieces.every(
       (piece) =>
-        piece === '/' ||
+        BEATS.test(piece) ||
         isChordIn(piece, CHORD_ROOT) ||
         isChordIn(piece, NUMBER_ROOT),
     )
