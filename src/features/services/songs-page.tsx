@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChartColumn, Loader2, Music, Plus, Search, X } from 'lucide-react'
+import { ChartColumn, Loader2, Music, Plus, Search, TriangleAlert, X } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { EmptyState } from '@/components/empty-state'
@@ -40,20 +40,30 @@ import {
   songSearchLinks,
   type Song,
 } from '@/features/services/service-utils'
+import {
+  MAX_SIMILAR_SHOWN,
+  findSimilarSongs,
+} from '@/features/services/song-duplicates'
 import { useCreateSong, useSongs, useSongUsage } from '@/features/services/use-songs'
 
 function NewSongDialog({
   open,
   onOpenChange,
+  songs,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  songs: Song[]
 }) {
   const createSong = useCreateSong()
   const navigate = useNavigate()
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
   const [ccli, setCcli] = useState('')
+
+  // Warn, never block: the library is already loaded for the list behind this
+  // dialog, so the check costs nothing and can run on every keystroke.
+  const similar = useMemo(() => findSimilarSongs(title, songs), [title, songs])
 
   async function create() {
     const trimmed = title.trim()
@@ -90,6 +100,38 @@ function NewSongDialog({
               autoFocus
             />
           </div>
+          {similar.length > 0 && (
+            <div className="rounded-lg border border-amber-300 bg-amber-100 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+              <p className="flex items-center gap-2 font-medium">
+                <TriangleAlert className="size-4 shrink-0" />
+                {similar.length === 1
+                  ? 'This song may already be in the library'
+                  : 'These songs may be the one you are adding'}
+              </p>
+              <ul className="mt-2 flex list-disc flex-col gap-1 pl-5">
+                {similar.slice(0, MAX_SIMILAR_SHOWN).map(({ song }) => (
+                  <li key={song.id}>
+                    <Link
+                      to={`/songs/${song.id}`}
+                      className="font-medium underline underline-offset-2"
+                      onClick={() => onOpenChange(false)}
+                    >
+                      {song.title}
+                    </Link>
+                    {song.author ? ` — ${song.author}` : ''}
+                    {song.status === 'archived' ? ' (archived)' : ''}
+                  </li>
+                ))}
+              </ul>
+              {similar.length > MAX_SIMILAR_SHOWN && (
+                <p className="mt-1">and {similar.length - MAX_SIMILAR_SHOWN} more</p>
+              )}
+              <p className="mt-2">
+                Titles that read the same in the original script can be spelled several ways
+                here. Open one to check — or carry on if this really is a different song.
+              </p>
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="ns-author">Author / artist</Label>
             <Input id="ns-author" value={author} onChange={(e) => setAuthor(e.target.value)} />
@@ -122,7 +164,7 @@ function NewSongDialog({
           </Button>
           <Button onClick={create} disabled={createSong.isPending || !title.trim()}>
             {createSong.isPending && <Loader2 className="size-4 animate-spin" />}
-            Create song
+            {similar.length > 0 ? 'Create anyway' : 'Create song'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -383,7 +425,7 @@ export function SongsPage() {
         </>
       )}
 
-      <NewSongDialog open={newSongOpen} onOpenChange={setNewSongOpen} />
+      <NewSongDialog open={newSongOpen} onOpenChange={setNewSongOpen} songs={songs ?? []} />
     </div>
   )
 }

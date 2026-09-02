@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeft, Link2, Loader2, Music, Plus, Search } from 'lucide-react'
+import { ArrowLeft, Link2, Loader2, Music, Plus, Search, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,10 @@ import {
   type Song,
   type SongArrangement,
 } from '@/features/services/service-utils'
+import {
+  MAX_SIMILAR_SHOWN,
+  findSimilarSongs,
+} from '@/features/services/song-duplicates'
 import { useCreatePlanItem } from '@/features/services/use-plan-items'
 import {
   fetchDefaultArrangement,
@@ -65,6 +69,19 @@ export function SongPickerDialog({
           `${s.title} ${s.author ?? ''} ${s.ccli_number ?? ''}`.toLowerCase().includes(term),
       )
   }, [songs, search])
+
+  // The search above matches on the literal characters, which is exactly what
+  // fails a second romanisation: type "Ezhu Vlakkin" and the song already in
+  // the library doesn't come back, so the obvious next move is to create it
+  // again. Only the near misses the search itself didn't turn up are worth
+  // showing — anything already in the list below speaks for itself.
+  const missedBySearch = useMemo(
+    () =>
+      findSimilarSongs(search, songs).filter(
+        (match) => !filtered.some((song) => song.id === match.song.id),
+      ),
+    [search, songs, filtered],
+  )
 
   const pending = createItem.isPending || createSong.isPending
 
@@ -255,14 +272,42 @@ export function SongPickerDialog({
             </div>
 
             {search.trim() && (
-              <Button variant="outline" onClick={createAndAdd} disabled={pending}>
-                {pending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Plus className="size-4" />
+              <>
+                {missedBySearch.length > 0 && (
+                  <div className="rounded-lg border border-amber-300 bg-amber-100 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                    <p className="flex items-center gap-2 font-medium">
+                      <TriangleAlert className="size-4 shrink-0" />
+                      {missedBySearch.length === 1
+                        ? 'Did you mean this one?'
+                        : 'Did you mean one of these?'}
+                    </p>
+                    <ul className="mt-2 flex flex-col gap-1">
+                      {missedBySearch.slice(0, MAX_SIMILAR_SHOWN).map(({ song }) => (
+                        <li key={song.id}>
+                          <button
+                            type="button"
+                            onClick={() => pickSong(song)}
+                            disabled={pending}
+                            className="text-left font-medium underline underline-offset-2 disabled:opacity-50"
+                          >
+                            {song.title}
+                          </button>
+                          {song.author ? ` — ${song.author}` : ''}
+                          {song.status === 'archived' ? ' (archived)' : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
-                Create “{search.trim()}” and add it
-              </Button>
+                <Button variant="outline" onClick={createAndAdd} disabled={pending}>
+                  {pending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Plus className="size-4" />
+                  )}
+                  Create “{search.trim()}” and add it
+                </Button>
+              </>
             )}
           </>
         )}
