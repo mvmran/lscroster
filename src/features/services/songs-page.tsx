@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { ChartColumn, Loader2, Music, Plus, Search } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { ChartColumn, Loader2, Music, Plus, Search, X } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { EmptyState } from '@/components/empty-state'
 import { FullPageError } from '@/components/full-page-error'
@@ -130,6 +130,9 @@ function NewSongDialog({
   )
 }
 
+/** The status choices, and the guard against a hand-edited `?status=`. */
+const STATUS_FILTERS = ['active', 'archived', 'all']
+
 function matchesSearch(song: Song, term: string) {
   return `${song.title} ${song.author ?? ''} ${song.ccli_number ?? ''} ${song.tags.join(' ')}`
     .toLowerCase()
@@ -142,9 +145,33 @@ export function SongsPage() {
   const { data: me } = useCurrentPerson()
   const navigate = useNavigate()
 
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('active')
-  const [tagFilter, setTagFilter] = useState('all')
+  // The three filters live in the URL (`?q=`, `?tag=`, `?status=`), not in
+  // component state: opening a song and coming back — with the Back arrow or
+  // the browser's — then returns to the list you were actually looking at,
+  // the same way the services list keeps its `?type=`. Every song link below
+  // carries them forward so the song screen knows where you came from.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const search = searchParams.get('q') ?? ''
+  // A tag that has since been renamed away (or a hand-edited URL) falls back
+  // to showing everything rather than an empty list under a blank filter.
+  // While the songs are still loading, trust the URL so the list doesn't
+  // flicker through "no matches" on the way in.
+  const tagParam = searchParams.get('tag')
+  const tagFilter =
+    tagParam && (songs?.some((s) => s.tags.includes(tagParam)) ?? true) ? tagParam : 'all'
+  const statusParam = searchParams.get('status') ?? 'active'
+  const statusFilter = STATUS_FILTERS.includes(statusParam) ? statusParam : 'active'
+  // Only non-default values are written, so an untouched list stays at a bare
+  // `/songs`. replace: the filters are a view of this page, not places to go
+  // Back through one keystroke at a time.
+  const setFilters = (next: { q?: string; tag?: string; status?: string }) => {
+    const merged = { q: search, tag: tagFilter, status: statusFilter, ...next }
+    const params: Record<string, string> = {}
+    if (merged.q !== '') params.q = merged.q
+    if (merged.tag !== 'all') params.tag = merged.tag
+    if (merged.status !== 'active') params.status = merged.status
+    setSearchParams(params, { replace: true })
+  }
   const [newSongOpen, setNewSongOpen] = useState(false)
 
   const canManage = me?.role === 'admin' || me?.role === 'leader'
@@ -165,6 +192,11 @@ export function SongsPage() {
   }, [songs, search, statusFilter, tagFilter])
 
   if (isError) return <FullPageError message={error.message} />
+
+  // Passed to every song link so the song screen's Back arrow comes back to
+  // this filtered list, not to a reset one (nothing to pass when nothing is
+  // filtered). The browser's own Back needs no help — it returns to this URL.
+  const songSearch = searchParams.toString() === '' ? '' : `?${searchParams}`
 
   return (
     <div className="flex flex-col gap-4">
@@ -194,15 +226,29 @@ export function SongsPage() {
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => setFilters({ q: e.target.value })}
             placeholder="Search by title, author or CCLI…"
-            className="pl-9"
+            className="pl-9 pr-9"
             aria-label="Search songs"
           />
+          {search !== '' && (
+            <button
+              type="button"
+              onClick={() => setFilters({ q: '' })}
+              // Full-height hit area: on a phone the glyph alone is a smaller
+              // target than a thumb, and this sits beside the text you are
+              // trying to tap into.
+              className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-9 items-center justify-center"
+              aria-label="Clear search"
+              title="Clear search"
+            >
+              <X className="size-4" />
+            </button>
+          )}
         </div>
         <div className="flex gap-2">
           {allTags.length > 0 && (
-            <Select value={tagFilter} onValueChange={setTagFilter}>
+            <Select value={tagFilter} onValueChange={(tag) => setFilters({ tag })}>
               <SelectTrigger className="flex-1 sm:w-36" aria-label="Filter by tag">
                 <SelectValue />
               </SelectTrigger>
@@ -216,7 +262,7 @@ export function SongsPage() {
               </SelectContent>
             </Select>
           )}
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={(status) => setFilters({ status })}>
             <SelectTrigger className="flex-1 sm:w-32" aria-label="Filter by status">
               <SelectValue />
             </SelectTrigger>
@@ -251,7 +297,7 @@ export function SongsPage() {
             {filtered.map((song) => {
               const lastUsed = usage?.[song.id]?.last_used ?? null
               return (
-                <Link key={song.id} to={`/songs/${song.id}`}>
+                <Link key={song.id} to={`/songs/${song.id}${songSearch}`}>
                   <Card className="py-3 transition-colors active:bg-accent">
                     <CardContent className="flex items-center gap-3 px-4">
                       <div className="min-w-0 flex-1">
@@ -297,7 +343,7 @@ export function SongsPage() {
                     <TableRow
                       key={song.id}
                       className="cursor-pointer"
-                      onClick={() => navigate(`/songs/${song.id}`)}
+                      onClick={() => navigate(`/songs/${song.id}${songSearch}`)}
                     >
                       <TableCell>
                         <div className="flex items-center gap-2">

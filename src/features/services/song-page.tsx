@@ -19,7 +19,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FullPageError } from '@/components/full-page-error'
 import {
@@ -1504,6 +1504,11 @@ function UsageCard({ songId }: { songId: string }) {
 export function SongPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  // The songs list hands its filters over in the query string, so going back
+  // returns to the list as it was rather than to a reset one. Empty when the
+  // song was opened from somewhere else (a plan, a bookmark) — then Back just
+  // means the whole library.
+  const backToSongs = { pathname: '/songs', search: useLocation().search }
   const { data: me } = useCurrentPerson()
   const { data: song, isPending, isError, error } = useSong(id)
   const updateSong = useUpdateSong()
@@ -1527,7 +1532,7 @@ export function SongPage() {
         <Music className="size-8" />
         <p>This song doesn’t exist.</p>
         <Button variant="outline" asChild>
-          <Link to="/songs" title="Back to the song list">
+          <Link to={backToSongs} title="Back to the song list">
             Back to songs
           </Link>
         </Button>
@@ -1551,7 +1556,7 @@ export function SongPage() {
     try {
       await deleteSong.mutateAsync(song!.id)
       toast.success('Song deleted')
-      navigate('/songs')
+      navigate(backToSongs)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not delete song')
     }
@@ -1561,7 +1566,7 @@ export function SongPage() {
     <div className="flex flex-col gap-4">
       <div>
         <Button variant="ghost" size="sm" className="-ml-2 mb-1" asChild>
-          <Link to="/songs" title="Back to the song list">
+          <Link to={backToSongs} title="Back to the song list">
             <ArrowLeft className="size-4" />
             Songs
           </Link>
