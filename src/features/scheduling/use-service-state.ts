@@ -150,6 +150,8 @@ export interface PersonContextMaps {
   history: Map<string, { date: string; serviceTypeId: string }[]>
   /** Rule trigger attribute (issue #113); missing = unrecorded. */
   sex: Map<string, 'male' | 'female' | null>
+  /** `people.status === 'inactive'` — archived, so not schedulable. */
+  archived: Map<string, boolean>
 }
 
 export function buildPersonContextMaps(
@@ -158,11 +160,13 @@ export function buildPersonContextMaps(
 ): PersonContextMaps {
   const eligibility = new Map<string, Record<string, ValidationProficiency>>()
   const sex = new Map<string, 'male' | 'female' | null>()
+  const archived = new Map<string, boolean>()
   for (const m of data.members ?? []) {
     const rec = eligibility.get(m.person_id) ?? {}
     for (const tp of m.team_member_positions) rec[tp.position_id] = tp.proficiency
     eligibility.set(m.person_id, rec)
     sex.set(m.person_id, m.people.sex)
+    archived.set(m.person_id, m.people.status === 'inactive')
   }
 
   const prefs = new Map((data.prefs ?? []).map((p) => [p.person_id, p]))
@@ -196,7 +200,7 @@ export function buildPersonContextMaps(
     history.set(row.person_id, arr)
   }
 
-  return { eligibility, prefs, blockouts, recurring, history, sex }
+  return { eligibility, prefs, blockouts, recurring, history, sex, archived }
 }
 
 /** Assemble one person's full rule context from the maps. */
@@ -211,6 +215,7 @@ export function makeValidationPerson(
     name,
     sex: maps.sex.get(id) ?? null,
     status: prefs?.status ?? 'active',
+    archived: maps.archived.get(id) ?? false,
     minGapDays: prefs?.min_gap_days ?? 0,
     maxPerMonth: prefs?.max_per_month ?? null,
     targetPerMonth: prefs?.target_per_month ?? null,
@@ -278,10 +283,13 @@ export function buildServiceState(
   for (const m of data.members ?? []) {
     if (!nameById.has(m.person_id)) nameById.set(m.person_id, fullName(m.people))
   }
-  // An assignee may not (any longer) be a team member — their sex still comes
-  // along on the assignment's people embed.
+  // An assignee may not (any longer) be a team member — their sex and archive
+  // state still come along on the assignment's people embed.
   for (const a of planAssignments) {
     if (!maps.sex.has(a.person_id)) maps.sex.set(a.person_id, a.people.sex)
+    if (!maps.archived.has(a.person_id)) {
+      maps.archived.set(a.person_id, a.people.status === 'inactive')
+    }
   }
 
   const { rules, mutedRuleIds } = planRuleContext(plan.id, data)

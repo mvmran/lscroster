@@ -64,6 +64,9 @@ function buildEngineState(
   // rule may need the sex of whoever already occupies a trigger position.
   for (const a of planAssignments) {
     if (!maps.sex.has(a.person_id)) maps.sex.set(a.person_id, a.people.sex)
+    if (!maps.archived.has(a.person_id)) {
+      maps.archived.set(a.person_id, a.people.status === 'inactive')
+    }
     if (!nameById.has(a.person_id)) nameById.set(a.person_id, fullName(a.people))
   }
   const candidateIds = [

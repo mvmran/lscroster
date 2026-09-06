@@ -31,6 +31,7 @@ function person(overrides: Partial<ValidationPerson> & { id: string }): Validati
   return {
     name: overrides.id,
     status: 'active',
+    archived: false,
     minGapDays: 0,
     maxPerMonth: null,
     targetPerMonth: null,
@@ -154,6 +155,16 @@ describe('checkInactive', () => {
     const results = checkInactive(s)
     expect(results).toHaveLength(1)
     expect(results[0].code).toBe('INACTIVE_SCHEDULED')
+  })
+
+  it('flags an archived person whose scheduling status is still active', () => {
+    const s = state({
+      assignments: [assign('a', 'pos-1')],
+      people: [person({ id: 'a', name: 'Ann', archived: true })],
+    })
+    const results = checkInactive(s)
+    expect(results).toHaveLength(1)
+    expect(results[0].message).toContain('archived')
   })
 })
 
