@@ -195,16 +195,20 @@ export function useTeamMembers(teamId: string | undefined) {
     queryKey: teamKeys.members(teamId ?? ''),
     enabled: !!teamId,
     queryFn: async () => {
+      // Same "not archived" join as useAllTeamMembers: an archived person drops
+      // off the team roster and its positions for everyone, admins included. The
+      // membership row itself survives, so un-archiving restores them with their
+      // positions and proficiencies intact.
       const { data, error } = await supabase
         .from('team_members')
         .select(
-          `*, people(${PERSON_SAFE_COLUMNS}), team_member_positions(position_id, proficiency, positions(*))`,
+          `*, people!inner(${PERSON_SAFE_COLUMNS}), team_member_positions(position_id, proficiency, positions(*))`,
         )
         .eq('team_id', teamId!)
+        .neq('people.status', 'inactive')
       if (error) throw new Error(error.message)
-      // Skip members whose person row the viewer can't read (archived people are
-      // hidden from non-admins) — see useAllTeamMembers; sorting by their name
-      // would otherwise dereference a null `people`.
+      // Belt and braces: a non-admin still gets a null embed for anyone they
+      // can't read, and sorting would dereference it.
       return (data as (TeamMemberWithPositions & {
         people: TeamMemberWithPositions['people'] | null
       })[])
