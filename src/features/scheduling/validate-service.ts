@@ -94,6 +94,13 @@ export interface ValidationPerson {
   sex?: 'male' | 'female' | null
   /** From `person_scheduling_prefs.status`; absent prefs → 'active'. */
   status: PersonStatus
+  /**
+   * From `people.status` — an archived person is not schedulable at all. Kept
+   * separate from `status` above: that one is the person's *scheduling* status
+   * (on a break / pending), which archiving does not touch, so honouring only
+   * it left archived people being suggested and offered as replacements.
+   */
+  archived: boolean
   /** Min days between services (0 = no constraint). */
   minGapDays: number
   maxPerMonth: number | null
@@ -245,14 +252,18 @@ export function checkAvailability(state: ServiceState): RuleResult[] {
   return results
 }
 
-/** INACTIVE_SCHEDULED — a person on a break / pending is scheduled. */
+/** INACTIVE_SCHEDULED — a person archived / on a break / pending is scheduled. */
 export function checkInactive(state: ServiceState): RuleResult[] {
   const people = peopleById(state)
   const results: RuleResult[] = []
   for (const id of uniquePersonIds(state)) {
     const person = people.get(id)
-    if (person && person.status !== 'active') {
-      const label = person.status === 'break' ? 'on a break' : 'not yet active'
+    if (person && (person.archived || person.status !== 'active')) {
+      const label = person.archived
+        ? 'archived'
+        : person.status === 'break'
+          ? 'on a break'
+          : 'not yet active'
       results.push({
         code: 'INACTIVE_SCHEDULED',
         severity: 'error',

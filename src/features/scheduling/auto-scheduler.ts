@@ -161,7 +161,9 @@ function rejectionReason(
 ): 'level' | 'unavailable' | 'inactive' | 'in-service' | 'avoid' | 'cadence' | null {
   const level = person.eligibility[pos.id]
   if (needsQualified && level !== 'qualified') return 'level'
-  if (person.status !== 'active') return 'inactive'
+  // Archiving someone does not remove them from their teams, so `team_members`
+  // still lists them — the archive flag is the only thing keeping them out.
+  if (person.archived || person.status !== 'active') return 'inactive'
   if (isUnavailableOn(person, state.service.date)) return 'unavailable'
 
   // No multi-position — except a slot a fired rule explicitly demands of this

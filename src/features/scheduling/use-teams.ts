@@ -160,17 +160,28 @@ export function useAllTeamMembers() {
   return useQuery({
     queryKey: ['team-members'],
     queryFn: async () => {
+      // Archived people keep their memberships — un-archiving must restore the
+      // teams and settings they had — so `team_members` still lists them and the
+      // join has to exclude them explicitly. `!inner` + the status filter does it
+      // in the query for every role: relying on RLS to hide them only ever worked
+      // for non-admins (admins can read inactive people), which is exactly how
+      // archived people kept turning up in Suggest a roster and Replace.
+      //
+      // The test is "not archived", never "is active": someone who has been
+      // invited but hasn't accepted yet is a normal active row with no
+      // `auth_user_id` (the People list derives their "Pending" badge from that,
+      // not from this column), and they must stay schedulable. Written as `neq`
+      // so a third `person_status` would be included rather than silently
+      // dropped.
       const { data, error } = await supabase
         .from('team_members')
         .select(
-          `*, people(${PERSON_SAFE_COLUMNS}), team_member_positions(position_id, proficiency)`,
+          `*, people!inner(${PERSON_SAFE_COLUMNS}), team_member_positions(position_id, proficiency)`,
         )
+        .neq('people.status', 'inactive')
       if (error) throw new Error(error.message)
-      // The `people` embed is null when the viewer can't read that person's row
-      // (a non-admin can only read *active* people), so an archived person who is
-      // still a team member comes back with no person. Drop those rows: they can't
-      // be rostered, and leaving them in crashes every consumer that reads
-      // `m.people` (e.g. the auto-scheduler's name map, the team roster).
+      // Belt and braces: a non-admin still gets a null embed for anyone they
+      // can't read, and dereferencing it blanks the page.
       return (data as (TeamMemberWithPositionIds & {
         people: TeamMemberWithPositionIds['people'] | null
       })[]).filter((m) => m.people != null) as TeamMemberWithPositionIds[]
@@ -184,16 +195,20 @@ export function useTeamMembers(teamId: string | undefined) {
     queryKey: teamKeys.members(teamId ?? ''),
     enabled: !!teamId,
     queryFn: async () => {
+      // Same "not archived" join as useAllTeamMembers: an archived person drops
+      // off the team roster and its positions for everyone, admins included. The
+      // membership row itself survives, so un-archiving restores them with their
+      // positions and proficiencies intact.
       const { data, error } = await supabase
         .from('team_members')
         .select(
-          `*, people(${PERSON_SAFE_COLUMNS}), team_member_positions(position_id, proficiency, positions(*))`,
+          `*, people!inner(${PERSON_SAFE_COLUMNS}), team_member_positions(position_id, proficiency, positions(*))`,
         )
         .eq('team_id', teamId!)
+        .neq('people.status', 'inactive')
       if (error) throw new Error(error.message)
-      // Skip members whose person row the viewer can't read (archived people are
-      // hidden from non-admins) — see useAllTeamMembers; sorting by their name
-      // would otherwise dereference a null `people`.
+      // Belt and braces: a non-admin still gets a null embed for anyone they
+      // can't read, and sorting would dereference it.
       return (data as (TeamMemberWithPositions & {
         people: TeamMemberWithPositions['people'] | null
       })[])

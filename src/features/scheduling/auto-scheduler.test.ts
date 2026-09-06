@@ -16,6 +16,7 @@ function candidate(
   return {
     name: overrides.id,
     status: 'active',
+    archived: false,
     minGapDays: 0,
     maxPerMonth: null,
     targetPerMonth: null,
@@ -103,6 +104,20 @@ describe('autoSchedule', () => {
     )
     expect(res.suggestions).toHaveLength(0)
     expect(res.unfilled[0].reason).toMatch(/unavailable|break/)
+  })
+
+  // Archiving someone leaves them on their teams and leaves their scheduling
+  // status 'active', so the archive flag is the only thing keeping them out.
+  it('never suggests an archived person whose scheduling status is still active', () => {
+    const res = autoSchedule(
+      state({
+        positions: [position({ id: 'pos-1' })],
+        candidates: [
+          candidate({ id: 'gone', eligibility: { 'pos-1': 'qualified' }, archived: true }),
+        ],
+      }),
+    )
+    expect(res.suggestions).toHaveLength(0)
   })
 
   it('reports an unfilled slot when nobody is set up', () => {
@@ -228,6 +243,20 @@ describe('rankCandidates', () => {
         candidates: [
           candidate({ id: 'free', eligibility: { 'pos-1': 'qualified' } }),
           candidate({ id: 'away', eligibility: { 'pos-1': 'qualified' }, blockouts: [{ start: SUNDAY, end: SUNDAY }] }),
+        ],
+      }),
+      'pos-1',
+    )
+    expect(ranked.map((r) => r.personId)).toEqual(['free'])
+  })
+
+  it('omits an archived person from the substitutes', () => {
+    const ranked = rankCandidates(
+      state({
+        positions: [position({ id: 'pos-1' })],
+        candidates: [
+          candidate({ id: 'free', eligibility: { 'pos-1': 'qualified' } }),
+          candidate({ id: 'gone', eligibility: { 'pos-1': 'qualified' }, archived: true }),
         ],
       }),
       'pos-1',
