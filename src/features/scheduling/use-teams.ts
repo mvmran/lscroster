@@ -166,12 +166,19 @@ export function useAllTeamMembers() {
       // in the query for every role: relying on RLS to hide them only ever worked
       // for non-admins (admins can read inactive people), which is exactly how
       // archived people kept turning up in Suggest a roster and Replace.
+      //
+      // The test is "not archived", never "is active": someone who has been
+      // invited but hasn't accepted yet is a normal active row with no
+      // `auth_user_id` (the People list derives their "Pending" badge from that,
+      // not from this column), and they must stay schedulable. Written as `neq`
+      // so a third `person_status` would be included rather than silently
+      // dropped.
       const { data, error } = await supabase
         .from('team_members')
         .select(
           `*, people!inner(${PERSON_SAFE_COLUMNS}), team_member_positions(position_id, proficiency)`,
         )
-        .eq('people.status', 'active')
+        .neq('people.status', 'inactive')
       if (error) throw new Error(error.message)
       // Belt and braces: a non-admin still gets a null embed for anyone they
       // can't read, and dereferencing it blanks the page.
