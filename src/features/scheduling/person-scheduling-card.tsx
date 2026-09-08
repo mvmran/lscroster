@@ -73,6 +73,13 @@ function PreferencesForm({
   const [maxConsecutive, setMaxConsecutive] = useState(numToStr(prefs?.max_consecutive))
   const [status, setStatus] = useState<SchedulingStatus>(prefs?.status ?? 'active')
 
+  const dirty =
+    minGap !== String(prefs?.min_gap_days ?? 0) ||
+    maxPerMonth !== numToStr(prefs?.max_per_month) ||
+    targetPerMonth !== numToStr(prefs?.target_per_month) ||
+    maxConsecutive !== numToStr(prefs?.max_consecutive) ||
+    status !== (prefs?.status ?? 'active')
+
   function save() {
     upsert.mutate(
       {
@@ -164,12 +171,14 @@ function PreferencesForm({
           />
         </div>
       </div>
-      <div className="flex justify-end">
-        <Button size="sm" onClick={save} disabled={upsert.isPending}>
-          {upsert.isPending && <Loader2 className="size-4 animate-spin" />}
-          Save preferences
-        </Button>
-      </div>
+      {dirty && (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={save} disabled={upsert.isPending}>
+            {upsert.isPending && <Loader2 className="size-4 animate-spin" />}
+            Save preferences
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
