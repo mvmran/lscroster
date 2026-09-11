@@ -76,10 +76,14 @@ import {
 import { ChordNotationToggle } from '@/features/services/chord-notation-toggle'
 import { useChordNotation } from '@/features/services/use-chord-notation'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
-import { appendImportedLyrics } from '@/features/services/lyric-import'
+import {
+  appendImportedLyrics,
+  appendLayers,
+} from '@/features/services/lyric-import'
 import { detectLyricsLanguage } from '@/features/services/transliterate'
 import {
   findNonLatinLyrics,
+  hasAnyLayer,
   insertSectionHeaders,
   layersOfRow,
   lyricParagraphs,
@@ -899,15 +903,20 @@ function ArrangementLyricsBlock({
         songId: target.id,
         sortOrder: nextSort,
       })
-      const appended = (await fetchDefaultLyrics(target.id))?.lyrics
-      if (appended && appended.trim()) {
-        // Only the base gains lines; the layers are padded out to match it on
-        // save, so the medley's second song simply has no annotations yet.
-        setDraft({
-          ...value,
-          lyrics:
-            (value.lyrics ? `${value.lyrics.trimEnd()}\n\n` : '') + appended.trim(),
-        })
+      const seed = await fetchDefaultLyrics(target.id)
+      // The linked song arrives whole: its native script, meaning and chords
+      // come across with the words, line-parallel, rather than the words
+      // alone leaving a medley whose second half has to be annotated again
+      // from scratch. Its chords are scale numbers, so they are read in this
+      // arrangement's key — which is the key the medley is played in.
+      const appended: LayeredLyrics = {
+        lyrics: seed?.lyrics ?? '',
+        native: seed?.lyrics_native ?? '',
+        meaning: seed?.lyrics_meaning ?? '',
+        chords: seed?.lyrics_chords ?? '',
+      }
+      if (appended.lyrics.trim() !== '' || hasAnyLayer(appended)) {
+        setDraft(appendLayers(value, appended))
         toast.success(`Linked ${target.title} — lyrics added below, save when ready`)
       } else {
         toast.success(`Linked ${target.title}`)

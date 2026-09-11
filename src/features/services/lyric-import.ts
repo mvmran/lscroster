@@ -644,6 +644,31 @@ export function appendImportedLyrics(
   current: LayeredLyrics,
   imported: LayeredLyrics,
 ): LayeredLyrics {
+  return mergeLayers(current, imported, true)
+}
+
+/**
+ * Append one song's four layers after another's, blank row between.
+ *
+ * This is the medley's join, and it never matches sections. Two songs are put
+ * together precisely *because* they share something — a chorus, a refrain —
+ * and a shared chorus here means the second song genuinely sings it again, so
+ * its words have to land in the buffer rather than be recognised away. That is
+ * the opposite of what a chord chart for a section wants, which is why the
+ * import has its own entry point.
+ */
+export function appendLayers(
+  current: LayeredLyrics,
+  imported: LayeredLyrics,
+): LayeredLyrics {
+  return mergeLayers(current, imported, false)
+}
+
+function mergeLayers(
+  current: LayeredLyrics,
+  imported: LayeredLyrics,
+  matchSections: boolean,
+): LayeredLyrics {
   if (imported.lyrics === '' && !hasAnyLayer(imported)) return current
   if (current.lyrics.trim() === '' && !hasAnyLayer(current)) return imported
 
@@ -655,7 +680,7 @@ export function appendImportedLyrics(
   // lyrics that happens to repeat a verse is a second verse, and appending it
   // is the long-standing behaviour people rely on.
   const placements =
-    imported.chords.trim() === ''
+    !matchSections || imported.chords.trim() === ''
       ? []
       : placeImportedSections(current.lyrics, imported.lyrics)
 

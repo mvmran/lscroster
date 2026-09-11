@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   appendImportedLyrics,
+  appendLayers,
   nextVerseNumber,
   parseImportedLyrics,
   withGeneratedMeaning,
@@ -262,6 +263,50 @@ describe('appendImportedLyrics', () => {
   })
 })
 
+describe('appendLayers: linking a song into a medley', () => {
+  const first = {
+    lyrics: 'Verse\nAmazing grace',
+    native: '',
+    meaning: '',
+    chords: 'Verse\n[1]Amazing grace',
+  }
+  const second = {
+    lyrics: 'Verse\nSweet the sound',
+    native: 'Verse\nമധുരം',
+    meaning: 'Verse\nhow sweet it sounds',
+    chords: 'Verse\n[4]Sweet the sound',
+  }
+
+  it('brings every layer of the linked song across, not the words alone', () => {
+    const next = appendLayers(first, second)
+    expect(toLines(next.lyrics)).toEqual([
+      'Verse',
+      'Amazing grace',
+      '',
+      'Verse',
+      'Sweet the sound',
+    ])
+    expect(toLines(next.chords).slice(3)).toEqual(['Verse', '[4]Sweet the sound'])
+    expect(toLines(next.native).slice(3)).toEqual(['Verse', 'മധുരം'])
+    expect(toLines(next.meaning).slice(3)).toEqual(['Verse', 'how sweet it sounds'])
+  })
+
+  it('keeps every layer parallel to the base across the join', () => {
+    const next = appendLayers(first, second)
+    expect(lineCount(next.native)).toBe(lineCount(next.lyrics))
+    expect(lineCount(next.meaning)).toBe(lineCount(next.lyrics))
+    expect(lineCount(next.chords)).toBe(lineCount(next.lyrics))
+  })
+
+  it('takes the linked song whole when the arrangement is still empty', () => {
+    expect(appendLayers(EMPTY_LAYERS, second)).toEqual(second)
+  })
+
+  it('leaves the arrangement alone when the linked song has no lyrics', () => {
+    expect(appendLayers(first, EMPTY_LAYERS)).toEqual(first)
+  })
+})
+
 /**
  * A song whose last line is the same in both sections — the case that rules
  * out matching a chart line by line.
@@ -364,6 +409,22 @@ describe('appendImportedLyrics: chord charts for sections already there', () => 
     const next = onto(`${chorus}\n\n${chorus}`)
     expect(toLines(next.chords)[5]).toBe('We [Ab]give You all the glory')
     expect(toLines(next.lyrics).length).toBe(toLines(ALPHA).length + 4)
+  })
+
+  it('appends rather than matches when a song is linked into a medley', () => {
+    // Same chart, through the medley's join instead of the import's: the
+    // second song really does sing those words again, so they land in the
+    // buffer rather than being recognised as the chorus already there.
+    const linked = parseImportedLyrics(
+      'Chorus\nWe [Ab]give You all the glory\nWe [Gb]worship You our Lord',
+    ).layers
+    const next = appendLayers(
+      { ...EMPTY_LAYERS, lyrics: ALPHA, chords: ALPHA_VERSE_CHORDS },
+      linked,
+    )
+    expect(toLines(next.lyrics).length).toBe(toLines(ALPHA).length + 4)
+    expect(toLines(next.lyrics).at(-1)).toBe('We worship You our Lord')
+    expect(toLines(next.chords).at(-1)).toBe('We [Gb]worship You our Lord')
   })
 
   it('still appends a plain lyrics paste that repeats a section', () => {
