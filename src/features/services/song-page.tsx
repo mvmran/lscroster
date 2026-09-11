@@ -1355,7 +1355,16 @@ function ArrangementsCard({ song, canManage }: { song: Song; canManage: boolean 
   // discarding those edits by switching to another arrangement.
   const [activeDirty, setActiveDirty] = useState(false)
 
-  const activeId = active ?? arrangements?.[0]?.id
+  // Focus falls back to the Default whenever the chosen arrangement is not
+  // there to be shown — deleted from this card, or gone in another tab. Held
+  // as an id alone it would go on naming something that no longer exists,
+  // which selects no tab and leaves the lyrics below it blank. Derived rather
+  // than reset on delete, so it holds however the arrangement disappears.
+  const shown = (arrangements ?? []).some((a) => a.id === active) ? active : undefined
+  const activeId =
+    shown ??
+    (arrangements ?? []).find((a) => a.is_default)?.id ??
+    arrangements?.[0]?.id
 
   // Confirm before leaving an arrangement whose lyrics have unsaved edits — the
   // tab triggers are buttons, so the link/unload guard can't catch them.
