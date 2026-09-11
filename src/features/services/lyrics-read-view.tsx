@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { chordsIn, parseSongKey } from '@/features/services/chord-notation'
+import { ChordSpans } from '@/features/services/chord-spans'
 import { useChordNotation } from '@/features/services/use-chord-notation'
 import {
   hasAnyLayer,
   isInlineChordLine,
   LAYER_LABELS,
   LYRIC_LAYER_KEYS,
-  splitChordLine,
   zipLyricLines,
   type LayeredLyrics,
   type LyricLayerKey,
@@ -16,10 +16,6 @@ import { cn } from '@/lib/utils'
 
 /**
  * A chord line with its `[…]` chords picked out in the accent colour.
- *
- * The brackets are kept, dimmed: they are what separates a chord from the
- * syllable it sits against in a full ChordPro line ("[G]Amazing"), where weight
- * and colour alone would read as one run-on word.
  *
  * `inline` says the line carries the lyric's own words, which is what an
  * imported chord chart produces. It then stands in for the lyric line rather
@@ -35,17 +31,7 @@ function ChordLine({ text, inline }: { text: string; inline?: boolean }) {
         inline ? 'text-sm' : 'text-muted-foreground text-xs',
       )}
     >
-      {splitChordLine(text).map((segment, i) =>
-        segment.chord ? (
-          <span key={i} className="text-primary font-semibold">
-            <span className="opacity-50">[</span>
-            {segment.text}
-            <span className="opacity-50">]</span>
-          </span>
-        ) : (
-          <span key={i}>{segment.text}</span>
-        ),
-      )}
+      <ChordSpans text={text} />
     </div>
   )
 }

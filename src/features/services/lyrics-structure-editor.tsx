@@ -1,4 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import {
   closestCenter,
   DndContext,
@@ -50,6 +57,7 @@ import {
   type ChordNotation,
   type SongKey,
 } from '@/features/services/chord-notation'
+import { ChordSpans } from '@/features/services/chord-spans'
 import { parseLyricSections, type LyricSection } from '@/features/services/lyric-sections'
 import { cn } from '@/lib/utils'
 
@@ -505,6 +513,8 @@ export function LyricsStructureEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const rects = useSectionRects(textareaRef, layers.lyrics, sections)
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const chordPaneRef = useRef<HTMLTextAreaElement>(null)
+  const [chordPaneFocused, setChordPaneFocused] = useState(false)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   )
@@ -604,18 +614,56 @@ export function LyricsStructureEditor({
     onChange({ ...layers, [activeLayer]: next })
   }
 
+  // Chords read as a chart whenever nobody is typing in them, the way the
+  // Services sheet sets them, and fall back to plain text on focus: colouring
+  // a half-typed bracket fights the person writing it.
+  const showChordSpans =
+    activeLayer === 'chords' && !chordPaneFocused && paneValue.trim() !== ''
+
+  // The coloured text is laid *over* the textarea rather than swapped in for
+  // it. Same box, same metrics, so nothing shifts on focus — and because the
+  // overlay ignores the pointer, a click lands in the textarea underneath at
+  // the character it was aimed at, instead of dropping the caret at the end.
+  const syncOverlayScroll = useCallback((node: HTMLDivElement | null) => {
+    const pane = chordPaneRef.current
+    if (node === null || pane === null) return
+    node.scrollLeft = pane.scrollLeft
+    node.scrollTop = pane.scrollTop
+  }, [])
+
   const layerColumn = activeLayer && (
     <div className="flex min-w-0 flex-1 items-start gap-2">
       <LineNumbers count={lineCount(layers[activeLayer])} />
-      <div className="min-w-0 flex-1">
+      <div className="relative min-w-0 flex-1">
         <Textarea
+          ref={chordPaneRef}
           rows={6}
           wrap="off"
           aria-label={`${LAYER_LABELS[activeLayer]} text, line by line against the lyrics`}
           value={paneValue}
           onChange={(e) => onPaneChange(e.target.value)}
-          className={cn('text-sm whitespace-pre font-sans', PANE_LEADING)}
+          onFocus={() => setChordPaneFocused(true)}
+          onBlur={() => setChordPaneFocused(false)}
+          className={cn(
+            'text-sm whitespace-pre font-sans',
+            PANE_LEADING,
+            showChordSpans && 'text-transparent',
+          )}
         />
+        {showChordSpans && (
+          <div
+            aria-hidden
+            ref={syncOverlayScroll}
+            className={cn(
+              'pointer-events-none absolute inset-0 overflow-hidden rounded-lg',
+              'border border-transparent px-2.5 py-2',
+              'text-sm whitespace-pre font-sans',
+              PANE_LEADING,
+            )}
+          >
+            <ChordSpans text={paneValue} />
+          </div>
+        )}
       </div>
     </div>
   )
