@@ -553,6 +553,14 @@ export function LyricsStructureEditor({
         // Proportional, like every other lyric surface — chords are
         // placed by their brackets now, so no pane needs a monospace grid.
         'font-sans text-sm',
+        // No drag handle. The pane grows with its content on its own, so the
+        // handle's only real power was to make the box *shorter* than the
+        // song — and then the words scroll inside it while the gutter
+        // chevrons and section rails do not, because those are placed from
+        // measured text offsets rather than from the scrolled box. They stay
+        // where they were and hang off the bottom. Fixed to the content, a
+        // song of any length lines up with its own gutter.
+        'resize-none',
         sections.length > 0 && 'pl-5',
         split && `${PANE_LEADING} whitespace-pre`,
       )}
@@ -645,7 +653,11 @@ export function LyricsStructureEditor({
           onFocus={() => setChordPaneFocused(true)}
           onBlur={() => setChordPaneFocused(false)}
           className={cn(
-            'text-sm whitespace-pre font-sans',
+            // Fixed for the same reason as the base pane, plus one of its
+            // own: this pane is line-parallel to that one, and a handle that
+            // shortens only this half scrolls its rows away from the lyrics
+            // they belong to.
+            'resize-none text-sm whitespace-pre font-sans',
             PANE_LEADING,
             showChordSpans && 'text-transparent',
           )}
