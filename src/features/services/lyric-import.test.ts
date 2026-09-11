@@ -262,6 +262,117 @@ describe('appendImportedLyrics', () => {
   })
 })
 
+/**
+ * A song whose last line is the same in both sections — the case that rules
+ * out matching a chart line by line.
+ */
+const ALPHA = [
+  'Verse',
+  'You are Alpha and Omega',
+  'We worship You our Lord',
+  '',
+  'Chorus',
+  'We give You all the glory',
+  'We worship You our Lord',
+].join('\n')
+
+const ALPHA_VERSE_CHORDS = [
+  'Verse',
+  'You are [1]Alpha and Omega',
+  'We [2m]worship You our [4]Lord [1]',
+].join('\n')
+
+describe('appendImportedLyrics: chord charts for sections already there', () => {
+  const onto = (chart: string, chords = ALPHA_VERSE_CHORDS) =>
+    appendImportedLyrics(
+      { ...EMPTY_LAYERS, lyrics: ALPHA, chords },
+      parseImportedLyrics(chart).layers,
+    )
+
+  it('writes a chorus chart against the chorus instead of appending it', () => {
+    const next = onto('Chorus\nWe [Ab]give You all the glory\nWe [Gb]worship You our Lord')
+    // The words were already there, so the base is untouched.
+    expect(next.lyrics).toBe(ALPHA)
+    expect(toLines(next.chords)).toEqual([
+      'Verse',
+      'You are [1]Alpha and Omega',
+      'We [2m]worship You our [4]Lord [1]',
+      '',
+      // The chart's own header rides along, onto the row the base labels.
+      'Chorus',
+      'We [Ab]give You all the glory',
+      'We [Gb]worship You our Lord',
+    ])
+  })
+
+  it('picks the section by its whole run, not by a line both sections share', () => {
+    // "We worship You our Lord" ends the verse as well; the line above it is
+    // what says this chart is the verse.
+    const next = onto('Verse\nYou are [1]Alpha and Omega\nWe [4]worship You our Lord')
+    expect(next.lyrics).toBe(ALPHA)
+    expect(toLines(next.chords)[2]).toBe('We [4]worship You our Lord')
+    // Nothing was written against the chorus.
+    expect(toLines(next.chords).slice(4)).toEqual(['', '', ''])
+  })
+
+  it('matches a chart pasted without its header', () => {
+    const next = onto('We [Ab]give You all the glory\nWe [Gb]worship You our Lord')
+    expect(next.lyrics).toBe(ALPHA)
+    expect(toLines(next.chords)[5]).toBe('We [Ab]give You all the glory')
+  })
+
+  it('matches through chords, case, punctuation and spacing', () => {
+    const next = onto('CHORUS\n  We [Ab]give You ALL the glory!\n  We worship You, our Lord.')
+    expect(next.lyrics).toBe(ALPHA)
+    expect(toLines(next.chords)[5]).toBe('We [Ab]give You ALL the glory!')
+  })
+
+  it('appends a section the song does not have', () => {
+    const next = onto('Bridge\nHoly [1]holy holy')
+    expect(toLines(next.lyrics)).toEqual([
+      ...toLines(ALPHA),
+      '',
+      'Bridge',
+      'Holy holy holy',
+    ])
+    expect(lineCount(next.chords)).toBe(lineCount(next.lyrics))
+  })
+
+  it('fills the one it knows and appends the one it does not', () => {
+    const next = onto(
+      'Chorus\nWe [Ab]give You all the glory\nWe [Gb]worship You our Lord\n\nBridge\nHoly [1]holy holy',
+    )
+    expect(toLines(next.lyrics)).toEqual([
+      ...toLines(ALPHA),
+      '',
+      'Bridge',
+      'Holy holy holy',
+    ])
+    expect(toLines(next.chords)[5]).toBe('We [Ab]give You all the glory')
+    expect(toLines(next.chords).at(-1)).toBe('Holy [1]holy holy')
+  })
+
+  it('leaves the chords a matched section already had where the chart is blank', () => {
+    const next = onto('Verse\nYou are Alpha and Omega\nWe [4]worship You our Lord')
+    // The chart has nothing on line 1, so what was typed there survives.
+    expect(toLines(next.chords)[1]).toBe('You are [1]Alpha and Omega')
+    expect(toLines(next.chords)[2]).toBe('We [4]worship You our Lord')
+  })
+
+  it('fills a repeated section once and appends the repeat', () => {
+    const chorus = 'Chorus\nWe [Ab]give You all the glory\nWe [Gb]worship You our Lord'
+    const next = onto(`${chorus}\n\n${chorus}`)
+    expect(toLines(next.chords)[5]).toBe('We [Ab]give You all the glory')
+    expect(toLines(next.lyrics).length).toBe(toLines(ALPHA).length + 4)
+  })
+
+  it('still appends a plain lyrics paste that repeats a section', () => {
+    // No chords means no chart: a second copy of the words is a second verse.
+    const next = onto('Chorus\nWe give You all the glory\nWe worship You our Lord')
+    expect(toLines(next.lyrics).length).toBe(toLines(ALPHA).length + 4)
+  })
+})
+
 describe('withGeneratedMeaning', () => {
   // What the `generate-meaning` function answers: one entry per line of the
   // native text it was sent, blank against a header or a blank row.

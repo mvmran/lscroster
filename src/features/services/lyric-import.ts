@@ -43,9 +43,14 @@ import {
   alignLayer,
   findNonLatinLyrics,
   hasAnyLayer,
+  lyricParagraphs,
+  LYRIC_LAYER_KEYS,
   mirrorSectionHeaders,
+  splitChordLine,
   toLines,
   type LayeredLyrics,
+  type LyricLayerKey,
+  type LyricParagraph,
 } from '@/features/services/lyric-layers'
 import {
   matchLyricSectionHeader,
@@ -516,11 +521,124 @@ export function withGeneratedMeaning(
 }
 
 /**
- * Append parsed layers to what the editor already holds, blank row between.
+ * A lyric line reduced to the letters that identify it.
  *
- * Every layer is padded to the base's height on both sides of the join, so
- * importing native text into a song that had none lands it against the right
- * lines rather than at the top, and chords already typed keep their rows.
+ * A chart and the words a team typed rarely agree on anything but the letters:
+ * the chart carries chords in the line, writes "Glory," where the base writes
+ * "glory", and spaces words to sit under the chords above them. Stripping
+ * chords, case, punctuation and spacing leaves enough to tell one line of a
+ * song from another, and little enough to survive that reformatting.
+ */
+function lyricFingerprint(line: string): string {
+  return splitChordLine(line)
+    .filter((segment) => !segment.chord)
+    .map((segment) => segment.text)
+    .join('')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '')
+}
+
+/** A paragraph's header row, if it has one, and the rows carrying its words. */
+interface ParagraphRows {
+  header: number | null
+  content: number[]
+}
+
+function paragraphRows(paragraph: LyricParagraph): ParagraphRows {
+  const rows = paragraph.lines.map((_, i) => paragraph.start + i)
+  return matchLyricSectionHeader(paragraph.lines[0]) !== null
+    ? { header: rows[0], content: rows.slice(1) }
+    : { header: null, content: rows }
+}
+
+const rowsKey = (lines: string[], rows: number[]) =>
+  rows.map((row) => lyricFingerprint(lines[row])).join('\n')
+
+/** Where one imported paragraph belongs in the base. */
+interface SectionPlacement {
+  /** Index of the imported paragraph this places. */
+  paragraph: number
+  /** Imported row → base row, for each row the paragraph occupies. */
+  rows: Array<[number, number]>
+}
+
+/**
+ * Match imported paragraphs against sections the base already holds.
+ *
+ * A chord chart carries the words its chords are anchored to, which is what
+ * makes this possible: the words identify the section, so a chart for the
+ * chorus can be recognised as *this song's* chorus and its chords written
+ * against those rows. Appending it instead — the only thing an import could do
+ * before — stacked a second copy of the chorus under the song and left the
+ * real one unaccompanied.
+ *
+ * Whole paragraphs are matched, never single lines. Songs repeat themselves:
+ * "We worship You our Lord" ends both the verse and the chorus of the song
+ * this was written for, so a line on its own says nothing about where it
+ * belongs, while the run of lines around it is decisive. A paragraph matches
+ * at most one section, and a section takes at most one paragraph, so a chart
+ * that repeats the chorus twice fills it once and appends the rest.
+ *
+ * A header is matched by position rather than text: two sections can both be
+ * "Chorus", and a chart is as likely to write "CHORUS 2x". The words decide,
+ * and the header row travels with them so a label lands on the row the base
+ * labels.
+ */
+function placeImportedSections(
+  currentBase: string,
+  importedBase: string,
+): SectionPlacement[] {
+  const baseLines = toLines(currentBase)
+  const importedLines = toLines(importedBase)
+  const baseParagraphs = lyricParagraphs(currentBase).map(paragraphRows)
+  const taken = new Set<number>()
+  const placements: SectionPlacement[] = []
+
+  lyricParagraphs(importedBase).forEach((paragraph, index) => {
+    const rows = paragraphRows(paragraph)
+    const key = rowsKey(importedLines, rows.content)
+    // A paragraph of nothing but a header, or of punctuation, fingerprints to
+    // nothing and would match the first equally empty section in the base.
+    if (key.replace(/\n/g, '') === '') return
+    const matched = baseParagraphs.findIndex(
+      (candidate, i) =>
+        !taken.has(i) &&
+        candidate.content.length === rows.content.length &&
+        rowsKey(baseLines, candidate.content) === key,
+    )
+    if (matched === -1) return
+    taken.add(matched)
+    const target = baseParagraphs[matched]
+    const pairs = rows.content.map(
+      (row, i): [number, number] => [row, target.content[i]],
+    )
+    if (rows.header !== null && target.header !== null) {
+      pairs.push([rows.header, target.header])
+    }
+    placements.push({ paragraph: index, rows: pairs })
+  })
+
+  return placements
+}
+
+/** Drop blank rows from both ends of a row list, keeping the layers parallel. */
+function trimBlankRows(rows: number[], isBlank: (row: number) => boolean): number[] {
+  let start = 0
+  let end = rows.length
+  while (start < end && isBlank(rows[start])) start += 1
+  while (end > start && isBlank(rows[end - 1])) end -= 1
+  return rows.slice(start, end)
+}
+
+/**
+ * Merge parsed layers into what the editor already holds.
+ *
+ * Sections the base already has are filled in place (see
+ * `placeImportedSections`); whatever is left over is appended after it with a
+ * blank row between. Every layer is padded to the base's height on both sides
+ * of the join, so importing native text into a song that had none lands it
+ * against the right lines rather than at the top, and chords already typed
+ * keep their rows.
  */
 export function appendImportedLyrics(
   current: LayeredLyrics,
@@ -532,15 +650,72 @@ export function appendImportedLyrics(
   const currentBase = toLines(current.lyrics)
   const importedBase = toLines(imported.lyrics)
 
-  const layer = (key: 'native' | 'meaning' | 'chords') => {
+  // Only a chart earns this. A chord layer carries the words its chords sit
+  // against, so there is something to recognise a section by; a paste of plain
+  // lyrics that happens to repeat a verse is a second verse, and appending it
+  // is the long-standing behaviour people rely on.
+  const placements =
+    imported.chords.trim() === ''
+      ? []
+      : placeImportedSections(current.lyrics, imported.lyrics)
+
+  const placedRows = new Map<number, number>()
+  const placedParagraphs = new Set<number>()
+  for (const placement of placements) {
+    placedParagraphs.add(placement.paragraph)
+    for (const [from, to] of placement.rows) placedRows.set(from, to)
+  }
+
+  // A paragraph that found its section is not appended a second time.
+  const consumed = new Set<number>()
+  lyricParagraphs(imported.lyrics).forEach((paragraph, index) => {
+    if (!placedParagraphs.has(index)) return
+    paragraph.lines.forEach((_, i) => consumed.add(paragraph.start + i))
+  })
+  // A native-only paste leaves the base as blank rows while its own layer
+  // carries the text, so the block is as tall as its tallest layer. Measuring
+  // it against the base alone would drop such an import entirely.
+  const height = Math.max(
+    importedBase.length,
+    ...LYRIC_LAYER_KEYS.map((key) => toLines(imported[key]).length),
+  )
+  const importedRows = {
+    lyrics: padTo(importedBase, height),
+    native: padTo(toLines(imported.native), height),
+    meaning: padTo(toLines(imported.meaning), height),
+    chords: padTo(toLines(imported.chords), height),
+  }
+  // Blank in every layer, not merely in the base — that is what makes a row
+  // safe to drop from the join.
+  const blankRow = (row: number) =>
+    importedRows.lyrics[row].trim() === '' &&
+    LYRIC_LAYER_KEYS.every((key) => importedRows[key][row].trim() === '')
+
+  const tail = trimBlankRows(
+    Array.from({ length: height }, (_, row) => row).filter(
+      (row) => !consumed.has(row),
+    ),
+    blankRow,
+  )
+
+  const layer = (key: LyricLayerKey) => {
     const before = padTo(toLines(current[key]), currentBase.length)
-    const after = padTo(toLines(imported[key]), importedBase.length)
-    const lines = [...before, '', ...after]
+    const after = importedRows[key]
+    // A placed row replaces the row it lands on; a blank one leaves what was
+    // there, so importing a chorus chart never blanks the verse's chords.
+    for (const [from, to] of placedRows) {
+      if (after[from].trim() !== '') before[to] = after[from]
+    }
+    const lines =
+      tail.length === 0 ? before : [...before, '', ...tail.map((row) => after[row])]
     return lines.some((line) => line.trim() !== '') ? lines.join('\n') : ''
   }
 
   return {
-    lyrics: [...currentBase, '', ...importedBase].join('\n'),
+    lyrics:
+      tail.length === 0
+        ? currentBase.join('\n')
+        : [...currentBase, '', ...tail.map((row) => importedRows.lyrics[row])].join('\n'),
     native: layer('native'),
     meaning: layer('meaning'),
     chords: layer('chords'),
