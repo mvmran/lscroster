@@ -45,6 +45,12 @@ const MAX_TAG_LENGTH = 24
  * what keeps this a correction rather than a fresh guess — and it is told to
  * leave a line alone when the draft is already right, so a line someone typed
  * by hand survives the pass.
+ *
+ * With no draft at all it writes one from scratch instead. That is the only
+ * romanisation available for a script the offline romaniser doesn't cover —
+ * Korean, Arabic, Chinese — where the base pane would otherwise have to be
+ * typed out by hand, and it is what someone gets by clearing the pane and
+ * asking again when the draft is past correcting.
  */
 export function transliterationPrompt(
   language: string | null | undefined,
@@ -52,13 +58,22 @@ export function transliterationPrompt(
   draft: string[],
 ): string {
   const named = language ? ` The song is in the language with ISO code "${language}".` : ''
+  const scratch = draft.every((line) => line.trim() === '')
+  const source = scratch
+    ? [
+        'Each numbered line below is one line of the song in its original',
+        'script. Return a romanisation of each line. Rules:',
+      ]
+    : [
+        'Each numbered line below gives the original script and the current',
+        'romanised draft, which was produced letter by letter by a machine.',
+        'Return a better romanisation of each line. Rules:',
+      ]
   return [
     'You are helping a church worship team write a singable romanisation of a',
     `song written in another script.${named}`,
     '',
-    'Each numbered line below gives the original script and the current',
-    'romanised draft, which was produced letter by letter by a machine. Return',
-    'a better romanisation of each line. Rules:',
+    ...source,
     '- Return a JSON array of strings with exactly one entry per numbered line,',
     `  in the same order — ${native.length} lines in, ${native.length} entries out.`,
     '- Romanise the sound, never the meaning. This is a transliteration, not a',
@@ -66,11 +81,13 @@ export function transliterationPrompt(
     '- Write it the way a singer would read it aloud: natural word breaks,',
     '  ordinary English spelling conventions, no diacritics or special symbols.',
     '- Keep the words in the order they are sung, one line in one line out.',
-    '- Return the draft unchanged when it is already right.',
+    ...(scratch ? [] : ['- Return the draft unchanged when it is already right.']),
     '- Return an empty string for a line whose original is blank or is a section',
     '  header such as "Verse 1" or "Chorus".',
     '',
-    ...native.map((line, i) => `${i + 1}. ${line}\n   draft: ${draft[i] ?? ''}`),
+    ...native.map((line, i) =>
+      scratch ? `${i + 1}. ${line}` : `${i + 1}. ${line}\n   draft: ${draft[i] ?? ''}`,
+    ),
   ].join('\n')
 }
 
@@ -83,20 +100,31 @@ export function transliterationPrompt(
  * in. That makes the worst case "nothing changed" rather than "the lyrics pane
  * lost a verse".
  *
+ * The answer is as tall as the taller of the two texts, so a draft shorter
+ * than the script it reads — one row when the pane was cleared to ask for a
+ * transliteration from scratch — comes back a line per native line instead of
+ * being cut off at the draft's height. Layers are read row for row, so this is
+ * the shape that puts each line against the one it romanises.
+ *
  * Section headers are kept whichever layer they appear in. They are structure,
  * not sound: the editor's pills, the flow strip and the projection API all
  * read them, and a "Verse 1" romanised into something else would take the
- * song's shape with it.
+ * song's shape with it. A header row with nothing beside it takes the native
+ * layer's own header, which is the same Latin label — headers are written into
+ * every layer at once — so a song written from scratch keeps its sections.
  */
 export function alignTransliteration(
   entries: string[],
   native: string[],
   draft: string[],
 ): string[] {
-  return draft.map((line, i) => {
+  const height = Math.max(native.length, draft.length)
+  return Array.from({ length: height }, (_, i) => {
+    const line = draft[i] ?? ''
     const source = native[i] ?? ''
     if (source.trim() === '') return line
-    if (matchHeader(source) !== null || matchHeader(line) !== null) return line
+    if (matchHeader(source) !== null) return line.trim() !== '' ? line : source
+    if (matchHeader(line) !== null) return line
     const entry = entries[i]
     return typeof entry === 'string' && entry.trim() !== '' ? entry.trim() : line
   })

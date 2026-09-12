@@ -761,12 +761,17 @@ export function LyricsStructureEditor({
     </p>
   )
 
+  // With the lyrics pane empty there is no draft to correct, so the same call
+  // writes one from scratch. That is the way to romanise a script the offline
+  // romaniser doesn't cover, and the way out of a draft past correcting: clear
+  // the pane and ask again.
+  const fromScratch = layers.lyrics.trim() === ''
+
   // Offered from the native pane, because that is the text it reads — and only
-  // once there is both a script to read and a line to rewrite.
+  // once there is a script to read.
   const polishHint = activeLayer === 'native' &&
     onPolishTransliteration !== undefined &&
-    layers.native.trim() !== '' &&
-    layers.lyrics.trim() !== '' && (
+    layers.native.trim() !== '' && (
       <p className="text-muted-foreground text-xs">
         <button
           type="button"
@@ -774,11 +779,17 @@ export function LyricsStructureEditor({
           disabled={polishingTransliteration}
           onClick={onPolishTransliteration}
         >
-          {polishingTransliteration ? 'Polishing…' : 'Polish the transliteration'}
+          {polishingTransliteration
+            ? fromScratch
+              ? 'Writing…'
+              : 'Polishing…'
+            : fromScratch
+              ? 'Write the transliteration for me'
+              : 'Polish the transliteration'}
         </button>{' '}
-        — the lyrics pane is rewritten from this script, spelled the way a
-        singer would read it aloud. Nothing is saved until you press Save
-        changes.
+        — the lyrics pane is {fromScratch ? 'written' : 'rewritten'} from this
+        script, spelled the way a singer would read it aloud. Nothing is saved
+        until you press Save changes.
       </p>
     )
 

@@ -42,6 +42,33 @@ Deno.test('alignTransliteration returns exactly the lines it was given', () => {
   assertEquals(alignTransliteration(long, NATIVE, DRAFT).length, DRAFT.length)
 })
 
+Deno.test('alignTransliteration writes a whole pane from an empty draft', () => {
+  // Clearing the lyrics pane and asking again is how a script the offline
+  // romaniser can't read gets romanised at all, so the answer has to be as
+  // tall as the native text rather than as tall as the one blank row it
+  // replaces. The header comes from the native layer, which carries the same
+  // Latin label.
+  assertEquals(
+    alignTransliteration(['', 'aa karathaaril', '', 'kaalvari natha'], NATIVE, ['']),
+    ['Verse 1', 'aa karathaaril', '', 'kaalvari natha'],
+  )
+})
+
+Deno.test('alignTransliteration keeps a line the model skipped, blank draft or not', () => {
+  // Nothing back for line 2 leaves line 2 empty rather than shifting line 4 up
+  // into it — the layers are read row for row.
+  assertEquals(alignTransliteration([], NATIVE, ['']), ['Verse 1', '', '', ''])
+})
+
+Deno.test('transliterationPrompt asks for a fresh romanisation with no draft', () => {
+  const prompt = transliterationPrompt('ml', NATIVE, [''])
+  assertStringIncludes(prompt, 'Return a romanisation of each line')
+  assertStringIncludes(prompt, '4. കാൽവറി നാഥാ')
+  assertEquals(prompt.includes('draft:'), false)
+  // There is no draft to leave alone, so that rule must not be in the prompt.
+  assertEquals(prompt.includes('Return the draft unchanged'), false)
+})
+
 Deno.test('transliterationPrompt shows the model both texts', () => {
   const prompt = transliterationPrompt('ml', NATIVE, DRAFT)
   assertStringIncludes(prompt, '2. ആ കരതാരിൽ')

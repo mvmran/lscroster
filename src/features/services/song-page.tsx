@@ -810,14 +810,19 @@ function ArrangementLyricsBlock({
   }
 
   /**
-   * Rewrite the lyrics pane from the native script beside it.
+   * Write the lyrics pane from the native script beside it.
    *
-   * Unlike the meaning draft this replaces text rather than filling a blank
-   * pane, so it is asked for twice — once by pressing the link, once in the
-   * dialog that explains what is about to change. It still only touches the
-   * buffer: the version in the database is whatever was last saved.
+   * With text already in the pane this replaces it rather than filling a blank
+   * one, so it is asked for twice — once by pressing the link, once in the
+   * dialog that explains what is about to change. An empty pane is asked for
+   * once: there is nothing to lose, and the dialog warns about the rewrite,
+   * not about the call. Clearing the pane first is therefore how a script the
+   * offline romaniser can't read gets romanised at all. Either way it only
+   * touches the buffer: the version in the database is whatever was last
+   * saved.
    */
   async function polishTransliteration() {
+    const fromScratch = value.lyrics.trim() === ''
     setConfirmPolish(false)
     try {
       const lyrics = await polish.mutateAsync({
@@ -830,10 +835,14 @@ function ArrangementLyricsBlock({
         return
       }
       setDraft({ ...value, lyrics })
-      toast.success('Transliteration polished — check it over before saving')
+      toast.success(
+        fromScratch
+          ? 'Transliteration written — check it over before saving'
+          : 'Transliteration polished — check it over before saving',
+      )
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : 'Could not polish the transliteration',
+        error instanceof Error ? error.message : 'Could not write the transliteration',
       )
     }
   }
@@ -1041,7 +1050,12 @@ function ArrangementLyricsBlock({
             onGenerateMeaning={meaningAvailable ? draftMeaning : undefined}
             generatingMeaning={generateMeaning.isPending}
             onPolishTransliteration={
-              assistAvailable ? () => setConfirmPolish(true) : undefined
+              assistAvailable
+                ? () => {
+                    if (value.lyrics.trim() === '') void polishTransliteration()
+                    else setConfirmPolish(true)
+                  }
+                : undefined
             }
             polishingTransliteration={polish.isPending}
             onLabelSections={assistAvailable ? labelSections : undefined}
