@@ -203,7 +203,7 @@ export function PersonForm({
           <Label htmlFor="notes">Notes</Label>
           <Textarea id="notes" rows={3} {...form.register('notes')} />
           <p className="text-muted-foreground text-xs">
-            Visible to admins and leaders.
+            Visible to admins and coordinators.
           </p>
         </div>
       )}

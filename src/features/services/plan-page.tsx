@@ -683,7 +683,7 @@ function NotesCard({ plan, canManage }: { plan: PlanWithType; canManage: boolean
 }
 
 /**
- * The plan's start time on the header subtitle. Managers can override it per
+ * The plan's start time on the header subtitle. Coordinators can override it per
  * plan (e.g. a one-off evening service of a normally-morning service type);
  * leaving it on the service-type default keeps inheriting future changes.
  */
@@ -825,7 +825,7 @@ export function PlanPage() {
 
   const plan = planQuery.data
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data])
-  const canManage = me?.role === 'admin' || me?.role === 'leader'
+  const canManage = me?.role === 'admin' || me?.role === 'coordinator'
 
   // arrangement id -> {arrangement, linked songs} — resolves item titles
   // (medleys show every song) and keys since #130.

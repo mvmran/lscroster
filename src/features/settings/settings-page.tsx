@@ -418,9 +418,9 @@ function AuditLogCard() {
 export function SettingsPage() {
   const { data: person } = useCurrentPerson()
   const isAdmin = person?.role === 'admin'
-  // Leaders can manage service types too (issue #125) and send email.
-  const canManageServiceTypes = isAdmin || person?.role === 'leader'
-  const canSendEmail = isAdmin || person?.role === 'leader'
+  // Coordinators can manage service types too (issue #125) and send email.
+  const canManageServiceTypes = isAdmin || person?.role === 'coordinator'
+  const canSendEmail = isAdmin || person?.role === 'coordinator'
 
   return (
     <div className="flex flex-col gap-6">

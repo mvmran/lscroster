@@ -68,7 +68,7 @@ export interface PersonScheduleRow {
  * Schedules card on the person page (issue #52, extended in #56 with the
  * position/team/service-type a row is for). Keyed by personId (unlike the
  * constant `mine` key) so any profile can load its own list. RLS limits what a
- * viewer sees: admins/leaders see all, a member sees their own.
+ * viewer sees: admins/coordinators see all, a member sees their own.
  */
 export function usePersonSchedule(personId: string | undefined) {
   return useQuery({
@@ -96,7 +96,7 @@ export interface RosterWorkloadRow {
 /**
  * Every non-declined assignment across the church in the trailing year — used to
  * rank one person's serving load against the team (the percentile in the #56
- * Activity summary). Gate with `enabled`: only admins/leaders can read others'
+ * Activity summary). Gate with `enabled`: only admins/coordinators can read others'
  * assignments under RLS, so for a member viewing their own profile this query is
  * skipped (the percentile is hidden rather than computed from just themselves).
  */
@@ -122,7 +122,7 @@ export function useRosterWorkload(enabled: boolean) {
 /**
  * The set of person_ids who have at least one future-dated, non-declined
  * assignment — used to warn before bulk-archiving people who are still rostered
- * (their assignments aren't removed on archive). Admin/leader only under RLS.
+ * (their assignments aren't removed on archive). Admin/coordinator only under RLS.
  */
 export function usePeopleWithUpcomingAssignments(enabled: boolean) {
   return useQuery({

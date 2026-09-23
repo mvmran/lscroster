@@ -172,7 +172,7 @@ function AddTeamsDialog({
 
 /**
  * The teams a person is a Team Leader or Team Viewer of, shown on their profile.
- * Governance (admins + global leaders) can grant several teams at once and revoke
+ * Governance (admins + coordinators) can grant several teams at once and revoke
  * with a confirmation. Mirrors the team-page grant cards from the person's side.
  */
 export function PersonTeamGrantsCard({
@@ -182,7 +182,7 @@ export function PersonTeamGrantsCard({
 }: {
   personId: string
   kind: GrantKind
-  /** Governance tier — admins + global leaders. */
+  /** Governance tier — admins + coordinators. */
   canManage: boolean
 }) {
   const copy = COPY[kind]

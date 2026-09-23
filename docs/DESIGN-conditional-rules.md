@@ -28,7 +28,7 @@ Female Vocals; if male, the reverse.*
 | `person_scheduling_prefs` | Per-person cadence: `min_gap_days`, `max_per_month`, `target_per_month`, `max_consecutive`, `status` (active/break/pending). |
 | `person_pairings` | prefer/avoid/together × **`pairing_strength` enum (`hard`/`soft`)** — the existing precedent for per-rule hard-vs-soft. |
 | `plan_position_min_counts` (+ template twin) | Issue #110: per-plan override of a position's minimum. Effective min = `coalesce(plan override, positions.min_count)`, computed client-side. **This is the key mechanism the new feature composes with: a conditional rule is essentially a *dynamic* min-count override.** |
-| `publish_overrides` | Audit rows when a leader publishes despite a violation; errors require a typed reason. This is the existing escape hatch that makes "hard" rules safe to enforce. |
+| `publish_overrides` | Audit rows when a coordinator publishes despite a violation; errors require a typed reason. This is the existing escape hatch that makes "hard" rules safe to enforce. |
 
 ### Evaluation
 
@@ -120,7 +120,7 @@ plan_rule_mutes                    -- per-plan "turn this rule off here"
 ```
 
 RLS mirrors the other scheduling-rules tables: authenticated read,
-`is_admin_or_leader()` manage (rules span teams, so per-team
+`is_admin_or_coordinator()` manage (rules span teams, so per-team
 `can_manage_team` scoping doesn't fit; same call as `person_pairings`).
 
 Design decisions baked in:

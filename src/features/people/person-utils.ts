@@ -13,11 +13,11 @@ export function initials(person: Pick<Person, 'first_name' | 'last_name'>) {
 
 export const ROLE_LABELS: Record<Enums<'app_role'>, string> = {
   admin: 'Admin',
-  leader: 'Leader',
+  coordinator: 'Coordinator',
   member: 'Member',
 }
 
-export const ROLES = ['admin', 'leader', 'member'] as const
+export const ROLES = ['admin', 'coordinator', 'member'] as const
 
 /**
  * Display-only account state for the People screen (issue #43):

@@ -201,7 +201,7 @@ npx supabase secrets set GEMINI_API_KEY=<your-key>
 
 The key never reaches the browser: the app calls the `generate-meaning` and
 `lyrics-assist` Edge Functions, which hold the key and call Google. Only admins
-and leaders may use them — the same people who may edit songs.
+and coordinators may use them — the same people who may edit songs.
 
 Everything drafted lands in the editor for review and is only stored when
 someone presses **Save changes**, so nothing is written to your database without
@@ -429,7 +429,7 @@ captured locally at http://127.0.0.1:54324 instead of being sent.
 | Task | Where |
 | --- | --- |
 | Church name, logo, accent colour, address | Settings → Church |
-| Who is an admin / leader | Settings → Users & roles |
+| Who is an admin / coordinator | Settings → Users & roles |
 | Reminder timing, digests, set-list email | Settings → Communications setup |
 | Delivery problems | Settings → Email delivery |
 | Who changed what | Settings → Audit log |

@@ -671,9 +671,9 @@ export function MatrixPage() {
   const { data: teams, isPending: teamsPending } = useTeams()
   const { data: positions } = useAllPositions()
 
-  // Only admins/leaders can reorder a plan's order of service (issue #79); RLS
+  // Only admins/coordinators can reorder a plan's order of service (issue #79); RLS
   // enforces it too, so members see the list read-only (no drag handles).
-  const canEditOrder = me?.role === 'admin' || me?.role === 'leader'
+  const canEditOrder = me?.role === 'admin' || me?.role === 'coordinator'
   // Cell editing is per-team: admins + this team's Team Leaders.
   const canManageAny = perms.isAdmin || perms.ledTeamIds.size > 0
 

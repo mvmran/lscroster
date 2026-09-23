@@ -192,7 +192,7 @@ function SectionHeading({ children }: { children: string }) {
  * and an activity summary (issues #52, #55, #56). The period dropdown trims the
  * Past list; Upcoming always shows everything. One row per service even if the
  * person fills several positions that day. `canSeeTeam` is true for admins and
- * leaders, who alone can read the whole roster needed for the team percentile.
+ * coordinators, who alone can read the whole roster needed for the team percentile.
  */
 export function PersonScheduleCard({
   personId,

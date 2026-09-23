@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { FullPageLoader } from '@/components/full-page-loader'
-import { RequireAdmin, RequireAdminOrLeader, RequireAuth } from '@/app/guards'
+import { RequireAdmin, RequireAdminOrCoordinator, RequireAuth } from '@/app/guards'
 import { AppLayout } from '@/app/layout'
 import { Providers } from '@/app/providers'
 import { SignInPage } from '@/features/auth/sign-in-page'
@@ -124,8 +124,8 @@ export function App() {
                   <Route path="/settings/email-log" element={<EmailLogPage />} />
                   <Route path="/settings/audit" element={<AuditLogPage />} />
                 </Route>
-                <Route element={<RequireAdminOrLeader />}>
-                  {/* Leaders manage service types too (issue #125). */}
+                <Route element={<RequireAdminOrCoordinator />}>
+                  {/* Coordinators manage service types too (issue #125). */}
                   <Route path="/settings/service-types" element={<ServiceTypesPage />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />

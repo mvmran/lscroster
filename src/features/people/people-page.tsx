@@ -135,7 +135,7 @@ export function PeoplePage() {
   const [sort, setSort] = useState<SortOrder>('name-asc')
 
   const isAdmin = me?.role === 'admin'
-  const canSeeInactive = me?.role === 'admin' || me?.role === 'leader'
+  const canSeeInactive = me?.role === 'admin' || me?.role === 'coordinator'
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()

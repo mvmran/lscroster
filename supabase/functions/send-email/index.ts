@@ -1,6 +1,6 @@
 // Sends outbound email via Resend. All app email goes through Edge Functions;
 // the Resend API key never reaches the browser. Requires an authenticated
-// caller with the admin or leader role.
+// caller with the admin or coordinator role.
 
 import { z } from 'npm:zod@4'
 import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
   const admin = serviceClient()
   const caller = await getCallerPerson(req, admin)
   if (!caller) return jsonResponse({ error: 'Not authenticated' }, 401)
-  if (!['admin', 'leader'].includes(caller.role)) {
+  if (!['admin', 'coordinator'].includes(caller.role)) {
     return jsonResponse({ error: 'Not allowed to send email' }, 403)
   }
 

@@ -40,10 +40,10 @@ Deno.serve(async (req) => {
   const admin = serviceClient()
   const caller = await getCallerPerson(req, admin)
   if (!caller) return jsonResponse({ error: 'Not authenticated' }, 401)
-  // Mirrors the `is_admin_or_leader()` RLS policy on song_arrangement_lyrics:
+  // Mirrors the `is_admin_or_coordinator()` RLS policy on song_arrangement_lyrics:
   // whoever may edit the lyrics may draft a meaning for them.
-  if (caller.role !== 'admin' && caller.role !== 'leader') {
-    return jsonResponse({ error: 'Only admins and leaders can edit lyrics' }, 403)
+  if (caller.role !== 'admin' && caller.role !== 'coordinator') {
+    return jsonResponse({ error: 'Only admins and coordinators can edit lyrics' }, 403)
   }
 
   const parsed = schema.safeParse(await req.json().catch(() => null))

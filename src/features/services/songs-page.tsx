@@ -381,7 +381,7 @@ export function SongsPage() {
   }
   const [newSongOpen, setNewSongOpen] = useState(false)
 
-  const canManage = me?.role === 'admin' || me?.role === 'leader'
+  const canManage = me?.role === 'admin' || me?.role === 'coordinator'
 
   const allTags = useMemo(
     () => [...new Set((songs ?? []).flatMap((s) => s.tags))].sort(),

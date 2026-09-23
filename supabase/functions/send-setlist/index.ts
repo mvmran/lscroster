@@ -1,5 +1,5 @@
 // Emails the worship set list to the admin-curated distribution list
-// (issue #133), on publish or on demand from the plan page. Leader/admin only.
+// (issue #133), on publish or on demand from the plan page. Coordinator/admin only.
 //
 // The email body *is* the set list (see email-templates/setlist.ts): service
 // information with the worship-type teams' roster, practice information, the
@@ -54,8 +54,8 @@ Deno.serve(async (req) => {
   const admin = serviceClient()
   const caller = await getCallerPerson(req, admin)
   if (!caller) return jsonResponse({ error: 'Not authenticated' }, 401)
-  if (caller.role !== 'admin' && caller.role !== 'leader') {
-    return jsonResponse({ error: 'Only leaders can email the set list' }, 403)
+  if (caller.role !== 'admin' && caller.role !== 'coordinator') {
+    return jsonResponse({ error: 'Only admins and coordinators can email the set list' }, 403)
   }
 
   const parsed = requestSchema.safeParse(await req.json().catch(() => null))

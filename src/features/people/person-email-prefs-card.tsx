@@ -98,7 +98,7 @@ function PrefsForm({
 
 /**
  * Per-person email opt-outs (issue #87). Every option is on by default; the
- * person, a leader or an admin can switch any of them off. Each toggle saves
+ * person, a coordinator or an admin can switch any of them off. Each toggle saves
  * immediately.
  */
 export function PersonEmailPrefsCard({ personId }: { personId: string }) {

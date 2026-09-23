@@ -89,7 +89,7 @@ export function ServicesPage() {
     setSearchParams(value === 'all' ? {} : { type: value }, { replace: true })
   const [newPlanOpen, setNewPlanOpen] = useState(false)
 
-  const canManage = me?.role === 'admin' || me?.role === 'leader'
+  const canManage = me?.role === 'admin' || me?.role === 'coordinator'
   const isAdmin = me?.role === 'admin'
   // Per-team Team Leaders can roster via the Matrix even as a plain member
   // (issue #111), so the entry button shows for them too.

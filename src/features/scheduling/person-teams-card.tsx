@@ -168,7 +168,7 @@ function AddToTeamDialog({
   )
 }
 
-/** Team memberships on the person profile; leaders can add/remove. */
+/** Team memberships on the person profile; coordinators can add/remove. */
 export function PersonTeamsCard({
   personId,
   canManage,

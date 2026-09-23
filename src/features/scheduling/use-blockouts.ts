@@ -7,7 +7,7 @@ export const blockoutKeys = {
   ofPerson: (personId: string) => ['blockouts', personId] as const,
 }
 
-/** All visible blockouts — leaders see everyone's (RLS), members their own. */
+/** All visible blockouts — coordinators see everyone's (RLS), members their own. */
 export function useBlockouts() {
   return useQuery({
     queryKey: blockoutKeys.all,

@@ -1,7 +1,7 @@
 // The optional AI helpers around a song's lyrics (Gemini).
 //
 // Three jobs, one function, because they share everything that matters: the
-// same key, the same admin/leader gate, and the same "draft it, a human saves
+// same key, the same admin/coordinator gate, and the same "draft it, a human saves
 // it" contract.
 //
 //   transliteration — polish the machine romanisation of a native-script song
@@ -61,10 +61,10 @@ Deno.serve(async (req) => {
   const admin = serviceClient()
   const caller = await getCallerPerson(req, admin)
   if (!caller) return jsonResponse({ error: 'Not authenticated' }, 401)
-  // Mirrors the `is_admin_or_leader()` RLS policy on songs and their lyrics:
+  // Mirrors the `is_admin_or_coordinator()` RLS policy on songs and their lyrics:
   // whoever may edit a song may ask for help writing one down.
-  if (caller.role !== 'admin' && caller.role !== 'leader') {
-    return jsonResponse({ error: 'Only admins and leaders can edit songs' }, 403)
+  if (caller.role !== 'admin' && caller.role !== 'coordinator') {
+    return jsonResponse({ error: 'Only admins and coordinators can edit songs' }, 403)
   }
 
   const parsed = schema.safeParse(await req.json().catch(() => null))

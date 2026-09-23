@@ -1547,7 +1547,7 @@ export function SongPage() {
   const deleteSong = useDeleteSong()
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const canManage = me?.role === 'admin' || me?.role === 'leader'
+  const canManage = me?.role === 'admin' || me?.role === 'coordinator'
 
   if (isError) return <FullPageError message={error.message} />
   if (isPending) {

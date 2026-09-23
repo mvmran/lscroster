@@ -45,8 +45,8 @@ async function replaceTemplateMinCounts(
 export const planTemplatesKey = ['plan-templates'] as const
 
 /**
- * Templates are leader/admin-only by RLS; members get an empty list, which is
- * fine because the UI that uses them is leader-gated anyway.
+ * Templates are coordinator/admin-only by RLS; members get an empty list, which is
+ * fine because the UI that uses them is coordinator-gated anyway.
  */
 export function usePlanTemplates() {
   return useQuery({

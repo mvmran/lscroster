@@ -27,7 +27,7 @@ export interface CallerPerson {
   first_name: string
   last_name: string
   email: string | null
-  role: 'admin' | 'leader' | 'member'
+  role: 'admin' | 'coordinator' | 'member'
 }
 
 export async function getCallerPerson(

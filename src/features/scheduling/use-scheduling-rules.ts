@@ -299,7 +299,7 @@ export function useAllPairings() {
   })
 }
 
-/** One audit row for a rule violation a leader chose to publish past (#34). */
+/** One audit row for a rule violation a coordinator chose to publish past (#34). */
 export interface PublishOverrideInput {
   rule_code: string
   severity: 'error' | 'warning'
@@ -308,7 +308,7 @@ export interface PublishOverrideInput {
 }
 
 /**
- * Record the rule violations a leader overrode when publishing a plan. Each
+ * Record the rule violations a coordinator overrode when publishing a plan. Each
  * becomes a `publish_overrides` row (`overridden_by` defaults to the current
  * person in the DB). The publish gate calls this before flipping the status.
  */

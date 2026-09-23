@@ -1,4 +1,4 @@
-// Plan-publish notification (issue #17). When a leader publishes a plan, every
+// Plan-publish notification (issue #17). When a coordinator publishes a plan, every
 // person scheduled on it (who hasn't declined) receives this rich summary:
 // service details, all the plan's times, the church name & address, the teams
 // and people serving, the order of service, and the songs with key & BPM.

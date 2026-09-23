@@ -422,7 +422,7 @@ function PairingsSection({ personId }: { personId: string }) {
 
 /**
  * Per-person scheduling rules (issue #32, phase 1): cadence/cap preferences,
- * recurring unavailability, and prefer/avoid/together pairings. Admin/leader
+ * recurring unavailability, and prefer/avoid/together pairings. Admin/coordinator
  * only; the auto-scheduler will consume this data in a later phase.
  */
 export function PersonSchedulingCard({ personId }: { personId: string }) {

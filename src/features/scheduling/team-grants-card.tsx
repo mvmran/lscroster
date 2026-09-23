@@ -46,7 +46,7 @@ const COPY: Record<
   leader: {
     title: 'Team leaders',
     description:
-      'They manage this team — its positions, members and plan assignments. Appointed by admins and leaders.',
+      'They manage this team — its positions, members and plan assignments. Appointed by admins and coordinators.',
     empty: 'No team leaders yet.',
     add: 'Add leader',
   },
@@ -61,8 +61,8 @@ const COPY: Record<
 
 /**
  * Manage a team's per-team grants (issue: team access tiers). One card for Team
- * Leaders, one for Team Viewers — both appointed by governance (admins + global
- * leaders) and grantable to any active person.
+ * Leaders, one for Team Viewers — both appointed by governance (admins +
+ * coordinators) and grantable to any active person.
  */
 export function TeamGrantCard({
   teamId,
@@ -71,7 +71,7 @@ export function TeamGrantCard({
 }: {
   teamId: string
   kind: GrantKind
-  /** Governance tier — admins + global leaders. */
+  /** Governance tier — admins + coordinators. */
   canManage: boolean
 }) {
   const copy = COPY[kind]

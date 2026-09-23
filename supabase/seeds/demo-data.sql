@@ -22,7 +22,7 @@ begin;
 
 -- People ---------------------------------------------------------------------
 insert into public.people (id, first_name, last_name, role, status, sex, notes) values
-  ('0de00001-0000-4000-8000-000000000001', 'Ava',    'Nguyen',    'leader', 'active', 'female', 'Demo data'),
+  ('0de00001-0000-4000-8000-000000000001', 'Ava',    'Nguyen',    'coordinator', 'active', 'female', 'Demo data'),
   ('0de00001-0000-4000-8000-000000000002', 'Daniel', 'Okafor',    'member', 'active', 'male',   'Demo data'),
   ('0de00001-0000-4000-8000-000000000003', 'Grace',  'Tan',       'member', 'active', 'female', 'Demo data'),
   ('0de00001-0000-4000-8000-000000000004', 'Josh',   'Fernandez', 'member', 'active', 'male',   'Demo data'),

@@ -675,7 +675,7 @@ export function TeamPage() {
   const [teamType, setTeamType] = useState<TeamType>('general')
   const [serviceTypeIds, setServiceTypeIds] = useState<string[]>([])
 
-  // Governance (admins + global leaders) edit the team and appoint grants;
+  // Governance (admins + coordinators) edit the team and appoint grants;
   // content management (positions, members) is scoped to this team's leaders.
   const canGovern = perms.canGovern
   const savingEdit = updateTeam.isPending || setTeamServiceTypes.isPending

@@ -168,7 +168,7 @@ export function useTeamViewerMutations() {
 export interface TeamPermissions {
   /** Global admin — manages everything. */
   isAdmin: boolean
-  /** Governance tier (admin or global leader): create teams, appoint grants. */
+  /** Governance tier (admin or coordinator): create teams, appoint grants. */
   canGovern: boolean
   ledTeamIds: Set<string>
   viewedTeamIds: Set<string>
@@ -190,7 +190,7 @@ export function useTeamPermissions(): TeamPermissions {
   const { data: viewed } = useMyViewedTeams()
 
   const isAdmin = me?.role === 'admin'
-  const canGovern = me?.role === 'admin' || me?.role === 'leader'
+  const canGovern = me?.role === 'admin' || me?.role === 'coordinator'
   const ledTeamIds = led ?? EMPTY
   const viewedTeamIds = viewed ?? EMPTY
 

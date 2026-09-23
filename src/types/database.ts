@@ -2105,7 +2105,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       is_admin: { Args: never; Returns: boolean }
-      is_admin_or_leader: { Args: never; Returns: boolean }
+      is_admin_or_coordinator: { Args: never; Returns: boolean }
       is_assigned_to_plan: {
         Args: { target_plan_id: string }
         Returns: boolean
@@ -2120,7 +2120,7 @@ export type Database = {
       views_team: { Args: { target_team_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "leader" | "member"
+      app_role: "admin" | "coordinator" | "member"
       assignment_status: "pending" | "confirmed" | "declined"
       pairing_kind: "prefer" | "avoid" | "together"
       pairing_strength: "hard" | "soft"
@@ -2269,7 +2269,7 @@ export const Constants = {
   },
   public: {
     Enums: {
-      app_role: ["admin", "leader", "member"],
+      app_role: ["admin", "coordinator", "member"],
       assignment_status: ["pending", "confirmed", "declined"],
       pairing_kind: ["prefer", "avoid", "together"],
       pairing_strength: ["hard", "soft"],

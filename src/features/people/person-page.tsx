@@ -122,7 +122,7 @@ export function PersonPage() {
 
   const p = person.data
   const isAdmin = me?.role === 'admin'
-  const isLeader = me?.role === 'leader'
+  const isCoordinator = me?.role === 'coordinator'
   const isSelf = me?.id === p.id
   // A managing member (issue #89) gets self-level rights over the person they
   // manage: edit their profile/photo and respond to rosters on their behalf.
@@ -130,11 +130,11 @@ export function PersonPage() {
   const canEdit = isAdmin || isSelf || isManaging
   // Contact details (email/phone/birthday) are masked server-side by the
   // people_directory view (issue #119): they come back null unless this viewer
-  // is allowed to see them (admin/leader, self, a manager, or a Team Leader of
+  // is allowed to see them (admin/coordinator, self, a manager, or a Team Leader of
   // a team the person is on). If any value is present, or this viewer is clearly
   // privileged, show the card; otherwise show a "private" note.
   const canSeeContact =
-    isAdmin || isLeader || isSelf || isManaging || !!(p.email || p.phone || p.birthday)
+    isAdmin || isCoordinator || isSelf || isManaging || !!(p.email || p.phone || p.birthday)
 
   async function onEditSubmit(values: PersonFormValues) {
     // #92: removing the email of an account that already has a login revokes its
@@ -239,11 +239,11 @@ export function PersonPage() {
   }
 
   // The Schedules card (issue #52) lists a person's services; show it to anyone
-  // who can read their assignments — admins/leaders, the person themselves, or
+  // who can read their assignments — admins/coordinators, the person themselves, or
   // a member who manages them (issue #89).
-  const showSchedule = isAdmin || isLeader || isSelf || isManaging
+  const showSchedule = isAdmin || isCoordinator || isSelf || isManaging
   // Email preferences (issue #87) are visible/editable by the same set.
-  const showEmailPrefs = isAdmin || isLeader || isSelf || isManaging
+  const showEmailPrefs = isAdmin || isCoordinator || isSelf || isManaging
   // Members this person manages, named in the Account & access card (issue #91).
   // Any managed link (accepted or pending) blocks Archive/Delete until detached.
   const managedPeople = managed.data ?? []
@@ -378,7 +378,7 @@ export function PersonPage() {
         }
       >
         {showSchedule && (
-          <PersonScheduleCard personId={p.id} canSeeTeam={isAdmin || isLeader} />
+          <PersonScheduleCard personId={p.id} canSeeTeam={isAdmin || isCoordinator} />
         )}
 
         {/* Everything else stacks in the right column on large screens. */}
@@ -424,28 +424,28 @@ export function PersonPage() {
         </CardContent>
       </Card>
 
-      <PersonTeamsCard personId={p.id} canManage={isAdmin || isLeader} />
+      <PersonTeamsCard personId={p.id} canManage={isAdmin || isCoordinator} />
 
       {/* Per-team access grants (Team Leader / Team Viewer). Governance — admins
-          + global leaders — can grant several teams at once; the person
+          + coordinators — can grant several teams at once; the person
           themselves and anyone managing them (issue #89) see the grants
           read-only. */}
-      {(isAdmin || isLeader || isSelf || isManaging) && (
+      {(isAdmin || isCoordinator || isSelf || isManaging) && (
         <>
           <PersonTeamGrantsCard
             personId={p.id}
             kind="leader"
-            canManage={isAdmin || isLeader}
+            canManage={isAdmin || isCoordinator}
           />
           <PersonTeamGrantsCard
             personId={p.id}
             kind="viewer"
-            canManage={isAdmin || isLeader}
+            canManage={isAdmin || isCoordinator}
           />
         </>
       )}
 
-      {(isAdmin || isLeader) && <PersonSchedulingCard personId={p.id} />}
+      {(isAdmin || isCoordinator) && <PersonSchedulingCard personId={p.id} />}
 
       {/* Email preferences (issue #87) — after Scheduling rules. */}
       {showEmailPrefs && <PersonEmailPrefsCard personId={p.id} />}
@@ -454,12 +454,12 @@ export function PersonPage() {
           only once you have an account to change the password of. */}
       {isSelf && p.auth_user_id && <ChangePasswordCard />}
 
-      {/* Notes — admins and leaders only */}
-      {(isAdmin || isLeader) && p.notes && (
+      {/* Notes — admins and coordinators only */}
+      {(isAdmin || isCoordinator) && p.notes && (
         <Card>
           <CardHeader>
             <CardTitle>Notes</CardTitle>
-            <CardDescription>Visible to admins and leaders.</CardDescription>
+            <CardDescription>Visible to admins and coordinators.</CardDescription>
           </CardHeader>
           <CardContent className="text-sm whitespace-pre-wrap">
             {p.notes}

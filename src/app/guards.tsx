@@ -32,12 +32,12 @@ export function RequireAdmin() {
   return <Outlet />
 }
 
-/** Admin- or leader-only routes, e.g. service types (issue #125). */
-export function RequireAdminOrLeader() {
+/** Admin- or coordinator-only routes, e.g. service types (issue #125). */
+export function RequireAdminOrCoordinator() {
   const me = useCurrentPerson()
 
   if (me.isPending) return <FullPageLoader />
-  if (me.data?.role !== 'admin' && me.data?.role !== 'leader') {
+  if (me.data?.role !== 'admin' && me.data?.role !== 'coordinator') {
     return <Navigate to="/" replace />
   }
   return <Outlet />

@@ -1,6 +1,6 @@
 // "Upcoming roster status" digest (issue #117). Gathers rostering progress for
 // the upcoming N weeks and emails a per-recipient summary to Team Leaders, Team
-// Viewers and admins (a plain `leader` only qualifies if also a TL/TV). Each
+// Viewers and admins (a plain `coordinator` only qualifies if also a TL/TV). Each
 // recipient's table is scoped to the teams they oversee; admins see every team.
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
@@ -47,7 +47,7 @@ interface PersonRow {
   auth_user_id: string | null
   managed_by_person_id: string | null
   managed_accepted_at: string | null
-  role: 'admin' | 'leader' | 'member'
+  role: 'admin' | 'coordinator' | 'member'
 }
 
 /** Whole days between two 'yyyy-mm-dd' wall dates. */

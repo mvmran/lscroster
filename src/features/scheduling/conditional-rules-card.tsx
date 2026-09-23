@@ -63,7 +63,7 @@ import { useServiceTypes } from '@/features/services/use-service-types'
  * <position> <is female / is male / is a specific person / is anyone>, then
  * <other position(s)> need <N people / a specific person / the same person>".
  * Authored as a dropdown sentence so an invalid rule is hard to build; saved
- * rules render as a read-only sentence. Admins/leaders only (matches RLS).
+ * rules render as a read-only sentence. Admins/coordinators only (matches RLS).
  */
 
 /** UI condition operator — the two sex values fold into the one select. */

@@ -406,7 +406,7 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
               musicians, and a lyrics-sheet download link) to the recipients
               below when a plan is published. Only teams marked{' '}
               <strong>Worship team</strong> (on the team's Edit dialog) appear
-              in its who's-serving rows. Leaders can also send it from a plan's
+              in its who's-serving rows. Coordinators can also send it from a plan's
               ⋯ menu at any time.
             </span>
           </label>

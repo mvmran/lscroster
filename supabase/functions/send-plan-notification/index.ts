@@ -1,5 +1,5 @@
 // Emails a full plan summary to everyone scheduled on a plan (issue #17),
-// triggered when a leader publishes the plan. Leader/admin only. Each person is
+// triggered when a coordinator publishes the plan. Coordinator/admin only. Each person is
 // emailed once even if they fill several positions; declined people are skipped.
 
 import { z } from 'npm:zod@4'
@@ -59,8 +59,8 @@ Deno.serve(async (req) => {
   const admin = serviceClient()
   const caller = await getCallerPerson(req, admin)
   if (!caller) return jsonResponse({ error: 'Not authenticated' }, 401)
-  if (caller.role !== 'admin' && caller.role !== 'leader') {
-    return jsonResponse({ error: 'Only leaders can notify a plan' }, 403)
+  if (caller.role !== 'admin' && caller.role !== 'coordinator') {
+    return jsonResponse({ error: 'Only admins and coordinators can notify a plan' }, 403)
   }
 
   const parsed = requestSchema.safeParse(await req.json().catch(() => null))
