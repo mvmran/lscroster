@@ -797,6 +797,17 @@ export function MatrixPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matrixPlans, assignmentsQuery.data, rules.isPending, rules.data])
 
+  // Bulk email follows the send-requests function: admins email every team,
+  // a Team Leader only the teams they lead. Offer nothing the server would
+  // skip as "not your team".
+  const emailableByPlan = useMemo(() => {
+    const out: typeof assignmentsByPlan = {}
+    for (const [planId, list] of Object.entries(assignmentsQuery.data ?? {})) {
+      out[planId] = list.filter((a) => canManageTeam(a.team_id))
+    }
+    return out
+  }, [assignmentsQuery.data, canManageTeam])
+
   const serviceTypes = useMemo(() => {
     const seen = new Map<string, string>()
     for (const p of plansQuery.data ?? []) {
@@ -823,11 +834,13 @@ export function MatrixPage() {
               Services
             </Link>
           </Button>
-          {(canEditOrder || canManageAny) && !loading && (
+          {/* Sending requests is Team Leader work (send-requests allows admins
+              and Team Leaders only), not order-of-service editing. */}
+          {canManageAny && !loading && (
             <BulkEmailButton
               plans={matrixPlans}
-              assignmentsByPlan={assignmentsByPlan}
-              teams={teams ?? []}
+              assignmentsByPlan={emailableByPlan}
+              teams={(teams ?? []).filter((t) => canManageTeam(t.id))}
             />
           )}
         </div>
