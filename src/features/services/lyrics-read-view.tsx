@@ -4,7 +4,6 @@ import { chordsIn, parseSongKey } from '@/features/services/chord-notation'
 import { ChordSpans } from '@/features/services/chord-spans'
 import { useChordNotation } from '@/features/services/use-chord-notation'
 import {
-  hasAnyLayer,
   isInlineChordLine,
   LAYER_LABELS,
   LYRIC_LAYER_KEYS,
@@ -49,8 +48,10 @@ function ChordLine({ text, inline }: { text: string; inline?: boolean }) {
  * their `[…]` brackets rather than by column, so nothing here needs a monospace
  * grid, and the native script in particular renders far better without one.
  *
- * Falls back to the plain text when no layer carries anything, which is every
- * English song and every song entered before this existed.
+ * A song with no layer — every English song, and every song entered before
+ * layers existed — is set exactly like one with them, just without the layer
+ * buttons. (It used to fall back to a greyed block of plain text, the pre-layers
+ * look, which made it read as disabled beside its neighbours on a sheet.)
  *
  * Chords arrive as they are stored — numbers of the key — and are read back in
  * `songKey`, so the sheet shows the chords of the key this plan actually plays
@@ -74,39 +75,28 @@ export function LyricsReadView({
   const [notation] = useChordNotation()
   const chords = chordsIn(layers.chords, notation, parseSongKey(songKey))
 
-  if (!hasAnyLayer(layers)) {
-    return (
-      <pre
-        className={cn(
-          'text-muted-foreground font-sans text-sm whitespace-pre-wrap',
-          className,
-        )}
-      >
-        {layers.lyrics}
-      </pre>
-    )
-  }
-
   const on = (key: LyricLayerKey) => shown.includes(key)
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <ToggleGroup
-        type="multiple"
-        value={shown}
-        onValueChange={(next) => setShown(next as LyricLayerKey[])}
-        className="self-start"
-      >
-        {available.map((key) => (
-          <ToggleGroupItem
-            key={key}
-            value={key}
-            title={`${on(key) ? 'Hide' : 'Show'} the ${LAYER_LABELS[key].toLowerCase()} line under each lyric`}
-          >
-            {LAYER_LABELS[key]}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+      {available.length > 0 && (
+        <ToggleGroup
+          type="multiple"
+          value={shown}
+          onValueChange={(next) => setShown(next as LyricLayerKey[])}
+          className="self-start"
+        >
+          {available.map((key) => (
+            <ToggleGroupItem
+              key={key}
+              value={key}
+              title={`${on(key) ? 'Hide' : 'Show'} the ${LAYER_LABELS[key].toLowerCase()} line under each lyric`}
+            >
+              {LAYER_LABELS[key]}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      )}
       <div className="text-sm">
         {zipLyricLines({ ...layers, chords }).map((line, i) => {
           const showChords = on('chords') && line.chords.trim() !== ''
