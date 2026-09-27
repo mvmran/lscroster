@@ -1,5 +1,5 @@
 // Emails the worship set list to the admin-curated distribution list
-// (issue #133), on publish or on demand from the plan page. Coordinator/admin only.
+// (issue #133), on publish or on demand from the plan page. Needs publish_plans.
 //
 // The email body *is* the set list (see email-templates/setlist.ts): service
 // information with the worship-type teams' roster, practice information, the
@@ -8,7 +8,7 @@
 // call and never worries Resend's 2 req/s throttle.
 
 import { z } from 'npm:zod@4'
-import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
+import { callerHasPermission, getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { resolveRecipient } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
@@ -54,8 +54,8 @@ Deno.serve(async (req) => {
   const admin = serviceClient()
   const caller = await getCallerPerson(req, admin)
   if (!caller) return jsonResponse({ error: 'Not authenticated' }, 401)
-  if (caller.role !== 'admin' && caller.role !== 'coordinator') {
-    return jsonResponse({ error: 'Only admins and coordinators can email the set list' }, 403)
+  if (!(await callerHasPermission(admin, caller, 'publish_plans'))) {
+    return jsonResponse({ error: 'You do not have permission to email the set list' }, 403)
   }
 
   const parsed = requestSchema.safeParse(await req.json().catch(() => null))

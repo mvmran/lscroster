@@ -118,6 +118,8 @@ export type Database = {
       church_settings: {
         Row: {
           address: string | null
+          allow_person_delete: boolean
+          allow_song_delete: boolean
           brand_hue: number
           created_at: string
           email_from_name: string | null
@@ -140,6 +142,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          allow_person_delete?: boolean
+          allow_song_delete?: boolean
           brand_hue?: number
           created_at?: string
           email_from_name?: string | null
@@ -162,6 +166,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          allow_person_delete?: boolean
+          allow_song_delete?: boolean
           brand_hue?: number
           created_at?: string
           email_from_name?: string | null
@@ -498,6 +504,30 @@ export type Database = {
           },
         ]
       }
+      permission_templates: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          permissions: Database["public"]["Enums"]["app_permission"][]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          permissions?: Database["public"]["Enums"]["app_permission"][]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          permissions?: Database["public"]["Enums"]["app_permission"][]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       person_email_prefs: {
         Row: {
           created_at: string
@@ -602,6 +632,45 @@ export type Database = {
           {
             foreignKeyName: "person_pairings_person_b_fkey"
             columns: ["person_b"]
+            isOneToOne: false
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      person_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission: Database["public"]["Enums"]["app_permission"]
+          person_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission: Database["public"]["Enums"]["app_permission"]
+          person_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission?: Database["public"]["Enums"]["app_permission"]
+          person_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_permissions_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_permissions_person_id_fkey"
+            columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people_directory"
             referencedColumns: ["id"]
@@ -2097,12 +2166,17 @@ export type Database = {
         Returns: undefined
       }
       can_manage_team: { Args: { target_team_id: string }; Returns: boolean }
+      can_see_all_plans: { Args: never; Returns: boolean }
       can_view_contact: { Args: { target: string }; Returns: boolean }
       current_actor_person_id: { Args: never; Returns: string }
       current_person_id: { Args: never; Returns: string }
       current_person_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_permission: {
+        Args: { p: Database["public"]["Enums"]["app_permission"] }
+        Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_coordinator: { Args: never; Returns: boolean }
@@ -2115,11 +2189,20 @@ export type Database = {
       leads_team_on_plan: { Args: { target_plan_id: string }; Returns: boolean }
       manages_person: { Args: { target: string }; Returns: boolean }
       manages_photo_folder: { Args: { object_name: string }; Returns: boolean }
+      person_delete_allowed: { Args: never; Returns: boolean }
       pin_plan_lyrics: { Args: { p_plan_id: string }; Returns: undefined }
+      song_delete_allowed: { Args: never; Returns: boolean }
       team_of_member: { Args: { target_member_id: string }; Returns: string }
       views_team: { Args: { target_team_id: string }; Returns: boolean }
     }
     Enums: {
+      app_permission:
+        | "edit_order_of_service"
+        | "publish_plans"
+        | "create_delete_plans"
+        | "manage_songs"
+        | "attach_plan_files"
+        | "view_all_plans"
       app_role: "admin" | "coordinator" | "member"
       assignment_status: "pending" | "confirmed" | "declined"
       pairing_kind: "prefer" | "avoid" | "together"
@@ -2269,6 +2352,14 @@ export const Constants = {
   },
   public: {
     Enums: {
+      app_permission: [
+        "edit_order_of_service",
+        "publish_plans",
+        "create_delete_plans",
+        "manage_songs",
+        "attach_plan_files",
+        "view_all_plans",
+      ],
       app_role: ["admin", "coordinator", "member"],
       assignment_status: ["pending", "confirmed", "declined"],
       pairing_kind: ["prefer", "avoid", "together"],

@@ -58,6 +58,39 @@ export async function getCallerPerson(
   return (person as CallerPerson | null) ?? null
 }
 
+/** The grantable BAU permissions (the `app_permission` enum). */
+export type AppPermission =
+  | 'edit_order_of_service'
+  | 'publish_plans'
+  | 'create_delete_plans'
+  | 'manage_songs'
+  | 'attach_plan_files'
+  | 'view_all_plans'
+
+/**
+ * Does the caller hold a BAU permission? Mirrors the `has_permission()` RLS
+ * helper for functions that run with the service role: admins and coordinators
+ * hold every permission, and create_delete_plans implies edit_order_of_service.
+ */
+export async function callerHasPermission(
+  admin: SupabaseClient,
+  caller: CallerPerson,
+  permission: AppPermission,
+): Promise<boolean> {
+  if (caller.role === 'admin' || caller.role === 'coordinator') return true
+  const accepted: AppPermission[] =
+    permission === 'edit_order_of_service'
+      ? [permission, 'create_delete_plans']
+      : [permission]
+  const { data } = await admin
+    .from('person_permissions')
+    .select('permission')
+    .eq('person_id', caller.id)
+    .in('permission', accepted)
+    .limit(1)
+  return (data ?? []).length > 0
+}
+
 /** team_ids the person is a Team Leader of (empty for non-leaders). */
 export async function getLedTeamIds(
   admin: SupabaseClient,

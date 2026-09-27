@@ -23,6 +23,19 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Only admins can delete people' }, 403)
   }
 
+  // Church-wide safety switch (Settings → Church). The service role bypasses
+  // the RLS policy that enforces it, so it is checked here too.
+  const { data: settings } = await admin
+    .from('church_settings')
+    .select('allow_person_delete')
+    .maybeSingle()
+  if (settings && !settings.allow_person_delete) {
+    return jsonResponse(
+      { error: 'Deleting people is turned off for this church — archive them instead' },
+      403,
+    )
+  }
+
   const parsed = schema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return jsonResponse({ error: 'Invalid request' }, 400)
   const { personId } = parsed.data

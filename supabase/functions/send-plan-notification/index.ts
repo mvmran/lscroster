@@ -1,9 +1,9 @@
 // Emails a full plan summary to everyone scheduled on a plan (issue #17),
-// triggered when a coordinator publishes the plan. Coordinator/admin only. Each person is
+// triggered on publish. Needs publish_plans (admins and coordinators hold it). Each person is
 // emailed once even if they fill several positions; declined people are skipped.
 
 import { z } from 'npm:zod@4'
-import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
+import { callerHasPermission, getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { fetchEmailPrefs, prefAllows, resolveRecipient } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
@@ -59,8 +59,8 @@ Deno.serve(async (req) => {
   const admin = serviceClient()
   const caller = await getCallerPerson(req, admin)
   if (!caller) return jsonResponse({ error: 'Not authenticated' }, 401)
-  if (caller.role !== 'admin' && caller.role !== 'coordinator') {
-    return jsonResponse({ error: 'Only admins and coordinators can notify a plan' }, 403)
+  if (!(await callerHasPermission(admin, caller, 'publish_plans'))) {
+    return jsonResponse({ error: 'You do not have permission to publish plans' }, 403)
   }
 
   const parsed = requestSchema.safeParse(await req.json().catch(() => null))

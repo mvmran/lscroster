@@ -13,7 +13,7 @@
 // model that miscounts can't quietly shift a song's layers out of step.
 
 import { z } from 'npm:zod@4'
-import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
+import { callerHasPermission, getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { askForStrings, GeminiError, geminiConfigured } from '../_shared/gemini.ts'
 import { alignToLines, buildPrompt } from '../_shared/meaning.ts'
@@ -40,10 +40,10 @@ Deno.serve(async (req) => {
   const admin = serviceClient()
   const caller = await getCallerPerson(req, admin)
   if (!caller) return jsonResponse({ error: 'Not authenticated' }, 401)
-  // Mirrors the `is_admin_or_coordinator()` RLS policy on song_arrangement_lyrics:
+  // Mirrors the `has_permission('manage_songs')` RLS policy on song lyrics:
   // whoever may edit the lyrics may draft a meaning for them.
-  if (caller.role !== 'admin' && caller.role !== 'coordinator') {
-    return jsonResponse({ error: 'Only admins and coordinators can edit lyrics' }, 403)
+  if (!(await callerHasPermission(admin, caller, 'manage_songs'))) {
+    return jsonResponse({ error: 'You do not have permission to edit songs' }, 403)
   }
 
   const parsed = schema.safeParse(await req.json().catch(() => null))
