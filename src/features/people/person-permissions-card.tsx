@@ -132,16 +132,19 @@ export function PersonPermissionsCard({
                 }
                 disabled={(templates.data ?? []).length === 0 || replace.isPending}
               >
+                {/* Reads as an action, not a field: the Select greys its
+                    placeholder, which made this look disabled beside the
+                    Save button even with templates to choose from. */}
                 <SelectTrigger
                   size="sm"
-                  className="w-auto"
+                  className="data-placeholder:text-foreground w-auto font-medium"
                   title={
                     (templates.data ?? []).length === 0
                       ? 'No permission templates yet — save one from here or in Settings'
                       : 'Replace these permissions with a template'
                   }
                 >
-                  <LayoutTemplate className="size-4" />
+                  <LayoutTemplate className="text-foreground size-4" />
                   <SelectValue placeholder="Apply template…" />
                 </SelectTrigger>
                 <SelectContent>
