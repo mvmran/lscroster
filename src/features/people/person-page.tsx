@@ -376,7 +376,9 @@ export function PersonPage() {
       <div
         className={
           showSchedule
-            ? 'grid grid-cols-1 gap-4 lg:grid-cols-[45fr_55fr] lg:items-start'
+            ? // Row 1 is as tall as Schedules; the right column spans both rows,
+              // so the cards under Schedules start straight after it.
+              'grid grid-cols-1 gap-4 lg:grid-cols-[45fr_55fr] lg:grid-rows-[auto_1fr] lg:items-start'
             : 'flex flex-col gap-4'
         }
       >
@@ -385,7 +387,7 @@ export function PersonPage() {
         )}
 
         {/* Everything else stacks in the right column on large screens. */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 lg:row-span-2">
           {/* Contact details */}
           <Card>
             <CardHeader>
@@ -456,27 +458,9 @@ export function PersonPage() {
         </>
       )}
 
-      {(isAdmin || isCoordinator) && <PersonSchedulingCard personId={p.id} />}
-
-      {/* Email preferences (issue #87) — after Scheduling rules. */}
-      {showEmailPrefs && <PersonEmailPrefsCard personId={p.id} />}
-
       {/* Your own password (issue #138) — only ever on your own profile, and
           only once you have an account to change the password of. */}
       {isSelf && p.auth_user_id && <ChangePasswordCard />}
-
-      {/* Notes — admins and coordinators only */}
-      {(isAdmin || isCoordinator) && p.notes && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Notes</CardTitle>
-            <CardDescription>Visible to admins and coordinators.</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm whitespace-pre-wrap">
-            {p.notes}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Account & access — admin only */}
       {isAdmin && (
@@ -641,6 +625,32 @@ export function PersonPage() {
         </Card>
       )}
         </div>
+
+        {/* Under Schedules in the left column on large screens; last on a
+            phone, so Contact details stays near the top there. Every card here
+            is seen only by viewers who also see Schedules, so it never lands
+            in the single-column layout. */}
+        {showSchedule && (
+          <div className="flex flex-col gap-4 lg:col-start-1 lg:row-start-2">
+            {(isAdmin || isCoordinator) && <PersonSchedulingCard personId={p.id} />}
+
+            {/* Email preferences (issue #87) — after Scheduling rules. */}
+            {showEmailPrefs && <PersonEmailPrefsCard personId={p.id} />}
+
+            {/* Notes — admins and coordinators only */}
+            {(isAdmin || isCoordinator) && p.notes && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notes</CardTitle>
+                  <CardDescription>Visible to admins and coordinators.</CardDescription>
+                </CardHeader>
+                <CardContent className="text-sm whitespace-pre-wrap">
+                  {p.notes}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
       </div>
 
       {/* #92 — removing an account's email revokes its sign-in. */}
