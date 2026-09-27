@@ -200,8 +200,8 @@ npx supabase secrets set GEMINI_API_KEY=<your-key>
 | `GEMINI_MODEL` | optional; defaults to `gemini-3.5-flash-lite`, the cheapest model that does this well |
 
 The key never reaches the browser: the app calls the `generate-meaning` and
-`lyrics-assist` Edge Functions, which hold the key and call Google. Only admins
-and coordinators may use them — the same people who may edit songs.
+`lyrics-assist` Edge Functions, which hold the key and call Google. Only people who
+may edit songs can use them: admins, coordinators and members granted Manage songs.
 
 Everything drafted lands in the editor for review and is only stored when
 someone presses **Save changes**, so nothing is written to your database without
@@ -430,6 +430,8 @@ captured locally at http://127.0.0.1:54324 instead of being sent.
 | --- | --- |
 | Church name, logo, accent colour, address | Settings → Church |
 | Who is an admin / coordinator | Settings → Users & roles |
+| What a member may do (permissions, templates) | Their person page → Permissions; Settings → Permission templates |
+| Whether people and songs can be deleted | Settings → Deletion safety |
 | Reminder timing, digests, set-list email | Settings → Communications setup |
 | Delivery problems | Settings → Email delivery |
 | Who changed what | Settings → Audit log |
