@@ -113,7 +113,7 @@ import type { Position } from '@/features/scheduling/scheduling-utils'
 import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import { PERSON_SAFE_COLUMNS } from '@/features/people/use-people'
 import { supabase } from '@/lib/supabase'
-import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { usePermissions } from '@/features/auth/use-permissions'
 import {
   computeItemTimes,
   formatClock,
@@ -666,14 +666,14 @@ function MatrixOrderCell({
  */
 export function MatrixPage() {
   const plansQuery = usePlans()
-  const { data: me } = useCurrentPerson()
+  const { can } = usePermissions()
   const perms = useTeamPermissions()
   const { data: teams, isPending: teamsPending } = useTeams()
   const { data: positions } = useAllPositions()
 
-  // Only admins/coordinators can reorder a plan's order of service (issue #79); RLS
+  // Only order-of-service editors can reorder a plan (issue #79); RLS
   // enforces it too, so members see the list read-only (no drag handles).
-  const canEditOrder = me?.role === 'admin' || me?.role === 'coordinator'
+  const canEditOrder = can('edit_order_of_service')
   // Cell editing is per-team: admins + this team's Team Leaders.
   const canManageAny = perms.isAdmin || perms.ledTeamIds.size > 0
 

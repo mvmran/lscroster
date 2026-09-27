@@ -14,6 +14,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'person.reactivate': 'Person reactivated',
   'person.delete': 'Person deleted',
   'person.role_change': 'Role changed',
+  'person.permission_add': 'Permission granted',
+  'person.permission_remove': 'Permission removed',
   'team.member_add': 'Added to team',
   'team.member_remove': 'Removed from team',
   'team.leader_add': 'Team leader added',

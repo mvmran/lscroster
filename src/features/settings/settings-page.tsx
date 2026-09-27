@@ -27,6 +27,8 @@ import {
 } from '@/features/settings/use-church-logo'
 import { CommunicationsSetupCard } from '@/features/settings/communications-setup-card'
 import { ProjectionApiCard } from '@/features/settings/projection-api-card'
+import { DeleteSafetyCard } from '@/features/settings/delete-safety-card'
+import { PermissionTemplatesCard } from '@/features/settings/permission-templates-card'
 import {
   useChurchSettings,
   useUpdateChurchSettings,
@@ -400,7 +402,7 @@ function AuditLogCard() {
         <CardTitle>Audit log</CardTitle>
         <CardDescription>
           A record of who added, archived, deleted or re-roled people, and team
-          membership and leader/viewer changes.
+          membership, leader/viewer and permission changes.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -421,12 +423,16 @@ export function SettingsPage() {
   // Coordinators can manage service types too (issue #125) and send email.
   const canManageServiceTypes = isAdmin || person?.role === 'coordinator'
   const canSendEmail = isAdmin || person?.role === 'coordinator'
+  // Governance: granting BAU permissions, so managing their templates too.
+  const canGovern = isAdmin || person?.role === 'coordinator'
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Settings" />
       <ChurchSettingsCard canEdit={isAdmin} />
       {canManageServiceTypes && <ServiceTypesLinkCard />}
+      {canGovern && <PermissionTemplatesCard />}
+      {isAdmin && <DeleteSafetyCard />}
       {isAdmin && <CommunicationsSetupCard />}
       {isAdmin && <ProjectionApiCard />}
       {canSendEmail && <TestEmailCard isAdmin={isAdmin} />}

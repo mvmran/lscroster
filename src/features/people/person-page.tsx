@@ -44,6 +44,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { usePermissions } from '@/features/auth/use-permissions'
 import { InviteControls } from '@/features/people/invite-controls'
 import { formatPhone } from '@/features/people/phone-utils'
 import { PersonAvatar } from '@/features/people/person-avatar'
@@ -72,6 +73,7 @@ import { PersonEmailPrefsCard } from '@/features/people/person-email-prefs-card'
 import { PersonScheduleCard } from '@/features/people/person-schedule-card'
 import { PersonSchedulingCard } from '@/features/scheduling/person-scheduling-card'
 import { PersonTeamsCard } from '@/features/scheduling/person-teams-card'
+import { PersonPermissionsCard } from '@/features/people/person-permissions-card'
 import { PersonTeamGrantsCard } from '@/features/scheduling/person-team-grants-card'
 import { usePersonSchedule } from '@/features/scheduling/use-assignments'
 import { todayISODate } from '@/features/services/service-utils'
@@ -81,6 +83,7 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 export function PersonPage() {
   const { id } = useParams<{ id: string }>()
   const person = usePerson(id)
+  const { personDeleteAllowed } = usePermissions()
   const { data: me } = useCurrentPerson()
   const updatePerson = useUpdatePerson()
   const deletePerson = useDeletePerson()
@@ -442,6 +445,14 @@ export function PersonPage() {
             kind="viewer"
             canManage={isAdmin || isCoordinator}
           />
+          {/* BAU permissions — granted by governance, read-only to the person
+              and whoever manages them. */}
+          <PersonPermissionsCard
+            personId={p.id}
+            firstName={p.first_name}
+            role={p.role}
+            canManage={isAdmin || isCoordinator}
+          />
         </>
       )}
 
@@ -573,17 +584,28 @@ export function PersonPage() {
                   </AlertDialog>
                 )}
                 <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={managesAnyone}
-                      title="Permanently remove this person and their history"
-                    >
-                      <Trash2 className="size-4" />
-                      Delete
-                    </Button>
-                  </AlertDialogTrigger>
+                  {/* The span carries the hint: a disabled Button has
+                      pointer-events: none, so its own title never shows. */}
+                  <span
+                    className="inline-flex"
+                    title={
+                      personDeleteAllowed
+                        ? undefined
+                        : 'Deleting people is turned off in Settings — archive them instead'
+                    }
+                  >
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={managesAnyone || !personDeleteAllowed}
+                        title="Permanently remove this person and their history"
+                      >
+                        <Trash2 className="size-4" />
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                  </span>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>

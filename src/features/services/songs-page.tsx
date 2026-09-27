@@ -34,7 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { usePermissions } from '@/features/auth/use-permissions'
 import {
   formatPlanDateShort,
   songSearchLinks,
@@ -311,7 +311,7 @@ const SongList = memo(function SongList({
 export function SongsPage() {
   const { data: songs, isPending, isError, error } = useSongs()
   const { data: usage } = useSongUsage()
-  const { data: me } = useCurrentPerson()
+  const { can } = usePermissions()
   const navigate = useNavigate()
 
   // The three filters live in the URL (`?q=`, `?tag=`, `?status=`), not in
@@ -381,7 +381,7 @@ export function SongsPage() {
   }
   const [newSongOpen, setNewSongOpen] = useState(false)
 
-  const canManage = me?.role === 'admin' || me?.role === 'coordinator'
+  const canManage = can('manage_songs')
 
   const allTags = useMemo(
     () => [...new Set((songs ?? []).flatMap((s) => s.tags))].sort(),

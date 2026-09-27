@@ -53,7 +53,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { usePermissions } from '@/features/auth/use-permissions'
 import { useUnsavedChangesWarning } from '@/lib/use-unsaved-changes-warning'
 import {
   LyricLayerToggle,
@@ -1541,13 +1541,13 @@ export function SongPage() {
   // song was opened from somewhere else (a plan, a bookmark) — then Back just
   // means the whole library.
   const backToSongs = { pathname: '/songs', search: useLocation().search }
-  const { data: me } = useCurrentPerson()
   const { data: song, isPending, isError, error } = useSong(id)
   const updateSong = useUpdateSong()
   const deleteSong = useDeleteSong()
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const canManage = me?.role === 'admin' || me?.role === 'coordinator'
+  const { can, songDeleteAllowed } = usePermissions()
+  const canManage = can('manage_songs')
 
   if (isError) return <FullPageError message={error.message} />
   if (isPending) {
@@ -1666,15 +1666,27 @@ export function SongPage() {
                 )}
                 {song.status === 'active' ? 'Archive' : 'Restore'}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setConfirmDelete(true)}
-                title="Delete this song and all of its arrangements"
+              {/* The span carries the hint: a disabled Button has
+                  pointer-events: none, so its own title never shows. */}
+              <span
+                className="inline-flex"
+                title={
+                  songDeleteAllowed
+                    ? undefined
+                    : 'Deleting songs is turned off in Settings — archive it instead'
+                }
               >
-                <Trash2 className="size-4" />
-                Delete
-              </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={!songDeleteAllowed}
+                  title="Delete this song and all of its arrangements"
+                >
+                  <Trash2 className="size-4" />
+                  Delete
+                </Button>
+              </span>
             </div>
           )}
         </div>

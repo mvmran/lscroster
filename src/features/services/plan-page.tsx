@@ -78,7 +78,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { usePermissions } from '@/features/auth/use-permissions'
 import { useSendPlanNotification } from '@/features/scheduling/use-assignments'
 import {
   useAllPlanMinCounts,
@@ -791,7 +791,6 @@ export function PlanPage() {
     typeof (location.state as { from?: string } | null)?.from === 'string'
       ? (location.state as { from: string }).from
       : `/services${location.search}`
-  const { data: me } = useCurrentPerson()
   const planQuery = usePlan(id)
   const itemsQuery = usePlanItems(id)
   const { data: songs } = useSongs()
@@ -825,7 +824,14 @@ export function PlanPage() {
 
   const plan = planQuery.data
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data])
-  const canManage = me?.role === 'admin' || me?.role === 'coordinator'
+  // BAU permissions: admins and coordinators hold them all; a member holds
+  // what they were granted. RLS enforces each one.
+  const { can } = usePermissions()
+  const canEdit = can('edit_order_of_service')
+  const canPublish = can('publish_plans')
+  const canCreate = can('create_delete_plans')
+  const canAttach = can('attach_plan_files')
+  const showPlanMenu = canEdit || canPublish || canCreate
 
   // arrangement id -> {arrangement, linked songs} — resolves item titles
   // (medleys show every song) and keys since #130.
@@ -905,7 +911,7 @@ export function PlanPage() {
 
   // The order of service is locked once a plan is published (issue #123) — no
   // reordering, adding, editing or deleting items in plan or matrix view.
-  const canEditOrder = canManage && plan.status !== 'published'
+  const canEditOrder = canEdit && plan.status !== 'published'
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -1157,28 +1163,30 @@ export function PlanPage() {
             <Badge variant={plan.status === 'published' ? 'default' : 'outline'}>
               {plan.status === 'published' ? 'Published' : 'Draft'}
             </Badge>
-            {canManage && (
+            {showPlanMenu && (
               <>
-                <Button
-                  variant={plan.status === 'published' ? 'outline' : 'default'}
-                  size="sm"
-                  onClick={togglePublish}
-                  disabled={
-                    updatePlan.isPending ||
-                    sendNotification.isPending ||
-                    recordOverrides.isPending
-                  }
-                  title={
-                    plan.status === 'published'
-                      ? 'Hide this plan from the team again'
-                      : 'Make it visible and email everyone scheduled'
-                  }
-                >
-                  {sendNotification.isPending && (
-                    <Loader2 className="size-4 animate-spin" />
-                  )}
-                  {plan.status === 'published' ? 'Unpublish' : 'Publish'}
-                </Button>
+                {canPublish && (
+                  <Button
+                    variant={plan.status === 'published' ? 'outline' : 'default'}
+                    size="sm"
+                    onClick={togglePublish}
+                    disabled={
+                      updatePlan.isPending ||
+                      sendNotification.isPending ||
+                      recordOverrides.isPending
+                    }
+                    title={
+                      plan.status === 'published'
+                        ? 'Hide this plan from the team again'
+                        : 'Make it visible and email everyone scheduled'
+                    }
+                  >
+                    {sendNotification.isPending && (
+                      <Loader2 className="size-4 animate-spin" />
+                    )}
+                    {plan.status === 'published' ? 'Unpublish' : 'Publish'}
+                  </Button>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -1192,27 +1200,33 @@ export function PlanPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => setEditDetailsOpen(true)}
-                      title="Change this plan's date or title"
-                    >
-                      <Pencil className="size-4" />
-                      Edit details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => setDuplicateOpen(true)}
-                      title="Copy this order of service to another date"
-                    >
-                      <Copy className="size-4" />
-                      Duplicate…
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => setTemplateOpen(true)}
-                      title="Save this plan as a reusable template, or edit one"
-                    >
-                      <LayoutTemplate className="size-4" />
-                      Templates…
-                    </DropdownMenuItem>
+                    {canEdit && (
+                      <DropdownMenuItem
+                        onClick={() => setEditDetailsOpen(true)}
+                        title="Change this plan's date or title"
+                      >
+                        <Pencil className="size-4" />
+                        Edit details
+                      </DropdownMenuItem>
+                    )}
+                    {canCreate && (
+                      <>
+                        <DropdownMenuItem
+                          onClick={() => setDuplicateOpen(true)}
+                          title="Copy this order of service to another date"
+                        >
+                          <Copy className="size-4" />
+                          Duplicate…
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setTemplateOpen(true)}
+                          title="Save this plan as a reusable template, or edit one"
+                        >
+                          <LayoutTemplate className="size-4" />
+                          Templates…
+                        </DropdownMenuItem>
+                      </>
+                    )}
                     <DropdownMenuItem asChild>
                       <Link
                         to={`/services/plans/${plan.id}/print`}
@@ -1222,32 +1236,38 @@ export function PlanPage() {
                         Print run sheet
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={sendingSetlist}
-                      onClick={() => setConfirmSetlist(true)}
-                      title="Emails the songs, keys and worship roster"
-                    >
-                      {sendingSetlist ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Send className="size-4" />
-                      )}
-                      Email set list…
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => setConfirmDeletePlan(true)}
-                      title="Delete this plan and everyone scheduled on it"
-                    >
-                      <Trash2 className="size-4" />
-                      Delete plan
-                    </DropdownMenuItem>
+                    {canPublish && (
+                      <DropdownMenuItem
+                        disabled={sendingSetlist}
+                        onClick={() => setConfirmSetlist(true)}
+                        title="Emails the songs, keys and worship roster"
+                      >
+                        {sendingSetlist ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Send className="size-4" />
+                        )}
+                        Email set list…
+                      </DropdownMenuItem>
+                    )}
+                    {canCreate && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => setConfirmDeletePlan(true)}
+                          title="Delete this plan and everyone scheduled on it"
+                        >
+                          <Trash2 className="size-4" />
+                          Delete plan
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
             )}
-            {!canManage && (
+            {!showPlanMenu && (
               <Button variant="outline" size="sm" asChild>
                 <Link
                   to={`/services/plans/${plan.id}/print`}
@@ -1262,7 +1282,7 @@ export function PlanPage() {
           </div>
         </div>
         <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-1.5 text-sm">
-          <PlanStartTime plan={plan} canManage={canManage} label={startLabel} />
+          <PlanStartTime plan={plan} canManage={canEdit} label={startLabel} />
           <span>
             {[
               startLabel ? '·' : null,
@@ -1358,16 +1378,16 @@ export function PlanPage() {
 
       <SchedulingPanel plan={plan} />
 
-      <PlanTimesCard planId={plan.id} canManage={canManage} />
+      <PlanTimesCard planId={plan.id} canManage={canEdit} />
       <PlanMediaCard
         planId={plan.id}
-        canManage={canManage}
+        canManage={canEdit}
         serviceName={plan.service_types.name}
         planDate={plan.date}
       />
-      <PlanAttachmentsCard planId={plan.id} canManage={canManage} />
+      <PlanAttachmentsCard planId={plan.id} canManage={canAttach} />
 
-      <NotesCard key={plan.notes ?? ''} plan={plan} canManage={canManage} />
+      <NotesCard key={plan.notes ?? ''} plan={plan} canManage={canEdit} />
 
       <PlanItemDialog
         state={itemDialog}

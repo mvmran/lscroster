@@ -17,6 +17,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { usePermissions } from '@/features/auth/use-permissions'
 import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import { NewPlanDialog } from '@/features/services/new-plan-dialog'
 import { formatPlanDate } from '@/features/services/service-utils'
@@ -89,11 +90,12 @@ export function ServicesPage() {
     setSearchParams(value === 'all' ? {} : { type: value }, { replace: true })
   const [newPlanOpen, setNewPlanOpen] = useState(false)
 
-  const canManage = me?.role === 'admin' || me?.role === 'coordinator'
+  const { can } = usePermissions()
+  const canCreate = can('create_delete_plans')
   const isAdmin = me?.role === 'admin'
   // Per-team Team Leaders can roster via the Matrix even as a plain member
   // (issue #111), so the entry button shows for them too.
-  const canMatrix = canManage || perms.ledTeamIds.size > 0
+  const canMatrix = can('edit_order_of_service') || perms.ledTeamIds.size > 0
 
   const filtered = useMemo(
     () =>
@@ -116,7 +118,7 @@ export function ServicesPage() {
       <PageHeader
         title="Services"
         actions={
-          (canMatrix || canManage) && (
+          (canMatrix || canCreate) && (
             <>
               {canMatrix && (
                 <Button variant="outline" asChild>
@@ -126,7 +128,7 @@ export function ServicesPage() {
                   </Link>
                 </Button>
               )}
-              {canManage && (
+              {canCreate && (
                 // The span carries the "why is this greyed out" hint: a disabled
                 // Button has pointer-events: none, so its own title never shows.
                 <span
@@ -207,7 +209,7 @@ export function ServicesPage() {
               plans={upcoming}
               search={planSearch}
               emptyText={
-                canManage
+                canCreate
                   ? 'No upcoming plans. Create one to start planning.'
                   : 'No upcoming plans published yet.'
               }
