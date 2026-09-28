@@ -24,7 +24,7 @@ perfectly good substitute for a church of this size.
 and Docker, and writes one dated archive:
 
 ```bash
-scripts/backup.sh                      # → ~/backups/lscroster/
+scripts/backup.sh                      # → ~/dev/backups/lscroster/
 scripts/backup.sh /mnt/usb/lscroster   # anywhere else
 ```
 
@@ -59,7 +59,7 @@ On a Linux machine that stays on (or macOS), `crontab -e` and add:
 
 ```cron
 # LSCroster backup at 02:30 every night
-30 2 * * * /path/to/lscroster/scripts/backup.sh >> $HOME/backups/lscroster/backup.log 2>&1
+30 2 * * * /path/to/lscroster/scripts/backup.sh >> $HOME/dev/backups/lscroster/backup.log 2>&1
 ```
 
 Check `backup.log` now and then: every good night ends with a `wrote …`
@@ -96,7 +96,7 @@ one. `scripts/restore.sh` refuses a database that already has anyone in
 4. From the same linked checkout:
 
    ```bash
-   scripts/restore.sh ~/backups/lscroster/lscroster-<ref>-<time>.tar.gz \
+   scripts/restore.sh ~/dev/backups/lscroster/lscroster-<ref>-<time>.tar.gz \
      'postgresql://postgres.<new-ref>:<db-password>@<pooler-host>:5432/postgres'
    ```
 

@@ -126,7 +126,7 @@ RLS mirrors the other scheduling-rules tables: authenticated read,
 Design decisions baked in:
 
 - **No IF/THEN/ELSE.** Issue #113 asks for ELSE, but an ELSE is just a second
-  rule (exactly how Manoj phrased Rule A / Rule B). Base `min_count` is the
+  rule (exactly how the user phrased Rule A / Rule B). Base `min_count` is the
   "no rule fired" default. Two condition→effects rows are simpler to store,
   display, and reason about than a branching structure.
 - **Min-count effects only in v1.** The validator doesn't even check
@@ -329,7 +329,7 @@ migration path beyond the standard `db push` ordering.
 
 ---
 
-## 7. Decision points for Manoj (recommendations inline)
+## 7. Decision points (recommendations inline)
 
 1. **Attribute model** — typed `people.sex` column now, generic tags later if
    a non-sex rule actually materialises (recommended), or build tags first?
@@ -362,7 +362,7 @@ cross-team mirror ("whoever leads worship also runs Foldback"). Cross-team
 needed **no schema change** — rules were never team-scoped, only
 position-scoped.
 
-**Person requirements are checks, not writes (decision: Manoj).** A fired
+**Person requirements are checks, not writes (decision: the user).** A fired
 person/same-person effect emits a `personRequirement` (person P must hold
 position Y). Nothing auto-inserts assignments: the validator flags
 `CONDITIONAL_PERSON_MISSING` at the rule's strength, the engine fills the
@@ -377,10 +377,10 @@ rejection exempt exactly those pairs: Sam may hold WL + Guitar, a third
 un-sanctioned position still errors, and if the trigger changes the sanction
 evaporates and the stale rows surface as an ordinary double-booking.
 
-**Fairness counts once per service (decision: Manoj).** History dedupes by
+**Fairness counts once per service (decision: the user).** History dedupes by
 plan, so a rule-linked double counts as one serve for min-gap / max-per-month /
 consecutive / scoring. Request emails stay one-per-assignment-row for now
-(decision: Manoj) — combining into one email per person is a follow-up.
+(decision: the user) — combining into one email per person is a follow-up.
 
 **Referential integrity.** Person FKs are `ON DELETE SET NULL`; a null ref
 makes the rule **broken**: it stops firing, the plan chip goes red

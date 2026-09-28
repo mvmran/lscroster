@@ -14,7 +14,7 @@
 # like the membership roll. Secret *values* are never written — Edge Function
 # secrets can't be read back, and Vault is deliberately left out.
 #
-# Usage:  scripts/backup.sh [dest-dir]        (default ~/backups/lscroster)
+# Usage:  scripts/backup.sh [dest-dir]        (default ~/dev/backups/lscroster)
 #   KEEP=30  archives to keep in dest-dir (oldest pruned after a good run)
 #
 # Needs: run from a checkout linked to the project (`npx supabase link`),
@@ -24,7 +24,7 @@
 
 set -euo pipefail
 
-DEST="${1:-$HOME/backups/lscroster}"
+DEST="${1:-$HOME/dev/backups/lscroster}"
 KEEP="${KEEP:-30}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUCKETS=(photos song-attachments plan-attachments church-logo)

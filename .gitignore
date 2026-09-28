@@ -24,13 +24,9 @@ supabase/.temp
 # Vercel
 .vercel
 
-# Agent working files — kept local, not distributed with the app
+# Claude Code's local runtime (worktrees, settings) — kept local.
+# CLAUDE.md and PHASES.md are tracked (project + roadmap docs).
 .claude/
-.grok/
-CLAUDE.md
-GROK.md
-PHASES.md
-grok-resume.bat
 
 # Syncthing folder marker + per-machine sync excludes
 .stfolder/
