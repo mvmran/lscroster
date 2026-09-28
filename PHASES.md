@@ -193,10 +193,9 @@ action needed by instances: scripts and docs only).
 - [x] Drilled 2026-09-28 on a throwaway local stack (ports 553xx): counts
   matched the manifest, a restored login signed in.
 - [x] Flint: user crontab, **02:30 nightly**, into `~/dev/backups/lscroster`
-  (moved there 2026-09-28; passed as the dest arg — the script default stays
-  `~/backups/lscroster` for other churches). Runs from the main checkout, so it
-  must stay linked with `node_modules` installed; token from
-  `~/.supabase-token`. Not a Syncthing folder — keep it that way.
+  (the script default since 2026-09-29, `d859696` — the cron runs no-arg). Runs
+  from the main checkout, so it must stay linked with `node_modules` installed;
+  token from `~/.supabase-token`. Not a Syncthing folder — keep it that way.
 - [ ] **Off-flint copy.** Every archive is on flint's one disk. Options: an
   encrypted copy to a USB disk or cloud folder (`age`/`gpg` before it leaves
   flint), or Supabase Pro (daily backups, 7 days) once the roster is
