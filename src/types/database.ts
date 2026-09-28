@@ -2048,7 +2048,7 @@ export type Database = {
           last_name?: string | null
           managed_accepted_at?: string | null
           managed_by_person_id?: string | null
-          notes?: string | null
+          notes?: never
           phone?: never
           photo_url?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
@@ -2067,7 +2067,7 @@ export type Database = {
           last_name?: string | null
           managed_accepted_at?: string | null
           managed_by_person_id?: string | null
-          notes?: string | null
+          notes?: never
           phone?: never
           photo_url?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
@@ -2185,6 +2185,7 @@ export type Database = {
         Returns: boolean
       }
       is_viewer_of_plan: { Args: { target_plan_id: string }; Returns: boolean }
+      leads_any_team: { Args: never; Returns: boolean }
       leads_team: { Args: { target_team_id: string }; Returns: boolean }
       leads_team_on_plan: { Args: { target_plan_id: string }; Returns: boolean }
       manages_person: { Args: { target: string }; Returns: boolean }

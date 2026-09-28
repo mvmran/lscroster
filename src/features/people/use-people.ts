@@ -19,8 +19,12 @@ export const peopleKeys = {
  * view (see usePeople/usePerson). `has_email` is the non-sensitive
  * "is this person emailable?" flag for the scheduling UI.
  */
+// Columns the client may read from the base `people` table (e.g. joined onto
+// assignments/teams). `notes` is deliberately absent: it is admin/coordinator-
+// only and its base-table SELECT grant is revoked (migration 0046); the person
+// page reads notes through the masked `people_directory` view instead.
 export const PERSON_SAFE_COLUMNS =
-  'id, first_name, last_name, role, status, photo_url, notes, sex, ' +
+  'id, first_name, last_name, role, status, photo_url, sex, ' +
   'auth_user_id, managed_by_person_id, managed_accepted_at, has_email, ' +
   'created_at, updated_at'
 
