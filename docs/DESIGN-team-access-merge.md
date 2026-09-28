@@ -1,7 +1,10 @@
 # Design — Team Access merge (Leader / Scheduler / Viewer)
 
-**Status:** scoping. **Branch:** `worktree-access-control-rework`.
-This is section #3 of the access-control rework (see [ACCESS-CONTROL.md](ACCESS-CONTROL.md)).
+**Status:** implemented (migration 0048) with decisions D1 = yes, D2 = scheduler,
+D3 = all, D4 = "Viewer / Scheduler / Manager". **Branch:**
+`worktree-access-control-rework`. This was section #3 of the access-control
+rework; the shipped model is documented in [ACCESS-CONTROL.md](ACCESS-CONTROL.md).
+The rest of this file is the original scope, kept for the rationale.
 
 ## Goal
 

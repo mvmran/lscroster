@@ -9,8 +9,8 @@ Access is decided by **three independent layers** that add together:
 
 1. **The global role** on `people.role` (`app_role`): `admin`, `coordinator` or
    `member`. One per person.
-2. **Per-team grants** (`team_leaders`, `team_viewers`): a person — of *any*
-   role — can be made a **Team Leader** or **Team Viewer** of specific teams.
+2. **Per-team access** (`team_grants`): a person — of *any* role — can be given
+   one graded level on specific teams: **Viewer**, **Scheduler** or **Manager**.
 3. **Member permissions** (`person_permissions`): six day-to-day jobs a member
    can be granted individually. Admins and coordinators hold all six implicitly.
 
@@ -50,7 +50,7 @@ everything gated on `is_admin_or_coordinator()`:
 
 **Scheduling governance**
 - Create, rename and delete **teams**.
-- Appoint **Team Leaders** and **Team Viewers** on any team (including
+- Grant **team access** — Viewer, Scheduler or Manager — on any team (including
   themselves).
 - Service types, and which teams belong to each.
 - Conditional rules and their effects.
@@ -64,13 +64,12 @@ everything gated on `is_admin_or_coordinator()`:
 - See everyone's contact details (email, phone, birthday) and notes
   (`can_view_contact()` / the admin-coordinator notes mask).
 
-**Team management (since migration 0047).** A coordinator governs **every**
-team church-wide: they can add/remove any team's members, set their positions,
-and **roster** any team (assign people on a plan, send/cancel requests) —
-without holding a per-team Team-Leader grant. This is because `can_manage_team()`
-is satisfied by the coordinator role itself. They can also mute a plan's
-conditional-rule warnings on any plan. Team Leaders keep their own per-team
-scope alongside this.
+**Team management.** A coordinator governs **every** team church-wide: they can
+add/remove any team's members, set their positions, and **roster** any team
+(assign people on a plan, send/cancel requests, mute rule warnings) without
+holding a per-team grant — they satisfy both `can_manage_team()` and
+`can_schedule_team()` by role. Members with a Manager or Scheduler grant keep
+their own per-team scope alongside this.
 
 ### Member — themselves, and what they're given
 
@@ -87,36 +86,45 @@ Everything beyond that comes from a per-team grant or a member permission.
 
 ---
 
-## Per-team grants (any role can hold these)
+## Per-team access (any role can hold it)
 
-These are attached to a specific team and apply only to that team. A member, a
-coordinator or an admin can all be granted them; only admins and coordinators can
-*award* them.
+A single graded grant per person per team (`team_grants.access`, migration
+0048), set from one dropdown on the **Team Access** card. It applies only to
+that team. Anyone — member, coordinator or admin — can be granted it, but only
+admins and coordinators *award* it. The three levels are ordered
+**Viewer ⊂ Scheduler ⊂ Manager**; admins and coordinators hold **Manager** on
+every team implicitly.
 
-### Team Leader (`team_leaders` → `can_manage_team()`)
+### Viewer (`views_team()` / `is_viewer_of_plan()`)
 
-The hands-on manager **of the team(s) they lead**. For each such team they can:
+A **read-only** window into the team. For the team's plans — including **draft**
+plans — a Viewer sees the plan and its order of service, times and attachments
+(`plans`, `plan_items`, `plan_times`, `plan_attachments`) and the team's roster
+(`plan_assignments`). They change nothing.
+
+### Scheduler (`can_schedule_team()`)
+
+Everything a Viewer sees, **plus rostering**:
+
+- **Schedule** the team: create, change and remove plan assignments
+  (`plan_assignments`), including sending and cancelling the scheduling requests
+  (`send-requests` / `cancel-assignment`).
+- Set per-plan position targets and mute a plan's rule warnings.
+- See contact details for the team's members.
+
+A Scheduler **cannot** change who is on the team.
+
+### Manager (`can_manage_team()`)
+
+Everything a Scheduler can do, **plus the team's structure**:
 
 - **Add and remove members**, and set which positions each member fills
   (`team_members`, `team_member_positions`).
 - Manage the team's **positions** (create/edit position definitions).
-- **Roster** the team: create, change and remove plan assignments
-  (`plan_assignments`), including sending and cancelling the scheduling requests
-  for their team's assignments (`send-requests` / `cancel-assignment`).
-- See the plans their team is on (drafts included) and their team's roster.
-- See contact details for the members of a team they lead.
 
-They **cannot** touch a team they don't lead, and hold no church-wide governance
-powers (no team creation, no appointing leaders, no rules/service types) unless
-their global role gives it.
-
-### Team Viewer (`team_viewers` → `views_team()` / `is_viewer_of_plan()`)
-
-A **read-only** window into the teams they view. For a plan any viewed team is
-scheduled onto, a Team Viewer can see — including **draft** plans — the plan and
-its order of service, times and attachments (`plans`, `plan_items`,
-`plan_times`, `plan_attachments`) and that team's roster
-(`plan_assignments`). They can change nothing and cannot roster.
+A grant applies only to its own team, and carries no church-wide governance
+(no team creation, no appointing grants, no rules/service types) unless the
+person's global role gives it.
 
 ---
 
@@ -148,7 +156,7 @@ Two things that follow from the design:
   Team-Leader grant, never a permission.
 
 **Not grantable as a permission** (coordinator/admin only): granting permissions,
-appointing Team Leaders/Viewers, creating/deleting teams, service types,
+granting team access, creating/deleting teams, service types,
 conditional rules, pairings and scheduling preferences.
 
 **Permission templates** are presets: applying one *copies* its permissions onto
@@ -158,30 +166,32 @@ the person, so editing or deleting the template later changes nobody.
 
 ## Quick reference
 
-Legend: ✅ yes · ⛔ no · **TL** = only for a team they hold the Team-Leader grant
-on · **perm** = if granted the relevant member permission.
+Legend: ✅ yes · ⛔ no · **perm** = if granted the relevant member permission.
+The **Manager / Scheduler / Viewer** columns are the per-team access level a
+person holds *on that team* — the ability applies only to the team they hold it
+on, and stacks with their global role and permissions.
 
-| Action | Admin | Coordinator | Team Leader | Team Viewer | Member |
-| --- | :---: | :---: | :---: | :---: | :---: |
-| Edit/delete people, change roles | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
-| Invite people / create logins | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
-| Church settings, deletion safety | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
-| Create/delete teams, appoint grants | ✅ | ✅ | ⛔ | ⛔ | ⛔ |
-| Service types, conditional rules, pairings | ✅ | ✅ | ⛔ | ⛔ | ⛔ |
-| Grant/revoke member permissions | ✅ | ✅ | ⛔ | ⛔ | ⛔ |
-| See everyone's contact details & notes | ✅ | ✅ | own team | ⛔ | ⛔ |
-| Add/remove team members, set positions | ✅ | ✅ | **TL** | ⛔ | ⛔ |
-| Roster a team (plan assignments) | ✅ | ✅ | **TL** | ⛔ | ⛔ |
-| Mute a plan's rule warnings | ✅ | ✅ | **TL** | ⛔ | ⛔ |
-| Create/delete plans | ✅ | ✅ | ⛔ | ⛔ | **perm** |
-| Edit order of service | ✅ | ✅ | ⛔ | ⛔ | **perm** |
-| Publish plans + set-list email | ✅ | ✅ | ⛔ | ⛔ | **perm** |
-| Manage songs | ✅ | ✅ | ⛔ | ⛔ | **perm** |
-| Attach plan files | ✅ | ✅ | ⛔ | ⛔ | **perm** |
-| View all plans (drafts included) | ✅ | ✅ | own team's plans | viewed team's plans | **perm** |
-| View published plans; respond to own requests; manage own profile & blockouts | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Action | Admin | Coordinator | Manager | Scheduler | Viewer | Member |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
+| Edit/delete people, change roles | ✅ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
+| Invite people / create logins | ✅ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
+| Church settings, deletion safety | ✅ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
+| Create/delete teams, appoint access | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
+| Service types, conditional rules, pairings | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
+| Grant/revoke member permissions | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
+| Add/remove team members, set positions | ✅ | ✅ | ✅ | ⛔ | ⛔ | ⛔ |
+| Roster a team (plan assignments), email it | ✅ | ✅ | ✅ | ✅ | ⛔ | ⛔ |
+| Set per-plan targets, mute rule warnings | ✅ | ✅ | ✅ | ✅ | ⛔ | ⛔ |
+| See the team's members' contact details | ✅ | ✅ | ✅ | ✅ | ⛔ | ⛔ |
+| View the team's plans & roster (incl. drafts) | ✅ | ✅ | ✅ | ✅ | ✅ | ⛔ |
+| Create/delete plans | ✅ | ✅ | ⛔ | ⛔ | ⛔ | **perm** |
+| Edit order of service | ✅ | ✅ | ⛔ | ⛔ | ⛔ | **perm** |
+| Publish plans + set-list email | ✅ | ✅ | ⛔ | ⛔ | ⛔ | **perm** |
+| Manage songs | ✅ | ✅ | ⛔ | ⛔ | ⛔ | **perm** |
+| Attach plan files | ✅ | ✅ | ⛔ | ⛔ | ⛔ | **perm** |
+| View all plans (drafts included) | ✅ | ✅ | ⛔ | ⛔ | ⛔ | **perm** |
+| View published plans; respond to own requests; manage own profile & blockouts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-> `**TL**` means the action needs a Team-Leader grant for that team. Coordinators
-> and admins manage every team by role, so they never need the grant; a Team
-> Leader is scoped to their own team(s); a plain member cannot manage teams at
-> all.
+> The three per-team columns are cumulative: a Manager can do everything a
+> Scheduler can, and a Scheduler everything a Viewer can. Admins and coordinators
+> hold Manager on every team by role, so they never need a grant.
