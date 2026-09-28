@@ -429,7 +429,7 @@ captured locally at http://127.0.0.1:54324 instead of being sent.
 | Task | Where |
 | --- | --- |
 | Church name, logo, accent colour, address | Settings → Church |
-| Who is an admin / coordinator | Settings → Users & roles |
+| Who is an admin / coordinator | Their person page → edit → Role |
 | What a member may do (permissions, templates) | Their person page → Permissions; Settings → Permission templates |
 | Whether people and songs can be deleted | Settings → Deletion safety |
 | Reminder timing, digests, set-list email | Settings → Communications setup |

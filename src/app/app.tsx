@@ -1,7 +1,12 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { FullPageLoader } from '@/components/full-page-loader'
-import { RequireAdmin, RequireAdminOrCoordinator, RequireAuth } from '@/app/guards'
+import {
+  RequireAdmin,
+  RequireAdminOrCoordinator,
+  RequireAuth,
+  RequireMatrixAccess,
+} from '@/app/guards'
 import { AppLayout } from '@/app/layout'
 import { Providers } from '@/app/providers'
 import { SignInPage } from '@/features/auth/sign-in-page'
@@ -77,7 +82,6 @@ const SettingsPage = lazyPage(
   () => import('@/features/settings/settings-page'),
   'SettingsPage',
 )
-const UsersPage = lazyPage(() => import('@/features/settings/users-page'), 'UsersPage')
 const EmailLogPage = lazyPage(
   () => import('@/features/settings/email-log-page'),
   'EmailLogPage',
@@ -108,7 +112,9 @@ export function App() {
                 <Route path="/people" element={<PeoplePage />} />
                 <Route path="/people/:id" element={<PersonPage />} />
                 <Route path="/services" element={<ServicesPage />} />
-                <Route path="/services/matrix" element={<MatrixPage />} />
+                <Route element={<RequireMatrixAccess />}>
+                  <Route path="/services/matrix" element={<MatrixPage />} />
+                </Route>
                 <Route path="/services/plans/:id" element={<PlanPage />} />
                 <Route path="/songs" element={<SongsPage />} />
                 <Route path="/songs/reports" element={<SongReportsPage />} />
@@ -120,7 +126,6 @@ export function App() {
                 <Route element={<RequireAdmin />}>
                   <Route path="/people/new" element={<CreatePersonPage />} />
                   <Route path="/people/import" element={<ImportPage />} />
-                  <Route path="/settings/users" element={<UsersPage />} />
                   <Route path="/settings/email-log" element={<EmailLogPage />} />
                   <Route path="/settings/audit" element={<AuditLogPage />} />
                 </Route>
