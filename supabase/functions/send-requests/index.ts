@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
     const person = assignment.people
     const fullName = `${person.first_name} ${person.last_name}`.trim()
     // A Team Leader can only email their own teams' assignments (admins: all).
-    if (!scope.canManageTeam(assignment.team_id)) {
+    if (!scope.canScheduleTeam(assignment.team_id)) {
       skipped.push({ name: fullName, reason: 'not your team' })
       continue
     }

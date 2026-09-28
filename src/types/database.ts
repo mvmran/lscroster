@@ -1808,45 +1808,45 @@ export type Database = {
         }
         Relationships: []
       }
-      team_leaders: {
+      team_grants: {
         Row: {
+          access: Database["public"]["Enums"]["team_access"]
           created_at: string
-          id: string
           person_id: string
           team_id: string
           updated_at: string
         }
         Insert: {
+          access: Database["public"]["Enums"]["team_access"]
           created_at?: string
-          id?: string
           person_id: string
           team_id: string
           updated_at?: string
         }
         Update: {
+          access?: Database["public"]["Enums"]["team_access"]
           created_at?: string
-          id?: string
           person_id?: string
           team_id?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "team_leaders_person_id_fkey"
+            foreignKeyName: "team_grants_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "team_leaders_person_id_fkey"
+            foreignKeyName: "team_grants_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people_directory"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "team_leaders_team_id_fkey"
+            foreignKeyName: "team_grants_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -1935,52 +1935,6 @@ export type Database = {
           },
           {
             foreignKeyName: "team_members_team_id_fkey"
-            columns: ["team_id"]
-            isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      team_viewers: {
-        Row: {
-          created_at: string
-          id: string
-          person_id: string
-          team_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          person_id: string
-          team_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          person_id?: string
-          team_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "team_viewers_person_id_fkey"
-            columns: ["person_id"]
-            isOneToOne: false
-            referencedRelation: "people"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "team_viewers_person_id_fkey"
-            columns: ["person_id"]
-            isOneToOne: false
-            referencedRelation: "people_directory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "team_viewers_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -2166,6 +2120,7 @@ export type Database = {
         Returns: undefined
       }
       can_manage_team: { Args: { target_team_id: string }; Returns: boolean }
+      can_schedule_team: { Args: { target_team_id: string }; Returns: boolean }
       can_see_all_plans: { Args: never; Returns: boolean }
       can_view_contact: { Args: { target: string }; Returns: boolean }
       current_actor_person_id: { Args: never; Returns: string }
@@ -2184,14 +2139,17 @@ export type Database = {
         Args: { target_plan_id: string }
         Returns: boolean
       }
+      is_team_manager: { Args: { target_team_id: string }; Returns: boolean }
       is_viewer_of_plan: { Args: { target_plan_id: string }; Returns: boolean }
-      leads_any_team: { Args: never; Returns: boolean }
-      leads_team: { Args: { target_team_id: string }; Returns: boolean }
-      leads_team_on_plan: { Args: { target_plan_id: string }; Returns: boolean }
       manages_person: { Args: { target: string }; Returns: boolean }
       manages_photo_folder: { Args: { object_name: string }; Returns: boolean }
       person_delete_allowed: { Args: never; Returns: boolean }
       pin_plan_lyrics: { Args: { p_plan_id: string }; Returns: undefined }
+      schedules_any_team: { Args: never; Returns: boolean }
+      schedules_team_on_plan: {
+        Args: { target_plan_id: string }
+        Returns: boolean
+      }
       song_delete_allowed: { Args: never; Returns: boolean }
       team_of_member: { Args: { target_member_id: string }; Returns: string }
       views_team: { Args: { target_team_id: string }; Returns: boolean }
@@ -2222,6 +2180,7 @@ export type Database = {
         | "quarterly"
         | "yearly"
       song_status: "active" | "archived"
+      team_access: "viewer" | "scheduler" | "manager"
       team_type: "general" | "worship" | "media"
     }
     CompositeTypes: {
@@ -2380,6 +2339,7 @@ export const Constants = {
         "yearly",
       ],
       song_status: ["active", "archived"],
+      team_access: ["viewer", "scheduler", "manager"],
       team_type: ["general", "worship", "media"],
     },
   },

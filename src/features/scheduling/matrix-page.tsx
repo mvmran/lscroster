@@ -674,8 +674,8 @@ export function MatrixPage() {
   // Only order-of-service editors can reorder a plan (issue #79); RLS
   // enforces it too, so members see the list read-only (no drag handles).
   const canEditOrder = can('edit_order_of_service')
-  // Cell editing is per-team: admins + this team's Team Leaders.
-  const canManageAny = perms.isAdmin || perms.ledTeamIds.size > 0
+  // Cell editing is per-team: admins, coordinators, and this team's schedulers.
+  const canManageAny = perms.canScheduleAny
 
   const [typeFilter, setTypeFilter] = useState('all')
   const [picker, setPicker] = useState<(PickerTarget & { plan: PlanWithType }) | null>(null)
@@ -769,11 +769,11 @@ export function MatrixPage() {
   )
 
   // Teams the signed-in person can't manage — excluded from "Suggest roster" so
-  // a Team Leader only auto-fills their own teams (admins fill everything).
-  const { canManageTeam, isAdmin } = perms
+  // a team scheduler only auto-fills teams they can schedule (governance fills all).
+  const { canScheduleTeam, isAdmin } = perms
   const nonManageableTeamIds = useMemo(
-    () => (isAdmin ? [] : (teams ?? []).filter((t) => !canManageTeam(t.id)).map((t) => t.id)),
-    [isAdmin, teams, canManageTeam],
+    () => (isAdmin ? [] : (teams ?? []).filter((t) => !canScheduleTeam(t.id)).map((t) => t.id)),
+    [isAdmin, teams, canScheduleTeam],
   )
 
   const planIds = useMemo(() => matrixPlans.map((p) => p.id), [matrixPlans])
@@ -803,10 +803,10 @@ export function MatrixPage() {
   const emailableByPlan = useMemo(() => {
     const out: typeof assignmentsByPlan = {}
     for (const [planId, list] of Object.entries(assignmentsQuery.data ?? {})) {
-      out[planId] = list.filter((a) => canManageTeam(a.team_id))
+      out[planId] = list.filter((a) => canScheduleTeam(a.team_id))
     }
     return out
-  }, [assignmentsQuery.data, canManageTeam])
+  }, [assignmentsQuery.data, canScheduleTeam])
 
   const serviceTypes = useMemo(() => {
     const seen = new Map<string, string>()
@@ -840,7 +840,7 @@ export function MatrixPage() {
             <BulkEmailButton
               plans={matrixPlans}
               assignmentsByPlan={emailableByPlan}
-              teams={(teams ?? []).filter((t) => canManageTeam(t.id))}
+              teams={(teams ?? []).filter((t) => canScheduleTeam(t.id))}
             />
           )}
         </div>
@@ -1194,7 +1194,7 @@ export function MatrixPage() {
                                   a.status === 'pending' &&
                                   !a.notified_at &&
                                   !collapsedTeamIds.has(a.team_id) &&
-                                  canManageTeam(a.team_id),
+                                  canScheduleTeam(a.team_id),
                               )
                               .map((a) => a.id)
                             return (
@@ -1236,7 +1236,7 @@ export function MatrixPage() {
                               (a) => a.position_id === position.id,
                             )}
                             teamServesPlan={teamServesType(team, plan.service_type_id)}
-                            canManage={canManageTeam(team.id)}
+                            canManage={canScheduleTeam(team.id)}
                             positionResults={
                               planValidation?.byPosition.get(position.id) ?? []
                             }

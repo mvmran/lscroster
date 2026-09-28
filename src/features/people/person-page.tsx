@@ -74,7 +74,7 @@ import { PersonScheduleCard } from '@/features/people/person-schedule-card'
 import { PersonSchedulingCard } from '@/features/scheduling/person-scheduling-card'
 import { PersonTeamsCard } from '@/features/scheduling/person-teams-card'
 import { PersonPermissionsCard } from '@/features/people/person-permissions-card'
-import { PersonTeamGrantsCard } from '@/features/scheduling/person-team-grants-card'
+import { PersonTeamAccessCard } from '@/features/scheduling/person-team-grants-card'
 import { usePersonSchedule } from '@/features/scheduling/use-assignments'
 import { todayISODate } from '@/features/services/service-utils'
 
@@ -431,22 +431,12 @@ export function PersonPage() {
 
       <PersonTeamsCard personId={p.id} canManage={isAdmin || isCoordinator} />
 
-      {/* Per-team access grants (Team Leader / Team Viewer). Governance — admins
-          + coordinators — can grant several teams at once; the person
-          themselves and anyone managing them (issue #89) see the grants
-          read-only. */}
+      {/* Per-team access (Viewer / Scheduler / Manager) in one card. Governance
+          — admins + coordinators — grant and change it; the person themselves
+          and anyone managing them (issue #89) see it read-only. */}
       {(isAdmin || isCoordinator || isSelf || isManaging) && (
         <>
-          <PersonTeamGrantsCard
-            personId={p.id}
-            kind="leader"
-            canManage={isAdmin || isCoordinator}
-          />
-          <PersonTeamGrantsCard
-            personId={p.id}
-            kind="viewer"
-            canManage={isAdmin || isCoordinator}
-          />
+          <PersonTeamAccessCard personId={p.id} canManage={isAdmin || isCoordinator} />
           {/* BAU permissions — granted by governance, read-only to the person
               and whoever manages them. */}
           <PersonPermissionsCard

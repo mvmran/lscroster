@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
 
   const row = assignment as unknown as AssignmentRow
   // A Team Leader can only remove people from their own teams (admins: any).
-  if (!scope.canManageTeam(row.team_id)) {
+  if (!scope.canScheduleTeam(row.team_id)) {
     return jsonResponse({ error: 'Not your team' }, 403)
   }
   const person = row.people

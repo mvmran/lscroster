@@ -92,7 +92,7 @@ export async function runRosterStatus(
   if (plans.length === 0) return 0
   const planIds = plans.map((p) => p.id)
 
-  const [teamsRes, overridesRes, assignmentsRes, leadersRes, viewersRes] =
+  const [teamsRes, overridesRes, assignmentsRes, grantsRes] =
     await Promise.all([
       admin.from('teams').select('id, service_type_teams(service_type_id), positions(id, min_count)'),
       admin
@@ -103,8 +103,8 @@ export async function runRosterStatus(
         .from('plan_assignments')
         .select('plan_id, team_id, position_id, status, notified_at')
         .in('plan_id', planIds),
-      admin.from('team_leaders').select('person_id, team_id'),
-      admin.from('team_viewers').select('person_id, team_id'),
+      // Every grant level receives the digest (Decision D3) — viewer included.
+      admin.from('team_grants').select('person_id, team_id'),
     ])
 
   const teams = (teamsRes.data ?? []) as TeamRow[]
@@ -128,10 +128,9 @@ export async function runRosterStatus(
       teamsByPerson.set(r.person_id, set)
     }
   }
-  addGrant((leadersRes.data ?? []) as { person_id: string; team_id: string }[])
-  addGrant((viewersRes.data ?? []) as { person_id: string; team_id: string }[])
+  addGrant((grantsRes.data ?? []) as { person_id: string; team_id: string }[])
 
-  // Recipients: every admin (all teams) plus every TL/TV (their granted teams).
+  // Recipients: every admin (all teams) plus everyone with a grant (their teams).
   const grantPersonIds = [...teamsByPerson.keys()]
   const { data: adminsData } = await admin
     .from('people')

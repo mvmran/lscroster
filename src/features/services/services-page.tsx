@@ -93,9 +93,9 @@ export function ServicesPage() {
   const { can } = usePermissions()
   const canCreate = can('create_delete_plans')
   const isAdmin = me?.role === 'admin'
-  // Per-team Team Leaders can roster via the Matrix even as a plain member
-  // (issue #111), so the entry button shows for them too.
-  const canMatrix = can('edit_order_of_service') || perms.ledTeamIds.size > 0
+  // Anyone who can schedule a team (Scheduler or Manager grant) can roster via
+  // the Matrix even as a plain member (issue #111), so the button shows for them.
+  const canMatrix = can('edit_order_of_service') || perms.canScheduleAny
 
   const filtered = useMemo(
     () =>

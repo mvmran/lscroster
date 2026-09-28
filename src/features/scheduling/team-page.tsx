@@ -63,7 +63,7 @@ import { fullName } from '@/features/people/person-utils'
 import { usePeople } from '@/features/people/use-people'
 import { PositionLevelPill } from '@/features/scheduling/position-level-pill'
 import { ServiceTypePicker } from '@/features/scheduling/service-type-picker'
-import { TeamGrantCard } from '@/features/scheduling/team-grants-card'
+import { TeamAccessCard } from '@/features/scheduling/team-grants-card'
 import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import { otherProficiency, type Position } from '@/features/scheduling/scheduling-utils'
 import {
@@ -799,8 +799,7 @@ export function TeamPage() {
 
       <PositionsCard teamId={team.id} canManage={canManageContent} />
       <MembersCard teamId={team.id} canManage={canManageContent} />
-      <TeamGrantCard teamId={team.id} kind="leader" canManage={canGovern} />
-      <TeamGrantCard teamId={team.id} kind="viewer" canManage={canGovern} />
+      <TeamAccessCard teamId={team.id} canManage={canGovern} />
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-md">

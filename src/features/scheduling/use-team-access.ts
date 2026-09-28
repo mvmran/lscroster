@@ -1,142 +1,135 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
 import { fullName } from '@/features/people/person-utils'
 import { PERSON_SAFE_COLUMNS } from '@/features/people/use-people'
-import type { Tables } from '@/types/database'
+import type { Enums, Tables } from '@/types/database'
 
-/** A per-team grant row (leader or viewer) with the granted person embedded. */
+/** The three ordered per-team access levels (migration 0048). */
+export type TeamAccess = Enums<'team_access'> // 'viewer' | 'scheduler' | 'manager'
+
+/** Low → high, for dropdowns. */
+export const TEAM_ACCESS_ORDER: readonly TeamAccess[] = ['viewer', 'scheduler', 'manager']
+
+export const TEAM_ACCESS_LABELS: Record<TeamAccess, string> = {
+  viewer: 'Viewer',
+  scheduler: 'Scheduler',
+  manager: 'Manager',
+}
+
+/** One-line explanation of each level, for the Team Access card. */
+export const TEAM_ACCESS_HELP: Record<TeamAccess, string> = {
+  viewer: 'See the team’s members and positions and view its plans and roster.',
+  scheduler: 'Also schedule members to plans and email them — but not change membership.',
+  manager: 'Full control — add and remove members, edit positions, schedule and email.',
+}
+
+/** Levels that may roster a team (assign to plans, email, mute rules). */
+const SCHEDULER_PLUS: ReadonlySet<TeamAccess> = new Set(['scheduler', 'manager'])
+
+/** A grant row with the granted person embedded (team page). */
 export type TeamGrantWithPerson = {
-  id: string
   team_id: string
   person_id: string
+  access: TeamAccess
   people: Tables<'people'>
 }
 
-/** A per-team grant row with the team embedded (for the person-profile cards). */
+/** A grant row with the team embedded (person-profile card). */
 export type TeamGrantWithTeam = {
-  id: string
   team_id: string
   person_id: string
+  access: TeamAccess
   teams: Tables<'teams'>
 }
 
-type GrantTable = 'team_leaders' | 'team_viewers'
-
 const accessKeys = {
-  leaders: (teamId: string) => ['team-leaders', teamId] as const,
-  viewers: (teamId: string) => ['team-viewers', teamId] as const,
-  myLed: ['my-led-teams'] as const,
-  myViewed: ['my-viewed-teams'] as const,
-  personLed: ['person-led-teams'] as const,
-  personViewed: ['person-viewed-teams'] as const,
+  team: (teamId: string) => ['team-grants', teamId] as const,
+  mine: ['my-team-grants'] as const,
+  person: ['person-team-grants'] as const,
 }
 
-function useGrantList(table: GrantTable, teamId: string | undefined) {
+/** The grants on one team, people embedded (team page). */
+export function useTeamGrants(teamId: string | undefined) {
   return useQuery({
-    queryKey:
-      table === 'team_leaders'
-        ? accessKeys.leaders(teamId ?? '')
-        : accessKeys.viewers(teamId ?? ''),
+    queryKey: accessKeys.team(teamId ?? ''),
     enabled: !!teamId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from(table)
-        .select(`id, team_id, person_id, people(${PERSON_SAFE_COLUMNS})`)
+        .from('team_grants')
+        .select(`team_id, person_id, access, people(${PERSON_SAFE_COLUMNS})`)
         .eq('team_id', teamId!)
       if (error) throw new Error(error.message)
-      return (data as TeamGrantWithPerson[]).sort((a, b) =>
+      return (data as unknown as TeamGrantWithPerson[]).sort((a, b) =>
         fullName(a.people).localeCompare(fullName(b.people)),
       )
     },
   })
 }
 
-/** The Team Leaders of one team (team page). */
-export function useTeamLeaders(teamId: string | undefined) {
-  return useGrantList('team_leaders', teamId)
-}
-
-/** The Team Viewers of one team (team page). */
-export function useTeamViewers(teamId: string | undefined) {
-  return useGrantList('team_viewers', teamId)
-}
-
-function useMyGrantSet(table: GrantTable, key: readonly string[]) {
-  const { data: me } = useCurrentPerson()
+/** One person's grants, teams embedded (person-profile card). */
+export function usePersonTeamGrants(personId: string | undefined) {
   return useQuery({
-    queryKey: [...key, me?.id ?? ''],
-    enabled: !!me?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from(table)
-        .select('team_id')
-        .eq('person_id', me!.id)
-      if (error) throw new Error(error.message)
-      return new Set((data ?? []).map((r) => r.team_id))
-    },
-    staleTime: 60 * 1000,
-  })
-}
-
-/** team_ids the signed-in person is a Team Leader of. */
-export function useMyLedTeams() {
-  return useMyGrantSet('team_leaders', accessKeys.myLed)
-}
-
-/** team_ids the signed-in person is a Team Viewer of. */
-export function useMyViewedTeams() {
-  return useMyGrantSet('team_viewers', accessKeys.myViewed)
-}
-
-function usePersonGrantList(table: GrantTable, personId: string | undefined) {
-  const key =
-    table === 'team_leaders' ? accessKeys.personLed : accessKeys.personViewed
-  return useQuery({
-    queryKey: [...key, personId ?? ''],
+    queryKey: [...accessKeys.person, personId ?? ''],
     enabled: !!personId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from(table)
-        .select('id, team_id, person_id, teams(*)')
+        .from('team_grants')
+        .select('team_id, person_id, access, teams(*)')
         .eq('person_id', personId!)
       if (error) throw new Error(error.message)
-      return (data as TeamGrantWithTeam[]).sort((a, b) =>
+      return (data as unknown as TeamGrantWithTeam[]).sort((a, b) =>
         a.teams.name.localeCompare(b.teams.name),
       )
     },
   })
 }
 
-/** The teams one person is a Team Leader of (person-profile card). */
-export function usePersonLedTeams(personId: string | undefined) {
-  return usePersonGrantList('team_leaders', personId)
+/** The signed-in person's grants as a team_id → access map. */
+export function useMyTeamGrants() {
+  const { data: me } = useCurrentPerson()
+  return useQuery({
+    queryKey: [...accessKeys.mine, me?.id ?? ''],
+    enabled: !!me?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('team_grants')
+        .select('team_id, access')
+        .eq('person_id', me!.id)
+      if (error) throw new Error(error.message)
+      return new Map<string, TeamAccess>(
+        (data ?? []).map((r) => [r.team_id, r.access as TeamAccess]),
+      )
+    },
+    staleTime: 60 * 1000,
+  })
 }
 
-/** The teams one person is a Team Viewer of (person-profile card). */
-export function usePersonViewedTeams(personId: string | undefined) {
-  return usePersonGrantList('team_viewers', personId)
-}
-
-function useGrantMutations(table: GrantTable) {
+/** Grant a level to a person on a team, change it, or revoke it. */
+export function useTeamGrantMutations() {
   const queryClient = useQueryClient()
-  const listKey = table === 'team_leaders' ? 'team-leaders' : 'team-viewers'
-  const mineKey = table === 'team_leaders' ? accessKeys.myLed : accessKeys.myViewed
-  const personKey =
-    table === 'team_leaders' ? accessKeys.personLed : accessKeys.personViewed
   const invalidate = (teamId: string) => {
-    queryClient.invalidateQueries({ queryKey: [listKey, teamId] })
-    // A person can grant/revoke their own access, so refresh the "mine" sets too.
-    queryClient.invalidateQueries({ queryKey: mineKey })
-    // Refresh the person-profile cards (keyed by person) — prefix match.
-    queryClient.invalidateQueries({ queryKey: personKey })
+    queryClient.invalidateQueries({ queryKey: accessKeys.team(teamId) })
+    queryClient.invalidateQueries({ queryKey: accessKeys.mine })
+    queryClient.invalidateQueries({ queryKey: accessKeys.person })
   }
-  const add = useMutation({
-    mutationFn: async ({ teamId, personId }: { teamId: string; personId: string }) => {
+  const setAccess = useMutation({
+    mutationFn: async ({
+      teamId,
+      personId,
+      access,
+    }: {
+      teamId: string
+      personId: string
+      access: TeamAccess
+    }) => {
       const { error } = await supabase
-        .from(table)
-        .insert({ team_id: teamId, person_id: personId })
+        .from('team_grants')
+        .upsert(
+          { team_id: teamId, person_id: personId, access },
+          { onConflict: 'team_id,person_id' },
+        )
       if (error) throw new Error(error.message)
       return teamId
     },
@@ -145,7 +138,7 @@ function useGrantMutations(table: GrantTable) {
   const remove = useMutation({
     mutationFn: async ({ teamId, personId }: { teamId: string; personId: string }) => {
       const { error } = await supabase
-        .from(table)
+        .from('team_grants')
         .delete()
         .eq('team_id', teamId)
         .eq('person_id', personId)
@@ -154,56 +147,65 @@ function useGrantMutations(table: GrantTable) {
     },
     onSuccess: invalidate,
   })
-  return { add, remove }
-}
-
-export function useTeamLeaderMutations() {
-  return useGrantMutations('team_leaders')
-}
-
-export function useTeamViewerMutations() {
-  return useGrantMutations('team_viewers')
+  return { setAccess, remove }
 }
 
 export interface TeamPermissions {
   /** Global admin — manages everything. */
   isAdmin: boolean
-  /** Governance tier (admin or coordinator): create teams, appoint grants. */
+  /** Governance tier (admin or coordinator): manages/schedules every team. */
   canGovern: boolean
-  ledTeamIds: Set<string>
-  viewedTeamIds: Set<string>
-  /** May manage this team's content (positions, members, assignments). */
+  /** The signed-in person's grants (empty for governance — they need none). */
+  grants: ReadonlyMap<string, TeamAccess>
+  /** Manage this team's membership and positions (manager grant, or governance). */
   canManageTeam: (teamId: string) => boolean
-  /** May at least read this team's roster on a plan. */
+  /** Schedule this team on plans and email them (scheduler+ grant, or governance). */
+  canScheduleTeam: (teamId: string) => boolean
+  /** At least read this team's roster (any grant, or governance). */
   canViewTeam: (teamId: string) => boolean
+  /** Can schedule at least one team — gates the Matrix and scheduling entry. */
+  canScheduleAny: boolean
 }
 
-const EMPTY = new Set<string>()
+const EMPTY: ReadonlyMap<string, TeamAccess> = new Map()
 
 /**
- * Per-team permissions for the signed-in person. `canManageTeam`/`canViewTeam`
- * are stable callbacks so callers can use them in `useMemo`/`useCallback` deps.
+ * Per-team permissions for the signed-in person. Coordinators and admins govern
+ * every team, so they need no grant; a member's reach comes entirely from their
+ * team_grants. The callbacks are stable for use in `useMemo`/`useCallback` deps.
  */
 export function useTeamPermissions(): TeamPermissions {
   const { data: me } = useCurrentPerson()
-  const { data: led } = useMyLedTeams()
-  const { data: viewed } = useMyViewedTeams()
+  const { data: grantMap } = useMyTeamGrants()
 
   const isAdmin = me?.role === 'admin'
   const canGovern = me?.role === 'admin' || me?.role === 'coordinator'
-  const ledTeamIds = led ?? EMPTY
-  const viewedTeamIds = viewed ?? EMPTY
+  const grants = grantMap ?? EMPTY
 
-  // Coordinators govern every team church-wide (migration 0047), so they may
-  // manage — and therefore view — any team without holding a per-team grant.
   const canManageTeam = useCallback(
-    (teamId: string) => canGovern || ledTeamIds.has(teamId),
-    [canGovern, ledTeamIds],
+    (teamId: string) => canGovern || grants.get(teamId) === 'manager',
+    [canGovern, grants],
+  )
+  const canScheduleTeam = useCallback(
+    (teamId: string) => canGovern || SCHEDULER_PLUS.has(grants.get(teamId) as TeamAccess),
+    [canGovern, grants],
   )
   const canViewTeam = useCallback(
-    (teamId: string) => canGovern || ledTeamIds.has(teamId) || viewedTeamIds.has(teamId),
-    [canGovern, ledTeamIds, viewedTeamIds],
+    (teamId: string) => canGovern || grants.has(teamId),
+    [canGovern, grants],
+  )
+  const canScheduleAny = useMemo(
+    () => canGovern || [...grants.values()].some((a) => SCHEDULER_PLUS.has(a)),
+    [canGovern, grants],
   )
 
-  return { isAdmin, canGovern, ledTeamIds, viewedTeamIds, canManageTeam, canViewTeam }
+  return {
+    isAdmin,
+    canGovern,
+    grants,
+    canManageTeam,
+    canScheduleTeam,
+    canViewTeam,
+    canScheduleAny,
+  }
 }

@@ -30,59 +30,40 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTeams } from '@/features/scheduling/use-teams'
 import {
-  usePersonLedTeams,
-  usePersonViewedTeams,
-  useTeamLeaderMutations,
-  useTeamViewerMutations,
+  TEAM_ACCESS_HELP,
+  TEAM_ACCESS_LABELS,
+  TEAM_ACCESS_ORDER,
+  useTeamGrantMutations,
+  usePersonTeamGrants,
+  type TeamAccess,
   type TeamGrantWithTeam,
 } from '@/features/scheduling/use-team-access'
 
-type GrantKind = 'leader' | 'viewer'
-
-const COPY: Record<
-  GrantKind,
-  { title: string; description: string; empty: string; add: string }
-> = {
-  leader: {
-    title: 'Team leader of',
-    description:
-      'Teams this person manages — their positions, members and plan assignments.',
-    empty: 'Not a team leader of any team.',
-    add: 'Add teams',
-  },
-  viewer: {
-    title: 'Team viewer of',
-    description:
-      "Teams whose roster this person can view read-only, including drafts. They can't make changes.",
-    empty: 'Not a team viewer of any team.',
-    add: 'Add teams',
-  },
-}
-
-/**
- * Pick several teams to grant at once (multi-select), then apply in one go —
- * mirrors the two-step Add-to-team dialog (issue #65) but for access grants.
- */
+/** Pick several teams to grant at one level, then apply in one go. */
 function AddTeamsDialog({
   personId,
-  kind,
   grantedTeamIds,
   onClose,
 }: {
   personId: string
-  kind: GrantKind
   grantedTeamIds: Set<string>
   onClose: () => void
 }) {
   const { data: teams } = useTeams()
-  const leaderMutations = useTeamLeaderMutations()
-  const viewerMutations = useTeamViewerMutations()
-  const { add } = kind === 'leader' ? leaderMutations : viewerMutations
+  const { setAccess } = useTeamGrantMutations()
   const [search, setSearch] = useState('')
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
+  const [access, setLevel] = useState<TeamAccess>('scheduler')
   const [saving, setSaving] = useState(false)
 
   const available = useMemo(() => {
@@ -103,7 +84,7 @@ function AddTeamsDialog({
     setSaving(true)
     try {
       for (const teamId of selectedTeamIds) {
-        await add.mutateAsync({ teamId, personId })
+        await setAccess.mutateAsync({ teamId, personId, access })
       }
       onClose()
     } catch (error) {
@@ -117,13 +98,28 @@ function AddTeamsDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="flex max-h-[80svh] flex-col sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            Add as team {kind === 'leader' ? 'leader' : 'viewer'}
-          </DialogTitle>
+          <DialogTitle>Add team access</DialogTitle>
           <DialogDescription>
-            Tick the teams to grant. You can pick several at once.
+            Pick the teams and the level to grant. You can change the level per team
+            afterwards.
           </DialogDescription>
         </DialogHeader>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Level</span>
+          <Select value={access} onValueChange={(v) => setLevel(v as TeamAccess)}>
+            <SelectTrigger size="sm" className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TEAM_ACCESS_ORDER.map((level) => (
+                <SelectItem key={level} value={level}>
+                  {TEAM_ACCESS_LABELS[level]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <p className="text-muted-foreground text-xs">{TEAM_ACCESS_HELP[access]}</p>
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -159,9 +155,7 @@ function AddTeamsDialog({
           <Button onClick={confirm} disabled={saving || selectedTeamIds.length === 0}>
             {saving && <Loader2 className="size-4 animate-spin" />}
             {selectedTeamIds.length > 0
-              ? `Add ${selectedTeamIds.length} team${
-                  selectedTeamIds.length === 1 ? '' : 's'
-                }`
+              ? `Add ${selectedTeamIds.length} team${selectedTeamIds.length === 1 ? '' : 's'}`
               : 'Add teams'}
           </Button>
         </DialogFooter>
@@ -171,29 +165,22 @@ function AddTeamsDialog({
 }
 
 /**
- * The teams a person is a Team Leader or Team Viewer of, shown on their profile.
- * Governance (admins + coordinators) can grant several teams at once and revoke
- * with a confirmation. Mirrors the team-page grant cards from the person's side.
+ * A person's per-team access, one row per team with a level dropdown
+ * (Viewer / Scheduler / Manager). Governance (admins + coordinators) grant and
+ * change it; the person and anyone managing them (issue #89) see it read-only.
+ * Together with the Permissions card this defines what a member can do.
  */
-export function PersonTeamGrantsCard({
+export function PersonTeamAccessCard({
   personId,
-  kind,
   canManage,
 }: {
   personId: string
-  kind: GrantKind
   /** Governance tier — admins + coordinators. */
   canManage: boolean
 }) {
-  const copy = COPY[kind]
-  const ledQuery = usePersonLedTeams(kind === 'leader' ? personId : undefined)
-  const viewedQuery = usePersonViewedTeams(kind === 'viewer' ? personId : undefined)
-  const query = kind === 'leader' ? ledQuery : viewedQuery
+  const query = usePersonTeamGrants(personId)
   const grants = query.data
-
-  const leaderMutations = useTeamLeaderMutations()
-  const viewerMutations = useTeamViewerMutations()
-  const { remove } = kind === 'leader' ? leaderMutations : viewerMutations
+  const { setAccess, remove } = useTeamGrantMutations()
 
   const [pickerOpen, setPickerOpen] = useState(false)
   const [grantToRemove, setGrantToRemove] = useState<TeamGrantWithTeam | null>(null)
@@ -208,20 +195,22 @@ export function PersonTeamGrantsCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ShieldCheck className="text-muted-foreground size-4" />
-          {copy.title}
+          Team access
         </CardTitle>
-        <CardDescription>{copy.description}</CardDescription>
+        <CardDescription>
+          What this person can do on each team — view, schedule, or manage.
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {query.isPending ? (
           <Skeleton className="h-10 w-full" />
         ) : (grants ?? []).length === 0 ? (
-          <p className="text-muted-foreground text-sm">{copy.empty}</p>
+          <p className="text-muted-foreground text-sm">No team access yet.</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {(grants ?? []).map((grant) => (
               <li
-                key={grant.id}
+                key={grant.team_id}
                 className="hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-1.5"
               >
                 <Link
@@ -230,17 +219,47 @@ export function PersonTeamGrantsCard({
                 >
                   {grant.teams.name}
                 </Link>
-                {canManage && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    onClick={() => setGrantToRemove(grant)}
-                    aria-label={`Remove ${kind === 'leader' ? 'team leader' : 'team viewer'} access to ${grant.teams.name}`}
-                    title={`Remove access to ${grant.teams.name}`}
-                  >
-                    <X className="size-4" />
-                  </Button>
+                {canManage ? (
+                  <>
+                    <Select
+                      value={grant.access}
+                      onValueChange={(v) =>
+                        setAccess.mutate(
+                          { teamId: grant.team_id, personId, access: v as TeamAccess },
+                          { onError: (e) => toast.error(e.message) },
+                        )
+                      }
+                    >
+                      <SelectTrigger
+                        size="sm"
+                        className="w-32"
+                        aria-label={`Access level for ${grant.teams.name}`}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEAM_ACCESS_ORDER.map((level) => (
+                          <SelectItem key={level} value={level}>
+                            {TEAM_ACCESS_LABELS[level]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      onClick={() => setGrantToRemove(grant)}
+                      aria-label={`Remove access to ${grant.teams.name}`}
+                      title={`Remove access to ${grant.teams.name}`}
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground text-sm">
+                    {TEAM_ACCESS_LABELS[grant.access]}
+                  </span>
                 )}
               </li>
             ))}
@@ -250,7 +269,7 @@ export function PersonTeamGrantsCard({
           <div>
             <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
               <ShieldCheck className="size-4" />
-              {copy.add}
+              Add teams
             </Button>
           </div>
         )}
@@ -259,13 +278,11 @@ export function PersonTeamGrantsCard({
       {pickerOpen && (
         <AddTeamsDialog
           personId={personId}
-          kind={kind}
           grantedTeamIds={grantedTeamIds}
           onClose={() => setPickerOpen(false)}
         />
       )}
 
-      {/* Confirm before revoking a grant. */}
       <AlertDialog
         open={!!grantToRemove}
         onOpenChange={(open) => !open && setGrantToRemove(null)}
@@ -276,9 +293,7 @@ export function PersonTeamGrantsCard({
               Remove access to {grantToRemove?.teams.name ?? 'this team'}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {kind === 'leader'
-                ? "They'll lose the ability to manage this team — its positions, members and plan assignments. You can appoint them again at any time."
-                : "They'll lose read-only access to this team's roster. You can grant it again at any time."}
+              They'll lose all access to this team. You can grant it again at any time.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

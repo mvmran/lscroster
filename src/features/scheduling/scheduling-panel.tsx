@@ -597,14 +597,15 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
     [teams, plan.service_type_id],
   )
 
-  const { canManageTeam, canViewTeam, isAdmin } = perms
+  const { canScheduleTeam, canViewTeam, isAdmin } = perms
 
-  // Teams on this plan the signed-in person may manage (admin or Team Leader).
-  const manageablePlanTeamIds = useMemo(
-    () => new Set(planTeams.filter((t) => canManageTeam(t.id)).map((t) => t.id)),
-    [planTeams, canManageTeam],
+  // Teams on this plan the signed-in person may schedule (governance, or a
+  // Scheduler/Manager grant on the team) — gates roster edits and rule mutes.
+  const schedulablePlanTeamIds = useMemo(
+    () => new Set(planTeams.filter((t) => canScheduleTeam(t.id)).map((t) => t.id)),
+    [planTeams, canScheduleTeam],
   )
-  const manageAny = manageablePlanTeamIds.size > 0
+  const manageAny = schedulablePlanTeamIds.size > 0
 
   // The signed-in person plus anyone whose account they manage (issue #105 pt 1)
   // — a manager sees the teams their managed people are rostered onto, mirroring
@@ -629,18 +630,18 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
     () =>
       planTeams.filter(
         (t) =>
-          canManageTeam(t.id) ||
+          canScheduleTeam(t.id) ||
           plan.status === 'published' ||
           canViewTeam(t.id) ||
           assignedTeamIds.has(t.id),
       ),
-    [planTeams, canManageTeam, canViewTeam, plan.status, assignedTeamIds],
+    [planTeams, canScheduleTeam, canViewTeam, plan.status, assignedTeamIds],
   )
 
   // Suggest-roster covers only the teams this person manages (auto-fills theirs).
   const excludeTeamIds = useMemo(
-    () => (isAdmin ? [] : planTeams.filter((t) => !canManageTeam(t.id)).map((t) => t.id)),
-    [isAdmin, planTeams, canManageTeam],
+    () => (isAdmin ? [] : planTeams.filter((t) => !canScheduleTeam(t.id)).map((t) => t.id)),
+    [isAdmin, planTeams, canScheduleTeam],
   )
 
   const unsentAssignments = useMemo(
@@ -649,9 +650,9 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
         (a) =>
           a.status === 'pending' &&
           !a.notified_at &&
-          manageablePlanTeamIds.has(a.team_id),
+          schedulablePlanTeamIds.has(a.team_id),
       ),
-    [assignments, manageablePlanTeamIds],
+    [assignments, schedulablePlanTeamIds],
   )
   const unsentCount = unsentAssignments.length
 
@@ -795,7 +796,7 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
           <Skeleton className="h-24 w-full" />
         ) : (
           visibleTeams.map((team) => {
-            const teamManage = canManageTeam(team.id)
+            const teamManage = canScheduleTeam(team.id)
             const teamPositions = (positions ?? []).filter(
               (p) => p.team_id === team.id,
             )
