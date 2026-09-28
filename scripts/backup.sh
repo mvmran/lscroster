@@ -70,9 +70,11 @@ supa db dump --linked --data-only --use-copy --schema public,auth \
 log "database dumped ($(du -h "$WORK/data.sql" | cut -f1) of data)"
 
 # Counts straight from the live project, to check the dump against now and a
-# restore against later. `db query` prints JSON; the jq filters skip anything
-# else on stdout (the CLI's telemetry can print an error object on exit).
-query() { supa db query --linked "$1" 2>/dev/null; }
+# restore against later. `db query -o json` prints the rows as JSON on stdout
+# (the login-role line, version notice and any telemetry go to stderr, which we
+# drop). CLI 2.107 returns a bare array of row objects; `(.rows? // .)` also
+# accepts a `{"rows":[…]}` shape, and `[]?` skips anything unparseable.
+query() { supa db query --linked -o json "$1" 2>/dev/null; }
 COUNTS="$(query "select 'people' t, count(*) n from people union all
   select 'plans', count(*) from plans union all
   select 'plan_items', count(*) from plan_items union all
@@ -80,15 +82,15 @@ COUNTS="$(query "select 'people' t, count(*) n from people union all
   select 'songs', count(*) from songs union all
   select 'song_arrangement_lyrics', count(*) from song_arrangement_lyrics union all
   select 'teams', count(*) from teams union all
-  select 'auth.users', count(*) from auth.users" | jq -r '.rows[]? | "\(.t) \(.n)"')" \
+  select 'auth.users', count(*) from auth.users" | jq -r '(.rows? // .)[]? | "\(.t) \(.n)"')" \
   || die "could not read row counts"
 [ -n "$COUNTS" ] || die "could not read row counts"
 FILES="$(query "select bucket_id b, count(*) n from storage.objects group by 1 order by 1" \
-  | jq -r '.rows[]? | "\(.b) \(.n)"')"
+  | jq -r '(.rows? // .)[]? | "\(.b) \(.n)"')"
 MIGRATION="$(query "select max(version) v from supabase_migrations.schema_migrations" \
-  | jq -r '.rows[0]?.v // empty')"
+  | jq -r '(.rows? // .)[0]?.v // empty')"
 VAULT="$(query "select name from vault.secrets order by name" \
-  | jq -r '.rows[]?.name' | tr '\n' ' ')"
+  | jq -r '(.rows? // .)[]?.name' | tr '\n' ' ')"
 SECRETS="$(supa secrets list --project-ref "$REF" -o json 2>/dev/null \
   | jq -r 'if type == "array" then .[].name else empty end
            | select(startswith("SUPABASE_") | not)' | tr '\n' ' ')"
