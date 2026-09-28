@@ -64,13 +64,13 @@ everything gated on `is_admin_or_coordinator()`:
 - See everyone's contact details (email, phone, birthday) and notes
   (`can_view_contact()` / the admin-coordinator notes mask).
 
-> **The gap to know about.** A coordinator can create a team and appoint its
-> leaders, but **cannot add/remove that team's members, set their positions, or
-> roster it** (assign people to positions on a plan) unless they hold that
-> team's **Team-Leader grant**. Those actions are gated on `can_manage_team()`,
-> which a coordinator does not satisfy by role alone. So today a coordinator who
-> wants to run a team must appoint themselves its Team Leader first. (This is the
-> open design question behind two known UI/RLS mismatches.)
+**Team management (since migration 0047).** A coordinator governs **every**
+team church-wide: they can add/remove any team's members, set their positions,
+and **roster** any team (assign people on a plan, send/cancel requests) —
+without holding a per-team Team-Leader grant. This is because `can_manage_team()`
+is satisfied by the coordinator role itself. They can also mute a plan's
+conditional-rule warnings on any plan. Team Leaders keep their own per-team
+scope alongside this.
 
 ### Member — themselves, and what they're given
 
@@ -170,8 +170,9 @@ on · **perm** = if granted the relevant member permission.
 | Service types, conditional rules, pairings | ✅ | ✅ | ⛔ | ⛔ | ⛔ |
 | Grant/revoke member permissions | ✅ | ✅ | ⛔ | ⛔ | ⛔ |
 | See everyone's contact details & notes | ✅ | ✅ | own team | ⛔ | ⛔ |
-| Add/remove team members, set positions | ✅ | **TL** | **TL** | ⛔ | ⛔ |
-| Roster a team (plan assignments) | ✅ | **TL** | **TL** | ⛔ | ⛔ |
+| Add/remove team members, set positions | ✅ | ✅ | **TL** | ⛔ | ⛔ |
+| Roster a team (plan assignments) | ✅ | ✅ | **TL** | ⛔ | ⛔ |
+| Mute a plan's rule warnings | ✅ | ✅ | **TL** | ⛔ | ⛔ |
 | Create/delete plans | ✅ | ✅ | ⛔ | ⛔ | **perm** |
 | Edit order of service | ✅ | ✅ | ⛔ | ⛔ | **perm** |
 | Publish plans + set-list email | ✅ | ✅ | ⛔ | ⛔ | **perm** |
@@ -180,6 +181,7 @@ on · **perm** = if granted the relevant member permission.
 | View all plans (drafts included) | ✅ | ✅ | own team's plans | viewed team's plans | **perm** |
 | View published plans; respond to own requests; manage own profile & blockouts | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-> Note the two `**TL**` rows for Coordinator: managing a team's membership and
-> rostering it require the Team-Leader grant even for a coordinator. Whether that
-> should stay true is an open decision.
+> `**TL**` means the action needs a Team-Leader grant for that team. Coordinators
+> and admins manage every team by role, so they never need the grant; a Team
+> Leader is scoped to their own team(s); a plain member cannot manage teams at
+> all.
