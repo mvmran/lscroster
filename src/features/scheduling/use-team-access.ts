@@ -194,13 +194,15 @@ export function useTeamPermissions(): TeamPermissions {
   const ledTeamIds = led ?? EMPTY
   const viewedTeamIds = viewed ?? EMPTY
 
+  // Coordinators govern every team church-wide (migration 0047), so they may
+  // manage — and therefore view — any team without holding a per-team grant.
   const canManageTeam = useCallback(
-    (teamId: string) => isAdmin || ledTeamIds.has(teamId),
-    [isAdmin, ledTeamIds],
+    (teamId: string) => canGovern || ledTeamIds.has(teamId),
+    [canGovern, ledTeamIds],
   )
   const canViewTeam = useCallback(
-    (teamId: string) => isAdmin || ledTeamIds.has(teamId) || viewedTeamIds.has(teamId),
-    [isAdmin, ledTeamIds, viewedTeamIds],
+    (teamId: string) => canGovern || ledTeamIds.has(teamId) || viewedTeamIds.has(teamId),
+    [canGovern, ledTeamIds, viewedTeamIds],
   )
 
   return { isAdmin, canGovern, ledTeamIds, viewedTeamIds, canManageTeam, canViewTeam }
