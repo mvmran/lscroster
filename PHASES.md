@@ -815,11 +815,14 @@ blank row of a cleared pane); a header row with nothing beside it takes the
 native layer's own label, so sections survive. Same-height drafts produce
 byte-identical output to before. 3 new Deno tests. `lyrics-assist` deployed to
 production before the push.
-- [ ] Not done, deliberately: nothing stops **saving** with the lyrics pane
-  cleared and not yet rewritten. The native text is kept (`padLayers` never
-  truncates a longer layer), but read views are driven by the base layer, so the
-  song shows no lyrics until the base is written again. Add a save guard only if
-  that bites someone.
+- [x] **Base-cleared save guard** (2026-09-29): saving is now blocked when the
+  lyrics pane is empty but another layer (native / meaning / chords) still has
+  text — the native text is kept (`padLayers` never truncates a longer layer)
+  but read views are driven by the base, so saving then would leave the song
+  showing nothing. `baseMissing` in `song-page.tsx` disables the save button
+  with a reason (mirroring the `scriptBlocked` / `chordsNeedKey` guards) and
+  `onSaveClick` early-returns. Clearing **every** layer to remove the lyrics is
+  still allowed; the guard only fires when text would be orphaned.
 
 (no migration) **Hover tooltips everywhere else**, finishing the pass that began
 on Services/Matrix/Plan: the song page, then People, Scheduling, the rest of

@@ -761,6 +761,16 @@ function ArrangementLyricsBlock({
   // saving them as typed would leave a layer nobody could read back.
   const songKey = useMemo(() => parseSongKey(arrangement.song_key), [arrangement.song_key])
   const chordsNeedKey = songKey === null && hasChordTokens(value.chords)
+  // A cleared base pane with text still in another layer would save a song that
+  // shows nothing — read views are driven by the base, and `padLayers` keeps the
+  // longer layers. Block it so a transliteration (or the meaning/chords) can't be
+  // orphaned when someone clears the pane to ask for a fresh one. Clearing every
+  // layer to remove the lyrics altogether is still allowed.
+  const baseMissing =
+    value.lyrics.trim() === '' &&
+    (value.native.trim() !== '' ||
+      value.meaning.trim() !== '' ||
+      value.chords.trim() !== '')
 
   // Warn before navigating away (page unload or an in-app link) with unsaved
   // lyrics, and surface the dirty state so the parent can guard tab switches.
@@ -771,7 +781,7 @@ function ArrangementLyricsBlock({
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   async function onSaveClick() {
-    if (scriptBlocked || chordsNeedKey) return
+    if (scriptBlocked || chordsNeedKey || baseMissing) return
     setCheckingPin(true)
     try {
       const pinned = current ? await isLyricsVersionPinned(current.id) : false
@@ -1066,7 +1076,14 @@ function ArrangementLyricsBlock({
         )}
         {dirty && (
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {chordsNeedKey && (
+            {baseMissing ? (
+              <p className="text-destructive mr-auto text-xs">
+                The lyrics pane is empty but another layer still has text. The song
+                shows the base text, so saving now would hide the words that are
+                left — write the transliteration first, or clear every layer to
+                remove the lyrics.
+              </p>
+            ) : chordsNeedKey ? (
               <p className="text-destructive mr-auto text-xs">
                 Give this arrangement a key and save it before saving chords.
                 Chords are stored as numbers of the key —{' '}
@@ -1074,7 +1091,7 @@ function ArrangementLyricsBlock({
                 <span className="font-mono">[4]</span>, <span className="font-mono">[5]</span>{' '}
                 — so without one there is nothing to number them against.
               </p>
-            )}
+            ) : null}
             {/* The reason for a blocked save rides on a wrapper: a disabled
                 button has pointer events off, so its own title never shows. */}
             <span
@@ -1082,14 +1099,22 @@ function ArrangementLyricsBlock({
               title={
                 scriptBlocked
                   ? 'The lyrics have non-Latin characters — fix the line marked above first'
-                  : chordsNeedKey
-                    ? 'Set the arrangement’s key first — chords are stored by number'
-                    : undefined
+                  : baseMissing
+                    ? 'Write the lyrics pane, or clear every layer — the song shows the base text'
+                    : chordsNeedKey
+                      ? 'Set the arrangement’s key first — chords are stored by number'
+                      : undefined
               }
             >
               <Button
                 onClick={onSaveClick}
-                disabled={save.isPending || checkingPin || scriptBlocked || chordsNeedKey}
+                disabled={
+                  save.isPending ||
+                  checkingPin ||
+                  scriptBlocked ||
+                  chordsNeedKey ||
+                  baseMissing
+                }
                 title="Save these lyrics as a new version"
               >
                 {(save.isPending || checkingPin) && (
