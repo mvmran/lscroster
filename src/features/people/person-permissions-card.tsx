@@ -66,8 +66,10 @@ function listLabels(permissions: Iterable<Permission>) {
  * The BAU permissions a person holds (person page). Coordinators and admins
  * grant them — ticking saves at once — and can apply a permission template or
  * save this set as one. The person themselves, and anyone managing them, see
- * the list read-only. Admins and coordinators hold every permission already,
- * so for them the card just says so.
+ * only what is held, read-only — a volunteer shouldn't read a row of unticked
+ * boxes as jobs they're missing — and no card at all when nothing is. Admins
+ * and coordinators hold every permission already, so for them the card just
+ * says so.
  */
 export function PersonPermissionsCard({
   personId,
@@ -90,6 +92,8 @@ export function PersonPermissionsCard({
 
   const [applying, setApplying] = useState<PermissionTemplate | null>(null)
   const [savingAs, setSavingAs] = useState(false)
+
+  if (!holdsAll && !canManage && (query.isPending || granted.size === 0)) return null
 
   return (
     <Card>
@@ -114,6 +118,7 @@ export function PersonPermissionsCard({
             <PermissionChecklist
               idPrefix={`person-${personId}`}
               value={granted}
+              heldOnly={!canManage}
               disabled={!canManage || toggle.isPending || replace.isPending}
               onToggle={(permission, checked) =>
                 toggle.mutate(

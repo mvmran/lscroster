@@ -5,17 +5,21 @@ import { PERMISSIONS, type Permission } from '@/features/auth/permissions'
  * The six BAU permissions as checkboxes, with their one-line explanations.
  * Shared by the person page and the permission-template editor. Editing the
  * order of service shows as included (checked, locked) while Create & delete
- * plans is ticked, because that permission implies it.
+ * plans is ticked, because that permission implies it. `heldOnly` drops the
+ * unticked rows, for someone who can see the list but not change it.
  */
 export function PermissionChecklist({
   value,
   onToggle,
   disabled = false,
+  heldOnly = false,
   idPrefix,
 }: {
   value: ReadonlySet<Permission>
   onToggle: (permission: Permission, checked: boolean) => void
   disabled?: boolean
+  /** List only the permissions held (or implied) — no unticked boxes. */
+  heldOnly?: boolean
   /** Keeps checkbox ids unique when two lists are on screen at once. */
   idPrefix: string
 }) {
@@ -24,6 +28,7 @@ export function PermissionChecklist({
     <ul className="flex flex-col gap-1">
       {PERMISSIONS.map((p) => {
         const implied = p.value === 'edit_order_of_service' && impliedEdit
+        if (heldOnly && !implied && !value.has(p.value)) return null
         const id = `${idPrefix}-${p.value}`
         return (
           <li key={p.value} className="flex items-start gap-3 rounded-md px-2 py-2">
