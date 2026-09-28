@@ -196,10 +196,10 @@ action needed by instances: scripts and docs only).
   (the script default since 2026-09-29, `d859696` — the cron runs no-arg). Runs
   from the main checkout, so it must stay linked with `node_modules` installed;
   token from `~/.supabase-token`. Not a Syncthing folder — keep it that way.
-- [ ] **Off-flint copy.** Every archive is on flint's one disk. Options: an
-  encrypted copy to a USB disk or cloud folder (`age`/`gpg` before it leaves
-  flint), or Supabase Pro (daily backups, 7 days) once the roster is
-  load-bearing.
+- [x] **Off-flint copy.** Handled by the user's existing backup setup outside
+  this repo (confirmed 2026-09-29) — archives no longer live only on flint's one
+  disk. (Mechanism not recorded here; Supabase Pro daily backups remain an option
+  if the roster later needs point-in-time restore.)
 - [ ] Glance at `~/dev/backups/lscroster/backup.log` now and then — every
   good night ends with a `wrote …` line.
 - [ ] Next restore drill: **2027-09** (docs/BACKUPS.md, "Worth doing once a
