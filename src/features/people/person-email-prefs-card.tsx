@@ -80,7 +80,6 @@ function PrefsForm({
           <Checkbox
             id={`emailpref-${o.key}`}
             checked={values[o.key]}
-            disabled={upsert.isPending}
             onCheckedChange={(c) => toggle(o.key, c === true)}
             className="mt-0.5"
           />

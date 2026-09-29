@@ -119,7 +119,7 @@ export function PersonPermissionsCard({
               idPrefix={`person-${personId}`}
               value={granted}
               heldOnly={!canManage}
-              disabled={!canManage || toggle.isPending || replace.isPending}
+              disabled={!canManage || replace.isPending}
               onToggle={(permission, checked) =>
                 toggle.mutate(
                   { permission, granted: checked },

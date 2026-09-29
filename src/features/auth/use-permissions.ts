@@ -94,6 +94,7 @@ function useInvalidateAfterGrant() {
 
 /** Grant or revoke one permission. */
 export function useTogglePermission(personId: string) {
+  const queryClient = useQueryClient()
   const invalidate = useInvalidateAfterGrant()
   return useMutation({
     mutationFn: async ({ permission, granted }: { permission: Permission; granted: boolean }) => {
@@ -106,7 +107,27 @@ export function useTogglePermission(personId: string) {
             .eq('permission', permission)
       if (error) throw new Error(error.message)
     },
-    onSuccess: () => invalidate(personId),
+    // Optimistic: flip the checkbox in the cache at once so the card never has
+    // to disable itself and block on the round-trip. Roll back on error, then
+    // reconcile with the server on settle (success or failure).
+    onMutate: async ({ permission, granted }) => {
+      const key = permissionKeys.person(personId)
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<Set<Permission>>(key)
+      queryClient.setQueryData<Set<Permission>>(key, (old) => {
+        const next = new Set(old ?? NONE)
+        if (granted) next.add(permission)
+        else next.delete(permission)
+        return next
+      })
+      return { previous }
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(permissionKeys.person(personId), context.previous)
+      }
+    },
+    onSettled: () => invalidate(personId),
   })
 }
 
