@@ -824,6 +824,28 @@ production before the push.
   `onSaveClick` early-returns. Clearing **every** layer to remove the lyrics is
   still allowed; the guard only fires when text would be orphaned.
 
+(no migration) **AI "suggest the next song"** (2026-10-02): a small Sparkles
+button on a plan's "Add a song" box (`song-picker-dialog.tsx`) asks the new
+**`suggest-song`** Edge Function for the next song to add — one that sits well
+against the keys already on the plan **even without a matching-key arrangement**
+(it says so in a key note, e.g. "works in C, transpose from its D arrangement"),
+fits how the church has grouped songs before (`song_plan_usage` history), and
+keeps the language mix sensible (tags may name a language). Accept adds it via
+the ordinary add path (arrangement step if >1); **Reject** remembers it
+(localStorage per plan, `use-song-suggest.ts`) so the next press skips it, until
+a different plan. Optional per instance exactly like the lyrics helpers
+(`GEMINI_API_KEY`; `{probe:true}`→`{configured}`; button hidden when off), but
+gated on **`edit_order_of_service`**. Being a reasoning task it uses its own
+model — **`GEMINI_SUGGEST_MODEL` (default `gemini-3.5-flash`), thinking level
+`medium`** — independent of the lyrics jobs' `GEMINI_MODEL`; `_shared/gemini.ts`
+gained `askForObject` + a configurable `askModel` for it. The handler assembles
+plan/library/history server-side (capped 300 candidates / 40 history plans) and
+`parseSuggestion` rejects a hallucinated or excluded pick (422), so it can only
+ever return a real, non-rejected, not-already-on-plan song. Verified end-to-end
+against the local stack with a real key (suggest + reject both correct). **No
+migration**; `functions deploy suggest-song` before the bundle. Deno tests in
+`_shared/song-suggest.test.ts`.
+
 (no migration) **Hover tooltips everywhere else**, finishing the pass that began
 on Services/Matrix/Plan: the song page, then People, Scheduling, the rest of
 Services, Settings and the app shell — icon-only controls, the People select-all

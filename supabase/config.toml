@@ -423,6 +423,9 @@ verify_jwt = false
 [functions.generate-meaning]
 verify_jwt = true
 
+[functions.suggest-song]
+verify_jwt = true
+
 [functions.send-requests]
 verify_jwt = true
 

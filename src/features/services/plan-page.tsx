@@ -1397,6 +1397,7 @@ export function PlanPage() {
         arrangements={arrangementIndex}
       />
       <SongPickerDialog
+        key={plan.id}
         open={songPickerOpen}
         onOpenChange={setSongPickerOpen}
         planId={plan.id}

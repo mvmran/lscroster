@@ -47,7 +47,37 @@ grammar, because these strings are written into a person's lyrics as header
 lines). Its own `{probe:true}` answers `{configured}` — deploy it before the
 bundle that calls it, or the probe fails closed and the buttons stay hidden.
 
-The wire-level plumbing for both lives in `_shared/gemini.ts` (endpoint, key,
-`extractText`, `parseStringArray`, `askForStrings` throwing `GeminiError` with
-the status the handler should answer). Pure helpers and their Deno tests are in
-`_shared/meaning.ts` and `_shared/lyrics-assist.ts`.
+The wire-level plumbing for all three lives in `_shared/gemini.ts` (endpoint,
+key, `extractText`, `parseStringArray`, and the two ask helpers — `askForStrings`
+for the lyrics jobs, `askForObject` for a structured object — both throwing
+`GeminiError` with the status the handler should answer; `askModel` takes the
+model, `thinkingLevel` (`minimal`|`low`|`medium`|`high`) and schema so a
+reasoning caller can raise both). Pure helpers and their Deno tests are in
+`_shared/meaning.ts`, `_shared/lyrics-assist.ts` and `_shared/song-suggest.ts`.
+
+## suggest-song (optional, per instance)
+
+On a plan's "Add a song" box, suggests the next song to add. Same optionality
+and probe as the lyrics helpers (`GEMINI_API_KEY` switches it on; `{probe:true}`
+answers `{configured}`; deploy before the bundle or the button stays hidden),
+but gated on **`edit_order_of_service`**, not `manage_songs` — it adds to a plan,
+not a song. It **writes nothing**: it returns one `songId` the client adds
+through the ordinary RLS-gated add-song path.
+
+Unlike the line-gloss lyrics jobs this is a reasoning task — musical key fit
+(prefer a song that works in or near the plan's current keys *even without a
+matching-key arrangement*, and say so in `keyNote`), the church's past song
+groupings (from `song_plan_usage`), and the plan's language balance (tags may
+name a language). So it asks a stronger model at a higher thinking level:
+**`GEMINI_SUGGEST_MODEL` (default `gemini-3.5-flash`), `thinkingLevel: 'medium'`**
+— independent of `GEMINI_MODEL`, which the cheap lyrics jobs use.
+
+The handler assembles the context server-side (plan songs, candidate library
+songs minus those on the plan and minus the client's rejected ids, and recent
+plan groupings), capped at 300 candidates / 40 history plans to bound the
+prompt. `parseSuggestion` validates the model's pick is a real, offered
+candidate — a hallucinated or excluded id yields a 422, never a phantom song.
+**Rejected songs are remembered client-side** (localStorage keyed by plan id, in
+`use-song-suggest.ts`): rejects survive closing the dialog and a reload but reset
+for a different plan, and every Suggest press sends the accumulated list so the
+model skips them.

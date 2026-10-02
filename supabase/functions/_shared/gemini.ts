@@ -103,13 +103,38 @@ export function parseStringArray(text: string): string[] | null {
 }
 
 /**
- * Ask the model one question and get a JSON array of strings back.
+ * Options for a single model call.
  *
  * `label` names the caller in the server log so a failure can be traced to the
- * feature that caused it. Every failure path throws a `GeminiError`, so a
- * handler turns the whole call into a response with one catch.
+ * feature that caused it. `model` lets a caller pick a model other than the
+ * instance default — a reasoning task (song suggestions) wants a stronger model
+ * than a line-by-line gloss, so it passes its own rather than inheriting the
+ * `GEMINI_MODEL` the lyrics features are tuned to. `thinkingLevel` defaults to
+ * the "minimal" the gloss jobs use; a reasoning task raises it. `schema` is the
+ * structured-output shape the reply is asked to match.
  */
-export async function askForStrings(prompt: string, label: string): Promise<string[]> {
+export interface AskOptions {
+  label: string
+  model?: string
+  thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high'
+  schema: Record<string, unknown>
+}
+
+/** Strip the fenced-code wrapper structured output should not have but might. */
+function unfence(text: string): string {
+  return text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/```$/, '')
+}
+
+/**
+ * POST one prompt to the model and return the text it produced.
+ *
+ * The one place the wire format lives; every failure path throws a
+ * `GeminiError` carrying the status a handler should answer.
+ */
+async function askModel(prompt: string, opts: AskOptions): Promise<string> {
   const apiKey = Deno.env.get('GEMINI_API_KEY')
   if (!apiKey) throw new GeminiError(503, 'not_configured')
 
@@ -119,31 +144,70 @@ export async function askForStrings(prompt: string, label: string): Promise<stri
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
-        model: Deno.env.get('GEMINI_MODEL') ?? DEFAULT_MODEL,
+        model: opts.model ?? Deno.env.get('GEMINI_MODEL') ?? DEFAULT_MODEL,
         input: prompt,
-        generation_config: { thinking_level: 'minimal' },
+        generation_config: { thinking_level: opts.thinkingLevel ?? 'minimal' },
         response_format: {
           type: 'text',
           mime_type: 'application/json',
-          schema: { type: 'array', items: { type: 'string' } },
+          schema: opts.schema,
         },
       }),
     })
   } catch (error) {
-    console.error(`${label}: request failed`, error)
+    console.error(`${opts.label}: request failed`, error)
     throw new GeminiError(502, 'Could not reach the language service')
   }
 
   if (!response.ok) {
-    console.error(`${label}: HTTP`, response.status, await response.text())
+    console.error(`${opts.label}: HTTP`, response.status, await response.text())
     throw new GeminiError(502, `Language service returned ${response.status}`)
   }
 
-  const text = extractText(await response.json())
+  return extractText(await response.json())
+}
+
+/**
+ * Ask the model one question and get a JSON array of strings back.
+ *
+ * Every failure path throws a `GeminiError`, so a handler turns the whole call
+ * into a response with one catch.
+ */
+export async function askForStrings(prompt: string, label: string): Promise<string[]> {
+  const text = await askModel(prompt, {
+    label,
+    schema: { type: 'array', items: { type: 'string' } },
+  })
   const entries = parseStringArray(text)
   if (entries === null) {
     console.error(`${label}: response was not a JSON array:`, text.slice(0, 500))
     throw new GeminiError(502, 'Language service returned no usable text')
   }
   return entries
+}
+
+/**
+ * Ask the model one question and get a parsed JSON object back.
+ *
+ * The caller passes the object `schema` and validates the shape itself — this
+ * only guarantees valid JSON came back. A reasoning task passes its own `model`
+ * and raises `thinkingLevel`; the array-returning helper above does neither.
+ */
+export async function askForObject(
+  prompt: string,
+  opts: AskOptions,
+): Promise<Record<string, unknown>> {
+  const text = await askModel(prompt, opts)
+  let value: unknown
+  try {
+    value = JSON.parse(unfence(text))
+  } catch {
+    console.error(`${opts.label}: response was not JSON:`, text.slice(0, 500))
+    throw new GeminiError(502, 'Language service returned no usable text')
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    console.error(`${opts.label}: response was not a JSON object:`, text.slice(0, 500))
+    throw new GeminiError(502, 'Language service returned no usable text')
+  }
+  return value as Record<string, unknown>
 }
