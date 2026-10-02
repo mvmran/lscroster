@@ -96,7 +96,9 @@ function useInvalidateAfterGrant() {
 export function useTogglePermission(personId: string) {
   const queryClient = useQueryClient()
   const invalidate = useInvalidateAfterGrant()
+  const mutationKey = ['toggle-permission', personId]
   return useMutation({
+    mutationKey,
     mutationFn: async ({ permission, granted }: { permission: Permission; granted: boolean }) => {
       const { error } = granted
         ? await supabase.from('person_permissions').insert({ person_id: personId, permission })
@@ -127,7 +129,12 @@ export function useTogglePermission(personId: string) {
         queryClient.setQueryData(permissionKeys.person(personId), context.previous)
       }
     },
-    onSettled: () => invalidate(personId),
+    // Refetch only when the last in-flight toggle settles: two quick ticks
+    // otherwise race, and the first one's refetch (which doesn't yet include
+    // the second write) briefly un-ticks the second box.
+    onSettled: () => {
+      if (queryClient.isMutating({ mutationKey }) === 1) invalidate(personId)
+    },
   })
 }
 

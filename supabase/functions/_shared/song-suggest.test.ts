@@ -8,8 +8,10 @@ import { assertEquals, assertStringIncludes } from 'jsr:@std/assert@1'
 import {
   buildSuggestPrompt,
   parseSuggestion,
+  summarizeUsage,
   type Candidate,
   type SuggestContext,
+  type UsageRow,
 } from './song-suggest.ts'
 
 const candidate = (id: string, over: Partial<Candidate> = {}): Candidate => ({
@@ -82,4 +84,57 @@ Deno.test('parseSuggestion caps a runaway reason', () => {
   )
   assertEquals(result!.reason.length <= 240, true)
   assertEquals(result!.keyNote.length <= 140, true)
+})
+
+const use = (songId: string, planId: string, date: string): UsageRow => ({
+  songId,
+  planId,
+  date,
+  serviceType: 'Sunday 10am',
+})
+const titles: Record<string, string> = { s1: 'One', s2: 'Two', s3: 'Three' }
+const titleOf = (id: string): string | undefined => titles[id]
+
+Deno.test('summarizeUsage leaves the plan being built out of the history', () => {
+  const { history, lastUsed } = summarizeUsage(
+    [use('s1', 'this', '2026-10-04'), use('s2', 'past', '2026-09-27')],
+    { planId: 'this', planDate: '2026-10-04', maxPlans: 40 },
+    titleOf,
+  )
+  assertEquals(history.map((h) => h.songs), [['Two']])
+  assertEquals(lastUsed.has('s1'), false)
+})
+
+Deno.test('summarizeUsage: last used is the latest date before this service', () => {
+  const { lastUsed } = summarizeUsage(
+    [
+      use('s1', 'a', '2026-08-30'),
+      use('s1', 'b', '2026-09-20'),
+      // Booked for a later service — not "just sung".
+      use('s1', 'c', '2026-11-01'),
+    ],
+    { planId: 'this', planDate: '2026-10-04', maxPlans: 40 },
+    titleOf,
+  )
+  assertEquals(lastUsed.get('s1'), '2026-09-20')
+})
+
+Deno.test('summarizeUsage: history is newest first, capped, unnamed songs dropped', () => {
+  const { history } = summarizeUsage(
+    [
+      use('s1', 'old', '2026-09-06'),
+      use('s2', 'new', '2026-09-27'),
+      use('gone', 'new', '2026-09-27'),
+      use('s3', 'mid', '2026-09-13'),
+    ],
+    { planId: 'this', planDate: '2026-10-04', maxPlans: 2 },
+    titleOf,
+  )
+  assertEquals(
+    history.map((h) => [h.date, h.songs]),
+    [
+      ['2026-09-27', ['Two']],
+      ['2026-09-13', ['Three']],
+    ],
+  )
 })

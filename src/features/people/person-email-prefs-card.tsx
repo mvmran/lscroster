@@ -63,11 +63,15 @@ function PrefsForm({
   })
 
   function toggle(key: EmailPrefKey, next: boolean) {
-    const updated = { ...values, [key]: next }
-    setValues(updated)
-    upsert.mutate(updated, {
+    setValues((current) => ({ ...current, [key]: next }))
+    // Write only the column that changed. The upsert updates just the columns
+    // it is sent (a new row takes the others' defaults, all on), so two quick
+    // toggles of different boxes can land in either order — sending the whole
+    // row let an older save arrive last and quietly undo the other box.
+    upsert.mutate({ [key]: next }, {
       onError: (e) => {
-        setValues(values) // revert
+        // Undo only this box: another toggle may have gone through meanwhile.
+        setValues((current) => ({ ...current, [key]: !next }))
         toast.error(e.message)
       },
     })
@@ -115,7 +119,11 @@ export function PersonEmailPrefsCard({ personId }: { personId: string }) {
         {isPending ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
         ) : (
-          <PrefsForm key={prefs?.updated_at ?? 'new'} personId={personId} prefs={prefs ?? null} />
+          // Keyed by person, not by `updated_at`: the form's own state is the
+          // source of truth once loaded. Keying on `updated_at` remounted it after
+          // every save, and with toggles no longer locked a second quick tick
+          // could be reset mid-flight by the first save's refetch.
+          <PrefsForm key={personId} personId={personId} prefs={prefs ?? null} />
         )}
       </CardContent>
     </Card>

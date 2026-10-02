@@ -75,7 +75,11 @@ name a language). So it asks a stronger model at a higher thinking level:
 The handler assembles the context server-side (plan songs, candidate library
 songs minus those on the plan and minus the client's rejected ids, and recent
 plan groupings), capped at 300 candidates / 40 history plans to bound the
-prompt. `parseSuggestion` validates the model's pick is a real, offered
+prompt. Reads go through `fetchAll`, which pages past PostgREST's `max_rows`
+(1000) — it truncates silently — and throws on a query error, which the handler
+answers as a JSON 500 (an empty library would otherwise read as "exhausted").
+`summarizeUsage` (pure, tested) skips the plan being built and counts "last
+used" only before that service's date. `parseSuggestion` validates the model's pick is a real, offered
 candidate — a hallucinated or excluded id yields a 422, never a phantom song.
 **Rejected songs are remembered client-side** (localStorage keyed by plan id, in
 `use-song-suggest.ts`): rejects survive closing the dialog and a reload but reset

@@ -19,9 +19,9 @@ import { askForObject, GeminiError, geminiConfigured } from '../_shared/gemini.t
 import {
   buildSuggestPrompt,
   parseSuggestion,
+  summarizeUsage,
   SUGGEST_SCHEMA,
   type Candidate,
-  type HistoryPlan,
   type PlanSong,
 } from '../_shared/song-suggest.ts'
 
@@ -29,6 +29,28 @@ const SUGGEST_MODEL_DEFAULT = 'gemini-3.5-flash'
 /** Bound the prompt: a church library is far smaller, but a fork might not be. */
 const MAX_CANDIDATES = 300
 const MAX_HISTORY_PLANS = 40
+
+/**
+ * Read every row, a page at a time. PostgREST stops a response at `max_rows`
+ * (1000) without saying so, which would silently drop songs from a big library.
+ * Throws on a query error rather than returning nothing — an empty library
+ * would otherwise read as "no more songs to suggest".
+ */
+async function fetchAll<T>(
+  page: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const size = 1000
+  const rows: T[] = []
+  for (let from = 0; ; from += size) {
+    const { data, error } = await page(from, from + size - 1)
+    if (error) throw new Error(error.message)
+    rows.push(...(data ?? []))
+    if ((data ?? []).length < size) return rows
+  }
+}
 
 const schema = z.object({
   probe: z.boolean().optional(),
@@ -64,26 +86,58 @@ Deno.serve(async (req) => {
   if (!body.planId) return jsonResponse({ error: 'planId is required' }, 400)
 
   // --- Plan ---------------------------------------------------------------
-  const { data: plan } = await admin
+  try {
+    return await suggest(admin, body.planId, body.rejectedSongIds ?? [])
+  } catch (error) {
+    if (error instanceof GeminiError) {
+      return jsonResponse({ error: error.message }, error.status)
+    }
+    // A database read failed. Answer in JSON so the client shows a real
+    // message — an uncaught throw is a bare 500 the browser reports as a
+    // network failure.
+    console.error('suggest-song:', error)
+    return jsonResponse({ error: 'Could not read the song library' }, 500)
+  }
+})
+
+async function suggest(
+  admin: ReturnType<typeof serviceClient>,
+  planId: string,
+  rejectedSongIds: string[],
+): Promise<Response> {
+  const { data: plan, error: planError } = await admin
     .from('plans')
     .select('id, date, service_types(name)')
-    .eq('id', body.planId)
+    .eq('id', planId)
     .maybeSingle()
+  if (planError) throw new Error(planError.message)
   if (!plan) return jsonResponse({ error: 'Plan not found' }, 404)
   // A to-one embed is typed as an array by the generated types; take the first.
   const svc = plan.service_types as { name: string }[] | { name: string } | null
   const serviceType = (Array.isArray(svc) ? svc[0]?.name : svc?.name) ?? null
 
   // --- Library (songs, arrangements, junction) ----------------------------
-  const [{ data: songRows }, { data: arrRows }, { data: linkRows }] = await Promise.all([
-    admin.from('songs').select('id, title, author, tags, status'),
-    admin.from('song_arrangements').select('id, song_key, bpm, is_default'),
-    admin.from('song_arrangement_songs').select('arrangement_id, song_id'),
+  const [songs, arrRows, linkRows] = await Promise.all([
+    fetchAll((from, to) =>
+      admin.from('songs').select('id, title, author, tags, status').order('id').range(from, to),
+    ),
+    fetchAll((from, to) =>
+      admin
+        .from('song_arrangements')
+        .select('id, song_key, bpm, is_default')
+        .order('id')
+        .range(from, to),
+    ),
+    fetchAll((from, to) =>
+      admin
+        .from('song_arrangement_songs')
+        .select('arrangement_id, song_id')
+        .order('arrangement_id')
+        .order('song_id')
+        .range(from, to),
+    ),
   ])
-  const songs = songRows ?? []
-  const arrangements = new Map(
-    (arrRows ?? []).map((a) => [a.id as string, a]),
-  )
+  const arrangements = new Map(arrRows.map((a) => [a.id as string, a]))
   // song_id -> its arrangement ids, and arrangement_id -> its song ids
   const arrsForSong = new Map<string, string[]>()
   const songsForArr = new Map<string, string[]>()
@@ -92,7 +146,7 @@ Deno.serve(async (req) => {
     if (list) list.push(value)
     else map.set(key, [value])
   }
-  for (const link of linkRows ?? []) {
+  for (const link of linkRows) {
     const aId = link.arrangement_id as string
     const sId = link.song_id as string
     push(arrsForSong, sId, aId)
@@ -101,11 +155,12 @@ Deno.serve(async (req) => {
   const songById = new Map(songs.map((s) => [s.id as string, s]))
 
   // --- Songs already on this plan -----------------------------------------
-  const { data: itemRows } = await admin
+  const { data: itemRows, error: itemError } = await admin
     .from('plan_items')
     .select('arrangement_id, key_override')
-    .eq('plan_id', body.planId)
+    .eq('plan_id', planId)
     .eq('kind', 'song')
+  if (itemError) throw new Error(itemError.message)
   const onPlanSongIds = new Set<string>()
   const current: PlanSong[] = []
   for (const item of itemRows ?? []) {
@@ -126,44 +181,29 @@ Deno.serve(async (req) => {
   }
 
   // --- Usage: last-used date per song, and plan groupings for history -----
-  const { data: usageRows } = await admin
-    .from('song_plan_usage')
-    .select('song_id, plan_id, date, service_type_name')
-    .order('date', { ascending: false })
-  const lastUsed = new Map<string, string>()
-  const byPlan = new Map<
-    string,
-    { date: string; serviceType: string | null; songIds: Set<string> }
-  >()
-  for (const row of usageRows ?? []) {
-    const sId = row.song_id as string
-    const date = row.date as string
-    if (!lastUsed.has(sId)) lastUsed.set(sId, date)
-    const pId = row.plan_id as string
-    let group = byPlan.get(pId)
-    if (!group) {
-      group = {
-        date,
-        serviceType: (row.service_type_name as string | null) ?? null,
-        songIds: new Set(),
-      }
-      byPlan.set(pId, group)
-    }
-    group.songIds.add(sId)
-  }
-  const history: HistoryPlan[] = [...byPlan.values()]
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, MAX_HISTORY_PLANS)
-    .map((g) => ({
-      date: g.date,
-      serviceType: g.serviceType,
-      songs: [...g.songIds]
-        .map((id) => songById.get(id)?.title as string | undefined)
-        .filter((t): t is string => Boolean(t)),
-    }))
+  const usageRows = await fetchAll((from, to) =>
+    admin
+      .from('song_plan_usage')
+      .select('song_id, plan_id, date, service_type_name')
+      .order('date', { ascending: false })
+      .order('plan_item_id')
+      .order('song_id')
+      .range(from, to),
+  )
+  const planDate = (plan.date as string | null) ?? null
+  const { lastUsed, history } = summarizeUsage(
+    usageRows.map((row) => ({
+      songId: row.song_id as string,
+      planId: row.plan_id as string,
+      date: row.date as string,
+      serviceType: (row.service_type_name as string | null) ?? null,
+    })),
+    { planId, planDate, maxPlans: MAX_HISTORY_PLANS },
+    (songId) => songById.get(songId)?.title as string | undefined,
+  )
 
   // --- Candidates ---------------------------------------------------------
-  const rejected = new Set(body.rejectedSongIds ?? [])
+  const rejected = new Set(rejectedSongIds)
   const candidates: Candidate[] = songs
     .filter((s) => s.status === 'active')
     .filter((s) => !onPlanSongIds.has(s.id as string) && !rejected.has(s.id as string))
@@ -194,39 +234,26 @@ Deno.serve(async (req) => {
 
   if (candidates.length === 0) return jsonResponse({ exhausted: true })
 
-  // --- Ask the model ------------------------------------------------------
-  try {
-    const payload = await askForObject(
-      buildSuggestPrompt({
-        serviceType,
-        planDate: (plan.date as string | null) ?? null,
-        current,
-        candidates,
-        history,
-      }),
-      {
-        label: 'suggest-song',
-        model: Deno.env.get('GEMINI_SUGGEST_MODEL') ?? SUGGEST_MODEL_DEFAULT,
-        // A reasoning task (key fit, preference, language mix), unlike the
-        // line-gloss lyrics jobs — but kept at 'medium', not 'high', because a
-        // scheduler is waiting on it. Valid: minimal | low | medium | high.
-        thinkingLevel: 'medium',
-        schema: SUGGEST_SCHEMA,
-      },
-    )
-    const choice = parseSuggestion(payload, new Set(candidates.map((c) => c.id)))
-    if (!choice) return jsonResponse({ error: 'No suggestion came back' }, 422)
-    const song = songById.get(choice.songId)
-    return jsonResponse({
-      songId: choice.songId,
-      title: (song?.title as string) ?? '',
-      reason: choice.reason,
-      keyNote: choice.keyNote,
-    })
-  } catch (error) {
-    if (error instanceof GeminiError) {
-      return jsonResponse({ error: error.message }, error.status)
-    }
-    throw error
-  }
-})
+  // --- Ask the model (a GeminiError is answered by the caller's catch) -----
+  const payload = await askForObject(
+    buildSuggestPrompt({ serviceType, planDate, current, candidates, history }),
+    {
+      label: 'suggest-song',
+      model: Deno.env.get('GEMINI_SUGGEST_MODEL') ?? SUGGEST_MODEL_DEFAULT,
+      // A reasoning task (key fit, preference, language mix), unlike the
+      // line-gloss lyrics jobs — but kept at 'medium', not 'high', because a
+      // scheduler is waiting on it. Valid: minimal | low | medium | high.
+      thinkingLevel: 'medium',
+      schema: SUGGEST_SCHEMA,
+    },
+  )
+  const choice = parseSuggestion(payload, new Set(candidates.map((c) => c.id)))
+  if (!choice) return jsonResponse({ error: 'No suggestion came back' }, 422)
+  const song = songById.get(choice.songId)
+  return jsonResponse({
+    songId: choice.songId,
+    title: (song?.title as string) ?? '',
+    reason: choice.reason,
+    keyNote: choice.keyNote,
+  })
+}

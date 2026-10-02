@@ -293,7 +293,11 @@ export function SongPickerDialog({
                   type="button"
                   variant="outline"
                   size="icon"
-                  onClick={() => runSuggest(rejected)}
+                  // With one already showing, ask for a different one — without
+                  // rejecting it for good (that is what "Not this one" is for).
+                  onClick={() =>
+                    runSuggest(suggestion ? [...rejected, suggestion.songId] : rejected)
+                  }
                   disabled={pending || suggest.isPending}
                   title="Suggest a song that fits the ones already on this plan"
                   aria-label="Suggest a song"

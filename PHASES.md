@@ -824,6 +824,20 @@ production before the push.
   `onSaveClick` early-returns. Clearing **every** layer to remove the lyrics is
   still allowed; the guard only fires when text would be orphaned.
 
+(no migration) **Permissions and Email preferences checkboxes no longer lock**
+(2026-10-02): ticking a box on the person page disabled it until the save and
+refetch finished — a not-allowed cursor and a visible stall. Both now update at
+once and save in the background. Unlocking them made concurrent saves possible,
+which needed three more fixes, each proven with forced out-of-order network
+delays in a browser test: `useTogglePermission` is optimistic and refetches only
+when the **last** in-flight toggle settles (`isMutating`), else the first save's
+refetch un-ticks the second box; the email-prefs form is keyed by person, not
+`updated_at` (which remounted it after every save, resetting a box mid-flight);
+and each email-pref toggle upserts **only its own column** — the whole row was
+sent before, so an older save arriving last silently reverted the other box in
+the database while the screen showed it changed. A failed save reverts only its
+own box.
+
 (no migration) **AI "suggest the next song"** (2026-10-02): a small Sparkles
 button on a plan's "Add a song" box (`song-picker-dialog.tsx`) asks the new
 **`suggest-song`** Edge Function for the next song to add — one that sits well
@@ -839,11 +853,20 @@ gated on **`edit_order_of_service`**. Being a reasoning task it uses its own
 model — **`GEMINI_SUGGEST_MODEL` (default `gemini-3.5-flash`), thinking level
 `medium`** — independent of the lyrics jobs' `GEMINI_MODEL`; `_shared/gemini.ts`
 gained `askForObject` + a configurable `askModel` for it. The handler assembles
-plan/library/history server-side (capped 300 candidates / 40 history plans) and
+plan/library/history server-side (capped 300 candidates / 40 history plans;
+reads paged past PostgREST's silent 1000-row cap, and a failed read answers a
+JSON 500 rather than an empty library posing as "no more songs") and
 `parseSuggestion` rejects a hallucinated or excluded pick (422), so it can only
-ever return a real, non-rejected, not-already-on-plan song. Verified end-to-end
-against the local stack with a real key (suggest + reject both correct). **No
-migration**; `functions deploy suggest-song` before the bundle. Deno tests in
+ever return a real, non-rejected, not-already-on-plan song. `summarizeUsage`
+leaves the plan being built out of its own history and counts "last used" only
+before that service (a song booked for next month is not one just sung); the
+prompt asks the model to avoid recent repeats. Pressing ✨ while a suggestion is
+showing asks for a different one without rejecting it for good. Verified in a
+browser against the local stack with a real key: suggest, reject, show-another,
+rejects surviving a reload, a fresh slate on another plan (checked on the wire),
+accept adding to the plan, phone layout, the button hidden with no key, and the
+API's exhausted / 401 / 403 / 400 / 404 answers. **No migration**;
+`functions deploy suggest-song` before the bundle. Deno tests in
 `_shared/song-suggest.test.ts`.
 
 (no migration) **Hover tooltips everywhere else**, finishing the pass that began

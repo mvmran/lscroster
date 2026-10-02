@@ -114,6 +114,8 @@ export function buildSuggestPrompt(ctx: SuggestContext): string {
     "   (`arrangementKeys` may not include it) — the team can transpose; say so in keyNote.",
     '2. Church preference. Learn from `recentPlans` which songs this church groups',
     '   together and the kind of set it builds, and prefer a song consistent with that.',
+    '   `lastUsed` is when a candidate was last sung before this service: avoid one sung',
+    '   in the last few weeks unless the history shows this church repeats that often.',
     '3. Language balance. Tags may name a language (e.g. English, Malayalam, Hindi).',
     '   Keep the language mix of the plan sensible for this church, judged from how its',
     '   recent plans mixed languages — do not overload one language or drop an expected one.',
@@ -126,6 +128,59 @@ export function buildSuggestPrompt(ctx: SuggestContext): string {
     'CONTEXT:',
     JSON.stringify(context),
   ].join('\n')
+}
+
+/** One row of `song_plan_usage`: a song on a plan on a date. */
+export interface UsageRow {
+  songId: string
+  planId: string
+  date: string
+  serviceType: string | null
+}
+
+/**
+ * Turn raw usage rows into what the prompt needs: when each song was last sung
+ * and the song groupings of recent plans.
+ *
+ * The plan being built is skipped — its songs are the question, not the
+ * history — and "last used" counts only dates before that plan's service, so a
+ * song already booked for next month doesn't read as one just sung. History is
+ * newest plan first, capped at `maxPlans`; songs `titleOf` can't name (deleted
+ * since) are dropped. Rows may arrive in any order.
+ */
+export function summarizeUsage(
+  rows: UsageRow[],
+  opts: { planId: string; planDate: string | null; maxPlans: number },
+  titleOf: (songId: string) => string | undefined,
+): { lastUsed: Map<string, string>; history: HistoryPlan[] } {
+  const lastUsed = new Map<string, string>()
+  const byPlan = new Map<
+    string,
+    { date: string; serviceType: string | null; songIds: Set<string> }
+  >()
+  for (const row of rows) {
+    if (row.planId === opts.planId) continue
+    const before = opts.planDate === null || row.date < opts.planDate
+    const seen = lastUsed.get(row.songId)
+    if (before && (seen === undefined || row.date > seen)) lastUsed.set(row.songId, row.date)
+    let group = byPlan.get(row.planId)
+    if (!group) {
+      group = { date: row.date, serviceType: row.serviceType, songIds: new Set() }
+      byPlan.set(row.planId, group)
+    }
+    group.songIds.add(row.songId)
+  }
+  const history = [...byPlan.values()]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, opts.maxPlans)
+    .map((g) => ({
+      date: g.date,
+      serviceType: g.serviceType,
+      songs: [...g.songIds]
+        .map(titleOf)
+        .filter((t): t is string => Boolean(t)),
+    }))
+  return { lastUsed, history }
 }
 
 const asString = (v: unknown): string => (typeof v === 'string' ? v.trim() : '')
