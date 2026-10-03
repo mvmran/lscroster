@@ -1,6 +1,7 @@
 # Screenshots
 
-Images used by [README.md](../../README.md) and [SETUP.md](../SETUP.md).
+Images used by [README.md](../../README.md), [SETUP.md](../SETUP.md) and the
+[user manual](../USER-MANUAL.md).
 
 | File | What it shows |
 | --- | --- |

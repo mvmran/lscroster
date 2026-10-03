@@ -878,8 +878,17 @@ roles. Authoring notes in the file cover screenshot embedding, callouts,
 cross-refs, the target look & feel (dark cover + header/footer bands, white
 pages, bordered tables, floated figures, callouts) in LSCroster's indigo accent,
 and rendering to PDF/HTML (Pandoc or a CSS file). Screenshots live in
-`docs/screenshots/manual/`. **To do:** write the placeholder sections, capture
-demo-data screenshots, then render. Content is the user's to fill.
+`docs/screenshots/manual/`.
+- [x] **First full draft** (2026-10-03): every chapter and appendix written from
+  the code (UI strings, guards, Edge Functions, `docs/ACCESS-CONTROL.md`), not
+  from memory; the five existing shots in `docs/screenshots/` embedded as
+  Figures 4.2, 6.3, 8.3, 9.1 and 14.1. Role tags moved off headings so anchors
+  stay short; every in-file link checked. Describes 1.0.4 + unreleased `main`.
+- [ ] The user's review of the draft.
+- [ ] Capture the shots marked `Screenshot wanted` in the file (sign-in,
+  invitation, People list, person page, song layers, plan People card, My
+  Schedule on a phone) into `docs/screenshots/manual/`.
+- [ ] Render to PDF/HTML with the house look, then drop the authoring notes.
 
 (no migration) **Hover tooltips everywhere else**, finishing the pass that began
 on Services/Matrix/Plan: the song page, then People, Scheduling, the rest of
