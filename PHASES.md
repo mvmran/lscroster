@@ -869,6 +869,18 @@ API's exhausted / 401 / 403 / 400 / 404 answers. **No migration**;
 `functions deploy suggest-song` before the bundle. Deno tests in
 `_shared/song-suggest.test.ts`.
 
+(no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
+— a fill-in skeleton modelled on an external field manual's structure (cover,
+notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
+subsections, step-by-step "Common tasks" playbooks, appendix: glossary / roles /
+troubleshooting / document control), adapted to LSCroster's features and three
+roles. Authoring notes in the file cover screenshot embedding, callouts,
+cross-refs, the target look & feel (dark cover + header/footer bands, white
+pages, bordered tables, floated figures, callouts) in LSCroster's indigo accent,
+and rendering to PDF/HTML (Pandoc or a CSS file). Screenshots live in
+`docs/screenshots/manual/`. **To do:** write the placeholder sections, capture
+demo-data screenshots, then render. Content is the user's to fill.
+
 (no migration) **Hover tooltips everywhere else**, finishing the pass that began
 on Services/Matrix/Plan: the song page, then People, Scheduling, the rest of
 Services, Settings and the app shell — icon-only controls, the People select-all

@@ -48,7 +48,7 @@ Church-specific configuration (name, logo, timezone, email sender) lives in a si
   /migrations     # ALL schema changes live here (timestamped SQL)
   /functions      # one directory per Edge Function (run `ls supabase/functions`);
                   # _shared/ holds the cross-function helpers and email templates
-/docs             # setup, upgrade, backup and API docs, plus screenshots/
+/docs             # setup, upgrade, backup and API docs, USER-MANUAL.md, plus screenshots/
 /scripts          # backup.sh / restore.sh (docs/BACKUPS.md), CI helper scripts
 ```
 
