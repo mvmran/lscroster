@@ -7,23 +7,23 @@
 // brand tokens (src/index.css, hue 278) — and printed by headless Chromium: a
 // dark cover, a contents page with real page numbers, chapter openers, and dark
 // running header/footer bands. The cover is printed on its own (it carries no
-// bands) and joined to the body with pdfunite. The body follows the Markdown's
-// order; the generated contents replaces its `## Contents` section in place.
-// Contents page numbers come from a first pass that tags each heading with an
-// out-of-flow token: print, find each token's page with pdftotext, then print
-// again with the numbers filled in.
+// bands) and inserted in front of the body with pdf-lib, which keeps the body's
+// table of link targets intact — so the contents and every §x.y cross-reference
+// stay clickable. The body follows the Markdown's order; the generated contents
+// replaces its `## Contents` section in place. Contents page numbers come from a
+// first pass: Chromium records the page of every heading a link points at (and
+// the contents links to them all), then a second print fills the numbers in.
 //
-// One-time setup (no sudo): `npx playwright-core install chromium`.
-// Also needs poppler-utils (`sudo apt install poppler-utils`) for pdfunite and
-// pdftotext. On a bare Debian/Ubuntu box Chromium may also want its system
-// libraries: `sudo npx playwright-core install-deps chromium`.
+// One-time setup (no sudo): `npx playwright-core install chromium`. On a bare
+// Debian/Ubuntu box Chromium may also want its system libraries:
+// `sudo npx playwright-core install-deps chromium`.
 
-import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Marked } from 'marked'
+import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRef } from 'pdf-lib'
 import { chromium } from 'playwright-core'
 
 const ROOT = new URL('..', import.meta.url).pathname
@@ -46,17 +46,6 @@ const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).ver
 const DATE = new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(
   new Date(),
 )
-
-// ---- Prerequisites, checked up front so a missing tool fails with the fix.
-for (const tool of ['pdfunite', 'pdftotext']) {
-  try {
-    execFileSync(tool, ['-v'], { stdio: 'ignore' })
-  } catch (error) {
-    if (error.code !== 'ENOENT') continue
-    console.error(`${tool} not found — install poppler-utils (sudo apt install poppler-utils).`)
-    process.exit(1)
-  }
-}
 
 // ---- Fonts: Geist (the app's face), embedded so the header/footer can use it.
 const FONT_DIR = join(ROOT, 'node_modules/@fontsource-variable/geist/files')
@@ -116,30 +105,27 @@ md = md.replace(/^<div align="center">[\s\S]*?<\/div>\s*/m, '')
 md = md.replace(/^## Contents\n[\s\S]*?(?=^#{1,2} )/m, `${TOC_SLOT}\n\n`)
 md = md.replace(/^---\s*$/gm, '')
 
-// Every heading carries an HTML comment naming its index; the first print turns
-// it into a tiny out-of-flow marker so its page can be read back (findPages).
 const headings = [] // { depth, text, id } in document order
-const mark = (i) => `<!--page-mark:${i}-->`
 const marked = new Marked({ gfm: true })
 marked.use({
   renderer: {
     heading({ tokens, depth, text }) {
       const inner = this.parser.parseInline(tokens)
       const id = slug(text)
-      const i = headings.push({ depth, text: text.replace(/&amp;/g, '&'), id }) - 1
+      headings.push({ depth, text: text.replace(/&amp;/g, '&'), id })
       if (depth === 1) {
         const num = text.match(/^(\d+)\./)?.[1] ?? ''
         const kicker = num === '15' ? 'Appendix' : `Chapter ${num}`
         return `<section class="chapter-open" id="${id}">
           <div class="chapter-kicker">${kicker}</div><div class="chapter-num">${num}</div>
-          <h1>${mark(i)}${inner.replace(/^\d+\.\s+/, '')}</h1><div class="chapter-rule"></div>
+          <h1>${inner.replace(/^\d+\.\s+/, '')}</h1><div class="chapter-rule"></div>
           </section>`
       }
       if (depth === 2) {
         const m = inner.match(/^(\d+\.\d+|[A-F]\.)\s+(.*)$/)
-        if (!m) return `<h2 id="${id}" class="front">${mark(i)}${inner}</h2>`
+        if (!m) return `<h2 id="${id}" class="front">${inner}</h2>`
         const num = m[1].replace(/\.$/, '')
-        return `<h2 id="${id}">${mark(i)}<span class="sec-num">${num}</span>${m[2]}</h2>`
+        return `<h2 id="${id}"><span class="sec-num">${num}</span>${m[2]}</h2>`
       }
       return `<h${depth} id="${id}">${inner}</h${depth}>`
     },
@@ -213,7 +199,6 @@ li::marker { color: var(--primary); font-weight: 600; }
 
 /* Contents */
 .toc { break-before: page; break-after: page; }
-.page-mark { position: absolute; font-size: 4pt; }
 .toc-kicker, .chapter-kicker { font-size: 8pt; font-weight: 700; letter-spacing: 0.22em;
   text-transform: uppercase; color: var(--primary); }
 .toc-head { font-size: 26pt; font-weight: 750; letter-spacing: -0.02em; margin: 4pt 0 14pt; }
@@ -377,27 +362,31 @@ const FOOTER = `${band('bottom')}
     <span style="color: oklch(0.55 0 0);"> / <span class="totalPages"></span></span></span>
   </div>`
 
-// The first pass prints each heading's index as a token (QZH12Z) in an
-// out-of-flow span, so the layout is the same as the final print's.
-const MARK_TOKEN = (i) => `QZH${i}Z`
-const bodyHtml = (pages) => {
-  const withMarks = pages
-    ? body
-    : body.replace(/<!--page-mark:(\d+)-->/g, (_, i) =>
-        `<span class="page-mark">${MARK_TOKEN(i)}</span>`)
-  return `<!doctype html><html><head><meta charset="utf-8">
+const bodyHtml = (pages) => `<!doctype html><html><head><meta charset="utf-8">
   <title>LSCroster — User Manual</title><style>${BODY_CSS}</style></head>
-  <body>${withMarks.replace(TOC_SLOT, contents(pages))}</body></html>`
+  <body>${body.replace(TOC_SLOT, contents(pages))}</body></html>`
+
+// Chromium writes every link target into the catalogue's /Dests table as
+// `/heading-id [pageRef /XYZ x y zoom]`. Read it back as heading id → page.
+function linkTargets(doc) {
+  const pageNumber = new Map(doc.getPages().map((p, i) => [p.ref.toString(), i + 1]))
+  const dests = doc.catalog.lookupMaybe(PDFName.of('Dests'), PDFDict)
+  const pageOf = new Map()
+  for (const [name, value] of dests?.entries() ?? []) {
+    const dest = value instanceof PDFRef ? doc.context.lookup(value) : value
+    const target = dest instanceof PDFArray ? dest.get(0) : undefined
+    const page = target instanceof PDFRef ? pageNumber.get(target.toString()) : undefined
+    if (page) pageOf.set(name.decodeText(), page)
+  }
+  return pageOf
 }
 
-// The page each contents entry landed on in the first print, found by its token.
-function findPages(pdf) {
-  const pageTexts = execFileSync('pdftotext', [pdf, '-'], { encoding: 'utf8' }).split('\f')
+// The page each contents entry landed on in the first print. The contents
+// links to every one of them, so every one is in the table.
+async function findPages(pdf) {
+  const pageOf = linkTargets(await PDFDocument.load(readFileSync(pdf)))
   const pages = []
-  for (const h of listed()) {
-    const p = pageTexts.findIndex((text) => text.includes(MARK_TOKEN(h.i)))
-    pages[h.i] = p < 0 ? '?' : String(p + 1)
-  }
+  for (const h of listed()) pages[h.i] = String(pageOf.get(h.id) ?? '?')
   const lost = listed().filter((h) => pages[h.i] === '?').map((h) => h.text)
   if (lost.length) console.warn(`Contents: no page found for ${lost.join(' · ')}`)
   return pages
@@ -427,11 +416,19 @@ try {
   const bands = { displayHeaderFooter: true, headerTemplate: HEADER, footerTemplate: FOOTER }
 
   const draft = await print(bodyHtml(null), 'draft', bands)
-  const final = await print(bodyHtml(findPages(draft)), 'body', bands)
+  const final = await print(bodyHtml(await findPages(draft)), 'body', bands)
   const cover = await print(coverHtml, 'cover', {})
 
+  // Insert the cover into the body document rather than building a new one, so
+  // the body's /Dests table and link annotations carry over untouched.
+  const doc = await PDFDocument.load(readFileSync(final), { updateMetadata: false })
+  const [coverPage] = await doc.copyPages(await PDFDocument.load(readFileSync(cover)), [0])
+  doc.insertPage(0, coverPage)
+  const broken = [...linkTargets(doc).keys()].length === 0
+  if (broken) throw new Error('The finished PDF has no link targets — links would be dead.')
+
   mkdirSync(dirname(OUT), { recursive: true })
-  execFileSync('pdfunite', [cover, final, OUT])
+  writeFileSync(OUT, await doc.save())
   console.log(`Wrote ${OUT}`)
 } finally {
   await browser?.close()

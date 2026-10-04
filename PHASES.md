@@ -939,11 +939,21 @@ and rendering to PDF/HTML (Pandoc or a CSS file). Screenshots live in
   (`scripts/build-manual-pdf.mjs`) renders the Markdown with `marked` and prints
   it with headless Chromium (`playwright-core`, devDependencies only — the app
   never loads them): dark cover (the user chose it over a light one; `--cover=light`
-  keeps the alternative), contents with page numbers from a pdftotext first pass,
-  chapter openers, dark header/footer bands, Geist + the indigo tokens. Cover and
-  body are printed separately (the bands can't skip page 1) and joined with
-  pdfunite. Needs `npx playwright-core install chromium` once and poppler-utils.
-  Output goes to the gitignored `manual-pdf/`.
+  keeps the alternative), contents with page numbers, chapter openers, dark
+  header/footer bands, Geist + the indigo tokens. Cover and body are printed
+  separately (the bands can't skip page 1) and joined with `pdf-lib`. Needs
+  `npx playwright-core install chromium` once. Output goes to the gitignored
+  `manual-pdf/`.
+- [x] **Clickable links in the PDF** (2026-10-04): the first build joined cover
+  and body with poppler's `pdfunite`, which keeps link annotations but drops the
+  catalogue's `/Dests` table they point into — so all 130 internal links (the
+  contents and every §x.y cross-reference) were dead; only the GPL web link
+  worked. `pdf-lib` now inserts the cover into the body document itself, so the
+  table survives, and the same table gives each heading's page for the contents
+  (the contents links to them all) — no `pdftotext`, no marker tokens, and
+  **poppler-utils is no longer needed** (one npm devDependency in, one apt package
+  out, the user's call). The build refuses to write a PDF with no link targets.
+  Verified: 131/131 links resolve; contents numbers match the landing pages.
 - [ ] Drop the authoring notes once the content is final.
 
 (no migration) **Hover tooltips everywhere else**, finishing the pass that began

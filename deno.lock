@@ -50,6 +50,7 @@
         "npm:marked@^18.0.14",
         "npm:next-themes@~0.4.6",
         "npm:papaparse@^5.5.3",
+        "npm:pdf-lib@^1.17.1",
         "npm:playwright-core@^1.62.1",
         "npm:radix-ui@^1.5.0",
         "npm:react-day-picker@^10.0.1",
