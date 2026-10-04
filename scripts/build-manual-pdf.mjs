@@ -28,7 +28,13 @@ const ROOT = new URL('..', import.meta.url).pathname
 const DOCS = join(ROOT, 'docs')
 
 const args = process.argv.slice(2)
-const flag = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=')[1]
+// `npm run manual:pdf -- --church=X` reaches the script as an argument, but without
+// the `--` npm keeps the flag for itself and hands it on only as npm_config_church
+// — accept both, so a forgotten `--` doesn't silently drop the option.
+const flag = (name) => {
+  const arg = args.find((a) => a.startsWith(`--${name}=`))
+  return arg ? arg.slice(name.length + 3) : process.env[`npm_config_${name}`]
+}
 const OUT = resolve(
   args.find((a) => !a.startsWith('--')) ?? join(ROOT, 'manual-pdf/LSCroster-User-Manual.pdf'),
 )
