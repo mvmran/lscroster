@@ -34,7 +34,7 @@
 Worship &amp; service planning for your church — plan services, schedule teams,
 and respond to requests from your phone.
 
-**Version 1.0.4**  ·  October 2026
+**Version 1.0.5**  ·  October 2026
 
 _Your Church Name_
 
@@ -50,9 +50,8 @@ _Your Church Name_
 This manual is for everyone who uses LSCroster at your church: the members who
 are rostered to serve, the coordinators who plan services and build rosters, and
 the administrators who look after the whole system. It describes LSCroster
-version 1.0.4 and the changes made since (noted where they matter). The app is
-updated from time to time, so a button or a label on your screen may differ a
-little from what is written here.
+version 1.0.5. The app is updated from time to time, so a button or a label on
+your screen may differ a little from what is written here.
 
 LSCroster is open-source software, and every church runs its **own private
 copy**. Some things this manual describes — which emails are sent and when, the
@@ -68,8 +67,12 @@ copy may behave slightly differently.
 
 ## Licence and warranty disclaimer
 
-**Copyright © 2026 Manoj Mathew.** LSCroster and this manual are free software,
-distributed under the **GNU General Public License, version 3** (GPLv3).
+**Copyright © 2026 Manoj Mathew.**
+
+LSCroster and this manual are free software, distributed under the
+**GNU General Public License, version 3** (GPLv3). You can redistribute them and/or
+modify them under the terms of the GNU General Public License version 3 as published
+by the Free Software Foundation.
 
 In plain terms, the licence gives every church four freedoms, on a few
 conditions:
@@ -145,6 +148,7 @@ says who, directly under its heading.
 | Find a replacement for someone who declined | [§12.11](#1211-find-a-replacement-when-someone-declines) |
 | Invite a new person | [§12.9](#129-invite-a-new-member) |
 | Give someone a job without making them a coordinator | [§12.10](#1210-grant-someone-a-permission-or-team-access) |
+| Put a document on everyone's Home screen | [§12.12](#1212-put-a-document-on-the-notice-board) |
 | Print a run sheet or lyrics sheet | [§11.4](#114-printing-and-pdf-run-sheets) |
 | A word I don't recognise | [Glossary](#a-glossary) |
 | Something isn't working | [Troubleshooting](#c-troubleshooting--faq) |
@@ -266,6 +270,9 @@ What someone can do is decided by three things that add together:
    the team) or **Manager** (roster it and change who is on it).
 3. **Permissions** — six specific jobs a member can be given, such as *Manage
    songs* or *Publish plans*. Coordinators and admins have all six already.
+
+> **Note** — See [Appendix B](#b-roles--permissions-reference) for the full list of
+> access provisions.
 
 ## 2.2 Service types and plans
 
@@ -400,6 +407,8 @@ After signing in you land on **Home** (Figure 4.2). It shows, from the top:
 - **Waiting on you** — any requests you haven't answered yet, with **Accept**
   and **Decline** buttons right there. (Only shown when there is something to
   answer.)
+- **Notice Board** — documents and notices from your church, such as this
+  manual. Tap one to open it. (Only shown when there is something on the board.)
 - **This week** — every service in the next 7 days. Tap one to open its plan.
 - **My upcoming dates** — where you're confirmed to serve next, and a link to
   your **Full schedule & blockouts**.
@@ -415,7 +424,7 @@ button at the top left to open it. The menu has seven sections:
 
 | Section | What it's for |
 | --- | --- |
-| **Home** | Requests waiting on you, this week's services, your next dates. |
+| **Home** | Requests waiting on you, the notice board, this week's services, your next dates. |
 | **My Schedule** | All your requests and dates, and your blockouts. |
 | **People** | The church directory. |
 | **Teams** | Teams, their positions and members. |
@@ -434,6 +443,12 @@ profile** and **Sign out**.
        alt="The LSCroster home screen showing this week's plan and my upcoming dates">
   <figcaption><em>Figure 4.2 — The home screen: this week's service and your upcoming dates.</em></figcaption>
 </figure>
+
+**Notice Board** lists documents your church has put up for everyone — this
+manual, a roster form, a message of the day. Each is a PDF: tap its line and it
+opens in a new tab, in your phone's or browser's own PDF viewer. The newest is at
+the top. The card only appears when there is something on the board; admins and
+coordinators look after it (§14.6).
 
 **This week** lists every service in the next seven days with its date, service
 type, title and start time. A plan that's still being prepared is marked
@@ -1471,6 +1486,29 @@ appears.
 
 **You should see.** The new person in the position as *Pending*.
 
+## 12.12 Put a document on the notice board
+
+**Who / When.** Admins and coordinators, when everyone should be able to read
+something — this manual, a new roster form, a notice for the month.
+
+**Start here.** **Settings** → **Manage notice board**.
+
+**Steps.**
+
+1. Type a short **Description**. It is the line people tap, so say what the
+   document is (e.g. *LSCroster user manual*).
+2. Press **Choose PDF** and pick the file — PDF only, up to 20 MB.
+3. Press **Upload**.
+
+**You should see.** *Added to the notice board*, the notice at the top of the
+list, and a **Notice Board** card on everyone's Home screen.
+
+> **Tip** — To update a document, upload the new version, then remove the old one
+> with its **×**. A notice can't be edited in place.
+
+> **Warning** — Everyone who can sign in can open anything on the board. Don't
+> upload anything private.
+
 ---
 
 # 13. Tips &amp; Good Practice
@@ -1621,6 +1659,23 @@ email account, and running the first-run setup — is described step by step in
 [UPGRADE.md](UPGRADE.md); each release's notes say whether anything needs doing
 beyond the usual steps.
 
+## 14.6 The notice board
+
+**Who:** admins and coordinators. **Where:** Settings → **Manage notice board**.
+
+The notice board puts PDFs on everyone's Home screen (§4.2) — this manual, forms,
+a message of the day. Each notice is a one-line **Description** and one PDF; the
+newest appears first, and the card is hidden on Home while the board is empty.
+
+- **Add** — type the description, press **Choose PDF**, then **Upload**. Only
+  PDF files are accepted, up to 20 MB each.
+- **Remove** — press the **×** beside a notice and confirm. The notice and its
+  PDF are removed for everyone and can't be restored, so keep your own copy.
+- **Change** — there's no edit: upload the new version and remove the old one.
+
+Everyone who can sign in can open what's on the board; people who aren't signed
+in can't see it.
+
 ---
 
 # 15. Appendix
@@ -1643,6 +1698,7 @@ beyond the usual steps.
 | Medley | An arrangement that includes more than one song. |
 | Member | The standard role: answers requests, sees published plans, manages their own profile. |
 | Minimum | How many people a position needs; set per position, and adjustable per plan. |
+| Notice board | The card on Home listing PDFs everyone can open, such as this manual. |
 | Nudge | A follow-up email for an unanswered request. |
 | Order of service | The ordered list of items that make up a plan. |
 | Permission | A specific job a member can be granted (e.g. manage songs). |
@@ -1669,6 +1725,7 @@ The authoritative, technical list is [ACCESS-CONTROL.md](ACCESS-CONTROL.md).
 | --- | :---: | :---: | :---: |
 | See published plans, and drafts you're scheduled on | ✅ | ✅ | ✅ |
 | Respond to your own requests; manage your profile, blockouts and email preferences | ✅ | ✅ | ✅ |
+| Open what's on the notice board | ✅ | ✅ | ✅ |
 | See every plan, drafts included | perm | ✅ | ✅ |
 | Create and delete plans; use plan templates | perm | ✅ | ✅ |
 | Edit the order of service | perm | ✅ | ✅ |
@@ -1679,6 +1736,7 @@ The authoritative, technical list is [ACCESS-CONTROL.md](ACCESS-CONTROL.md).
 | Add and remove team members, manage positions | team | ✅ all teams | ✅ all teams |
 | Create and delete teams; service types; conditional rules | — | ✅ | ✅ |
 | Give team access and permissions; permission templates | — | ✅ | ✅ |
+| Add and remove notice board PDFs | — | ✅ | ✅ |
 | Set anyone's scheduling rules and email preferences | — | ✅ | ✅ |
 | See everyone's contact details and notes | — | ✅ | ✅ |
 | Add, invite, import, edit, archive and delete people; change roles | — | — | ✅ |
@@ -1733,6 +1791,7 @@ only for teams where the member has the right team access, below.
 | Mark myself away | My Schedule → Blockouts → **Add blockout** |
 | See when I'm on next | Home → *My upcoming dates* · My Schedule → *Upcoming* |
 | Read the lyrics | The plan → Media card · Songs → the song |
+| Read a notice or this manual | Home → Notice Board |
 | Stop an email | My profile → Email preferences |
 | Change my password | My profile → Password |
 | Plan a service | Services → **New plan** → Add header / song / item |
@@ -1744,14 +1803,15 @@ only for teams where the member has the right team access, below.
 | Add a song | Songs → **Add song** |
 | Add a person (admin) | People → **Add person** → Account &amp; access → **Send invitation** |
 | Give someone a job | The person → Permissions / Team access |
+| Put a document on the notice board | Settings → Manage notice board → **Upload** |
 
 ## E. Document control
 
 | Field | Value |
 | --- | --- |
-| Manual version | v1.0 (first full draft) |
-| Describes app version | 1.0.4, plus changes on `main` up to 2026-10-03 (team access levels, coordinators rostering every team, AI song suggestion) |
-| Last updated | 2026-10-03 |
+| Manual version | v1.0 (first release) |
+| Describes app version | 1.0.5 |
+| Last updated | 2026-10-04 |
 | Maintainer | _name / role_ |
 
 ## F. Updating this manual
@@ -1840,9 +1900,8 @@ header/footer bands, the app's Geist face and indigo tokens:
     npm run manual:pdf          # → manual-pdf/LSCroster-User-Manual.pdf (gitignored)
     npm run manual:pdf -- out.pdf --cover=light --church="Grace Community Church"
 
-One-time setup: `npx playwright-core install chromium` (no sudo) and
-`sudo apt install poppler-utils` (pdfunite + pdftotext). The script names
-whichever is missing. Things the renderer relies on in this file:
+One-time setup: `npx playwright-core install chromium` (no sudo); the script
+says so if the browser is missing. Things the renderer relies on in this file:
 • `> **Note|Tip|Warning** — …` blockquotes become coloured callout panels.
 • `# N. Title` headings start a chapter page; `## N.N Title` and `## A. Title`
   get an accent number. The hand-written Contents list is replaced by a
