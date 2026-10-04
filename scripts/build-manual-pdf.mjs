@@ -7,9 +7,11 @@
 // brand tokens (src/index.css, hue 278) — and printed by headless Chromium: a
 // dark cover, a contents page with real page numbers, chapter openers, and dark
 // running header/footer bands. The cover is printed on its own (it carries no
-// bands) and joined to the body with pdfunite. Contents page numbers come from a
-// first pass: print, read each page's text back with pdftotext, find where every
-// heading landed, then print again with the numbers filled in.
+// bands) and joined to the body with pdfunite. The body follows the Markdown's
+// order; the generated contents replaces its `## Contents` section in place.
+// Contents page numbers come from a first pass that tags each heading with an
+// out-of-flow token: print, find each token's page with pdftotext, then print
+// again with the numbers filled in.
 //
 // One-time setup (no sudo): `npx playwright-core install chromium`.
 // Also needs poppler-utils (`sudo apt install poppler-utils`) for pdfunite and
@@ -106,32 +108,38 @@ function slug(text) {
 
 let md = readFileSync(join(DOCS, 'USER-MANUAL.md'), 'utf8')
 md = md.replace(/<!--[\s\S]*?-->/g, '')
-// The Markdown cover block and the hand-written contents are both rebuilt here.
+// The Markdown cover block is replaced by the designed cover, and the
+// hand-written contents list by a generated one with page numbers — printed in
+// the same place the Markdown has it, so the PDF follows the file's order.
+const TOC_SLOT = '<div class="toc-slot"></div>'
 md = md.replace(/^<div align="center">[\s\S]*?<\/div>\s*/m, '')
-md = md.replace(/^## Contents\n[\s\S]*?(?=^## How this manual)/m, '')
+md = md.replace(/^## Contents\n[\s\S]*?(?=^#{1,2} )/m, `${TOC_SLOT}\n\n`)
 md = md.replace(/^---\s*$/gm, '')
 
+// Every heading carries an HTML comment naming its index; the first print turns
+// it into a tiny out-of-flow marker so its page can be read back (findPages).
 const headings = [] // { depth, text, id } in document order
+const mark = (i) => `<!--page-mark:${i}-->`
 const marked = new Marked({ gfm: true })
 marked.use({
   renderer: {
     heading({ tokens, depth, text }) {
       const inner = this.parser.parseInline(tokens)
       const id = slug(text)
-      headings.push({ depth, text: text.replace(/&amp;/g, '&'), id })
+      const i = headings.push({ depth, text: text.replace(/&amp;/g, '&'), id }) - 1
       if (depth === 1) {
         const num = text.match(/^(\d+)\./)?.[1] ?? ''
         const kicker = num === '15' ? 'Appendix' : `Chapter ${num}`
         return `<section class="chapter-open" id="${id}">
           <div class="chapter-kicker">${kicker}</div><div class="chapter-num">${num}</div>
-          <h1>${inner.replace(/^\d+\.\s+/, '')}</h1><div class="chapter-rule"></div>
+          <h1>${mark(i)}${inner.replace(/^\d+\.\s+/, '')}</h1><div class="chapter-rule"></div>
           </section>`
       }
       if (depth === 2) {
         const m = inner.match(/^(\d+\.\d+|[A-F]\.)\s+(.*)$/)
-        if (!m) return `<h2 id="${id}" class="front">${inner}</h2>`
+        if (!m) return `<h2 id="${id}" class="front">${mark(i)}${inner}</h2>`
         const num = m[1].replace(/\.$/, '')
-        return `<h2 id="${id}"><span class="sec-num">${num}</span>${m[2]}</h2>`
+        return `<h2 id="${id}">${mark(i)}<span class="sec-num">${num}</span>${m[2]}</h2>`
       }
       return `<h${depth} id="${id}">${inner}</h${depth}>`
     },
@@ -166,18 +174,20 @@ body = body
   .replace(/✅/g, '<span class="yes">●</span>')
   .replace(/✨/g, SPARKLES)
 
-// ---- Contents; `pages` is null on the first pass (same width placeholders).
+// ---- Contents: chapters and sections, keyed by heading index. `pages` is null
+// on the first pass, which prints same-width placeholders.
+const listed = () =>
+  headings.map((h, i) => ({ ...h, i })).filter((h) => h.depth <= 2)
+
 function contents(pages) {
-  const rows = headings
-    .filter((h) => h.depth <= 2)
-    .map((h, i) => {
-      const m = h.text.match(/^(\d+)\.\s+(.*)$/) ?? h.text.match(/^(\d+\.\d+|[A-F]\.)\s+(.*)$/)
-      const num = m ? m[1].replace(/\.$/, '') : ''
-      const kind = h.depth === 1 ? 'toc-ch' : 'toc-sec'
-      return `<a class="toc-row ${kind}" href="#${h.id}">
-        <span class="toc-num">${num}</span><span class="toc-title">${m ? m[2] : h.text}</span>
-        <span class="toc-dots"></span><span class="toc-page">${pages?.[i] ?? '00'}</span></a>`
-    })
+  const rows = listed().map((h) => {
+    const m = h.text.match(/^(\d+)\.\s+(.*)$/) ?? h.text.match(/^(\d+\.\d+|[A-F]\.)\s+(.*)$/)
+    const num = m ? m[1].replace(/\.$/, '') : ''
+    const kind = h.depth === 1 ? 'toc-ch' : 'toc-sec'
+    return `<a class="toc-row ${kind}" href="#${h.id}">
+      <span class="toc-num">${num}</span><span class="toc-title">${m ? m[2] : h.text}</span>
+      <span class="toc-dots"></span><span class="toc-page">${pages?.[h.i] ?? '00'}</span></a>`
+  })
   return `<section class="toc"><div class="toc-kicker">Contents</div>
     <h1 class="toc-head">What's inside</h1>${rows.join('\n')}</section>`
 }
@@ -202,7 +212,8 @@ li::marker { color: var(--primary); font-weight: 600; }
 .icon { width: 1.05em; height: 1.05em; vertical-align: -0.17em; color: var(--primary); }
 
 /* Contents */
-.toc { break-after: page; }
+.toc { break-before: page; break-after: page; }
+.page-mark { position: absolute; font-size: 4pt; }
 .toc-kicker, .chapter-kicker { font-size: 8pt; font-weight: 700; letter-spacing: 0.22em;
   text-transform: uppercase; color: var(--primary); }
 .toc-head { font-size: 26pt; font-weight: 750; letter-spacing: -0.02em; margin: 4pt 0 14pt; }
@@ -220,10 +231,9 @@ li::marker { color: var(--primary); font-weight: 600; }
 .toc-ch .toc-page { color: var(--ink); }
 
 /* Front matter (Notice, How this manual is organised, If you want…) */
-h2.front { font-size: 17pt; font-weight: 720; letter-spacing: -0.01em; margin: 0 0 8pt;
+h2.front { font-size: 17pt; font-weight: 720; letter-spacing: -0.01em; margin: 20pt 0 8pt;
   padding-bottom: 6pt; border-bottom: 2pt solid var(--primary); }
-h2#notice--about-this-manual { break-before: page; }
-h2#if-you-want-go-to { margin-top: 18pt; }
+body > h2.front:first-child { margin-top: 0; }
 
 /* Chapter openers */
 .chapter-open { break-before: page; position: relative; margin: 6mm 0 14pt; padding-top: 4pt; }
@@ -367,39 +377,28 @@ const FOOTER = `${band('bottom')}
     <span style="color: oklch(0.55 0 0);"> / <span class="totalPages"></span></span></span>
   </div>`
 
-const bodyHtml = (pages) => `<!doctype html><html><head><meta charset="utf-8">
+// The first pass prints each heading's index as a token (QZH12Z) in an
+// out-of-flow span, so the layout is the same as the final print's.
+const MARK_TOKEN = (i) => `QZH${i}Z`
+const bodyHtml = (pages) => {
+  const withMarks = pages
+    ? body
+    : body.replace(/<!--page-mark:(\d+)-->/g, (_, i) =>
+        `<span class="page-mark">${MARK_TOKEN(i)}</span>`)
+  return `<!doctype html><html><head><meta charset="utf-8">
   <title>LSCroster — User Manual</title><style>${BODY_CSS}</style></head>
-  <body>${contents(pages)}${body}</body></html>`
+  <body>${withMarks.replace(TOC_SLOT, contents(pages))}</body></html>`
+}
 
-// Where each contents entry landed, read back from the first pass's text. The
-// search runs forward from the previous hit, so a heading's words appearing
-// earlier in the text (or in the contents itself) can't match first.
+// The page each contents entry landed on in the first print, found by its token.
 function findPages(pdf) {
-  const pageTexts = execFileSync('pdftotext', ['-layout', pdf, '-'], { encoding: 'utf8' })
-    .split('\f')
-    .map((t) => t.replace(/\s+/g, ' '))
-  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s*')
-  let cursor = Math.max(1, pageTexts.findIndex((t) => t.includes('This manual is for everyone')))
-  const entries = headings.filter((h) => h.depth <= 2)
-  const pages = entries.map((h) => {
-    const chapter = h.text.match(/^\d+\.\s+(.*)$/)
-    const section = h.text.match(/^(\d+\.\d+|[A-F])\.?\s+(.*)$/)
-    const re = new RegExp(
-      chapter
-        ? esc(chapter[1])
-        : section
-          ? `${esc(section[1])}\\s*${esc(section[2])}`
-          : esc(h.text),
-    )
-    for (let p = cursor; p < pageTexts.length; p++) {
-      if (re.test(pageTexts[p])) {
-        cursor = p
-        return String(p + 1)
-      }
-    }
-    return '?'
-  })
-  const lost = entries.filter((_, i) => pages[i] === '?').map((h) => h.text)
+  const pageTexts = execFileSync('pdftotext', [pdf, '-'], { encoding: 'utf8' }).split('\f')
+  const pages = []
+  for (const h of listed()) {
+    const p = pageTexts.findIndex((text) => text.includes(MARK_TOKEN(h.i)))
+    pages[h.i] = p < 0 ? '?' : String(p + 1)
+  }
+  const lost = listed().filter((h) => pages[h.i] === '?').map((h) => h.text)
   if (lost.length) console.warn(`Contents: no page found for ${lost.join(' · ')}`)
   return pages
 }

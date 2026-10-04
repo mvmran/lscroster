@@ -884,6 +884,12 @@ and rendering to PDF/HTML (Pandoc or a CSS file). Screenshots live in
   from memory; the five existing shots in `docs/screenshots/` embedded as
   Figures 4.2, 6.3, 8.3, 9.1 and 14.1. Role tags moved off headings so anchors
   stay short; every in-file link checked. Describes 1.0.4 + unreleased `main`.
+- [x] **Front matter reordered** (2026-10-04, the user's layout): About this
+  manual (was "Notice"), License and warranty disclaimer (copyright line, a plain
+  GPLv3 summary, sections 15–16 verbatim), How this manual is organised, If you
+  want… go to, then Contents. `manual:pdf` now prints the generated contents
+  where `## Contents` sits in the Markdown, and finds page numbers by tagging
+  headings with out-of-flow tokens in the first print (order-independent).
 - [ ] The user's review of the draft.
 - [ ] Capture the shots marked `Screenshot wanted` in the file (sign-in,
   invitation, People list, person page, song layers, plan People card, My

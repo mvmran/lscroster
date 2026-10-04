@@ -36,7 +36,7 @@ and respond to requests from your phone.
 
 **Version 1.0.4**  ·  October 2026
 
-_Your Church Name_  ·  _your-instance.example.org_
+_Your Church Name_
 
 <!-- Replace with your church logo once you have one in the repo:
      <img src="screenshots/manual/logo.png" width="160" alt="Church logo"> -->
@@ -45,7 +45,7 @@ _Your Church Name_  ·  _your-instance.example.org_
 
 ---
 
-## Notice — about this manual
+## About this manual
 
 This manual is for everyone who uses LSCroster at your church: the members who
 are rostered to serve, the coordinators who plan services and build rosters, and
@@ -65,37 +65,53 @@ copy may behave slightly differently.
 > details appear. Your own screens will show your church's people, teams and
 > plans.
 
----
 
-## Contents
+## License and warranty disclaimer
 
-**Front matter**
-- [Notice — about this manual](#notice--about-this-manual)
-- [How this manual is organised](#how-this-manual-is-organised)
-- [If you want… go to](#if-you-want-go-to)
+**Copyright © 2026 Manoj Mathew.** LSCroster and this manual are free software,
+distributed under the **GNU General Public License, version 3** (GPLv3).
 
-**Chapters**
-1. [Introduction &amp; Overview](#1-introduction--overview)
-2. [Key Concepts](#2-key-concepts)
-3. [Getting Started](#3-getting-started)
-4. [Navigation &amp; Interface](#4-navigation--interface)
-5. [People](#5-people)
-6. [Services &amp; Plans](#6-services--plans)
-7. [Songs &amp; Lyrics](#7-songs--lyrics)
-8. [Scheduling &amp; Rostering](#8-scheduling--rostering)
-9. [Responding to Requests](#9-responding-to-requests)
-10. [Emails &amp; Notifications](#10-emails--notifications)
-11. [Reports &amp; Records](#11-reports--records)
-12. [Common Tasks (step-by-step)](#12-common-tasks-step-by-step)
-13. [Tips &amp; Good Practice](#13-tips--good-practice)
-14. [Administration &amp; How It Works](#14-administration--how-it-works)
-15. [Appendix](#15-appendix)
-    - [A. Glossary](#a-glossary)
-    - [B. Roles &amp; permissions reference](#b-roles--permissions-reference)
-    - [C. Troubleshooting &amp; FAQ](#c-troubleshooting--faq)
-    - [D. Quick reference](#d-quick-reference)
-    - [E. Document control](#e-document-control)
-    - [F. About this manual](#f-about-this-manual)
+In plain terms, the licence gives every church four freedoms, on a few
+conditions:
+
+- **Use it** — run LSCroster for any purpose, for as many people as you like,
+  at no cost.
+- **Study and change it** — the source code is published, and you may adapt it
+  to your church's needs.
+- **Share it** — you may give copies to others, free or for a fee.
+- **Share your changes** — you may distribute your modified version too.
+
+If you **distribute** LSCroster or a modified version of it, you must do so under
+the same GPLv3 licence, keep the copyright and licence notices intact, make the
+corresponding source code available to whoever receives it, and say that you
+changed it. You may not add restrictions that take these freedoms away from the
+people you give it to. These conditions are about passing copies on; using
+LSCroster at your church is not restricted at all.
+
+LSCroster is provided free of charge, and comes with **no warranty**. Sections 15
+and 16 of the licence read:
+
+> THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE
+> LAW. EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER
+> PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+> EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+> MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE ENTIRE RISK AS TO THE
+> QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU. SHOULD THE PROGRAM PROVE
+> DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+>
+> IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING WILL ANY
+> COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS THE PROGRAM AS
+> PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL,
+> INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE
+> THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING RENDERED
+> INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A FAILURE OF THE
+> PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY
+> HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+Your church is responsible for its own copy of LSCroster and the data in it —
+including keeping backups (§14.3). This summary is for convenience only; the full
+licence text in the `LICENSE` file of the LSCroster repository, also published at
+<https://www.gnu.org/licenses/gpl-3.0.html>, is what governs.
 
 ---
 
@@ -132,6 +148,39 @@ says who, directly under its heading.
 | Print a run sheet or lyrics sheet | [§11.4](#114-printing-and-pdf-run-sheets) |
 | A word I don't recognise | [Glossary](#a-glossary) |
 | Something isn't working | [Troubleshooting](#c-troubleshooting--faq) |
+
+---
+
+## Contents
+
+**Front matter**
+- [About this manual](#about-this-manual)
+- [License and warranty disclaimer](#license-and-warranty-disclaimer)
+- [How this manual is organised](#how-this-manual-is-organised)
+- [If you want… go to](#if-you-want-go-to)
+
+**Chapters**
+1. [Introduction &amp; Overview](#1-introduction--overview)
+2. [Key Concepts](#2-key-concepts)
+3. [Getting Started](#3-getting-started)
+4. [Navigation &amp; Interface](#4-navigation--interface)
+5. [People](#5-people)
+6. [Services &amp; Plans](#6-services--plans)
+7. [Songs &amp; Lyrics](#7-songs--lyrics)
+8. [Scheduling &amp; Rostering](#8-scheduling--rostering)
+9. [Responding to Requests](#9-responding-to-requests)
+10. [Emails &amp; Notifications](#10-emails--notifications)
+11. [Reports &amp; Records](#11-reports--records)
+12. [Common Tasks (step-by-step)](#12-common-tasks-step-by-step)
+13. [Tips &amp; Good Practice](#13-tips--good-practice)
+14. [Administration &amp; How It Works](#14-administration--how-it-works)
+15. [Appendix](#15-appendix)
+    - [A. Glossary](#a-glossary)
+    - [B. Roles &amp; permissions reference](#b-roles--permissions-reference)
+    - [C. Troubleshooting &amp; FAQ](#c-troubleshooting--faq)
+    - [D. Quick reference](#d-quick-reference)
+    - [E. Document control](#e-document-control)
+    - [F. About this manual](#f-about-this-manual)
 
 ---
 
