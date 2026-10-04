@@ -18,7 +18,7 @@ manual-pdf
 .env.*
 !.env.example
 
-# Supabase local artifacts
+# Supabase local artefacts
 supabase/.branches
 supabase/.temp
 

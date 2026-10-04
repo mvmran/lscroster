@@ -221,7 +221,7 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
 - **shadcn `Card` has no `forwardRef`** — for dnd, wrap it in a
   `<div ref={…}>`, don't pass `ref` to `Card`.
 - **`tailwind-merge` drops `bg-primary` when a `bg-gradient-to-*` class is also
-  present** — it classes the legacy v3 gradient name as a background *color*
+  present** — it classes the legacy v3 gradient name as a background *colour*
   conflict and keeps only the gradient, leaving the element transparent. Use
   Tailwind v4's canonical `bg-linear-to-*` (and `bg-radial`/`bg-conic`) so a
   solid `bg-*` and a gradient sheen coexist (bit the primary button in the 3D
@@ -335,7 +335,7 @@ native value setter + `input`/`change` events; a programmatic `/auth` fetch
 does **not** log the SPA in, use the sign-in form. Radix `Select` isn't a
 native `<select>` — `preview_fill` can't set it; click by text via eval.
 
-**Design system (2026-07-04 modernization, client-only, NO schema):** the
+**Design system (2026-07-04 modernisation, client-only, NO schema):** the
 whole theme is parameterised on one `--brand-hue` var in `src/index.css`
 (278 = deep indigo; every branded token — primary/ring/accent/sidebar — derives
 from it, so re-hueing the app is a one-line edit). The old issue-#8 pastel
@@ -460,7 +460,7 @@ type, **worship-type teams' rosters only** as "Name (Position) / …" rows,
 theme = plan title), Practice Information (plan times + church address), Song
 List (name with the item's flow note beneath / Listen link — **empty** when
 the arrangement has no `reference_url`, no search fallback / key / info =
-meter / BPM) and Notes (plan.notes verbatim). **No attachment** — a
+metre / BPM) and Notes (plan.notes verbatim). **No attachment** — a
 "Download lyrics sheet (PDF)" button opens the plan with `?lyrics=download`,
 which `PlanMediaCard` consumes to auto-generate the existing lyrics-sheet PDF
 client-side. Attachment-free means the send-out is one Resend **Batch API**
@@ -885,11 +885,20 @@ and rendering to PDF/HTML (Pandoc or a CSS file). Screenshots live in
   Figures 4.2, 6.3, 8.3, 9.1 and 14.1. Role tags moved off headings so anchors
   stay short; every in-file link checked. Describes 1.0.4 + unreleased `main`.
 - [x] **Front matter reordered** (2026-10-04, the user's layout): About this
-  manual (was "Notice"), License and warranty disclaimer (copyright line, a plain
+  manual (was "Notice"), Licence and warranty disclaimer (copyright line, a plain
   GPLv3 summary, sections 15–16 verbatim), How this manual is organised, If you
   want… go to, then Contents. `manual:pdf` now prints the generated contents
   where `## Contents` sits in the Markdown, and finds page numbers by tagging
   headings with out-of-flow tokens in the first print (order-independent).
+  Appendix F renamed "Updating this manual" (it no longer echoes the opening).
+- [x] **Australian English sweep** (2026-10-04): every tracked doc and source
+  file scanned for US spellings. Changed only what people read — prose, comments,
+  on-screen and test strings: licence (noun), metre (musical time, on the song
+  page), "Unlabelled" sections, towards, modernisation, colour, artefacts.
+  Deliberately unchanged: identifiers and wire names (the `meter` column and
+  projection-API field, `kind: 'unlabeled'`, `summarizeUsage`), CSS/DOM/HTTP
+  terms, proper nouns ("Planning Center", "GNU General Public License", the
+  `LICENSE` file), applied migrations and the CLI-generated `supabase/config.toml`.
 - [ ] The user's review of the draft.
 - [ ] Capture the shots marked `Screenshot wanted` in the file (sign-in,
   invitation, People list, person page, song layers, plan People card, My

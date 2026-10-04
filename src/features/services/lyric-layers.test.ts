@@ -194,7 +194,7 @@ describe('removeSectionLayers', () => {
     )
   })
 
-  it('can remove an Unlabeled leading section', () => {
+  it('can remove an Unlabelled leading section', () => {
     const text = 'Oh oh oh\n\n[Verse 1]\nAmazing grace'
     const removed = removeSectionLayers(only(text), parseLyricSections(text), 0)
     expect(removed.lyrics).toBe('[Verse 1]\nAmazing grace')

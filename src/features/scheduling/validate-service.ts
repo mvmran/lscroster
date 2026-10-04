@@ -18,7 +18,7 @@ import {
  *
  * Maps the spec's constraint taxonomy onto LSCroster's actual schema. Decisions
  * baked in for this church's two-level proficiency model:
- *  - Trainees DO count toward `min_count`; `TRAINEE_UNSUPERVISED` fires only when
+ *  - Trainees DO count towards `min_count`; `TRAINEE_UNSUPERVISED` fires only when
  *    *all* of a team's assignees in the service are trainees.
  *  - `MULTI_POSITION` is always a hard error (no "allow multiple positions" toggle).
  *  - `requires_level` is `qualified`-only, checked as coverage (`NO_REQUIRED_LEVEL`):
@@ -333,7 +333,7 @@ export function checkPairings(state: ServiceState): RuleResult[] {
  * MANDATORY_UNFILLED + CONDITIONAL_MIN_UNFILLED + NO_REQUIRED_LEVEL —
  * per-position coverage against the *effective* minimum (plan override wins
  * over fired conditional rules, which win over the team default). Trainees
- * count toward the minimum; a `requires_level` position needs at least one
+ * count towards the minimum; a `requires_level` position needs at least one
  * qualified person present.
  */
 export function checkCoverage(state: ServiceState): RuleResult[] {

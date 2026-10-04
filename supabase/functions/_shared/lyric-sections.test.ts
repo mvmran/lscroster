@@ -19,7 +19,7 @@ import { toApiSections } from './lyric-sections.ts'
 /**
  * What the Deno port makes of a line on its own: the label of the section it
  * opens, or null when it isn't a header at all. `toApiSections` falls back to
- * unlabeled stanza sections, which is how a non-header shows up.
+ * unlabelled stanza sections, which is how a non-header shows up.
  */
 function portLabel(line: string): string | null {
   const [section] = toApiSections(`${line}\nsome lyric line`)

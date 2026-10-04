@@ -15,15 +15,15 @@
  */
 
 export interface LyricSection {
-  /** Normalised display label, e.g. "Verse 1" or "Unlabeled". */
+  /** Normalised display label, e.g. "Verse 1" or "Unlabelled". */
   label: string
   /** Compact 1–3 char label for tight UI, e.g. "V1", "PC", "C". */
   short: string
-  /** Lower-case section keyword ("verse", "chorus", …) or "unlabeled". */
+  /** Lower-case section keyword ("verse", "chorus", …) or "unlabeled" (a key). */
   kind: string
   /** Offset of the section's first character (its header line, if any). */
   start: number
-  /** Offset just past the header line's newline (= start when unlabeled). */
+  /** Offset just past the header line's newline (= start when unlabelled). */
   bodyStart: number
   /** Exclusive end offset (start of the next header, or end of text). */
   end: number
@@ -144,7 +144,7 @@ export function matchLyricSectionHeader(line: string): {
 /**
  * Split lyrics into sections. Returns [] when no header lines are present
  * (the UI then falls back to a plain textarea). Non-blank text before the
- * first header becomes an "Unlabeled" section so no content can be lost by
+ * first header becomes an "Unlabelled" section so no content can be lost by
  * a reorder; blank leading whitespace is instead preserved as a preamble by
  * the splice helpers in `lyric-layers.ts`.
  */
@@ -174,7 +174,7 @@ export function parseLyricSections(text: string): LyricSection[] {
   }))
   if (sections[0].start > 0 && text.slice(0, sections[0].start).trim()) {
     sections.unshift({
-      label: 'Unlabeled',
+      label: 'Unlabelled',
       short: '•',
       kind: 'unlabeled',
       start: 0,

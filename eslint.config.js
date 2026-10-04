@@ -7,7 +7,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
   // supabase/functions is Deno code — linted/typed by the Deno toolchain, not
-  // here. .claude holds tooling artifacts (agent worktrees), not app code.
+  // here. .claude holds tooling artefacts (agent worktrees), not app code.
   globalIgnores(['dist', 'supabase/functions', '.claude']),
   {
     files: ['**/*.{ts,tsx}'],

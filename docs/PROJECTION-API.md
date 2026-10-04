@@ -220,7 +220,7 @@ chunking is just array slicing, no text parsing needed.
   `turnaround`, `coda`, `hook`, `reprise`, `breakdown`, `channel`, `descant`, `other`.
   **Treat any unrecognised value as `other`** — never fail decoding on a new type.
 - `label` is the human display label (`Verse 1`, `Chorus`). It is `null` for
-  unlabeled blocks (lyrics whose stanzas were separated only by blank lines) — use it
+  unlabelled blocks (lyrics whose stanzas were separated only by blank lines) — use it
   as an optional tag, never assume it is present.
 - Sections arrive in performance order. Keep slide order = song `order`, then section
   order, then chunk order.

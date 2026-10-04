@@ -5,7 +5,7 @@ import {
 } from '@/features/services/lyric-sections'
 
 describe('matchLyricSectionHeader', () => {
-  it('matches bracketed, bare, parenthesized and colon styles', () => {
+  it('matches bracketed, bare, parenthesised and colon styles', () => {
     expect(matchLyricSectionHeader('[Verse 1]')).toEqual({ label: 'Verse 1', short: 'V1', kind: 'verse', designator: '1', repeat: null })
     expect(matchLyricSectionHeader('Chorus:')).toEqual({ label: 'Chorus', short: 'C', kind: 'chorus', designator: null, repeat: null })
     expect(matchLyricSectionHeader('(Bridge)')).toEqual({ label: 'Bridge', short: 'B', kind: 'bridge', designator: null, repeat: null })
@@ -55,16 +55,16 @@ describe('parseLyricSections', () => {
     expect(sections[2].end).toBe(SONG.length)
   })
 
-  it('collects non-blank text before the first header as Unlabeled', () => {
+  it('collects non-blank text before the first header as Unlabelled', () => {
     const text = 'Oh oh oh\n\n[Verse 1]\nAmazing grace'
     const sections = parseLyricSections(text)
-    expect(sections.map((s) => s.label)).toEqual(['Unlabeled', 'Verse 1'])
+    expect(sections.map((s) => s.label)).toEqual(['Unlabelled', 'Verse 1'])
     expect(sections[0].start).toBe(0)
     expect(sections[0].bodyStart).toBe(0)
     expect(sections[0].end).toBe(text.indexOf('[Verse 1]'))
   })
 
-  it('ignores blank leading whitespace (no Unlabeled section)', () => {
+  it('ignores blank leading whitespace (no Unlabelled section)', () => {
     const sections = parseLyricSections('\n\n[Verse 1]\nAmazing grace')
     expect(sections.map((s) => s.label)).toEqual(['Verse 1'])
     expect(sections[0].start).toBe(2)

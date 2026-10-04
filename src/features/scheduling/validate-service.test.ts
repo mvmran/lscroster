@@ -230,7 +230,7 @@ describe('checkCoverage', () => {
     expect(results.map((r) => r.code)).toContain('MANDATORY_UNFILLED')
   })
 
-  it('counts a trainee toward min_count', () => {
+  it('counts a trainee towards min_count', () => {
     const s = state({
       positions: [position({ id: 'pos-1', minCount: 1 })],
       assignments: [assign('a', 'pos-1')],

@@ -9,7 +9,7 @@
 export interface ApiLyricSection {
   /** Lower-case section keyword ('verse', 'pre-chorus', …) or 'other'. */
   type: string
-  /** Human display label ('Verse 1'), or null for an unlabeled stanza. */
+  /** Human display label ('Verse 1'), or null for an unlabelled stanza. */
   label: string | null
   /** Non-blank lyric lines, pre-split for slide chunking. */
   lines: string[]
@@ -102,7 +102,7 @@ function splitSourceLines(text: string): SourceLine[] {
   return text.split('\n').map((text, index) => ({ text, index }))
 }
 
-/** Blank-line-separated stanzas as unlabeled sections. */
+/** Blank-line-separated stanzas as unlabelled sections. */
 function stanzaSections(lines: SourceLine[]): Array<ApiLyricSection & { indices: number[] }> {
   const sections: Array<ApiLyricSection & { indices: number[] }> = []
   let current: SourceLine[] = []
@@ -126,8 +126,8 @@ function stanzaSections(lines: SourceLine[]): Array<ApiLyricSection & { indices:
 
 /**
  * Split raw lyrics into API sections. Header lines ('[Verse 1]', 'Chorus:')
- * open a labeled section; text before the first header — or the whole text
- * when there are no headers — falls back to unlabeled stanza sections, so the
+ * open a labelled section; text before the first header — or the whole text
+ * when there are no headers — falls back to unlabelled stanza sections, so the
  * result is non-empty whenever the lyrics contain any content.
  *
  * `layers` attaches the native / meaning / chord texts (#139). They are
