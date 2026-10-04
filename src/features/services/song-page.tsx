@@ -426,7 +426,7 @@ function ArrangementForm({
           <dd className="font-medium">{arrangement.bpm ?? '—'}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground">Metre</dt>
+          <dt className="text-muted-foreground">Meter</dt>
           <dd className="font-medium">{arrangement.meter ?? '—'}</dd>
         </div>
         {arrangement.reference_url && (
@@ -526,7 +526,7 @@ function ArrangementForm({
           {bpmInvalid && <p className="text-destructive text-sm">Whole number above 0</p>}
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor={`arr-meter-${arrangement.id}`}>Metre</Label>
+          <Label htmlFor={`arr-meter-${arrangement.id}`}>Meter</Label>
           <Input
             id={`arr-meter-${arrangement.id}`}
             value={meter}
@@ -1439,7 +1439,7 @@ function ArrangementsCard({ song, canManage }: { song: Song; canManage: boolean 
       <CardHeader>
         <CardTitle>Arrangements</CardTitle>
         <CardDescription>
-          Key, BPM and metre per arrangement, plus its lyrics and attachments.
+          Key, BPM and meter per arrangement, plus its lyrics and attachments.
           Every song has a Default; link songs into a non-default arrangement to
           make a medley.
         </CardDescription>

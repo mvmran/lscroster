@@ -460,7 +460,7 @@ type, **worship-type teams' rosters only** as "Name (Position) / …" rows,
 theme = plan title), Practice Information (plan times + church address), Song
 List (name with the item's flow note beneath / Listen link — **empty** when
 the arrangement has no `reference_url`, no search fallback / key / info =
-metre / BPM) and Notes (plan.notes verbatim). **No attachment** — a
+meter / BPM) and Notes (plan.notes verbatim). **No attachment** — a
 "Download lyrics sheet (PDF)" button opens the plan with `?lyrics=download`,
 which `PlanMediaCard` consumes to auto-generate the existing lyrics-sheet PDF
 client-side. Attachment-free means the send-out is one Resend **Batch API**
@@ -893,20 +893,21 @@ and rendering to PDF/HTML (Pandoc or a CSS file). Screenshots live in
   Appendix F renamed "Updating this manual" (it no longer echoes the opening).
 - [x] **Australian English sweep** (2026-10-04): every tracked doc and source
   file scanned for US spellings. Changed only what people read — prose, comments,
-  on-screen and test strings: licence (noun), metre (musical time, on the song
-  page), "Unlabelled" sections, towards, modernisation, colour, artefacts.
-  Deliberately unchanged: identifiers and wire names (the `meter` column and
-  projection-API field, `kind: 'unlabeled'`, `summarizeUsage`), CSS/DOM/HTTP
-  terms, proper nouns ("Planning Center", "GNU General Public License", the
-  `LICENSE` file), applied migrations and the CLI-generated `supabase/config.toml`.
-- [x] **Projection API `meter` → `metre`, `unauthorized` → `unauthorised`**
-  (2026-10-04): renamed in place within `apiVersion: 1`, the user's call — no
-  projection client is live and LSCroster is still in testing. Only the response
-  field and the 401 error code changed; the `song_arrangements.meter` column keeps
-  its name. Recorded as a one-off exception in PROJECTION-API.md §10. The
+  on-screen and test strings: licence (noun), "Unlabelled" sections, towards,
+  modernisation, colour, artefacts. **Meter** stays for musical time — Australian
+  English keeps *metre* for distance only (the user's correction; a brief
+  "Metre" rename on the song page, manual and API was reverted the same day).
+  Deliberately unchanged: identifiers and wire names (`kind: 'unlabeled'`,
+  `summarizeUsage`), CSS/DOM/HTTP terms, proper nouns ("Planning Center", "GNU
+  General Public License", the `LICENSE` file), applied migrations and the
+  CLI-generated `supabase/config.toml`.
+- [x] **Projection API `unauthorized` → `unauthorised`** (2026-10-04): the 401
+  error code renamed in place within `apiVersion: 1`, the user's call — no
+  projection client is live and LSCroster is still in testing. Recorded as a
+  one-off exception in PROJECTION-API.md §10. The song field stays `meter`. The
   `reminders` cron function's 401 message became "Unauthorised" too.
-  **Upgrade note:** an instance with its own projection client must read `metre`
-  and `unauthorised`; `functions deploy projection-api reminders` before the push.
+  **Upgrade note:** an instance with its own projection client must expect
+  `unauthorised`; `functions deploy projection-api reminders` before the push.
 - [ ] The user's review of the draft.
 - [ ] Capture the shots marked `Screenshot wanted` in the file (sign-in,
   invitation, People list, person page, song layers, plan People card, My

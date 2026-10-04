@@ -300,7 +300,7 @@ export function PlanAttachmentsCard({
  * Media: a formatted lyrics sheet for the songs in this plan (issue #25). It is
  * derived from the order of service, so it always follows the setlist order and
  * updates when the setlist is reordered — there is nothing to edit here. Each
- * song shows its title, the key/BPM/metre from its Default arrangement, then its
+ * song shows its title, the key/BPM/meter from its Default arrangement, then its
  * lyrics. The Print button produces a two-column PDF (issue #26).
  */
 export function PlanMediaCard({

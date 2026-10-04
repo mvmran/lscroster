@@ -335,7 +335,7 @@ Deno.serve(async (req) => {
       arrangement: arrangement?.name ?? null,
       key,
       bpm: arrangement?.bpm ?? null,
-      metre: arrangement?.meter ?? null,
+      meter: arrangement?.meter ?? null,
       lyricsVersion: lyricsRow?.version ?? null,
       lyrics: lyricsRow?.lyrics ?? null,
       // Additive since apiVersion 1 (#139): `lyrics` and `sections[].lines`

@@ -818,7 +818,7 @@ songs (§14.2).
 The **Arrangements** card has one tab per arrangement. Each has:
 
 - a **Name** (e.g. *Default*, *Acoustic*, *Christmas*);
-- a **Key**, **BPM** and **Metre** (e.g. 4/4);
+- a **Key**, **BPM** and **Meter** (e.g. 4/4);
 - a **Reference recording** — a link (e.g. YouTube) to the version the band
   follows; it becomes the **Listen** link on plans and in the set-list email;
 - its **Lyrics** (§7.3) and **attachments** — charts, recordings or PDFs (up to
@@ -1341,7 +1341,7 @@ Home.
 1. Type the title, author and CCLI number. If LSCroster shows a similar song,
    check it isn't already there, then **Create song**.
 2. On the song's page, fill in **Copyright** and **Tags**, and **Save changes**.
-3. In **Arrangements → Default**, set the **Key**, **BPM**, **Metre** and the
+3. In **Arrangements → Default**, set the **Key**, **BPM**, **Meter** and the
    **Reference recording** link, and **Save changes**.
 4. In **Lyrics**, paste the song with **Import** (or type it), with a heading
    such as `[Verse 1]` or `Chorus` before each section. Open the **Chord**,
