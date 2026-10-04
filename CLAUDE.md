@@ -146,7 +146,7 @@ production database that lacks its tables.
    thousands of lines for nothing. Match the house style by hand: single quotes, no semicolons, ~90 columns.
 8. Anything that would break an existing church instance on upgrade (renamed columns, changed email links) needs a migration path and a note in that issue's `PHASES.md` entry.
 9. UI language: modern, clean, fast. Sunday-morning-proof: big touch targets, obvious states, minimal clicks for the common tasks (view this week's plan, respond to a request).
-   **Australian English everywhere people read** — UI strings, emails, docs, comments: colour, organise, licence (noun), metre, cancelled, labelled, towards. Code and wire names stay as they are (`color` in CSS, the `meter` column, `Authorization`), as do proper nouns ("Planning Center", "GNU General Public License").
+   **Australian English everywhere people read** — UI strings, emails, docs, comments: colour, organise, licence (noun), metre, cancelled, labelled, towards. Code and wire names stay as they are (`color` in CSS, the `meter` database column, `Authorization`), as do proper nouns ("Planning Center", "GNU General Public License").
 10. Verify on the local stack before deploying: `npx supabase db reset --local`, seed test users (local auth admin API + `docker exec supabase_db_lscroster psql`), drive the UI in a browser, and probe RLS at the API level with a member JWT — hidden buttons are not security.
 11. **Direct-to-main, including for background jobs.** Solo developer, no PR review
     step: once `npm run ci` passes, commit and push straight to `main` (from a

@@ -58,7 +58,7 @@ or
 x-api-key: lscp_...
 ```
 
-Missing, wrong, or revoked key → `401 {"error":"unauthorized"}` (the body never says
+Missing, wrong, or revoked key → `401 {"error":"unauthorised"}` (the body never says
 which part failed). On `401`, stop and tell the operator to check the key — do not
 retry silently.
 
@@ -141,7 +141,7 @@ Only plans that endpoint 1 would list are servable: published, and dated inside 
       "arrangement": "Default",
       "key": "G",
       "bpm": 72,
-      "meter": "3/4",
+      "metre": "3/4",
       "lyricsVersion": 3,
       "lyrics": "[Verse 1]\nAmazing grace, how sweet the sound\n…",
       "nativeLanguage": null,
@@ -177,7 +177,7 @@ Only plans that endpoint 1 would list are servable: published, and dated inside 
 - `arrangement` — the arrangement name being played (e.g. `Default`, `Acoustic`,
   a medley name). May be `null` if the song was deleted from the library after
   publishing (see below).
-- `key` / `bpm` / `meter` — performance metadata; each may be `null`. `key` already
+- `key` / `bpm` / `metre` — performance metadata; each may be `null`. `key` already
   reflects any per-plan key override.
 - `lyricsVersion` — **the lyrics version number for this song on this plan.** LSCroster
   versions lyrics per arrangement; publishing a plan pins each song to the then-current
@@ -291,7 +291,7 @@ All errors share one shape; branch on `error` and the HTTP status, not on `messa
 
 | Status | `error` | When |
 |--------|---------|------|
-| 401 | `unauthorized` | Missing, wrong, or revoked API key |
+| 401 | `unauthorised` | Missing, wrong, or revoked API key |
 | 404 | `not_found` | Unknown route |
 | 404 | `plan_not_found` | No published plan with that ID inside the date window |
 | 405 | `method_not_allowed` | Anything but `GET` |
@@ -302,7 +302,7 @@ Suggested operator surfaces (unchanged from the old client doc):
 
 | Situation | Surface to operator |
 |-----------|---------------------|
-| `unauthorized` | "Projection key rejected — check settings." No silent retry. |
+| `unauthorised` | "Projection key rejected — check settings." No silent retry. |
 | `plan_not_found` | "That service is no longer available." Offer to reload the list. |
 | Empty `plans` list | "No upcoming services published." Not an error. |
 | Network failure, cache present | Project from cache; show "Offline — showing last saved copy." |
@@ -352,6 +352,11 @@ app must:
 - **Breaking** changes ship under a new path (`…/v2/plans`); v1 keeps working until the
   client migrates.
 - Fields are never removed or repurposed within a version.
+- One exception, made before any client went live: on 2026-10-04 two names were
+  changed in place to Australian spelling, matching the rest of LSCroster — the song
+  field `meter` is now `metre`, and the 401 error code `unauthorized` is now
+  `unauthorised`. A client written against an earlier copy of this document should
+  use the new names.
 
 ---
 
@@ -387,7 +392,7 @@ If you built against `LSCRoster-Projection-API.md` / `Mac-Projection-Client.md`:
 | Vercel `/api/services?date=…` per-date query | Supabase `{BASE}/plans` — fixed −10/+60 day window, no date parameter |
 | `/api/services/{id}/setlist` | `{BASE}/plans/{planId}/lyrics` |
 | One static shared `PROJECTION_API_KEY` | Per-device revocable keys (`lscp_…`), generated in the LSCroster Settings UI |
-| `songKey` | `key` (override-aware), plus `bpm`, `meter`, `arrangement` |
+| `songKey` | `key` (override-aware), plus `bpm`, `metre`, `arrangement` |
 | — | `lyricsVersion` per song (pinned at publish time) |
 | — | `sourceSongs[]` with per-song `author`/`ccli`/`copyright` (medley-aware) |
 | `sections[].type` small enum, `label` always set | Larger `type` vocabulary (§6), `label` nullable |

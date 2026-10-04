@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'CRON_SECRET is not configured' }, 503)
   }
   if (req.headers.get('x-cron-secret') !== secret) {
-    return jsonResponse({ error: 'Unauthorized' }, 401)
+    return jsonResponse({ error: 'Unauthorised' }, 401)
   }
   // `force` skips the send-hour gate; `only` runs a single job — both used by
   // the admin "send now" links (issue #117). The cron passes neither.

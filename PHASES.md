@@ -899,6 +899,14 @@ and rendering to PDF/HTML (Pandoc or a CSS file). Screenshots live in
   projection-API field, `kind: 'unlabeled'`, `summarizeUsage`), CSS/DOM/HTTP
   terms, proper nouns ("Planning Center", "GNU General Public License", the
   `LICENSE` file), applied migrations and the CLI-generated `supabase/config.toml`.
+- [x] **Projection API `meter` → `metre`, `unauthorized` → `unauthorised`**
+  (2026-10-04): renamed in place within `apiVersion: 1`, the user's call — no
+  projection client is live and LSCroster is still in testing. Only the response
+  field and the 401 error code changed; the `song_arrangements.meter` column keeps
+  its name. Recorded as a one-off exception in PROJECTION-API.md §10. The
+  `reminders` cron function's 401 message became "Unauthorised" too.
+  **Upgrade note:** an instance with its own projection client must read `metre`
+  and `unauthorised`; `functions deploy projection-api reminders` before the push.
 - [ ] The user's review of the draft.
 - [ ] Capture the shots marked `Screenshot wanted` in the file (sign-in,
   invitation, People list, person page, song layers, plan People card, My

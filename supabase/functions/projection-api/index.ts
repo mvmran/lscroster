@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
 
   const rawKey = extractRawKey(req)
   if (!rawKey || !KEY_RE.test(rawKey)) {
-    return respond({ error: 'unauthorized' }, 401)
+    return respond({ error: 'unauthorised' }, 401)
   }
   const { data: key } = await admin
     .from('projection_api_keys')
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
     .eq('key_hash', await sha256Hex(rawKey))
     .is('revoked_at', null)
     .maybeSingle()
-  if (!key) return respond({ error: 'unauthorized' }, 401)
+  if (!key) return respond({ error: 'unauthorised' }, 401)
   keyId = key.id as string
 
   if (req.method !== 'GET') return respond({ error: 'method_not_allowed' }, 405)
@@ -335,7 +335,7 @@ Deno.serve(async (req) => {
       arrangement: arrangement?.name ?? null,
       key,
       bpm: arrangement?.bpm ?? null,
-      meter: arrangement?.meter ?? null,
+      metre: arrangement?.meter ?? null,
       lyricsVersion: lyricsRow?.version ?? null,
       lyrics: lyricsRow?.lyrics ?? null,
       // Additive since apiVersion 1 (#139): `lyrics` and `sections[].lines`
