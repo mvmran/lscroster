@@ -1,6 +1,6 @@
 // "Upcoming roster status" digest (issue #117): a per-recipient table of
 // rostering progress for upcoming services, with RAG-coloured counts and a pie
-// chart of the totals. Sent to Team Leaders, Team Viewers and admins; the table
+// chart of the totals. Sent to everyone with team access and admins; the table
 // is scoped to the teams the recipient governs (admins see every team).
 
 import { esc, footer, wrapper } from './layout.ts'

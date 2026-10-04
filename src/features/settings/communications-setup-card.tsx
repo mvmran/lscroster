@@ -345,8 +345,8 @@ function JobsForm({ settings }: { settings: ChurchSettings }) {
           <SendNow job="roster-status" label="roster status" />
         </Label>
         <p className="text-muted-foreground text-xs">
-          Weeks ahead the roster-status digest covers, emailed to Team Leaders,
-          Team Viewers and admins. Set to <strong>0</strong> to turn it off.
+          Weeks ahead the roster-status digest covers, emailed to everyone with
+          team access and to admins. Set to <strong>0</strong> to turn it off.
         </p>
         <div className="flex items-center gap-2">
           <Input

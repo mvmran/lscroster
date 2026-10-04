@@ -41,7 +41,7 @@ const OPTIONS: { key: EmailPrefKey; label: string; description: string }[] = [
     key: 'roster_status_emails',
     label: 'Upcoming roster status',
     description:
-      'A digest of rostering progress for the teams they lead or view (Team Leaders, Team Viewers and admins).',
+      'A digest of rostering progress for the teams they have access to (anyone with team access, and admins).',
   },
 ]
 
