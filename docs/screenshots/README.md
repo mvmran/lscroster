@@ -5,7 +5,7 @@ Images used by [README.md](../../README.md), [SETUP.md](../SETUP.md) and the
 
 | File | What it shows |
 | --- | --- |
-| `dashboard.png` | Home — "This week" and "My upcoming dates" |
+| `dashboard.png` | Home — a request waiting, "This week", "My upcoming dates" and the Notice Board |
 | `plan.png` | A published plan: order of service with the running clock |
 | `matrix.png` | Services → Matrix, three services side by side |
 | `request-phone.png` | The `/respond/<token>` page at phone width |

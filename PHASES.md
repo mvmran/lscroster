@@ -931,9 +931,13 @@ and rendering to PDF/HTML (Pandoc or a CSS file). Screenshots live in
   **Upgrade note:** an instance with its own projection client must expect
   `unauthorised`; `functions deploy projection-api reminders` before the push.
 - [ ] The user's review of the draft.
-- [ ] Capture the shots marked `Screenshot wanted` in the file (sign-in,
-  invitation, People list, person page, song layers, plan People card, My
-  Schedule on a phone) into `docs/screenshots/manual/`.
+- [x] **Screenshots** (2026-10-05): 13 new figures in `docs/screenshots/manual/`
+  (the seven marked shots plus New plan, Publish with errors, the rule builder,
+  Email preferences and both notice board cards) and `dashboard.png` re-shot with
+  the notice board, all from a throwaway demo stack — see
+  `docs/screenshots/manual/README.md`. The Email preferences and Communications
+  setup text no longer say "Team Leaders, Team Viewers" (pre-0048 wording); the
+  digest goes to everyone with team access, and admins.
 - [x] **Branded PDF** (2026-10-04): `npm run manual:pdf`
   (`scripts/build-manual-pdf.mjs`) renders the Markdown with `marked` and prints
   it with headless Chromium (`playwright-core`, devDependencies only — the app

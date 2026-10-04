@@ -350,8 +350,11 @@ set up your account.
 > **Note** — Invitation links expire after **7 days**. If yours has expired,
 > ask an admin to press **Resend invitation** on your profile.
 
-<!-- Screenshot wanted: the invitation (set password) page at phone width —
-     docs/screenshots/manual/accept-invite-phone.png -->
+<figure>
+  <img src="screenshots/manual/accept-invite-phone.png" width="320"
+       alt="The invitation page on a phone: a welcome by name, the email filled in, and password and confirm password boxes">
+  <figcaption><em>Figure 3.1 — Accepting an invitation: choose a password and confirm it.</em></figcaption>
+</figure>
 
 ## 3.2 Signing in and setting your password
 
@@ -367,7 +370,11 @@ a reset link arrives within a minute or two; open it to choose a new password.
 with your initials at the top right → **My profile**). The **Password** card asks
 for your current password, then the new one twice, and **Change password**.
 
-<!-- Screenshot wanted: the sign-in page — docs/screenshots/manual/sign-in.png -->
+<figure>
+  <img src="screenshots/manual/sign-in.png" width="600"
+       alt="The sign-in page with the church name, email and password boxes and a Forgot password? link">
+  <figcaption><em>Figure 3.2 — The sign-in page.</em></figcaption>
+</figure>
 
 ## 3.3 Installing LSCroster on your phone
 
@@ -440,8 +447,8 @@ profile** and **Sign out**.
 
 <figure>
   <img src="screenshots/dashboard.png" width="720"
-       alt="The LSCroster home screen showing this week's plan and my upcoming dates">
-  <figcaption><em>Figure 4.2 — The home screen: this week's service and your upcoming dates.</em></figcaption>
+       alt="The home screen: a request waiting on you, this week's service, my upcoming dates and the notice board">
+  <figcaption><em>Figure 4.2 — Home: a request waiting on you, this week's service, your upcoming dates and the notice board.</em></figcaption>
 </figure>
 
 **This week** lists every service in the next seven days with its date, service
@@ -510,7 +517,11 @@ A person's status is one of:
 > coordinators see everyone's. Otherwise the person page says *Email, phone and
 > birthday are private.*
 
-<!-- Screenshot wanted: the People list — docs/screenshots/manual/people.png -->
+<figure>
+  <img src="screenshots/manual/people.png" width="720"
+       alt="The People list: search, role, status and sort filters above a table of names, emails, phones, roles and statuses">
+  <figcaption><em>Figure 5.1 — The people directory, as an admin sees it.</em></figcaption>
+</figure>
 
 ## 5.2 Viewing a person
 
@@ -537,8 +548,11 @@ this month and this year, their top positions, their current streak, and their
 The coloured bar shows their upcoming dates: red for requests not yet sent,
 yellow for sent-but-unanswered, green for confirmed.
 
-<!-- Screenshot wanted: a person page on a wide screen —
-     docs/screenshots/manual/person.png -->
+<figure>
+  <img src="screenshots/manual/person.png" width="720"
+       alt="A person page: Schedules with past and upcoming dates and an activity summary, beside Contact details, Teams, Team access and Permissions">
+  <figcaption><em>Figure 5.2 — A person's page on a wide screen.</em></figcaption>
+</figure>
 
 ## 5.3 Adding and inviting people
 
@@ -695,6 +709,11 @@ Drag service types (or use the arrows) to change their order.
    date — LSCroster creates one plan a week through to it.
 6. Press **Create plan**.
 
+<figure>
+  <img src="screenshots/manual/new-plan.png" width="440"
+       alt="The New plan dialog: service type, date, start time, title, repeat weekly until, and start from">
+  <figcaption><em>Figure 6.2 — Creating a plan.</em></figcaption>
+</figure>
 If there's already a service of that type at the same time, LSCroster asks
 before creating another.
 
@@ -780,6 +799,11 @@ If the roster breaks a scheduling rule, LSCroster shows **Publish with
 errors?** (or warnings) first. Warnings are for information. Errors need a short
 reason before you can **Publish anyway** — the reason is recorded.
 
+<figure>
+  <img src="screenshots/manual/publish-gate.png" width="500"
+       alt="The Publish with errors dialog listing understaffed positions, with a box for the reason and a Publish anyway button">
+  <figcaption><em>Figure 6.6 — Publishing a plan that breaks scheduling rules.</em></figcaption>
+</figure>
 **Unpublish** moves the plan back to draft and hides it from members again.
 
 > **Warning** — Publishing can email everyone on the plan. Check the order of
@@ -888,8 +912,11 @@ version it was published with, and future plans use the new one.
 shown section by section; toggle each layer on or off with the buttons above
 them. Your choice doesn't affect anyone else.
 
-<!-- Screenshot wanted: the song page with the Native layer open beside the
-     lyrics — docs/screenshots/manual/song-layers.png -->
+<figure>
+  <img src="screenshots/manual/song-layers.png" width="720"
+       alt="An arrangement with the Chord layer open beside the lyrics, chords in brackets over their syllables">
+  <figcaption><em>Figure 7.3 — The Chord layer open beside the lyrics. Native and Meaning open the same way.</em></figcaption>
+</figure>
 
 ## 7.4 Importing lyrics and AI help
 
@@ -983,8 +1010,11 @@ positions each member can fill, marking each as Qualified or Trainee.
 
 The suggestions and warnings in this chapter all take these into account.
 
-<!-- Screenshot wanted: a plan's People card with statuses and the ⋯ menu open —
-     docs/screenshots/manual/plan-people.png -->
+<figure>
+  <img src="screenshots/manual/plan-people.png" width="720"
+       alt="A plan's People card: positions with Pending, Confirmed, Declined and Not sent people, Understaffed warnings, and the actions menu open">
+  <figcaption><em>Figure 8.1 — Scheduling on a plan: each person's status, and the ⋯ menu for someone who declined.</em></figcaption>
+</figure>
 
 ## 8.2 Blockouts and conflicts
 
@@ -1056,6 +1086,11 @@ Build it as a sentence:
   *Preferred* (a warning only).
 - **Applies to** one service type or all of them.
 
+<figure>
+  <img src="screenshots/manual/conditional-rule.png" width="560"
+       alt="The New rule dialog: if the person in Worship Leader is female, then require at least 2 on Vocals">
+  <figcaption><em>Figure 8.4 — A conditional rule, built as a sentence.</em></figcaption>
+</figure>
 On each plan, a rule shows as a small chip: **active** (it applies), **waiting**
 (nobody in the watched position yet), **not applicable**, **can't check** (e.g.
 the person's sex isn't recorded), **muted** or **needs attention** (the rule
@@ -1117,8 +1152,11 @@ Requests for anyone you manage appear here too, marked "*for* Name".
 The same **Waiting on you** card appears at the top of Home whenever you have
 something to answer.
 
-<!-- Screenshot wanted: My Schedule on a phone —
-     docs/screenshots/manual/my-schedule-phone.png -->
+<figure>
+  <img src="screenshots/manual/my-schedule-phone.png" width="320"
+       alt="My Schedule on a phone: a request waiting with Accept and Decline, an upcoming confirmed date, and a blockout">
+  <figcaption><em>Figure 9.2 — My Schedule on a phone.</em></figcaption>
+</figure>
 
 ## 9.3 Accepting, declining and changing your answer
 
@@ -1211,6 +1249,11 @@ On your profile, the **Email preferences** card lets you switch off any of:
 | **Published plans** | The plan summary when a plan you're on is published. |
 | **Upcoming roster status** | The roster-status digest (§10.4), if you receive it. |
 
+<figure>
+  <img src="screenshots/manual/email-prefs.png" width="480"
+       alt="The Email preferences card with five ticked boxes: roster changes, response reminders, service reminders, published plans and upcoming roster status">
+  <figcaption><em>Figure 10.5 — Email preferences on your profile.</em></figcaption>
+</figure>
 Everything is on until you switch it off. Each box saves as soon as you tick it.
 Admins, coordinators and your managing member can change these for you too.
 
@@ -1503,6 +1546,11 @@ something — this manual, a new roster form, a notice for the month.
 **You should see.** *Added to the notice board*, the notice at the top of the
 list, and a **Notice Board** card on everyone's Home screen.
 
+<figure>
+  <img src="screenshots/manual/notice-board-phone.png" width="320"
+       alt="The Notice Board card on a phone with two PDFs: the user manual and a roster">
+  <figcaption><em>Figure 12.12 — The notice board as everyone sees it on Home.</em></figcaption>
+</figure>
 > **Tip** — To update a document, upload the new version, then remove the old one
 > with its **×**. A notice can't be edited in place.
 
@@ -1663,6 +1711,11 @@ beyond the usual steps.
 
 **Who:** admins and coordinators. **Where:** Settings → **Manage notice board**.
 
+<figure>
+  <img src="screenshots/manual/manage-notice-board.png" width="720"
+       alt="Settings, Manage notice board: two notices with open and remove buttons, then a description box, Choose PDF and Upload">
+  <figcaption><em>Figure 14.6 — Managing the notice board.</em></figcaption>
+</figure>
 The notice board puts PDFs on everyone's Home screen (§4.2) — this manual, forms,
 a message of the day. Each notice is a one-line **Description** and one PDF; the
 newest appears first, and the card is hidden on Home while the board is empty.
@@ -1859,8 +1912,8 @@ Where the files live — the five shots shared with README/SETUP are in
 docs/screenshots/; manual-only shots go in docs/screenshots/manual/. Follow
 docs/screenshots/README.md: shoot from a demo-data instance in light mode, 2×
 pixel ratio, so no real person appears. Name files after what they show and keep
-each under ~300 kB. The "Screenshot wanted" comments in the text list the shots
-still to take.
+each under ~300 kB. Mark a spot that needs a new shot with a "Screenshot wanted"
+comment; none are outstanding.
 
 How it renders:
 • GitHub / VS Code preview — shows the images inline; <figure> works.

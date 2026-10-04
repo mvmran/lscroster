@@ -22,16 +22,27 @@ Embed in the manual with alt text, and a caption via `<figure>`:
 Re-shoot after a significant UI change, keeping the same filename so the manual
 doesn't drift from the app.
 
-The manual currently embeds the five shared shots in [../](../README.md)
-(`dashboard`, `plan`, `matrix`, `request-phone`, `settings-church`). Shots still
-wanted — each marked with a `Screenshot wanted` comment where it belongs:
+The manual also uses the five shared shots in [../](../README.md)
+(`dashboard`, `plan`, `matrix`, `request-phone`, `settings-church`). These are
+its own:
 
-| File | What it shows |
-| --- | --- |
-| `accept-invite-phone.png` | The invitation (set password) page, phone width |
-| `sign-in.png` | The sign-in page |
-| `people.png` | The People list |
-| `person.png` | A person page on a wide screen |
-| `song-layers.png` | A song with the Native layer open beside the lyrics |
-| `plan-people.png` | A plan's People card with statuses and the ⋯ menu open |
-| `my-schedule-phone.png` | My Schedule, phone width |
+| File | Figure | What it shows |
+| --- | --- | --- |
+| `accept-invite-phone.png` | 3.1 | The invitation (set password) page, phone width |
+| `sign-in.png` | 3.2 | The sign-in page |
+| `people.png` | 5.1 | The People list, as an admin |
+| `person.png` | 5.2 | A person page on a wide screen |
+| `new-plan.png` | 6.2 | The New plan dialog |
+| `publish-gate.png` | 6.6 | "Publish with errors?" |
+| `song-layers.png` | 7.3 | An arrangement with the Chord layer open beside the lyrics |
+| `plan-people.png` | 8.1 | A plan's People card, every status, the ⋯ menu open |
+| `conditional-rule.png` | 8.4 | The conditional rule builder |
+| `my-schedule-phone.png` | 9.2 | My Schedule, phone width |
+| `email-prefs.png` | 10.5 | The Email preferences card |
+| `notice-board-phone.png` | 12.12 | The Notice Board card on Home, phone width |
+| `manage-notice-board.png` | 14.6 | Settings → Manage notice board |
+
+Shot on 2026-10-05 from a throwaway local stack (its own project id and ports, so
+it never touches the everyday local database) loaded with `demo-data.sql`, plus a
+few extras for the shots: an admin login, a draft roster showing every status, a
+blockout, chords on Amazing Grace, an unaccepted invitation and two notices.
