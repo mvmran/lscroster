@@ -25,6 +25,7 @@ import {
   useUploadChurchLogo,
   type LogoVariant,
 } from '@/features/settings/use-church-logo'
+import { ManageNoticeBoardCard } from '@/features/notices/manage-notice-board-card'
 import { CommunicationsSetupCard } from '@/features/settings/communications-setup-card'
 import { ProjectionApiCard } from '@/features/settings/projection-api-card'
 import { DeleteSafetyCard } from '@/features/settings/delete-safety-card'
@@ -431,6 +432,7 @@ export function SettingsPage() {
       <PageHeader title="Settings" />
       <ChurchSettingsCard canEdit={isAdmin} />
       {canManageServiceTypes && <ServiceTypesLinkCard />}
+      {canGovern && <ManageNoticeBoardCard />}
       {canGovern && <PermissionTemplatesCard />}
       {isAdmin && <DeleteSafetyCard />}
       {isAdmin && <CommunicationsSetupCard />}

@@ -869,6 +869,29 @@ API's exhausted / 401 / 403 / 400 / 404 answers. **No migration**;
 `functions deploy suggest-song` before the bundle. Deno tests in
 `_shared/song-suggest.test.ts`.
 
+(0049) `notice_board` **Notice board** (2026-10-04): a **Notice Board** card
+on Home lists PDFs everyone signed in can open — the user manual, a message of
+the day — and Settings → **Manage notice board** (admins and coordinators) adds
+one (a one-line description + a PDF) or removes one after a confirm. Hidden on
+Home while empty. Schema: `notices` (message 1–200 chars, `storage_path`,
+`file_name`, `created_by`), RLS read = any signed-in person, insert/delete =
+`is_admin_or_coordinator()`, no update (replace = delete + add); private bucket
+`notices` with **`allowed_mime_types = {application/pdf}` and a 20 MB limit**, so
+the server refuses anything else whatever the form does. PDF only (the user's
+call left to Claude): every phone and desktop browser opens a PDF in its own
+viewer, where a .docx would download and need another app. The list signs every
+link up front (`createSignedUrls`, 1 h, refetched at 45 min) and renders real
+`<a target=_blank>` rows — signing on tap would open the tab after an await,
+which phone browsers block. Delete checks a row actually went (RLS turns a
+refused delete into "0 rows", not an error). Verified locally: a 14-check API
+probe (coordinator add/delete, member read + sign but no upload/insert/delete,
+anon nothing, bucket refusing text/plain and text/html, blank message refused)
+and an 18-check browser run (desktop coordinator flow incl. cancel-then-confirm
+delete, phone member view with no sideways scroll, the link serving the PDF
+inline). **Upgrade note:** `db push` (0049) before the bundle; no new secret.
+The storage policies are created, never dropped — the migration role cannot drop
+policies on `storage.objects` on a hosted project.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

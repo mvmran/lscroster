@@ -78,6 +78,8 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
 - Invite-only accounts, roles (admin / leader / member), per-team leaders and
   read-only viewers
 - Managed accounts for people who need someone answering on their behalf
+- A notice board on Home — PDFs everyone can open, such as the user manual or
+  a message of the day, managed from Settings
 - Contact-detail visibility rules, an audit log of who changed what, and a
   read-only Projection API for your projection software
   ([PROJECTION-API.md](docs/PROJECTION-API.md))

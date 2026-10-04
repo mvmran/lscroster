@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentPerson } from '@/features/auth/use-current-person'
+import { NoticeBoardCard } from '@/features/notices/notice-board-card'
 import { usePeopleManagedBy } from '@/features/people/use-people'
 import {
   DeclineDialog,
@@ -142,6 +143,8 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      <NoticeBoardCard />
 
       <Card>
         <CardHeader>

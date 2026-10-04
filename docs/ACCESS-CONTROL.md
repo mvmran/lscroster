@@ -58,6 +58,8 @@ everything gated on `is_admin_or_coordinator()`:
   pairings — for anyone.
 - Mute conditional-rule warnings on a plan (`plan_rule_mutes`).
 - Everyone's email preferences.
+- The **notice board** on Home: add and remove its PDFs (`notices`, bucket
+  `notices`). Everyone signed in reads it.
 
 **People & permissions**
 - Grant and revoke member permissions; manage permission templates.
@@ -179,6 +181,7 @@ on, and stacks with their global role and permissions.
 | Create/delete teams, appoint access | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
 | Service types, conditional rules, pairings | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
 | Grant/revoke member permissions | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
+| Add/remove notice board PDFs | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
 | Add/remove team members, set positions | ✅ | ✅ | ✅ | ⛔ | ⛔ | ⛔ |
 | Roster a team (plan assignments), email it | ✅ | ✅ | ✅ | ✅ | ⛔ | ⛔ |
 | Set per-plan targets, mute rule warnings | ✅ | ✅ | ✅ | ✅ | ⛔ | ⛔ |
