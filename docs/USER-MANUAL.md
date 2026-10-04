@@ -407,11 +407,11 @@ After signing in you land on **Home** (Figure 4.2). It shows, from the top:
 - **Waiting on you** — any requests you haven't answered yet, with **Accept**
   and **Decline** buttons right there. (Only shown when there is something to
   answer.)
-- **Notice Board** — documents and notices from your church, such as this
-  manual. Tap one to open it. (Only shown when there is something on the board.)
 - **This week** — every service in the next 7 days. Tap one to open its plan.
 - **My upcoming dates** — where you're confirmed to serve next, and a link to
   your **Full schedule & blockouts**.
+- **Notice Board** — documents and notices from your church, such as this
+  manual. Tap one to open it. (Only shown when there is something on the board.)
 
 ---
 
@@ -424,7 +424,7 @@ button at the top left to open it. The menu has seven sections:
 
 | Section | What it's for |
 | --- | --- |
-| **Home** | Requests waiting on you, the notice board, this week's services, your next dates. |
+| **Home** | Requests waiting on you, this week's services, your next dates, the notice board. |
 | **My Schedule** | All your requests and dates, and your blockouts. |
 | **People** | The church directory. |
 | **Teams** | Teams, their positions and members. |
@@ -444,12 +444,6 @@ profile** and **Sign out**.
   <figcaption><em>Figure 4.2 — The home screen: this week's service and your upcoming dates.</em></figcaption>
 </figure>
 
-**Notice Board** lists documents your church has put up for everyone — this
-manual, a roster form, a message of the day. Each is a PDF: tap its line and it
-opens in a new tab, in your phone's or browser's own PDF viewer. The newest is at
-the top. The card only appears when there is something on the board; admins and
-coordinators look after it (§14.6).
-
 **This week** lists every service in the next seven days with its date, service
 type, title and start time. A plan that's still being prepared is marked
 **Draft** — you'll only see a draft here if you're scheduled on it or can edit
@@ -458,6 +452,12 @@ plans. Tap a row to open the plan.
 **My upcoming dates** lists the services you've confirmed. If you haven't
 confirmed anything yet it says *Nothing confirmed yet.* Use **Full schedule &
 blockouts** to go to My Schedule.
+
+**Notice Board** lists documents your church has put up for everyone — this
+manual, a roster form, a message of the day. Each is a PDF: tap its line and it
+opens in a new tab, in your phone's or browser's own PDF viewer. The newest is at
+the top. The card only appears when there is something on the board; admins and
+coordinators look after it (§14.6).
 
 ## 4.3 What you see by role
 

@@ -144,8 +144,6 @@ export function DashboardPage() {
         </Card>
       )}
 
-      <NoticeBoardCard />
-
       <Card>
         <CardHeader>
           <CardTitle>This week</CardTitle>
@@ -235,6 +233,8 @@ export function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      <NoticeBoardCard />
 
       <DeclineDialog assignment={declining} onClose={() => setDeclining(null)} />
     </div>
