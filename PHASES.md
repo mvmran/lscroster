@@ -31,8 +31,7 @@ fixes (0047) and the two directory leaks (0046). All applied to production
 (1 admin, 6 coordinators, 25 members) and merged to `main` (`66700fb`). Only two
 "Found while mapping" items remain open below (the plan-attachments storage leak
 and the admin-blockout UI gap), plus the deferred "See contact details & notes"
-permission. Not yet cut as a release — currently unreleased on `main` past
-**v1.0.4** (2026-09-27, `0782a4e`).
+permission. 0046–0048 shipped in **v1.0.5** (2026-10-04).
 
 **How it worked before** (context for the decisions):
 - Global role `people.role` = `admin` | `leader` | `member`. `leader` is
@@ -176,8 +175,8 @@ The gap: named members need specific day-to-day jobs without a global role.
 ## Backups (2026-09-28)
 
 The Supabase free plan takes no backups. Shipped to `main` (`e176559`,
-`83db5be`); not in a release yet — the next release row should mention it (no
-action needed by instances: scripts and docs only).
+`83db5be`); released in **v1.0.5** (no action needed by instances: scripts and
+docs only).
 - [x] `scripts/backup.sh [dest]` — roles, schema, data (`public` + `auth`,
   password hashes included) and every storage file into one dated
   `.tar.gz` with a manifest (row/file counts, migration, secret *names*,
@@ -1234,6 +1233,7 @@ see `docs/UPGRADE.md`.
 | `v1.0.2` | 2026-08-25 | Fix: the footer's `+` dirty-tree marker fired on every Vercel build (its build steps leave files behind, so `git status --porcelain` is never empty there). It is now computed only outside CI/Vercel, where it means what it says — this bundle came from someone's working tree. **No action needed by existing instances.** |
 | `v1.0.3` | 2026-08-28 | Multi-lingual lyrics (migration 0040): each line of a song can carry the original script, an English meaning and chords alongside the singable Latin text, edited in a side-by-side split and toggled per reader. Chords use ChordPro brackets and every lyric surface is proportional; the base text is now required to be Latin script, and pasted songs can be imported straight into the layers. Also: change your own password and reveal any password field, hover tooltips across the whole app, plan Prev/Now/Next fixes, and `npm test` in CI. **Action needed:** `npx supabase db push` (0040) and `npx supabase functions deploy projection-api` **before** the new bundle goes live. Chord lines typed with column alignment want re-typing in brackets. |
 | `v1.0.4` | 2026-09-27 | Access control: the global Leader role is now **Coordinator** (0044, rename in place); six **permissions a member can be granted** from their person page — edit order of service, publish, create & delete plans, manage songs, attach plan files, view all plans — held implicitly by admins and coordinators, with **permission templates** and audit entries (0045); Settings → **Deletion safety** switches for people and songs. Optional **AI help** with songs behind `GEMINI_API_KEY` (meaning drafts, transliteration polish/from scratch, tags, section labels). Chords stored as numbers of the key, read in either notation, projection notation per instance (0041); chord-chart import and Worship Together search. Per-plan tempo (0042), song notes (0043), language tags, duplicate-song warning. Archived people out of scheduling; Edge Functions type-checked and tested in CI. **Action needed:** `npx supabase db push` (0041–0045) and `npx supabase functions deploy` (all; two new) **before** the new bundle goes live. Optional new secrets `GEMINI_API_KEY` / `GEMINI_MODEL`. Admins will see Coordinator where they saw Leader. |
+| `v1.0.5` | 2026-10-04 | **Team Access**: Team Leader and Team Viewer become one graded grant per team — Viewer / Scheduler / Manager (0048); coordinators now manage and roster every team and can mute rule warnings (0047); people's notes and scheduling preferences are no longer readable by every member (0046). **Notice board** on Home, managed from Settings → Manage notice board — PDFs only (0049). Optional AI **"suggest the next song"** on a plan's Add song box. A full **user manual** (`docs/USER-MANUAL.md`) and `npm run manual:pdf` to build it as a branded PDF. Scripted **backup and restore** for the free plan (`docs/BACKUPS.md`). Fixes: Permissions and Email preferences checkboxes save without locking; saving lyrics is blocked when the lyrics pane is empty but another layer has text; plain-lyrics songs no longer look greyed out; the orphaned Users screen is gone and the Matrix route is guarded. Australian English throughout (lyric sections read "Unlabelled"). **Action needed:** `npx supabase db push` (0046–0049) and `npx supabase functions deploy` (all — `_shared` changed and `suggest-song` is new) **before** the new bundle goes live. Team Leaders become **Managers** and Team Viewers stay **Viewers**; every grant is kept. A projection client that checks the 401 error code must now expect `unauthorised` (was `unauthorized`). Optional new secret `GEMINI_SUGGEST_MODEL`. |
 
 Anything that needs action from an instance owner on upgrade — a new secret, a
 manual step, a behaviour change their team will notice — must be called out in
