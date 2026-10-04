@@ -888,7 +888,16 @@ and rendering to PDF/HTML (Pandoc or a CSS file). Screenshots live in
 - [ ] Capture the shots marked `Screenshot wanted` in the file (sign-in,
   invitation, People list, person page, song layers, plan People card, My
   Schedule on a phone) into `docs/screenshots/manual/`.
-- [ ] Render to PDF/HTML with the house look, then drop the authoring notes.
+- [x] **Branded PDF** (2026-10-04): `npm run manual:pdf`
+  (`scripts/build-manual-pdf.mjs`) renders the Markdown with `marked` and prints
+  it with headless Chromium (`playwright-core`, devDependencies only — the app
+  never loads them): dark cover (the user chose it over a light one; `--cover=light`
+  keeps the alternative), contents with page numbers from a pdftotext first pass,
+  chapter openers, dark header/footer bands, Geist + the indigo tokens. Cover and
+  body are printed separately (the bands can't skip page 1) and joined with
+  pdfunite. Needs `npx playwright-core install chromium` once and poppler-utils.
+  Output goes to the gitignored `manual-pdf/`.
+- [ ] Drop the authoring notes once the content is final.
 
 (no migration) **Hover tooltips everywhere else**, finishing the pass that began
 on Services/Matrix/Plan: the song page, then People, Scheduling, the rest of

@@ -1784,15 +1784,20 @@ rules, header name, table header tint and callout border.
 
 PRODUCING THE PDF / WEB PAGE
 ----------------------------
-The Markdown holds content + structure; a renderer applies the cover, bands,
-fonts and the dot-leader contents. Options, simplest first:
+The Markdown holds content + structure; scripts/build-manual-pdf.mjs applies the
+look above — dark cover, contents with page numbers, chapter openers, dark
+header/footer bands, the app's Geist face and indigo tokens:
 
-• Pandoc → PDF:   pandoc docs/USER-MANUAL.md -o lscroster-manual.pdf \
-                    --toc --toc-depth=2 -V geometry:margin=2.5cm
-  (A LaTeX engine such as TeX Live gives the nicest result; an --include-in-header
-   .tex or a reference .docx carries the cover, bands and accent colour.)
-• Pandoc → styled HTML:  pandoc docs/USER-MANUAL.md -o manual.html --toc -s -c manual.css
-  (A single manual.css can reproduce the whole look above; easiest to iterate on.)
-• VS Code "Markdown PDF" extension, or print the GitHub preview to PDF, for a
-  quick draft with no styling.
+    npm run manual:pdf          # → manual-pdf/LSCroster-User-Manual.pdf (gitignored)
+    npm run manual:pdf -- out.pdf --cover=light --church="Grace Community Church"
+
+One-time setup: `npx playwright-core install chromium` (no sudo) and
+`sudo apt install poppler-utils` (pdfunite + pdftotext). The script names
+whichever is missing. Things the renderer relies on in this file:
+• `> **Note|Tip|Warning** — …` blockquotes become coloured callout panels.
+• `# N. Title` headings start a chapter page; `## N.N Title` and `## A. Title`
+  get an accent number. The hand-written Contents list is replaced by a
+  generated one, so keep it in step for GitHub readers only.
+• ✅ in tables becomes an accent dot and ✨ the app's sparkles icon — no
+  installed font draws either. Other symbols need a glyph in Geist or DejaVu.
 -->

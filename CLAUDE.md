@@ -102,6 +102,8 @@ npx supabase functions serve --env-file .env.functions.local   # run functions l
 npx supabase db query --linked "<sql>"   # run SQL on production (vault, cron checks)
 scripts/backup.sh [dest]         # full backup of the linked project (db + logins + files)
 scripts/restore.sh <archive> <db-url>    # into an EMPTY project only; refuses otherwise
+npm run manual:pdf               # docs/USER-MANUAL.md → manual-pdf/*.pdf (needs Chromium
+                                 # via `npx playwright-core install chromium` + poppler-utils)
 ```
 
 Production is backed up nightly on flint (user crontab, 02:30, into
