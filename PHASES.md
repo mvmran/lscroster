@@ -891,6 +891,22 @@ inline). **Upgrade note:** `db push` (0049) before the bundle; no new secret.
 The storage policies are created, never dropped — the migration role cannot drop
 policies on `storage.objects` on a hosted project.
 
+(0050) `explicit_data_api_grants` **Explicit Data API grants** (2026-10-13):
+Supabase stops granting Data API access to new `public` tables automatically on
+2026-10-30 — for new projects, `db reset`, and tables a migration adds to an
+existing project. No migration here had ever granted anything, so a church
+setting up a new instance after that date would have hit `42501 permission
+denied` on every table. 0050 grants select/insert/update/delete to anon,
+authenticated and service_role on every `public` table and view (`people` keeps
+its column-level SELECT; only insert/update/delete there, as before), plus
+sequence usage. A no-op on existing projects — production already held these
+(checked read-only: all 45 tables/views, `people` without table-level SELECT).
+Verified on the local stack inside a rolled-back transaction: strip every API
+grant → `authenticated` refused on `teams` → apply 0050 → all 139 table, column
+and sequence grant rows identical to before. New CLAUDE.md convention: every
+new table/view is granted in its own migration. `seed.sql`'s local repair stays.
+**Upgrade note:** `db push` (0050); no app or function change.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

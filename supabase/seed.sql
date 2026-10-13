@@ -11,8 +11,10 @@
 -- `public` schema's default privileges for the `postgres` owner come out as only
 -- TRUNCATE/REFERENCES/TRIGGER, so `anon`/`authenticated`/`service_role` end up
 -- with no SELECT/INSERT on any table and every PostgREST call fails with 42501 —
--- before RLS is even consulted. A hosted project grants these correctly, which
--- is why this belongs in a local seed and NOT in a migration.
+-- before RLS is even consulted. Since migration 0050 (explicit_data_api_grants)
+-- the migrations grant every table themselves, as Supabase no longer does it
+-- automatically from 2026-10-30; this stays as a belt-and-braces repair for
+-- older local stacks and ad-hoc tables.
 --
 -- Row-level security is untouched: these are table-level grants, and every
 -- policy still applies on top of them.
