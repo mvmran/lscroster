@@ -31,6 +31,9 @@ import { LyricsReadView } from '@/features/services/lyrics-read-view'
 import { ClickBubble, PadBubble } from '@/features/services/sound-bubbles'
 import { useChordNotation } from '@/features/services/use-chord-notation'
 import { LAYER_LABELS } from '@/features/services/lyric-layers'
+import { sequenceSteps } from '@/features/services/lyric-sections'
+import { tintOf } from '@/features/services/section-tints'
+import { useLongLyrics } from '@/features/services/use-long-lyrics'
 import {
   buildArrangementIndex,
   buildLyricsSheet,
@@ -298,6 +301,34 @@ export function PlanAttachmentsCard({
 }
 
 /**
+ * The order a song is sung in, as the lyrics editor's pills in short form
+ * (I V V2 C …), coloured the same way. With Long Lyrics off the sheet shows
+ * each section once, and this is what still says how the song goes. Hidden
+ * for a song of one section or none.
+ */
+function SongSequence({ sequence }: { sequence: string[] }) {
+  if (sequence.length < 2) return null
+  const steps = sequenceSteps(sequence)
+  return (
+    <div
+      className="flex flex-wrap items-center gap-1"
+      title={sequence.join(' → ')}
+    >
+      <span className="text-muted-foreground mr-0.5 text-xs">Sequence</span>
+      {steps.map((step, i) => (
+        <span
+          key={i}
+          aria-label={step.label}
+          className={`rounded px-1.5 text-[11px] leading-[18px] font-semibold ${tintOf(step.kind).chip}`}
+        >
+          {step.short}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/**
  * Media: a formatted lyrics sheet for the songs in this plan (issue #25). It is
  * derived from the order of service, so it always follows the setlist order and
  * updates when the setlist is reordered — there is nothing to edit here. Each
@@ -326,6 +357,9 @@ export function PlanMediaCard({
   // Shared with the switch above each song below, and with the lyrics editor:
   // what is printed is what was on screen when Print was pressed.
   const [notation, setNotation] = useChordNotation()
+  // Each section once (the default) or every time it is sung; this browser's
+  // choice, for the screen and the printout alike.
+  const [longLyrics, setLongLyrics] = useLongLyrics()
   const [searchParams, setSearchParams] = useSearchParams()
   const autoDownloadFired = useRef(false)
 
@@ -384,6 +418,7 @@ export function PlanMediaCard({
         meaning: printLayers.includes('meaning'),
         chords: printLayers.includes('chords'),
         notation,
+        longLyrics,
       })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not create PDF')
@@ -402,6 +437,24 @@ export function PlanMediaCard({
           </CardDescription>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
+          {entries.length > 0 && (
+            <ToggleGroup
+              type="multiple"
+              value={longLyrics ? ['long'] : []}
+              onValueChange={(next) => setLongLyrics(next.includes('long'))}
+            >
+              <ToggleGroupItem
+                value="long"
+                title={
+                  longLyrics
+                    ? 'Show each section once, with the sequence saying how the song goes'
+                    : 'Show every section each time it is sung'
+                }
+              >
+                Long Lyrics
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
           {printable.length > 0 && (
             <ToggleGroup
               type="multiple"
@@ -492,8 +545,13 @@ export function PlanMediaCard({
                       />
                     </div>
                   )}
+                  <SongSequence sequence={entry.sequence} />
                   {hasLyrics ? (
-                    <LyricsReadView layers={entry.layers} songKey={entry.key} />
+                    <LyricsReadView
+                      layers={entry.layers}
+                      songKey={entry.key}
+                      repeats={longLyrics}
+                    />
                   ) : (
                     <p className="text-muted-foreground text-sm italic">
                       No lyrics added

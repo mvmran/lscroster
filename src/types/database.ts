@@ -1715,6 +1715,7 @@ export type Database = {
           lyrics_meaning: string | null
           lyrics_native: string | null
           native_language: string | null
+          sequence: string[] | null
           updated_at: string
           version: number
         }
@@ -1727,6 +1728,7 @@ export type Database = {
           lyrics_meaning?: string | null
           lyrics_native?: string | null
           native_language?: string | null
+          sequence?: string[] | null
           updated_at?: string
           version?: number
         }
@@ -1739,6 +1741,7 @@ export type Database = {
           lyrics_meaning?: string | null
           lyrics_native?: string | null
           native_language?: string | null
+          sequence?: string[] | null
           updated_at?: string
           version?: number
         }

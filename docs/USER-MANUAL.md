@@ -827,6 +827,14 @@ them. A song's Pad and Click can play together; starting either on another song
 stops the first song's, and leaving the page stops them. **Print** downloads the lyrics sheet as a PDF
 (§11.4).
 
+Each song shows its **sequence** under the key and tempo — the order it is sung
+in, in short form: *I V V C V C C B …* (Intro, Verse, Verse, Chorus …), in the
+same colours as the song editor. So the sheet stays short, each section is
+shown **once**; the sequence says how often it comes round. Press **Long
+Lyrics** (beside **Print**) to show every section each time it is sung instead.
+It is off to begin with, and your browser remembers your choice. The printed
+sheet follows it, and prints the sequence too.
+
 ## 6.6 Draft vs published
 
 A new plan is a **draft**. Members can't see drafts — unless they're scheduled
@@ -939,6 +947,11 @@ Type or paste lyrics into the **Lyrics** box. Start each section with a heading
 on its own line, such as `[Verse 1]`, `Chorus`, `Pre-Chorus 2:` or `Bridge` —
 LSCroster recognises the usual section names and uses them to show and rearrange
 the song.
+
+**Sequence.** The strip of section names above the lyrics is the song's
+**sequence** — the order it is sung in. It's saved with the lyrics each time you
+press **Save changes**, and the Lyrics Sheet shows it in short form (§6.5), so
+write the song out in the order it is sung.
 
 **One heading, one set of words.** A song often sings the same section more than
 once, written out each time under the same heading (`VERSE`, `VERSE`, `CHORUS`…).

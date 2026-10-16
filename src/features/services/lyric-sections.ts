@@ -206,6 +206,44 @@ export function lyricWords(text: string): string {
     .join('\n')
 }
 
+/**
+ * Which section a heading line names, for telling repeats apart: its kind and
+ * designator, with no designator read as 1 — "Verse" and "Verse 1" are the
+ * same verse — and any repeat count ignored. Null for a line that isn't one.
+ */
+export function sectionKeyOf(line: string): string | null {
+  const header = matchLyricSectionHeader(line)
+  return header && `${header.kind}:${(header.designator ?? '1').toUpperCase()}`
+}
+
+/**
+ * The song's sequence — the order it is sung in, as section labels ("Intro",
+ * "Verse", "Verse 2", "Chorus ×2" …) — read from its headings. What the strip
+ * above the lyrics editor shows, and what a save records (0057).
+ */
+export function lyricSequence(text: string): string[] {
+  return parseLyricSections(text)
+    .filter((section) => section.kind !== 'unlabeled')
+    .map((section) => section.label)
+}
+
+export interface SequenceStep {
+  label: string
+  /** The pill's short form, with any repeat count: "V2", "C×2". */
+  short: string
+  kind: string
+}
+
+/** A stored sequence as steps to show; a label it can't read stands as is. */
+export function sequenceSteps(sequence: string[]): SequenceStep[] {
+  return sequence.map((label) => {
+    const header = matchLyricSectionHeader(label)
+    if (header === null) return { label, short: label, kind: 'unlabeled' }
+    const times = header.repeat ? `×${header.repeat}` : ''
+    return { label, short: `${header.short}${times}`, kind: header.kind }
+  })
+}
+
 interface HeadedSection {
   /** The heading line exactly as typed. */
   line: string
@@ -227,7 +265,7 @@ function headedSections(text: string): HeadedSection[] {
       return {
         line,
         kind: section.kind,
-        key: `${section.kind}:${(designator ?? '1').toUpperCase()}`,
+        key: sectionKeyOf(line) ?? section.kind,
         number: designator === null ? 1 : Number.parseInt(designator, 10) || 0,
         words: lyricWords(text.slice(section.bodyStart, section.end)),
       }

@@ -29,8 +29,10 @@
  */
 
 import {
+  lyricWords,
   matchLyricSectionHeader,
   parseLyricSections,
+  sectionKeyOf,
   type HeadingRename,
   type LyricSection,
 } from '@/features/services/lyric-sections'
@@ -202,6 +204,44 @@ export function zipLyricLines(layers: LayeredLyrics): LyricLineTuple[] {
       header,
     }
   })
+}
+
+/**
+ * Each section once: leave out a section that repeats one already shown — the
+ * same heading ("Verse" and "Verse 1" alike) over the same words, or over
+ * nothing at all (a "Chorus" cue meaning sing it again). The song's sequence
+ * says how often each comes round. Its blank lines go with it, so the
+ * sections either side keep a single stanza break; lines before the first
+ * heading are always kept. Words are compared as a singer reads them
+ * (`lyricWords`), so a stray comma doesn't make a second chorus.
+ */
+export function withoutRepeatedSections(lines: LyricLineTuple[]): LyricLineTuple[] {
+  const kept: LyricLineTuple[] = []
+  const shown = new Map<string, Set<string>>()
+  let section: LyricLineTuple[] = []
+  const flush = () => {
+    const key = section.length > 0 ? sectionKeyOf(section[0].text) : null
+    if (key !== null) {
+      const words = lyricWords(section.slice(1).map((line) => line.text).join('\n'))
+      const seen = shown.get(key)
+      if (seen && (words === '' || seen.has(words))) {
+        section = []
+        return
+      }
+      shown.set(key, (seen ?? new Set<string>()).add(words))
+    }
+    kept.push(...section)
+    section = []
+  }
+  for (const line of lines) {
+    if (line.header) {
+      flush()
+      section = [line]
+    } else if (section.length > 0) section.push(line)
+    else kept.push(line)
+  }
+  flush()
+  return kept
 }
 
 /** A run of non-blank lines, with where it starts in the text it came from. */

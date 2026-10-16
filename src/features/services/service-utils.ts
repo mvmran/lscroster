@@ -1,6 +1,7 @@
 import { addDays, addSeconds, format, parseISO } from 'date-fns'
 import type { Enums, Tables } from '@/types/database'
 import { layersOfRow, type LayeredLyrics } from '@/features/services/lyric-layers'
+import { lyricSequence } from '@/features/services/lyric-sections'
 import { timesOverlap } from '@/features/scheduling/scheduling-utils'
 
 export type Plan = Tables<'plans'>
@@ -408,6 +409,8 @@ export interface LyricsSheetEntry {
   lyrics: string | null
   /** The base text plus its native / meaning / chord layers (#139). */
   layers: LayeredLyrics
+  /** The order the song is sung in, as section labels (0057). */
+  sequence: string[]
 }
 
 /**
@@ -451,6 +454,10 @@ export function buildLyricsSheet(
         // its first.
         referenceUrl: chosenReferenceUrl(i.reference_url, info?.arrangement.reference_urls),
         lyrics: (pinned ?? latest)?.lyrics ?? null,
+        // As saved with that version; one saved before 0057 has none, and its
+        // headings say the same thing.
+        sequence:
+          (pinned ?? latest)?.sequence ?? lyricSequence((pinned ?? latest)?.lyrics ?? ''),
         // Chords stay as stored (numbers); the reader and the PDF convert,
         // because which notation to show is the reader's choice, not the data's.
         layers: layersOfRow(pinned ?? latest ?? null),

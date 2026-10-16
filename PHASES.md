@@ -1200,6 +1200,33 @@ song — typing into the second VERSE → VERSE 2 with the caret in place and th
 chord pane following; deleting it → VERSE; CHORUS2 retitled CHORUS → note,
 dialog suggesting CHORUS 2, Go back saving nothing.
 
+(0057) `lyrics_sequence` **The sequence, and Long Lyrics** (2026-10-17): the
+flow strip above the lyrics editor is the song's **sequence** — the order it is
+sung in — and is now saved: `song_arrangement_lyrics.sequence text[]` (≤ 200,
+nullable), on the lyrics version rather than the arrangement, because a
+published plan pins its version (0033) and must show that version's order. The
+save hook and the new-arrangement seed write `lyricSequence(lyrics)` (the
+section labels in order); null = saved before 0057, and readers take
+`lyricSequence` of that row's lyrics — no SQL backfill, since the heading
+grammar lives in the app. Grants (0050) and RLS cover the column. The Lyrics
+Sheet shows each section **once** by default (`withoutRepeatedSections`: a
+section is dropped when one with the same heading key — "Verse" ≡ "Verse 1" —
+and the same words, or a bare cue, was already shown; its blank lines go with
+it), with the sequence under the key / tempo line as tinted short pills
+(`sequenceSteps`: I V V2 C×2 …; the tints moved to `section-tints.ts` so the
+plan page doesn't import the editor). **Long Lyrics** beside Print (a
+ToggleGroup item like Chord; `localStorage` `lscroster.long-lyrics`, off by
+default, try/catch) shows every section; the PDF follows it and prints
+"Sequence: …" under the meta line. The song page's saved view is unchanged
+(every section). Verified: 7 unit tests (sequence, short form, keys, the
+each-once filter, the entry's fallback), and a browser run on the dev plan —
+off by default; "No One Like The Lord" shows I V V C V C C B B2 C2 O B3 C2 T and
+one VERSE / CHORUS / CHORUS2 with every BRIDGE, INTRO, OUTRO and TAG; Long
+Lyrics → 3 / 3 / 2, remembered across a reload; the PDF one VERSE and the
+sequence line, three VERSEs with Long Lyrics; a save on a scratch song storing
+{"Verse 1",Chorus,"Verse 2",Chorus,Tag} (scratch song removed).
+**Upgrade note:** `db push` (0057) before the bundle; no function change.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

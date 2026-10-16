@@ -360,6 +360,33 @@ describe('buildLyricsSheet key and tempo', () => {
     expect(lyricsSheetMeta(entry)).toBe('Key D  ·  72 BPM  ·  4/4')
   })
 
+  it('carries the sequence saved with the lyrics, else reads the headings', () => {
+    const row = (id: string, version: number, sequence: string[] | null): ArrangementLyrics => ({
+      id,
+      arrangement_id: 'arr-1',
+      version,
+      lyrics: 'Verse 1\nOne\n\nChorus\nSing\n\nChorus\nSing',
+      lyrics_native: null,
+      lyrics_meaning: null,
+      lyrics_chords: null,
+      native_language: null,
+      sequence,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    })
+    const saved = new Map([['l-1', row('l-1', 1, ['Intro', 'Chorus'])]])
+    expect(buildLyricsSheet([songItem({})], arrangements, saved)[0].sequence).toEqual([
+      'Intro',
+      'Chorus',
+    ])
+    const older = new Map([['l-1', row('l-1', 1, null)]])
+    expect(buildLyricsSheet([songItem({})], arrangements, older)[0].sequence).toEqual([
+      'Verse 1',
+      'Chorus',
+      'Chorus',
+    ])
+  })
+
   it('links the recording the plan picked', () => {
     const [entry] = buildLyricsSheet(
       [songItem({ reference_url: 'https://youtu.be/live' })],

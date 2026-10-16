@@ -7,6 +7,7 @@ import {
   isInlineChordLine,
   LAYER_LABELS,
   LYRIC_LAYER_KEYS,
+  withoutRepeatedSections,
   zipLyricLines,
   type LayeredLyrics,
   type LyricLayerKey,
@@ -57,15 +58,22 @@ function ChordLine({ text, inline }: { text: string; inline?: boolean }) {
  * `songKey`, so the sheet shows the chords of the key this plan actually plays
  * the song in. `songKey` therefore wants the plan item's key override where
  * there is one, not the arrangement's own key.
+ *
+ * `repeats={false}` shows each section once (the Lyrics Sheet without Long
+ * Lyrics): a section that repeats one already shown is left out, and the
+ * song's sequence, shown beside it, says how often it comes round.
  */
 export function LyricsReadView({
   layers,
   songKey,
+  repeats = true,
   className,
 }: {
   layers: LayeredLyrics
   /** The key to read the chord numbers back in. Without it they stay numbers. */
   songKey?: string | null
+  /** Every section each time it is sung; false shows each once. */
+  repeats?: boolean
   className?: string
 }) {
   const available = LYRIC_LAYER_KEYS.filter((key) => layers[key].trim() !== '')
@@ -76,6 +84,8 @@ export function LyricsReadView({
   const chords = chordsIn(layers.chords, notation, parseSongKey(songKey))
 
   const on = (key: LyricLayerKey) => shown.includes(key)
+  const zipped = zipLyricLines({ ...layers, chords })
+  const lines = repeats ? zipped : withoutRepeatedSections(zipped)
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
@@ -98,7 +108,7 @@ export function LyricsReadView({
         </ToggleGroup>
       )}
       <div className="text-sm">
-        {zipLyricLines({ ...layers, chords }).map((line, i) => {
+        {lines.map((line, i) => {
           const showChords = on('chords') && line.chords.trim() !== ''
           // An inline chord line already holds the words, so the lyric row
           // below it would be a second copy of them.

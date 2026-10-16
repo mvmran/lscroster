@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { LayeredLyrics } from '@/features/services/lyric-layers'
+import { lyricSequence } from '@/features/services/lyric-sections'
 import { resolveNativeLanguage } from '@/features/services/transliterate'
 import type {
   ArrangementLyrics,
@@ -318,6 +319,7 @@ export function useCreateArrangement(songId: string) {
           lyrics_meaning: seed.lyrics_meaning,
           lyrics_chords: seed.lyrics_chords,
           native_language: seed.native_language,
+          sequence: lyricSequence(seed.lyrics),
         })
       }
       return data as SongArrangement
@@ -485,6 +487,9 @@ export function useSaveArrangementLyrics(arrangementId: string) {
         // the projection API reads it to label what `sections[].layers.native`
         // is written in, and there is no field for it in the editor.
         native_language: resolveNativeLanguage(current?.native_language, layers.native),
+        // The order the song is sung in, as its headings give it (0057): the
+        // Lyrics Sheet shows each section once, and this says how it goes.
+        sequence: lyricSequence(layers.lyrics),
       }
       if (current && !asNewVersion) {
         const { data, error } = await supabase

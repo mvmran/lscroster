@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   followSectionEdit,
+  lyricSequence,
   lyricWords,
   matchLyricSectionHeader,
   parseLyricSections,
   renumberHeadingLine,
+  sectionKeyOf,
+  sequenceSteps,
   sharedHeadingConflicts,
   type HeadingRename,
 } from '@/features/services/lyric-sections'
@@ -245,5 +248,34 @@ describe('followSectionEdit', () => {
     const prior: HeadingRename[] = [{ index: 2, from: 'VERSE', to: 'VERSE 2' }]
     const retitled = REPEATS.replace('INTRO', 'Intro')
     expect(followSectionEdit(REPEATS, retitled, prior)).toEqual({ rename: null, renamed: [] })
+  })
+})
+
+describe('the sequence', () => {
+  it('lists the sections in the order they are sung', () => {
+    expect(lyricSequence(REPEATS)).toEqual([
+      'Intro',
+      'Verse',
+      'Verse',
+      'Chorus',
+      'Verse',
+      'Chorus 2',
+    ])
+    expect(lyricSequence('Just words\nNo headings')).toEqual([])
+    expect(lyricSequence('Stray line\n\nVerse 1\nWords')).toEqual(['Verse 1'])
+  })
+
+  it('shortens to the pills, repeat counts included', () => {
+    expect(sequenceSteps(['Intro', 'Verse 2', 'Chorus ×2', 'Pre-Chorus']).map((s) => s.short))
+      .toEqual(['I', 'V2', 'C×2', 'PC'])
+    expect(sequenceSteps(['Verse 2'])[0]).toEqual({ label: 'Verse 2', short: 'V2', kind: 'verse' })
+    expect(sequenceSteps(['Whatever'])[0].short).toBe('Whatever')
+  })
+
+  it('keys "Verse" and "Verse 1" alike, ignoring a repeat count', () => {
+    expect(sectionKeyOf('VERSE')).toBe(sectionKeyOf('[Verse 1]'))
+    expect(sectionKeyOf('Chorus x2')).toBe(sectionKeyOf('Chorus'))
+    expect(sectionKeyOf('Verse 2')).not.toBe(sectionKeyOf('Verse'))
+    expect(sectionKeyOf('Amazing grace')).toBeNull()
   })
 })

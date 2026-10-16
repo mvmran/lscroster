@@ -15,6 +15,7 @@ import {
   renameSectionHeading,
   splitChordLine,
   toLines,
+  withoutRepeatedSections,
   zipLyricLines,
   type LayeredLyrics,
 } from '@/features/services/lyric-layers'
@@ -228,6 +229,43 @@ describe('renameSectionHeading', () => {
     // holding something else is left alone.
     expect(toLines(next.lyrics)[2]).toBe('VERSE')
     expect(next.meaning).toBe(layers.meaning)
+  })
+})
+
+describe('withoutRepeatedSections', () => {
+  const texts = (lyrics: string) =>
+    withoutRepeatedSections(zipLyricLines({ ...EMPTY_LAYERS, lyrics })).map((l) => l.text)
+
+  it('shows each section once, blank lines and all', () => {
+    const song = 'INTRO\n\nVERSE\nOne\n\nCHORUS\nSing\n\nVERSE\nOne\n\nCHORUS 2\nSing\n\nCHORUS\nSing!'
+    expect(texts(song)).toEqual([
+      'INTRO',
+      '',
+      'VERSE',
+      'One',
+      '',
+      'CHORUS',
+      'Sing',
+      '',
+      'CHORUS 2',
+      'Sing',
+      '',
+    ])
+  })
+
+  it('keeps a repeat whose words differ, and drops a bare cue', () => {
+    const song = 'Verse 1\nOne\n\nChorus\nSing\n\nVerse\nAnother\n\nChorus\n'
+    expect(texts(song)).toEqual(['Verse 1', 'One', '', 'Chorus', 'Sing', '', 'Verse', 'Another', ''])
+  })
+
+  it('keeps lines before the first heading', () => {
+    expect(texts('Untitled\n\nChorus\nSing\n\nChorus\nSing')).toEqual([
+      'Untitled',
+      '',
+      'Chorus',
+      'Sing',
+      '',
+    ])
   })
 })
 

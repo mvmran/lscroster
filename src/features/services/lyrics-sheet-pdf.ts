@@ -3,8 +3,10 @@ import { chordsIn, parseSongKey, type ChordNotation } from '@/features/services/
 import {
   isInlineChordLine,
   splitChordLine,
+  withoutRepeatedSections,
   zipLyricLines,
 } from '@/features/services/lyric-layers'
+import { sequenceSteps } from '@/features/services/lyric-sections'
 import { lyricsSheetMeta, type LyricsSheetEntry } from '@/features/services/service-utils'
 
 export interface LyricsSheetPdfOptions {
@@ -33,6 +35,12 @@ export interface LyricsSheetPdfOptions {
    * being read when Print was pressed.
    */
   notation?: ChordNotation
+  /**
+   * Every section each time it is sung (the sheet's Long Lyrics). Off, each
+   * section prints once and the song's sequence, printed under its key and
+   * tempo, says how it goes — as on screen.
+   */
+  longLyrics?: boolean
 }
 
 /**
@@ -188,13 +196,19 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
 
   for (const entry of opts.entries) {
     const meta = lyricsSheetMeta(entry)
-    // Keep the title (and its meta line) with the first lines of lyrics so a
+    const sequence =
+      entry.sequence.length > 1
+        ? `Sequence: ${sequenceSteps(entry.sequence).map((step) => step.short).join('  ')}`
+        : ''
+    // Keep the title (and its meta lines) with the first lines of lyrics so a
     // song title never strands at the bottom of a column.
-    const keepTogether = TITLE_LH + (meta ? META_LH : 0) + LYRIC_LH * 2
+    const keepTogether =
+      TITLE_LH + (meta ? META_LH : 0) + (sequence ? META_LH : 0) + LYRIC_LH * 2
     if (!atColumnTop() && y + keepTogether > contentBottom) advanceColumn()
 
     drawWrapped(entry.title, TITLE_SIZE, 'bold', 15, TITLE_LH)
     if (meta) drawWrapped(meta, META_SIZE, 'italic', 120, META_LH)
+    if (sequence) drawWrapped(sequence, META_SIZE, 'italic', 120, META_LH)
     y += 1
 
     if (entry.lyrics && entry.lyrics.trim()) {
@@ -205,7 +219,8 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
         ...entry.layers,
         chords: chordsIn(entry.layers.chords, opts.notation ?? 'numbers', parseSongKey(entry.key)),
       }
-      for (const line of zipLyricLines(layers)) {
+      const zipped = zipLyricLines(layers)
+      for (const line of opts.longLyrics ? zipped : withoutRepeatedSections(zipped)) {
         const showChords = opts.chords && line.chords.trim() !== ''
         // An inline chord line carries the words its chords are anchored to,
         // so it is drawn *as* the lyric row — at the lyric's leading and in
