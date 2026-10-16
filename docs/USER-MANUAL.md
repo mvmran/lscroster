@@ -828,7 +828,7 @@ stops the first song's, and leaving the page stops them. **Print** downloads the
 (§11.4).
 
 Each song shows its **sequence** under the key and tempo — the order it is sung
-in, in short form: *I V V C V C C B …* (Intro, Verse, Verse, Chorus …), in the
+in, in short form: *I > V > V > C > V > C …* (Intro, Verse, Verse, Chorus …), in the
 same colours as the song editor. So the sheet stays short, each section is
 shown **once**; the sequence says how often it comes round. Press **Long
 Lyrics** (beside **Print**) to show every section each time it is sung instead.

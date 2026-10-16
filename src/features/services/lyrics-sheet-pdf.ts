@@ -198,7 +198,7 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
     const meta = lyricsSheetMeta(entry)
     const sequence =
       entry.sequence.length > 1
-        ? `Sequence: ${sequenceSteps(entry.sequence).map((step) => step.short).join('  ')}`
+        ? `Sequence: ${sequenceSteps(entry.sequence).map((step) => step.short).join(' > ')}`
         : ''
     // Keep the title (and its meta lines) with the first lines of lyrics so a
     // song title never strands at the bottom of a column.

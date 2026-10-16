@@ -1213,7 +1213,7 @@ Sheet shows each section **once** by default (`withoutRepeatedSections`: a
 section is dropped when one with the same heading key — "Verse" ≡ "Verse 1" —
 and the same words, or a bare cue, was already shown; its blank lines go with
 it), with the sequence under the key / tempo line as tinted short pills
-(`sequenceSteps`: I V V2 C×2 …; the tints moved to `section-tints.ts` so the
+(`sequenceSteps`: I > V > V2 > C×2 …; the tints moved to `section-tints.ts` so the
 plan page doesn't import the editor). **Long Lyrics** beside Print (a
 ToggleGroup item like Chord; `localStorage` `lscroster.long-lyrics`, off by
 default, try/catch) shows every section; the PDF follows it and prints

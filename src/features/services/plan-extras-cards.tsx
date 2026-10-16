@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ChevronRight,
   Clock,
   Download,
   FileText,
@@ -316,13 +317,21 @@ function SongSequence({ sequence }: { sequence: string[] }) {
     >
       <span className="text-muted-foreground mr-0.5 text-xs">Sequence</span>
       {steps.map((step, i) => (
-        <span
-          key={i}
-          aria-label={step.label}
-          className={`rounded px-1.5 text-[11px] leading-[18px] font-semibold ${tintOf(step.kind).chip}`}
-        >
-          {step.short}
-        </span>
+        <Fragment key={i}>
+          {/* The editor's separator, so the sheet reads like its strip. */}
+          {i > 0 && (
+            <ChevronRight
+              aria-hidden
+              className="text-muted-foreground/60 -mx-0.5 size-3 shrink-0"
+            />
+          )}
+          <span
+            aria-label={step.label}
+            className={`rounded px-1.5 text-[11px] leading-[18px] font-semibold ${tintOf(step.kind).chip}`}
+          >
+            {step.short}
+          </span>
+        </Fragment>
       ))}
     </div>
   )
