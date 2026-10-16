@@ -13,22 +13,40 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  arrangementDisplayTitle,
   DEFAULT_ITEM_LENGTH,
   formatLength,
+  isMedley,
   parseLengthInput,
   type ArrangementInfo,
   type PlanItem,
   type PlanItemKind,
+  type SongArrangement,
 } from '@/features/services/service-utils'
 import {
   useCreatePlanItem,
   useUpdatePlanItem,
 } from '@/features/services/use-plan-items'
 
+/** A song picked in the SongPickerDialog, on its way onto the plan. */
+export interface PickedSong {
+  title: string
+  /** Its arrangements, Default first; more than one shows a dropdown. */
+  arrangements: SongArrangement[]
+}
+
 export type PlanItemDialogState =
   | { mode: 'create'; kind: Exclude<PlanItemKind, 'song'> }
+  | { mode: 'add-song'; song: PickedSong }
   | { mode: 'edit'; item: PlanItem }
   | null
 
@@ -49,12 +67,29 @@ function ItemForm({
   const updateItem = useUpdatePlanItem(planId)
 
   const item = state.mode === 'edit' ? state.item : null
-  const kind: PlanItemKind = item?.kind ?? (state.mode === 'create' ? state.kind : 'item')
-  const info = item?.arrangement_id ? arrangements.get(item.arrangement_id) : undefined
-  const arrangementKey = info?.arrangement.song_key ?? null
-  const arrangementBpm = info?.arrangement.bpm ?? null
+  const picked = state.mode === 'add-song' ? state.song : null
+  const kind: PlanItemKind =
+    item?.kind ?? (state.mode === 'create' ? state.kind : 'song')
 
-  const [title, setTitle] = useState(item?.title ?? '')
+  // Adding a song: which of its arrangements goes on the plan.
+  const [arrangementId, setArrangementId] = useState(
+    () => (picked?.arrangements.find((a) => a.is_default) ?? picked?.arrangements[0])?.id ?? null,
+  )
+  const chosen = picked?.arrangements.find((a) => a.id === arrangementId) ?? null
+  const linkedId = item?.arrangement_id ?? arrangementId
+  const info = linkedId ? arrangements.get(linkedId) : undefined
+  // A song created a moment ago may not be in the library index yet.
+  const arrangement = info?.arrangement ?? chosen
+  const arrangementKey = arrangement?.song_key ?? null
+  const arrangementBpm = arrangement?.bpm ?? null
+  const titleFor = (id: string | null) => {
+    const found = id ? arrangements.get(id) : undefined
+    return found ? arrangementDisplayTitle(found) : (picked?.title ?? '')
+  }
+
+  const [title, setTitle] = useState(item?.title ?? (picked ? titleFor(arrangementId) : ''))
+  // While adding, the title follows the arrangement until someone types one.
+  const [titleEdited, setTitleEdited] = useState(false)
   const [length, setLength] = useState(
     formatLength(item?.length_seconds ?? DEFAULT_ITEM_LENGTH[kind]),
   )
@@ -74,6 +109,7 @@ function ItemForm({
   async function save() {
     const trimmed = title.trim()
     if (!trimmed || lengthSeconds === null || bpmInvalid) return
+    if (picked && !arrangementId) return
     const values = {
       title: trimmed,
       length_seconds: lengthSeconds,
@@ -84,6 +120,13 @@ function ItemForm({
     try {
       if (item) {
         await updateItem.mutateAsync({ id: item.id, values })
+      } else if (picked) {
+        await createItem.mutateAsync({
+          ...values,
+          kind: 'song',
+          arrangement_id: arrangementId,
+          sort_order: itemCount,
+        })
       } else {
         await createItem.mutateAsync({ ...values, kind, sort_order: itemCount })
       }
@@ -96,14 +139,49 @@ function ItemForm({
   return (
     <>
       <div className="flex flex-col gap-4">
+        {picked && picked.arrangements.length > 1 && (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="pi-arrangement">Arrangement</Label>
+            <Select
+              value={arrangementId ?? undefined}
+              onValueChange={(id) => {
+                setArrangementId(id)
+                if (!titleEdited) setTitle(titleFor(id))
+              }}
+            >
+              <SelectTrigger id="pi-arrangement" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {picked.arrangements.map((a) => {
+                  const found = arrangements.get(a.id)
+                  const medley = found && isMedley(found)
+                  return (
+                    <SelectItem key={a.id} value={a.id}>
+                      {medley ? arrangementDisplayTitle(found) : a.name}
+                      {a.song_key ? ` · ${a.song_key}` : ''}
+                      {medley ? ' (medley)' : ''}
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <div className="flex flex-col gap-2">
           <Label htmlFor="pi-title">Title</Label>
           <Input
             id="pi-title"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value)
+              setTitleEdited(true)
+            }}
             placeholder={kind === 'header' ? 'e.g. Worship' : 'e.g. Announcements'}
-            autoFocus
+            // Not when adding a song: the title is filled in already, and on a
+            // phone the keyboard would cover the dialog for nothing.
+            autoFocus={!picked}
           />
         </div>
 
@@ -211,8 +289,8 @@ function ItemForm({
 }
 
 /**
- * Create a header/generic item, or edit any item (including songs).
- * Songs are created via the SongPickerDialog instead.
+ * Create a header/generic item, add a song picked in the SongPickerDialog (with
+ * its arrangement, key, tempo and notes for this plan), or edit any item.
  */
 export function PlanItemDialog({
   state,
@@ -229,7 +307,11 @@ export function PlanItemDialog({
   arrangements: Map<string, ArrangementInfo>
 }) {
   const kind =
-    state?.mode === 'edit' ? state.item.kind : (state?.kind ?? 'item')
+    state?.mode === 'edit'
+      ? state.item.kind
+      : state?.mode === 'add-song'
+        ? 'song'
+        : (state?.kind ?? 'item')
   const heading =
     state?.mode === 'edit'
       ? kind === 'header'
@@ -237,9 +319,11 @@ export function PlanItemDialog({
         : kind === 'song'
           ? 'Edit song'
           : 'Edit item'
-      : kind === 'header'
-        ? 'Add header'
-        : 'Add item'
+      : kind === 'song'
+        ? 'Add song'
+        : kind === 'header'
+          ? 'Add header'
+          : 'Add item'
 
   return (
     <Dialog open={!!state} onOpenChange={(open) => !open && onClose()}>
@@ -247,15 +331,23 @@ export function PlanItemDialog({
         <DialogHeader>
           <DialogTitle>{heading}</DialogTitle>
           <DialogDescription>
-            {kind === 'header'
-              ? 'Headers split the order of service into sections.'
-              : 'Appears as a row in the order of service.'}
+            {state?.mode === 'add-song'
+              ? `Set the key, tempo and notes for this plan, then add “${state.song.title}”.`
+              : kind === 'header'
+                ? 'Headers split the order of service into sections.'
+                : 'Appears as a row in the order of service.'}
           </DialogDescription>
         </DialogHeader>
         {state && (
           <ItemForm
             // Remount per target so the fields seed from the right item.
-            key={state.mode === 'edit' ? state.item.id : `new-${state.kind}`}
+            key={
+              state.mode === 'edit'
+                ? state.item.id
+                : state.mode === 'add-song'
+                  ? `song-${state.song.arrangements[0]?.id}`
+                  : `new-${state.kind}`
+            }
             state={state}
             onClose={onClose}
             planId={planId}

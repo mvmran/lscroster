@@ -737,8 +737,10 @@ Templates appear under *Start from* in the New plan dialog.
 
 At the bottom of the order of service are three buttons:
 
-- **Add song** — search the library and pick a song (then an arrangement, if
-  it has more than one). §7.4 describes the optional ✨ suggestion button.
+- **Add song** — search the library and pick a song. The **Add song** box then
+  opens: choose the **Arrangement** if the song has more than one, set this
+  plan's **Key**, **BPM**, length and notes if they differ, and press **Add**.
+  §7.4 describes the optional ✨ suggestion button.
 - **Add header** — a section heading, such as *Worship* or *Word*. Headers
   appear as shaded rows.
 - **Add item** — anything that isn't a song: Welcome, Prayer, Sermon, Offering.

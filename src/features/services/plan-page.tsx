@@ -1401,8 +1401,8 @@ export function PlanPage() {
         open={songPickerOpen}
         onOpenChange={setSongPickerOpen}
         planId={plan.id}
-        itemCount={items.length}
         songs={songs ?? []}
+        onPick={(song) => setItemDialog({ mode: 'add-song', song })}
       />
       <PublishGateDialog
         open={gateOpen}

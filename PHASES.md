@@ -963,6 +963,22 @@ tap-to-stop, pad chords in G, A and Am, metronome + pad together,
 clearing / unreadable key hints, tab switch, navigation, hidden tab, member view,
 phone layout. Unit tests: `src/lib/key-sound.test.ts`, `songKeyTone` cases.
 
+(no migration) **Add song opens the song dialog** (2026-10-16): picking a song in
+the plan's Add song search (from the list, the ✨ suggestion or "Create … and add
+it") no longer adds it outright, nor asks for the arrangement in a second step.
+The search closes and the plan item dialog opens in a new `add-song` mode — the
+same fields as **Edit song** (title, length, key and BPM for this plan, notes),
+plus an **Arrangement** dropdown when the song has more than one (medleys show
+as "Song A / Song B (medley)"), and the button reads **Add**. The title follows
+the chosen arrangement ("Song (Acoustic)") until someone types their own; the
+key and BPM hints follow it too. Cancel adds nothing (a song created from the
+search stays in the library). Editing an existing item is unchanged — Save, no
+dropdown (switching an item's arrangement would orphan pinned lyrics).
+`SongPickerDialog` no longer writes plan items: it hands the pick to `onPick`.
+Verified with a 21-check browser run: one-arrangement song with key/BPM/notes
+saved, two-arrangement dropdown, title/key/BPM following the choice, a typed
+title surviving a switch, cancel, create-and-add, Edit still Save, phone fit.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
