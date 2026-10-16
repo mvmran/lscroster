@@ -433,28 +433,31 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
-          file_name: string
+          file_name: string | null
           id: string
+          link_url: string | null
           message: string
-          storage_path: string
+          storage_path: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           created_by?: string | null
-          file_name: string
+          file_name?: string | null
           id?: string
+          link_url?: string | null
           message: string
-          storage_path: string
+          storage_path?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           created_by?: string | null
-          file_name?: string
+          file_name?: string | null
           id?: string
+          link_url?: string | null
           message?: string
-          storage_path?: string
+          storage_path?: string | null
           updated_at?: string
         }
         Relationships: [

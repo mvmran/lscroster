@@ -417,8 +417,8 @@ After signing in you land on **Home** (Figure 4.2). It shows, from the top:
 - **This week** — every service in the next 7 days. Tap one to open its plan.
 - **My upcoming dates** — where you're confirmed to serve next, and a link to
   your **Full schedule & blockouts**.
-- **Notice Board** — documents and notices from your church, such as this
-  manual. Tap one to open it. (Only shown when there is something on the board.)
+- **Notice Board** — documents, notices and links from your church, such as
+  this manual or the church wiki. Tap one to open it. (Only shown when there is something on the board.)
 
 ---
 
@@ -460,9 +460,10 @@ plans. Tap a row to open the plan.
 confirmed anything yet it says *Nothing confirmed yet.* Use **Full schedule &
 blockouts** to go to My Schedule.
 
-**Notice Board** lists documents your church has put up for everyone — this
-manual, a roster form, a message of the day. Each is a PDF: tap its line and it
-opens in a new tab, in your phone's or browser's own PDF viewer. The newest is at
+**Notice Board** lists what your church has put up for everyone — this manual, a
+roster form, a message of the day, a link to the church wiki or a video. Tap a
+line and it opens in a new tab: a PDF (page icon) in your phone's or browser's
+own PDF viewer, a link (chain icon) on its own website. The newest is at
 the top. The card only appears when there is something on the board; admins and
 coordinators look after it (§14.6).
 
@@ -1577,7 +1578,8 @@ appears.
 ## 12.12 Put a document on the notice board
 
 **Who / When.** Admins and coordinators, when everyone should be able to read
-something — this manual, a new roster form, a notice for the month.
+something — this manual, a new roster form, a notice for the month — or reach a
+web page, such as the church wiki or a YouTube video.
 
 **Start here.** **Settings** → **Manage notice board**.
 
@@ -1585,8 +1587,10 @@ something — this manual, a new roster form, a notice for the month.
 
 1. Type a short **Description**. It is the line people tap, so say what the
    document is (e.g. *LSCroster user manual*).
-2. Press **Choose PDF** and pick the file — PDF only, up to 20 MB.
-3. Press **Upload**.
+2. For a document, leave **PDF** chosen, press **Choose PDF** and pick the
+   file — PDF only, up to 20 MB — then **Upload**.
+3. For a web page, choose **Link** instead, paste its **Web address** (it must
+   start with `http://` or `https://`) and press **Add link**.
 
 **You should see.** *Added to the notice board*, the notice at the top of the
 list, and a **Notice Board** card on everyone's Home screen.
@@ -1761,15 +1765,20 @@ beyond the usual steps.
        alt="Settings, Manage notice board: two notices with open and remove buttons, then a description box, Choose PDF and Upload">
   <figcaption><em>Figure 14.6 — Managing the notice board.</em></figcaption>
 </figure>
-The notice board puts PDFs on everyone's Home screen (§4.2) — this manual, forms,
-a message of the day. Each notice is a one-line **Description** and one PDF; the
+The notice board puts PDFs and links on everyone's Home screen (§4.2) — this
+manual, forms, a message of the day, the church wiki, a YouTube video. Each
+notice is a one-line **Description** and either one PDF or one web address; the
 newest appears first, and the card is hidden on Home while the board is empty.
 
-- **Add** — type the description, press **Choose PDF**, then **Upload**. Only
-  PDF files are accepted, up to 20 MB each.
-- **Remove** — press the **×** beside a notice and confirm. The notice and its
-  PDF are removed for everyone and can't be restored, so keep your own copy.
-- **Change** — there's no edit: upload the new version and remove the old one.
+- **Add a PDF** — leave **PDF** chosen, type the description, press **Choose
+  PDF**, then **Upload**. Only PDF files are accepted, up to 20 MB each.
+- **Add a link** — choose **Link**, type the description, paste the **Web
+  address** (`http://` or `https://`) and press **Add link**. The list shows the
+  site's name under it.
+- **Remove** — press the **×** beside a notice and confirm. The notice (and its
+  PDF, if it has one) is removed for everyone and can't be restored, so keep
+  your own copy.
+- **Change** — there's no edit: add the new version and remove the old one.
 
 Everyone who can sign in can open what's on the board; people who aren't signed
 in can't see it.
@@ -1796,7 +1805,7 @@ in can't see it.
 | Medley | An arrangement that includes more than one song. |
 | Member | The standard role: answers requests, sees published plans, manages their own profile. |
 | Minimum | How many people a position needs; set per position, and adjustable per plan. |
-| Notice board | The card on Home listing PDFs everyone can open, such as this manual. |
+| Notice board | The card on Home listing PDFs and links everyone can open, such as this manual. |
 | Nudge | A follow-up email for an unanswered request. |
 | Order of service | The ordered list of items that make up a plan. |
 | Permission | A specific job a member can be granted (e.g. manage songs). |
@@ -1834,7 +1843,7 @@ The authoritative, technical list is [ACCESS-CONTROL.md](ACCESS-CONTROL.md).
 | Add and remove team members, manage positions | team | ✅ all teams | ✅ all teams |
 | Create and delete teams; service types; conditional rules | — | ✅ | ✅ |
 | Give team access and permissions; permission templates | — | ✅ | ✅ |
-| Add and remove notice board PDFs | — | ✅ | ✅ |
+| Add and remove notice board PDFs and links | — | ✅ | ✅ |
 | Set anyone's scheduling rules and email preferences | — | ✅ | ✅ |
 | See everyone's contact details and notes | — | ✅ | ✅ |
 | Add, invite, import, edit, archive and delete people; change roles | — | — | ✅ |

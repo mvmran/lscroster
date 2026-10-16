@@ -78,8 +78,8 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
 - Invite-only accounts, roles (admin / leader / member), per-team leaders and
   read-only viewers
 - Managed accounts for people who need someone answering on their behalf
-- A notice board on Home — PDFs everyone can open, such as the user manual or
-  a message of the day, managed from Settings
+- A notice board on Home — PDFs and links everyone can open, such as the user
+  manual, a message of the day or the church wiki, managed from Settings
 - Hear a song before you play it: a pad in its key, a I–IV–V–I on keys and a
   metronome, synthesised in the browser — each person picks their own pad sound
 - Contact-detail visibility rules, an audit log of who changed what, and a

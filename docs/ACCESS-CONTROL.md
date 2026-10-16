@@ -58,8 +58,8 @@ everything gated on `is_admin_or_coordinator()`:
   pairings — for anyone.
 - Mute conditional-rule warnings on a plan (`plan_rule_mutes`).
 - Everyone's email preferences.
-- The **notice board** on Home: add and remove its PDFs (`notices`, bucket
-  `notices`). Everyone signed in reads it.
+- The **notice board** on Home: add and remove its PDFs and links (`notices`,
+  bucket `notices`; links in `link_url`, 0055). Everyone signed in reads it.
 
 **Everyone, for themselves only:** their **pad sound** (`person_sound_prefs`,
 0054) — read and written by its owner alone; no role, admins included, sees or
@@ -185,7 +185,7 @@ on, and stacks with their global role and permissions.
 | Create/delete teams, appoint access | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
 | Service types, conditional rules, pairings | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
 | Grant/revoke member permissions | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
-| Add/remove notice board PDFs | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
+| Add/remove notice board PDFs and links | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
 | Choose their own pad sound (no one else's) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Add/remove team members, set positions | ✅ | ✅ | ✅ | ⛔ | ⛔ | ⛔ |
 | Roster a team (plan assignments), email it | ✅ | ✅ | ✅ | ✅ | ⛔ | ⛔ |

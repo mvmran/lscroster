@@ -1123,6 +1123,29 @@ guard; Save → DB; the song page and the Lyrics Sheet bubble playing the saved
 pad; reload; reset; phone fit), and unit tests for presets, parsing and voicings.
 **Upgrade note:** `db push` (0054) before the bundle; no function change.
 
+(0055) `notice_links` **Links on the notice board** (2026-10-17): a notice can
+now point at a web page — the church wiki, a YouTube video — instead of a PDF.
+`notices.link_url` (http(s) only, ≤ 2000 chars); `storage_path` / `file_name`
+become nullable, and `notices_pdf_or_link` holds exactly one of the two (a PDF
+has both its path and name, a link neither). Policies unchanged — everyone
+signed in reads, admins and coordinators add and remove — and the table's
+grants cover the column. The hook signs only PDF rows and passes a link's own
+address (re-checked as http(s) before it reaches an href); removing a link
+skips the storage call. Settings → Manage notice board gets a **PDF / Link**
+toggle: Link mode takes a description and a web address (Zod: "Enter a full
+address starting with http:// or https://") and **Add link**; the list shows
+the site's host under a link notice. Home shows a chain icon for links and the
+page icon for PDFs, both opening in a new tab (`noopener noreferrer`). Verified:
+the constraint inside a rolled-back transaction (link-only ok; both, neither,
+`javascript:`, a stray file name, a PDF without its name all refused) and a
+21-check browser run — a bare address refused, a link added and listed with its
+host and icon, a PDF still uploading, a member seeing both on Home (the link's
+href / target / rel / tooltip, the PDF still a signed URL), a member's API
+insert refused (403), the confirm wording for each kind, both removed, phone
+fit. (The one red check was the test assuming an empty bucket: an orphan PDF
+from the 2026-10-04 local testing is still there; this run's upload was removed.)
+**Upgrade note:** `db push` (0055) before the bundle; no function change.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

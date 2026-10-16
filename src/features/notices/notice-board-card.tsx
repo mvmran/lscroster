@@ -1,5 +1,5 @@
 import { format } from 'date-fns'
-import { ExternalLink, FileText } from 'lucide-react'
+import { ExternalLink, FileText, Link2 } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -10,9 +10,10 @@ import {
 import { useNotices } from '@/features/notices/use-notices'
 
 /**
- * Home's notice board: each notice is one line that opens its PDF in a new tab
- * (the browser's own viewer). Hidden while empty, so Home stays as it was for a
- * church that never uses it.
+ * Home's notice board: each notice is one line that opens in a new tab — a PDF
+ * in the browser's own viewer, or a link notice's web page (a wiki, a YouTube
+ * video). Hidden while empty, so Home stays as it was for a church that never
+ * uses it.
  */
 export function NoticeBoardCard() {
   const { data: notices } = useNotices()
@@ -22,7 +23,7 @@ export function NoticeBoardCard() {
     <Card>
       <CardHeader>
         <CardTitle>Notice Board</CardTitle>
-        <CardDescription>Notices and documents from your church.</CardDescription>
+        <CardDescription>Notices, documents and links from your church.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-1">
         {notices.map((notice) => (
@@ -42,12 +43,13 @@ export function NoticeLink({
   notice,
   children,
 }: {
-  notice: { message: string; url: string | null }
+  notice: { message: string; url: string | null; kind: 'pdf' | 'link' }
   children?: React.ReactNode
 }) {
+  const Icon = notice.kind === 'link' ? Link2 : FileText
   const body = (
     <>
-      <FileText className="text-primary mt-0.5 size-5 shrink-0" />
+      <Icon className="text-primary mt-0.5 size-5 shrink-0" />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="font-medium break-words">{notice.message}</span>
         {children}
@@ -71,7 +73,7 @@ export function NoticeLink({
       target="_blank"
       rel="noopener noreferrer"
       className="hover:bg-accent/40 flex min-h-11 items-start gap-3 rounded-md px-2 py-2.5"
-      title="Open this PDF in a new tab"
+      title={notice.kind === 'link' ? 'Open this link in a new tab' : 'Open this PDF in a new tab'}
     >
       {body}
     </a>
