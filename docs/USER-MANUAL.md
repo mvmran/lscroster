@@ -991,6 +991,13 @@ song. It understands:
 A chart line such as `Repeat Chorus` is replaced by the chorus it names, so the
 words are there to sing.
 
+If the paste names no sections at all, LSCroster names them for you (untick
+**Number the paragraphs** to keep it as it is). Each paragraph becomes a verse
+— **Verse 1**, **Verse 2** … — except the one sung word for word most often,
+which becomes the **Chorus** every time it comes round. Capitals, punctuation
+and chords don't count when comparing, but a different word does: a last chorus
+with a changed line stays a verse, so rename it by hand.
+
 The import is **added to the end** of the lyrics; nothing is saved until you
 press **Save changes**.
 

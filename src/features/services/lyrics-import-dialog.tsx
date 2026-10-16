@@ -272,7 +272,8 @@ export function LyricsImportDialog({
           >
             Number the paragraphs as{' '}
             <span className="font-mono">Verse {from}</span>,{' '}
-            <span className="font-mono">Verse {from + 1}</span> …
+            <span className="font-mono">Verse {from + 1}</span> …, and the one sung
+            again and again as <span className="font-mono">Chorus</span>
             {labelled && (
               <> — not this paste, though: it already names its own sections.</>
             )}

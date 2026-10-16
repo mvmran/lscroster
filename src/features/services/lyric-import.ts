@@ -72,11 +72,16 @@ const MEANING_RE = /^\s*(?:meanings?|translations?)\s*:?\s*$/i
 
 /**
  * Number a paste's paragraphs as "Verse 1", "Verse 2" … so an unstructured
- * song arrives with the section pills the editor is built around.
+ * song arrives with the section pills the editor is built around — and name
+ * the paragraph it sings word for word most often "Chorus".
  *
  * A paragraph is a run of non-blank lines; blank lines separate them, which is
- * how every team writes a song out in the first place. Three rules keep it from
- * guessing wrong:
+ * how every team writes a song out in the first place. A song written out in
+ * full repeats its chorus in full, so the words find it: the paragraph that
+ * comes back most often, if one does — compared without case, punctuation or
+ * chords. A tie names no chorus (verse, chorus, verse, chorus sung twice over
+ * is a guess either way); any other repeat keeps the verse number it had the
+ * first time. Three rules keep it from guessing wrong:
  *
  * - A paste that already names a section anywhere — even one "Chorus" among
  *   six unlabelled verses — is left exactly as it is. Half-labelled text is a
@@ -135,9 +140,42 @@ export function withVerseHeadings(text: string, from = 1): string {
   const labelled = titled ? starts.slice(1) : starts
   if (labelled.length < 2) return text
 
+  // Each section's words — its paragraph and any keyword blocks with it — as
+  // the singer reads them, for spotting the ones sung again.
+  const words = labelled.map((start, i) =>
+    lines
+      .slice(start, labelled[i + 1] ?? lines.length)
+      .map((line) =>
+        line
+          .replace(/\[[^\]]*\]/g, '')
+          .toLowerCase()
+          .replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ')
+          .trim(),
+      )
+      .filter(Boolean)
+      .join('\n'),
+  )
+  const counts = new Map<string, number>()
+  for (const w of words) counts.set(w, (counts.get(w) ?? 0) + 1)
+  const most = Math.max(...counts.values())
+  const top = [...counts].filter(([, n]) => n === most)
+  const chorus = most > 1 && top.length === 1 ? top[0][0] : null
+
+  const names = new Map<string, string>()
+  let verse = from
+  const nameOf = (w: string) => {
+    if (w === chorus) return 'Chorus'
+    let name = names.get(w)
+    if (name === undefined) {
+      name = `Verse ${verse++}`
+      names.set(w, name)
+    }
+    return name
+  }
+
   // Joined with LF: the result is only ever handed straight back to
   // `parseImportedLyrics`, which splits on either ending and joins with LF.
-  const numbered = new Map(labelled.map((start, i) => [start, `Verse ${from + i}`]))
+  const numbered = new Map(labelled.map((start, i) => [start, nameOf(words[i])]))
   return lines
     .flatMap((line, i) => {
       const header = numbered.get(i)

@@ -502,6 +502,76 @@ describe('withVerseHeadings', () => {
     ])
   })
 
+  describe('the chorus', () => {
+    const CHORUS = 'Sing to the Lord my soul\nSing His holy name'
+    // Two lines each: a lone first line would read as the song's title.
+    const song = (...paragraphs: string[]) =>
+      paragraphs.map((p) => (p.includes('\n') ? p : `${p}\n${p} again`)).join('\n\n')
+    const headings = (text: string) =>
+      toLines(text).filter((line) => /^(Verse \d+|Chorus)$/.test(line))
+
+    it('names the paragraph sung again and again Chorus, in full each time', () => {
+      // Written out the way a song opening on its chorus is: C V C V C.
+      const text = song(CHORUS, 'The sun comes up', CHORUS, 'Rich in love', CHORUS)
+      const headed = withVerseHeadings(text)
+      expect(headings(headed)).toEqual(['Chorus', 'Verse 1', 'Chorus', 'Verse 2', 'Chorus'])
+      expect(headed.split('Sing His holy name')).toHaveLength(4)
+      expect(toLines(headed)[0]).toBe('Chorus')
+      const parsed = parseImportedLyrics(headed)
+      expect(parsed.sections).toBe(5)
+      expect(toLines(parsed.layers.lyrics).filter((l) => l === 'Chorus')).toHaveLength(3)
+    })
+
+    it('ignores case, punctuation and chords when comparing', () => {
+      const text = song(
+        'Verse words here',
+        CHORUS,
+        'Other verse words',
+        '[G]Sing to the [C]Lord, my soul!\nSING His holy name',
+      )
+      expect(headings(withVerseHeadings(text))).toEqual([
+        'Verse 1',
+        'Chorus',
+        'Verse 2',
+        'Chorus',
+      ])
+    })
+
+    it('keeps one verse number for any other repeat', () => {
+      const bridge = 'Higher and higher'
+      const text = song('One', CHORUS, 'Two', CHORUS, bridge, bridge, CHORUS)
+      expect(headings(withVerseHeadings(text))).toEqual([
+        'Verse 1',
+        'Chorus',
+        'Verse 2',
+        'Chorus',
+        'Verse 3',
+        'Verse 3',
+        'Chorus',
+      ])
+    })
+
+    it('names no chorus on a tie, or when nothing repeats', () => {
+      const text = song('First words', CHORUS, 'First words', CHORUS)
+      expect(headings(withVerseHeadings(text))).toEqual([
+        'Verse 1',
+        'Verse 2',
+        'Verse 1',
+        'Verse 2',
+      ])
+      expect(headings(withVerseHeadings(song('A', 'B', 'C')))).toEqual([
+        'Verse 1',
+        'Verse 2',
+        'Verse 3',
+      ])
+    })
+
+    it('carries the verse count on from the lyrics it joins', () => {
+      const text = song(CHORUS, 'Verse words', CHORUS)
+      expect(headings(withVerseHeadings(text, 3))).toEqual(['Chorus', 'Verse 3', 'Chorus'])
+    })
+  })
+
   it('leaves a paste that already names a section — even one — untouched', () => {
     const partly = ENGLISH.replace('I once was lost', 'Chorus\nI once was lost')
     expect(withVerseHeadings(partly)).toBe(partly)

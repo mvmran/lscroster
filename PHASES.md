@@ -1166,6 +1166,19 @@ the song page's metronome at 0.5; saving a pad keeping the click; above 1
 refused, 400; another person's row refused, 403; phone fit).
 **Upgrade note:** `db push` (0056) before the bundle; no function change.
 
+(no migration) **Import finds the chorus** (2026-10-17): an unlabelled paste
+was numbered paragraph by paragraph, so a song written out in full (10,000
+Reasons: chorus, verse, chorus, verse, chorus) arrived as Verse 1–5.
+`withVerseHeadings` now compares each section's words — lower-cased, chords and
+punctuation dropped, keyword blocks included — and names the paragraph that
+repeats most **Chorus** at every occurrence (full words kept each time); a tie
+names none, and any other repeat keeps its first verse number. Verses are still
+numbered on from the lyrics the import joins. The dialog's checkbox says so.
+Verified: five new unit tests (C V C V C; case / punctuation / chords; a
+repeated bridge; a tie and no repeats; carrying on from Verse 3), and the real
+song re-imported in the browser → Chorus, Verse 6, Chorus, Verse 7, Chorus
+after its existing five verses (not saved).
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
