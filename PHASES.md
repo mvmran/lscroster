@@ -944,6 +944,25 @@ records every scheduled click: 3/4 at 72 (ABB, 0.833 s), a live edit to 120
 tab switch / navigation / hidden tab, hints, member view, phone layout. Unit
 tests in `src/lib/metronome.test.ts`.
 
+(no migration) **Hear the key: cadence and pad** (2026-10-16): beside an
+arrangement's Key (edit form and read-only view) ▶ plays a I–IV–V–I cadence on a
+soft synthesised keyboard (~3.5 s, one tap; ⏸ while it sounds, tap to stop) —
+minor keys take i and iv with the major V — and a waveform button toggles a
+continuous worship pad on the key's full chord (root and fifth low, then root,
+3rd and fifth an octave up; detuned saws through a slowly drifting low-pass,
+1.5 s fade in, 0.8 s fade out). Chosen with the user from a five-way audition
+(tuning note, strum, cadence, root-fifth pad, full-chord pad): first the
+root-fifth pad, then switched to the full chord. Key text is read by `songKeyTone()` (beside
+`parseSongKey`, so the same keys work as for chords, plus the mode); slash or
+extended keys (`G/B`, `F#m7`) grey the buttons out with a hint. The pad retunes
+as the key box changes (G to Gm included); the cadence stops.
+One AudioContext page-wide (`src/lib/audio.ts`), shared with the metronome, which
+plays over the pad. Same stop rules as the metronome. Verified with a 21-check
+browser run recording every oscillator: the cadence's 16 notes in G, auto-end,
+tap-to-stop, pad chords in G, A and Am, metronome + pad together,
+clearing / unreadable key hints, tab switch, navigation, hidden tab, member view,
+phone layout. Unit tests: `src/lib/key-sound.test.ts`, `songKeyTone` cases.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

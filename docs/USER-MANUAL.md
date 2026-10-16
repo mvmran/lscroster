@@ -857,10 +857,13 @@ songs (§14.2).
 The **Arrangements** card has one tab per arrangement. Each has:
 
 - a **Name** (e.g. *Default*, *Acoustic*, *Christmas*);
-- a **Key**, **BPM** and **Meter** (e.g. 4/4). Press ▶ beside the meter for a
-  metronome at that tempo — beat 1 accented by the meter, a plain click without
-  one (6/8 counts the dotted beat). It becomes ⏸ while playing, and stops when
-  you leave the page or switch arrangement;
+- a **Key**, **BPM** and **Meter** (e.g. 4/4). Beside the key, ▶ plays a short
+  I–IV–V–I on a keyboard so you can hear the key, and the waveform button starts
+  a pad on the key's chord (major or minor) that plays until you press ⏸. Beside the
+  meter, ▶ starts a metronome at that tempo — beat 1 accented by the meter, a
+  plain click without one (6/8 counts the dotted beat). The pad and the
+  metronome can play together; both stop when you leave the page or switch
+  arrangement;
 - **Reference recordings** — links (e.g. YouTube) to the versions the band
   follows, such as a studio take and a live one. Press ▶ beside a link to play
   it in a new tab, and **Add another recording** for up to ten. Each becomes a

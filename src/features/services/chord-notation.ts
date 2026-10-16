@@ -127,6 +127,22 @@ export function parseSongKey(key: string | null | undefined): SongKey | null {
   return { letter, pitch: NATURAL[letter] + accidentalOffset(match[2]) }
 }
 
+/**
+ * An arrangement's key as something to play: the tonic (0 = C … 11 = B) and
+ * whether it is minor — "Gm", "G min", "G minor". Unlike chords, hearing a key
+ * does depend on the mode. Null when `parseSongKey` can't read it.
+ */
+export function songKeyTone(
+  key: string | null | undefined,
+): { tonic: number; minor: boolean } | null {
+  const parsed = parseSongKey(key)
+  if (!parsed) return null
+  const text = (key ?? '').trim()
+  // A lone capital M means major ("GM"), as in chord symbols.
+  const minor = /^[A-Ga-g][#b♯♭]?\s*(?:m|min|minor)$/i.test(text) && !text.endsWith('M')
+  return { tonic: (parsed.pitch + 12) % 12, minor }
+}
+
 /** One chord token converted, or null when it is not a chord in that notation. */
 function letterToNumber(token: string, key: SongKey): string | null {
   const match = CHORD_ROOT.exec(token)

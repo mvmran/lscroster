@@ -6,11 +6,32 @@ import {
   hasChordTokens,
   isChordToken,
   parseSongKey,
+  songKeyTone,
 } from '@/features/services/chord-notation'
 
 const G = parseSongKey('G')
 const Am = parseSongKey('Am')
 const Eb = parseSongKey('Eb')
+
+describe('songKeyTone', () => {
+  it('gives the tonic and the mode', () => {
+    expect(songKeyTone('G')).toEqual({ tonic: 7, minor: false })
+    expect(songKeyTone('F#m')).toEqual({ tonic: 6, minor: true })
+    expect(songKeyTone('Bb minor')).toEqual({ tonic: 10, minor: true })
+    expect(songKeyTone('e min')).toEqual({ tonic: 4, minor: true })
+    expect(songKeyTone('C major')).toEqual({ tonic: 0, minor: false })
+  })
+
+  it('reads a lone capital M as major, and wraps Cb and B#', () => {
+    expect(songKeyTone('GM')).toEqual({ tonic: 7, minor: false })
+    expect(songKeyTone('Cb')).toEqual({ tonic: 11, minor: false })
+    expect(songKeyTone('B#')).toEqual({ tonic: 0, minor: false })
+  })
+
+  it('is null for what is not a key', () => {
+    for (const k of [null, '', 'G/B', 'capo 2', 'F#m7']) expect(songKeyTone(k)).toBeNull()
+  })
+})
 
 describe('parseSongKey', () => {
   it('reads a tonic and ignores the mode', () => {

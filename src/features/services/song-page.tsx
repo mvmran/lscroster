@@ -76,6 +76,7 @@ import {
 import { ChordNotationToggle } from '@/features/services/chord-notation-toggle'
 import { useChordNotation } from '@/features/services/use-chord-notation'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
+import { KeySoundButtons } from '@/features/services/key-sound-buttons'
 import { MetronomeButton } from '@/features/services/metronome-button'
 import {
   appendImportedLyrics,
@@ -469,7 +470,10 @@ function ArrangementForm({
       <dl className="grid grid-cols-3 gap-4 text-sm">
         <div>
           <dt className="text-muted-foreground">Key</dt>
-          <dd className="font-medium">{arrangement.song_key ?? '—'}</dd>
+          <dd className="flex flex-wrap items-center gap-2 font-medium">
+            {arrangement.song_key ?? '—'}
+            <KeySoundButtons songKey={arrangement.song_key} />
+          </dd>
         </div>
         <div>
           <dt className="text-muted-foreground">BPM</dt>
@@ -558,13 +562,17 @@ function ArrangementForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-2">
           <Label htmlFor={`arr-key-${arrangement.id}`}>Key</Label>
-          <Input
-            id={`arr-key-${arrangement.id}`}
-            value={songKey}
-            onChange={(e) => setSongKey(e.target.value)}
-            placeholder="e.g. G"
-            aria-invalid={keyUnreadable}
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id={`arr-key-${arrangement.id}`}
+              value={songKey}
+              onChange={(e) => setSongKey(e.target.value)}
+              placeholder="e.g. G"
+              aria-invalid={keyUnreadable}
+            />
+            {/* Follows the box as typed, saved or not. */}
+            <KeySoundButtons songKey={songKey.trim() || null} />
+          </div>
           {keyUnreadable && (
             <p className="text-destructive text-xs">
               This arrangement has chords saved, and they are stored as numbers

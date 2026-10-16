@@ -1,3 +1,5 @@
+import { audioContext, audioSupported, stopWhenHidden } from '@/lib/audio'
+
 /**
  * A metronome built on the Web Audio API: no audio files, no library. Clicks
  * are short synthesised blips scheduled a little ahead on the audio clock (a
@@ -116,9 +118,7 @@ function clampBpm(bpm: number) {
 }
 
 /** Whether this browser can play the metronome at all. */
-export function metronomeSupported(): boolean {
-  return typeof window !== 'undefined' && typeof window.AudioContext === 'function'
-}
+export const metronomeSupported = audioSupported
 
 /**
  * Start clicking for `owner`, stopping whoever was playing. Must be called from
@@ -127,8 +127,7 @@ export function metronomeSupported(): boolean {
 export function startMetronome(owner: symbol, bpm: number, pattern: ClickPattern) {
   if (!metronomeSupported()) return
   stopMetronome()
-  audio ??= new AudioContext()
-  void audio.resume()
+  audio = audioContext()
   const out = audio.createGain()
   out.connect(audio.destination)
   run = {
@@ -171,8 +170,4 @@ export function subscribeMetronome(listener: () => void): () => void {
   return () => listeners.delete(listener)
 }
 
-if (typeof document !== 'undefined') {
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') stopMetronome()
-  })
-}
+stopWhenHidden(() => stopMetronome())
