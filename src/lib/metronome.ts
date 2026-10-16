@@ -24,6 +24,17 @@ export interface ClickPattern {
 export const METRONOME_MIN_BPM = 20
 export const METRONOME_MAX_BPM = 400
 
+/**
+ * How loud the click plays, 0–1 of its full loudness: each person sets theirs
+ * at Settings → Sounds (0056), and 0.6 — under the default pad — until they do.
+ * Keep this the same as the column's default.
+ */
+export const DEFAULT_CLICK_LEVEL = 0.6
+
+function clampLevel(level: number) {
+  return Math.min(1, Math.max(0, level))
+}
+
 /** `{ beats: 6, unit: 8 }` from a time signature such as `6/8`, or null. */
 export function parseMeter(
   meter: string | null | undefined,
@@ -124,11 +135,17 @@ export const metronomeSupported = audioSupported
  * Start clicking for `owner`, stopping whoever was playing. Must be called from
  * a tap or click: browsers only let a page start sound in answer to one.
  */
-export function startMetronome(owner: symbol, bpm: number, pattern: ClickPattern) {
+export function startMetronome(
+  owner: symbol,
+  bpm: number,
+  pattern: ClickPattern,
+  level = DEFAULT_CLICK_LEVEL,
+) {
   if (!metronomeSupported()) return
   stopMetronome()
   audio = audioContext()
   const out = audio.createGain()
+  out.gain.value = clampLevel(level)
   out.connect(audio.destination)
   run = {
     owner,
@@ -149,6 +166,12 @@ export function updateMetronome(owner: symbol, bpm: number, pattern: ClickPatter
   if (pattern.bar.length !== run.pattern.bar.length) run.index = 0
   run.bpm = clampBpm(bpm)
   run.pattern = pattern
+}
+
+/** Follow a volume change while clicking — a short glide, so it doesn't pop. */
+export function setMetronomeLevel(owner: symbol, level: number) {
+  if (run?.owner !== owner || !audio) return
+  run.out.gain.setTargetAtTime(clampLevel(level), audio.currentTime, 0.03)
 }
 
 /** Stop the metronome — only if `owner` is the one playing, when given. */

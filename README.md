@@ -82,6 +82,7 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
   manual, a message of the day or the church wiki, managed from Settings
 - Hear a song before you play it: a pad in its key, a I–IV–V–I on keys and a
   metronome, synthesised in the browser — each person picks their own pad sound
+  and click volume
 - Contact-detail visibility rules, an audit log of who changed what, and a
   read-only Projection API for your projection software
   ([PROJECTION-API.md](docs/PROJECTION-API.md))

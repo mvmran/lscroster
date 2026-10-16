@@ -1146,6 +1146,26 @@ fit. (The one red check was the test assuming an empty bucket: an orphan PDF
 from the 2026-10-04 local testing is still there; this run's upload was removed.)
 **Upgrade note:** `db push` (0055) before the bundle; no function change.
 
+(0056) `person_click_level` **Each person's click volume** (2026-10-17): the
+metronome played at one fixed loudness straight to the speakers and could drown
+the pad. `person_sound_prefs.click_level real not null default 0.6` (0–1 of the
+old loudness, checked) — its own number, not a share of the pad's level, since
+the click often plays alone; `pad` gets a default of `{}` (read as the default
+pad) so the click can be saved before any pad is. Grants and RLS from 0054
+cover it. The engine gains an output gain (`startMetronome(…, level)`,
+`setMetronomeLevel` glides it live); `useMetronome` takes the level; the song
+page / Edit song button and the Lyrics Sheet's Click bubble play the saved one
+(`useClickLevel`). The pad and click now share one query (`['sound-prefs', id]`)
+and each save upserts only its own column. The Settings card becomes **Sounds**:
+the pad line as before, a **Click volume** slider (5–100 %, saved on release,
+followed live while playing) and **Play both** — the pad in G under a 76 BPM
+4/4 click — for balancing by ear. Verified: an 18-check browser run as a member
+(card defaults; Play both starting pad and click at 0.6; the slider moving the
+playing click to 0.5 live and saving 0.5 with `pad` left `{}`; Stop; reload;
+the song page's metronome at 0.5; saving a pad keeping the click; above 1
+refused, 400; another person's row refused, 403; phone fit).
+**Upgrade note:** `db push` (0056) before the bundle; no function change.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

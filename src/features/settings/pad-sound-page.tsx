@@ -71,7 +71,7 @@ const sameSettings = (a: PadSettings, b: PadSettings) =>
   (Object.keys(a) as (keyof PadSettings)[]).every((k) => a[k] === b[k])
 
 /**
- * Settings → Pad sound: choose the pad the waveform buttons play — one of the
+ * Settings → Sounds → Choose pad sound: the pad the waveform buttons play — one of the
  * presets, or tuned with the controls below — hearing it as you go, and save
  * it to your account. The preview plays the pad on its own, in a key of your
  * choice, and follows every change: filter, drift, reverb and level move while

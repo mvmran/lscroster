@@ -1,6 +1,6 @@
 import { AudioWaveform, Metronome, Pause } from 'lucide-react'
 import { songKeyTone } from '@/features/services/chord-notation'
-import { usePadSettings } from '@/features/settings/use-pad-settings'
+import { useClickLevel, usePadSettings } from '@/features/settings/use-pad-settings'
 import { cn } from '@/lib/utils'
 import { keySoundSupported } from '@/lib/key-sound'
 import {
@@ -79,7 +79,8 @@ export function ClickBubble({
   bpm: number | null
   meter: string | null
 }) {
-  const { playing, toggle } = useMetronome(bpm, meter)
+  const { level } = useClickLevel()
+  const { playing, toggle } = useMetronome(bpm, meter, level)
   if (
     bpm === null ||
     bpm < METRONOME_MIN_BPM ||

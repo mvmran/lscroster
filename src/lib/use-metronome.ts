@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import {
   clickPattern,
+  DEFAULT_CLICK_LEVEL,
   metronomeOwner,
+  setMetronomeLevel,
   startMetronome,
   stopMetronome,
   subscribeMetronome,
@@ -9,11 +11,16 @@ import {
 } from '@/lib/metronome'
 
 /**
- * A metronome for one control. It follows `bpm` and `meter` live while playing
- * (stopping if the tempo is cleared), and stops when the component that owns it
- * goes away — leaving the page, or switching to another arrangement's tab.
+ * A metronome for one control. It follows `bpm`, `meter` and `level` (its
+ * volume) live while playing — stopping if the tempo is cleared — and stops
+ * when the component that owns it goes away: leaving the page, or switching to
+ * another arrangement's tab.
  */
-export function useMetronome(bpm: number | null, meter: string | null) {
+export function useMetronome(
+  bpm: number | null,
+  meter: string | null,
+  level = DEFAULT_CLICK_LEVEL,
+) {
   const [id] = useState(() => Symbol('metronome'))
   const playing = useSyncExternalStore(subscribeMetronome, metronomeOwner) === id
   const pattern = useMemo(() => clickPattern(meter), [meter])
@@ -24,11 +31,15 @@ export function useMetronome(bpm: number | null, meter: string | null) {
     else updateMetronome(id, bpm, pattern)
   }, [id, playing, bpm, pattern])
 
+  useEffect(() => {
+    if (playing) setMetronomeLevel(id, level)
+  }, [id, playing, level])
+
   useEffect(() => () => stopMetronome(id), [id])
 
   function toggle() {
     if (playing) stopMetronome(id)
-    else if (bpm !== null) startMetronome(id, bpm, pattern)
+    else if (bpm !== null) startMetronome(id, bpm, pattern, level)
   }
 
   return { playing, toggle }

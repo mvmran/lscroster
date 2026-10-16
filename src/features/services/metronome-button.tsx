@@ -1,5 +1,6 @@
 import { Metronome, Pause } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useClickLevel } from '@/features/settings/use-pad-settings'
 import {
   METRONOME_MAX_BPM,
   METRONOME_MIN_BPM,
@@ -11,10 +12,12 @@ import { useMetronome } from '@/lib/use-metronome'
 /**
  * The metronome (⏸ while playing): a click at the tempo, accented by the meter
  * when there is one, a plain click when there isn't. `bpm` is null when the box
- * is empty or not a whole number above 0.
+ * is empty or not a whole number above 0. It plays at the person's own click
+ * volume (Settings → Sounds).
  */
 export function MetronomeButton({ bpm, meter }: { bpm: number | null; meter: string | null }) {
-  const { playing, toggle } = useMetronome(bpm, meter)
+  const { level } = useClickLevel()
+  const { playing, toggle } = useMetronome(bpm, meter, level)
   const meterLabel = parseMeter(meter) ? meter?.replace(/\s+/g, '') : null
 
   const blocked = !metronomeSupported()

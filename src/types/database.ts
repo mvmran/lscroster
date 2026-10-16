@@ -820,18 +820,21 @@ export type Database = {
       }
       person_sound_prefs: {
         Row: {
+          click_level: number
           created_at: string
           pad: Json
           person_id: string
           updated_at: string
         }
         Insert: {
+          click_level?: number
           created_at?: string
-          pad: Json
+          pad?: Json
           person_id: string
           updated_at?: string
         }
         Update: {
+          click_level?: number
           created_at?: string
           pad?: Json
           person_id?: string

@@ -495,17 +495,28 @@ Press the sun icon at the top right and choose **Light**, **Dark** or
 **System** (follow your phone or computer's setting). The choice is remembered
 on that device.
 
-## 4.6 Your pad sound
+## 4.6 Your pad and click
 
-**Who:** everyone. **Where:** Settings → **Pad sound**.
+**Who:** everyone. **Where:** Settings → **Sounds**.
 
 The waveform button beside a song's key (on the song page, in a plan's **Edit
 song** and as **Pad** on a Lyrics Sheet) plays a pad: a soft, held chord in the
-song's key to play or sing over. How that pad sounds is your choice, and it
-follows you to every device you sign in on. Nobody else's pad changes.
+song's key to play or sing over. The metronome button (**Click** on a Lyrics
+Sheet) plays a click at the song's tempo. How the pad sounds and how loud the
+click is are your choice, and they follow you to every device you sign in on.
+Nobody else's sounds change.
 
-The **Pad sound** card shows the pad you have (**Dark Warm** unless you chose
-another), a ▶ to hear it, and **Choose pad sound**, which opens the full page:
+The **Sounds** card shows:
+
+- **Pad** — the pad you have (**Dark Warm** unless you chose another), a
+  waveform button to hear it, and **Choose pad sound** (below).
+- **Click volume** — drag the slider to make the click quieter or louder. It
+  starts at 60%, under the default pad; 100% is as loud as it goes. It's saved
+  as soon as you let go.
+- **Play both** — plays your pad with a click, so you can set the balance by
+  ear: move the slider while they play, then press **Stop**.
+
+**Choose pad sound** opens the full page:
 
 1. Press **Preview** and pick a key to hear it in (it starts in G).
 2. Choose one of the eight **presets**: *Dark Warm* (the default), *Plain
@@ -897,8 +908,9 @@ The **Arrangements** card has one tab per arrangement. Each has:
 - a **Key**, **BPM** and **Meter** (e.g. 4/4). After the meter, three small
   buttons play them: the **waveform** starts a pad in the key, in your own pad
   sound (§4.6), that plays until you press ⏸; the **piano** plays a short I–IV–V–I so
-  you can hear the key; the **metronome** clicks at the tempo — beat 1 accented
-  by the meter, a plain click without one (6/8 counts the dotted beat). The pad
+  you can hear the key; the **metronome** clicks at the tempo, at your click
+  volume (§4.6) — beat 1 accented by the meter, a plain click without one (6/8
+  counts the dotted beat). The pad
   and the metronome can play together; all stop when you leave the page or
   switch arrangement;
 - **Reference recordings** — links (e.g. YouTube) to the versions the band
