@@ -78,6 +78,7 @@ import { useChordNotation } from '@/features/services/use-chord-notation'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
 import { KeySoundButtons } from '@/features/services/key-sound-buttons'
 import { MetronomeButton } from '@/features/services/metronome-button'
+import { PlayRecordingButton } from '@/features/services/play-recording-button'
 import {
   appendImportedLyrics,
   appendLayers,
@@ -363,46 +364,6 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
 
 /** The database caps an arrangement at this many links (0051). */
 const MAX_REFERENCE_URLS = 10
-
-/**
- * A small ▶ that opens a reference recording in a new tab — YouTube and the like
- * start playing there. Greyed out, with the reason as its hint, until the box
- * holds a full http(s) link.
- */
-function PlayRecordingButton({ url }: { url: string }) {
-  const href = playableUrl(url)
-  if (!href) {
-    return (
-      // A disabled Button has pointer-events: none, so the hint lives on a span.
-      <span
-        className="inline-flex"
-        title={
-          url.trim() === ''
-            ? 'Add a link to play it'
-            : 'Enter a full link starting with http:// or https:// to play it'
-        }
-      >
-        <Button variant="outline" size="icon" disabled aria-label="Play recording">
-          <Play className="size-4" />
-        </Button>
-      </span>
-    )
-  }
-  return (
-    <Button variant="outline" size="icon" className="shrink-0" asChild>
-      {/* With asChild the child wins, so the hint goes on the link itself. */}
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer noopener"
-        title="Play in a new tab"
-        aria-label="Play this recording in a new tab"
-      >
-        <Play className="size-4 fill-current" />
-      </a>
-    </Button>
-  )
-}
 
 function ArrangementForm({
   songId,

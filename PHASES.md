@@ -1011,6 +1011,26 @@ on the line below and starting at the song name's x, smaller and muted, Default 
 Lyrics Sheet names, phone label visible, no sideways scroll); unit tests for both helpers and the
 Lyrics Sheet title. **Upgrade note:** `db push` (0052) before the bundle.
 
+(0053) `plan_item_reference_url` **A plan picks which recording it follows**
+(2026-10-16): the Add song and Edit song dialogs on a plan get a **Reference
+recording** dropdown ("1 · youtube.com/watch?v=…", from `recordingLabel()`) with
+the ▶ beside it, whenever the item's arrangement has any recordings; switching
+arrangement in Add starts again from the new one's first. The pick is stored in
+`plan_items.reference_url` (and `plan_template_items.reference_url`, carried by
+reorder, save-as-template, template update and copy-a-plan like `bpm_override`).
+`chosenReferenceUrl()` resolves it — the pick while the arrangement still lists
+it, else the arrangement's first, so pre-0053 items and a pick since removed
+from the song still link somewhere. The Lyrics Sheet goes back to a **single
+Listen** bubble pointing at it (0051's "Listen 2, 3…" chips are gone), and the
+set-list email to one "Listen ›" per song, the same pick (the function mirrors
+the rule in `_shared/email-templates/setlist.ts`, with Deno tests).
+`PlayRecordingButton` moved to its own file so the dialog shares it. Verified
+with a 13-check browser run on today's plan: one Listen before and after a pick,
+Edit dropdown + ▶ + save, Add on Default (no field) then Key G (field, first
+picked) + save, the fallback after the pick was removed from the song.
+**Upgrade note:** `db push` (0053), then `functions deploy send-setlist`, before
+the bundle.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

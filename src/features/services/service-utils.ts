@@ -403,8 +403,8 @@ export interface LyricsSheetEntry {
   key: string | null
   bpm: number | null
   meter: string | null
-  /** The arrangement's reference recordings, for the "Listen" links. */
-  referenceUrls: string[]
+  /** The recording this plan follows, for the one "Listen" link (0053). */
+  referenceUrl: string | null
   lyrics: string | null
   /** The base text plus its native / meaning / chord layers (#139). */
   layers: LayeredLyrics
@@ -447,9 +447,9 @@ export function buildLyricsSheet(
         // Tempo follows the same rule: this plan's, else the arrangement's.
         bpm: i.bpm_override ?? info?.arrangement.bpm ?? null,
         meter: info?.arrangement.meter ?? null,
-        // The recordings this arrangement follows. Nothing overrides them —
-        // they belong to the arrangement, not to a plan that happens to use it.
-        referenceUrls: info?.arrangement.reference_urls ?? [],
+        // The one recording this plan picked from the arrangement's list, or
+        // its first.
+        referenceUrl: chosenReferenceUrl(i.reference_url, info?.arrangement.reference_urls),
         lyrics: (pinned ?? latest)?.lyrics ?? null,
         // Chords stay as stored (numbers); the reader and the PDF convert,
         // because which notation to show is the reader's choice, not the data's.
@@ -474,6 +474,31 @@ export function playableUrl(url: string | null | undefined): string | null {
 /** Every link in `urls` that `playableUrl` accepts, in order. */
 export function playableUrls(urls: readonly string[] | null | undefined): string[] {
   return (urls ?? []).map(playableUrl).filter((u): u is string => u !== null)
+}
+
+/**
+ * The recording a plan item follows: the one it picked (`plan_items.reference_url`)
+ * while the arrangement still lists it, else the arrangement's first — so a
+ * plan made before 0053, or one whose pick was since removed from the song,
+ * still has a link. Null when the arrangement has none.
+ */
+export function chosenReferenceUrl(
+  chosen: string | null | undefined,
+  arrangementUrls: readonly string[] | null | undefined,
+): string | null {
+  const urls = playableUrls(arrangementUrls)
+  return chosen && urls.includes(chosen) ? chosen : (urls[0] ?? null)
+}
+
+/** "youtube.com/watch?v=abc" from a link, for a dropdown: no scheme, no www. */
+export function recordingLabel(url: string): string {
+  try {
+    const parsed = new URL(url)
+    const rest = `${parsed.pathname}${parsed.search}`.replace(/^\/$/, '')
+    return `${parsed.host.replace(/^www\./, '')}${rest}`
+  } catch {
+    return url
+  }
 }
 
 /** "Key G  ·  72 BPM  ·  4/4" from an entry, or '' when none are set. */

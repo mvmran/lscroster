@@ -163,6 +163,7 @@ export function useReorderPlanItems(planId: string) {
         lyrics_id: item.lyrics_id,
         key_override: item.key_override,
         bpm_override: item.bpm_override,
+        reference_url: item.reference_url,
         length_seconds: item.length_seconds,
         description: item.description,
         sort_order: index,

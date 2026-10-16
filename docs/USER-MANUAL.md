@@ -739,7 +739,8 @@ At the bottom of the order of service are three buttons:
 
 - **Add song** — search the library and pick a song. The **Add song** box then
   opens: choose the **Arrangement** if the song has more than one, set this
-  plan's **Key**, **BPM**, length and notes if they differ, and press **Add**.
+  plan's **Key**, **BPM**, length and notes if they differ, pick the **Reference
+  recording** this plan follows if the song has more than one, and press **Add**.
   On the plan the song shows by its name, with any arrangement other than the
   Default on a small, lighter line under it — *(Acoustic)*. §7.4 describes the
   optional ✨ suggestion button.
@@ -870,8 +871,9 @@ The **Arrangements** card has one tab per arrangement. Each has:
   arrangement;
 - **Reference recordings** — links (e.g. YouTube) to the versions the band
   follows, such as a studio take and a live one. Press ▶ beside a link to play
-  it in a new tab, and **Add another recording** for up to ten. Each becomes a
-  **Listen** link on plans and in the set-list email, first one first;
+  it in a new tab, and **Add another recording** for up to ten. Each plan picks
+  one of them for the song (the first, unless changed in the plan's song box),
+  and that one is the **Listen** link on the plan and in the set-list email;
 - its **Lyrics** (§7.3) and **attachments** — charts, recordings or PDFs (up to
   25 MB, **Upload file**).
 

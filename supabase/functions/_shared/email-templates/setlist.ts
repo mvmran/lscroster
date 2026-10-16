@@ -27,8 +27,8 @@ export interface SetlistEmailParams {
     title: string
     /** The item's flow/dynamics note, shown under the title. */
     detail: string | null
-    /** The arrangement's recordings, first one first; empty when none. */
-    referenceUrls: string[]
+    /** The recording this plan follows (see `chosenReferenceUrl`), or null. */
+    referenceUrl: string | null
     key: string | null
     meter: string | null
     bpm: number | null
@@ -43,6 +43,7 @@ export interface SetlistEmailParams {
 // bands. Colours stay email-safe inline.
 const BORDER = 'border:1px solid #d4d4d8;'
 const CELL = `${BORDER}padding:7px 10px;font-size:13px;color:#3f3f46;vertical-align:top;`
+const HTTP_URL = /^https?:\/\/\S+$/i
 const LABEL_CELL = `${CELL}background-color:#fafafa;font-weight:700;color:#18181b;white-space:nowrap;`
 
 const sectionRow = (title: string, span: number) => `
@@ -89,16 +90,11 @@ function grid(p: SetlistEmailParams): string {
           ? `<div style="font-size:12px;color:#71717a;padding-top:2px;">${esc(s.detail)}</div>`
           : ''
       }`
-      // Only http(s) is ever linked: the column is checked, but this is the href.
-      const link = s.referenceUrls
-        .filter((u) => /^https?:\/\/\S+$/i.test(u))
-        .map(
-          (u, i) =>
-            `<a href="${esc(u)}" style="color:#2563eb;text-decoration:none;">Listen${
-              i === 0 ? '' : `&nbsp;${i + 1}`
-            }&nbsp;›</a>`,
-        )
-        .join('<br>')
+      // Only http(s) is ever linked: the columns are checked, but this is the href.
+      const link =
+        s.referenceUrl && HTTP_URL.test(s.referenceUrl)
+          ? `<a href="${esc(s.referenceUrl)}" style="color:#2563eb;text-decoration:none;">Listen&nbsp;›</a>`
+          : ''
       return `
         <tr>
           <td style="${CELL}">${name}</td>
@@ -126,6 +122,19 @@ function grid(p: SetlistEmailParams): string {
       ${p.songs.length > 0 ? `${sectionRow('Song List', SPAN)}${songHeader}${songRows}` : ''}
       ${notesRows}
     </table>`
+}
+
+/**
+ * The recording a plan item follows: its pick (`plan_items.reference_url`)
+ * while the arrangement still lists it, else the arrangement's first; null when
+ * there is none. Mirrors `chosenReferenceUrl` in the app's service-utils.
+ */
+export function chosenReferenceUrl(
+  chosen: string | null | undefined,
+  arrangementUrls: readonly string[],
+): string | null {
+  const urls = arrangementUrls.map((u) => u.trim()).filter((u) => HTTP_URL.test(u))
+  return chosen && urls.includes(chosen) ? chosen : (urls[0] ?? null)
 }
 
 export function setlistEmail(p: SetlistEmailParams): { subject: string; html: string } {

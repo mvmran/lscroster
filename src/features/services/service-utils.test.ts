@@ -3,6 +3,8 @@ import {
   arrangementLabel,
   arrangementSongTitle,
   buildLyricsSheet,
+  chosenReferenceUrl,
+  recordingLabel,
   comparePlansByDateTime,
   findClashingPlans,
   lyricsSheetMeta,
@@ -286,6 +288,28 @@ describe('arrangementSongTitle and arrangementLabel', () => {
   })
 })
 
+describe('chosenReferenceUrl', () => {
+  const urls = ['https://youtu.be/studio', 'https://youtu.be/live']
+  it('is the pick while the arrangement still lists it', () => {
+    expect(chosenReferenceUrl('https://youtu.be/live', urls)).toBe('https://youtu.be/live')
+  })
+  it('falls back to the first: nothing picked, or the pick since removed', () => {
+    expect(chosenReferenceUrl(null, urls)).toBe('https://youtu.be/studio')
+    expect(chosenReferenceUrl('https://youtu.be/gone', urls)).toBe('https://youtu.be/studio')
+  })
+  it('is null when the arrangement has none', () => {
+    expect(chosenReferenceUrl('https://youtu.be/live', [])).toBeNull()
+  })
+})
+
+describe('recordingLabel', () => {
+  it('drops the scheme and www', () => {
+    expect(recordingLabel('https://www.youtube.com/watch?v=abc')).toBe('youtube.com/watch?v=abc')
+    expect(recordingLabel('https://youtu.be/live')).toBe('youtu.be/live')
+    expect(recordingLabel('https://example.org/')).toBe('example.org')
+  })
+})
+
 describe('buildLyricsSheet key and tempo', () => {
   const arrangement: SongArrangement = {
     id: 'arr-1',
@@ -320,6 +344,7 @@ describe('buildLyricsSheet key and tempo', () => {
       bpm_override: null,
       length_seconds: 240,
       description: null,
+      reference_url: null,
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
       ...overrides,
@@ -330,8 +355,18 @@ describe('buildLyricsSheet key and tempo', () => {
     const [entry] = buildLyricsSheet([songItem({})], arrangements, lyrics)
     expect(entry.key).toBe('D')
     expect(entry.bpm).toBe(72)
-    expect(entry.referenceUrls).toEqual(['https://youtu.be/demo', 'https://youtu.be/live'])
+    // Nothing picked: the arrangement's first recording.
+    expect(entry.referenceUrl).toBe('https://youtu.be/demo')
     expect(lyricsSheetMeta(entry)).toBe('Key D  ·  72 BPM  ·  4/4')
+  })
+
+  it('links the recording the plan picked', () => {
+    const [entry] = buildLyricsSheet(
+      [songItem({ reference_url: 'https://youtu.be/live' })],
+      arrangements,
+      lyrics,
+    )
+    expect(entry.referenceUrl).toBe('https://youtu.be/live')
   })
 
   it('titles a song by its name alone, whichever arrangement', () => {

@@ -13,7 +13,7 @@ import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { resolveRecipient } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
 import { isEmailableActive } from '../_shared/person-status.ts'
-import { setlistEmail } from '../_shared/email-templates/setlist.ts'
+import { chosenReferenceUrl, setlistEmail } from '../_shared/email-templates/setlist.ts'
 import { sendEmailBatch } from '../_shared/resend.ts'
 import { appUrl, formatPlanDateLong, formatStartTime } from '../_shared/scheduling.ts'
 
@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
 
   const { data: itemRows } = await admin
     .from('plan_items')
-    .select('kind, title, arrangement_id, key_override, description, sort_order')
+    .select('kind, title, arrangement_id, key_override, reference_url, description, sort_order')
     .eq('plan_id', planId)
   const songItems = (itemRows ?? [])
     .filter((i) => i.kind === 'song')
@@ -220,7 +220,7 @@ Deno.serve(async (req) => {
       title: i.title,
       detail: i.description,
       // "Leave empty if not present" — no search-link fallback here.
-      referenceUrls: arr?.reference_urls ?? [],
+      referenceUrl: chosenReferenceUrl(i.reference_url, arr?.reference_urls ?? []),
       key: i.key_override ?? arr?.song_key ?? null,
       meter: arr?.meter ?? null,
       bpm: arr?.bpm ?? null,

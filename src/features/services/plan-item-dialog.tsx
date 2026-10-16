@@ -21,12 +21,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { PlayRecordingButton } from '@/features/services/play-recording-button'
 import {
   arrangementSongTitle,
+  chosenReferenceUrl,
   DEFAULT_ITEM_LENGTH,
   formatLength,
   isMedley,
   parseLengthInput,
+  playableUrls,
+  recordingLabel,
   type ArrangementInfo,
   type PlanItem,
   type PlanItemKind,
@@ -97,6 +101,12 @@ function ItemForm({
   const [keyOverride, setKeyOverride] = useState(item?.key_override ?? '')
   const [bpmOverride, setBpmOverride] = useState(item?.bpm_override?.toString() ?? '')
   const [description, setDescription] = useState(item?.description ?? '')
+  // Which of the arrangement's recordings this plan follows (0053): the item's
+  // pick, else the first. Picking another arrangement starts again from its first.
+  const recordings = playableUrls(arrangement?.reference_urls)
+  const [recording, setRecording] = useState(() =>
+    chosenReferenceUrl(item?.reference_url, arrangement?.reference_urls),
+  )
 
   const lengthSeconds = parseLengthInput(length)
   const lengthInvalid = lengthSeconds === null
@@ -117,6 +127,7 @@ function ItemForm({
       key_override: keyOverride.trim() || null,
       bpm_override: bpmValue,
       description: description.trim() || null,
+      ...(kind === 'song' ? { reference_url: recording } : {}),
     }
     try {
       if (item) {
@@ -148,6 +159,10 @@ function ItemForm({
               onValueChange={(id) => {
                 setArrangementId(id)
                 if (!titleEdited) setTitle(titleFor(id))
+                const next =
+                  arrangements.get(id)?.arrangement ??
+                  picked.arrangements.find((a) => a.id === id)
+                setRecording(chosenReferenceUrl(null, next?.reference_urls))
               }}
             >
               <SelectTrigger id="pi-arrangement" className="w-full">
@@ -241,6 +256,30 @@ function ItemForm({
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {kind === 'song' && recordings.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="pi-recording">Reference recording</Label>
+            <div className="flex items-center gap-2">
+              <Select value={recording ?? undefined} onValueChange={setRecording}>
+                <SelectTrigger id="pi-recording" className="w-full min-w-0 flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {recordings.map((url, i) => (
+                    <SelectItem key={`${i}-${url}`} value={url}>
+                      {i + 1} · {recordingLabel(url)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {recording && <PlayRecordingButton url={recording} />}
+            </div>
+            <p className="text-muted-foreground text-xs">
+              The Lyrics Sheet’s Listen link and the set-list email point here.
+            </p>
           </div>
         )}
 

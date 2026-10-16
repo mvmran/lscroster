@@ -35,7 +35,7 @@ import {
   buildLyricsSheet,
   formatStartTime,
   lyricsSheetMeta,
-  playableUrls,
+  playableUrl,
 } from '@/features/services/service-utils'
 import {
   useDeletePlanAttachment,
@@ -460,30 +460,26 @@ export function PlanMediaCard({
             {entries.map((entry) => {
               const meta = lyricsSheetMeta(entry)
               const hasLyrics = !!entry.lyrics && entry.lyrics.trim().length > 0
-              const references = playableUrls(entry.referenceUrls)
+              const reference = playableUrl(entry.referenceUrl)
               return (
                 <div key={entry.songItemId} className="flex flex-col gap-1">
                   <h3 className="font-semibold leading-tight">{entry.title}</h3>
-                  {(meta || references.length > 0) && (
+                  {(meta || reference) && (
                     <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                       {meta && <span>{meta}</span>}
-                      {references.map((href, i) => (
+                      {/* One link: the recording this plan picked for the song. */}
+                      {reference && (
                         <a
-                          key={`${i}-${href}`}
-                          href={href}
+                          href={reference}
                           target="_blank"
                           rel="noreferrer noopener"
-                          title={
-                            references.length > 1
-                              ? `Open reference recording ${i + 1} in a new tab`
-                              : 'Open the reference recording in a new tab'
-                          }
+                          title="Open the reference recording in a new tab"
                           className="border-primary/25 bg-primary/10 text-primary hover:bg-primary/20 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium"
                         >
                           <Headphones className="size-3" />
-                          {i === 0 ? 'Listen' : `Listen ${i + 1}`}
+                          Listen
                         </a>
-                      ))}
+                      )}
                     </div>
                   )}
                   {hasLyrics ? (
