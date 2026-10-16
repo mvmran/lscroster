@@ -76,8 +76,7 @@ import {
 import { ChordNotationToggle } from '@/features/services/chord-notation-toggle'
 import { useChordNotation } from '@/features/services/use-chord-notation'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
-import { KeySoundButtons } from '@/features/services/key-sound-buttons'
-import { MetronomeButton } from '@/features/services/metronome-button'
+import { SongSoundButtons } from '@/features/services/key-sound-buttons'
 import { PlayRecordingButton } from '@/features/services/play-recording-button'
 import {
   appendImportedLyrics,
@@ -431,10 +430,7 @@ function ArrangementForm({
       <dl className="grid grid-cols-3 gap-4 text-sm">
         <div>
           <dt className="text-muted-foreground">Key</dt>
-          <dd className="flex flex-wrap items-center gap-2 font-medium">
-            {arrangement.song_key ?? '—'}
-            <KeySoundButtons songKey={arrangement.song_key} />
-          </dd>
+          <dd className="font-medium">{arrangement.song_key ?? '—'}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground">BPM</dt>
@@ -442,9 +438,13 @@ function ArrangementForm({
         </div>
         <div>
           <dt className="text-muted-foreground">Meter</dt>
-          <dd className="flex items-center gap-2 font-medium">
+          <dd className="flex flex-wrap items-center gap-2 font-medium">
             {arrangement.meter ?? '—'}
-            <MetronomeButton bpm={arrangement.bpm} meter={arrangement.meter} />
+            <SongSoundButtons
+              songKey={arrangement.song_key}
+              bpm={arrangement.bpm}
+              meter={arrangement.meter}
+            />
           </dd>
         </div>
         {references.length > 0 && (
@@ -523,17 +523,13 @@ function ArrangementForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-2">
           <Label htmlFor={`arr-key-${arrangement.id}`}>Key</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              id={`arr-key-${arrangement.id}`}
-              value={songKey}
-              onChange={(e) => setSongKey(e.target.value)}
-              placeholder="e.g. G"
-              aria-invalid={keyUnreadable}
-            />
-            {/* Follows the box as typed, saved or not. */}
-            <KeySoundButtons songKey={songKey.trim() || null} />
-          </div>
+          <Input
+            id={`arr-key-${arrangement.id}`}
+            value={songKey}
+            onChange={(e) => setSongKey(e.target.value)}
+            placeholder="e.g. G"
+            aria-invalid={keyUnreadable}
+          />
           {keyUnreadable && (
             <p className="text-destructive text-xs">
               This arrangement has chords saved, and they are stored as numbers
@@ -563,8 +559,10 @@ function ArrangementForm({
               onChange={(e) => setMeter(e.target.value)}
               placeholder="e.g. 4/4"
             />
-            {/* Follows the boxes as typed, saved or not. */}
-            <MetronomeButton
+            {/* Pad, key riff and metronome, following the boxes as typed,
+                saved or not. */}
+            <SongSoundButtons
+              songKey={songKey.trim() || null}
               bpm={bpmInvalid ? null : bpmValue}
               meter={meter.trim() || null}
             />
@@ -574,8 +572,8 @@ function ArrangementForm({
       <div className="flex flex-col gap-2">
         <Label htmlFor={`arr-ref-${arrangement.id}-0`}>Reference recordings</Label>
         <p className="text-muted-foreground text-xs">
-          The YouTube (or other) links this arrangement follows — shown on the
-          worship set list, first one first.
+          The YouTube (or other) links this arrangement follows. Plans use the
+          first unless they pick another, for their Listen link and set list.
         </p>
         {referenceUrls.map((url, i) => (
           <div key={i} className="flex items-center gap-2">

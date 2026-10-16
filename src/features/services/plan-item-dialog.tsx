@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2, Metronome, Piano, Play } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -21,8 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { CadenceButton, PadButton } from '@/features/services/key-sound-buttons'
-import { MetronomeButton } from '@/features/services/metronome-button'
+import { SongSoundButtons } from '@/features/services/key-sound-buttons'
 import { PlayRecordingButton } from '@/features/services/play-recording-button'
 import {
   arrangementSongTitle,
@@ -260,11 +259,7 @@ function ItemForm({
                 {item ? (
                   <div className="grid grid-cols-2 items-center gap-4">
                     {bpmInput}
-                    <div className="flex items-center gap-2">
-                      <PadButton songKey={soundKey} icon={Play} />
-                      <CadenceButton songKey={soundKey} icon={Piano} />
-                      <MetronomeButton bpm={soundBpm} meter={soundMeter} icon={Metronome} />
-                    </div>
+                    <SongSoundButtons songKey={soundKey} bpm={soundBpm} meter={soundMeter} />
                   </div>
                 ) : (
                   bpmInput

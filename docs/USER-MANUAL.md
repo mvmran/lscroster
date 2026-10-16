@@ -760,8 +760,8 @@ above it; the total length and finishing time appear under the plan's title.
 **Editing or removing.** Use the **⋯** at the end of an item → **Edit** or
 **Remove**. Editing a song, three small buttons beside **BPM** play it the way
 this plan has it — your Key and BPM if you changed them, else the arrangement's:
-▶ a pad on the key's chord, the piano a short I–IV–V–I in the key, and the
-metronome a click at the tempo. They can play together, and stop when you close
+the waveform a pad on the key's chord, the piano a short I–IV–V–I in the key,
+and the metronome a click at the tempo — the same three as on the song page. They can play together, and stop when you close
 the box.
 
 **Start time.** Press *Starts 10:00* under the title to set a different start
@@ -866,13 +866,13 @@ songs (§14.2).
 The **Arrangements** card has one tab per arrangement. Each has:
 
 - a **Name** (e.g. *Default*, *Acoustic*, *Christmas*);
-- a **Key**, **BPM** and **Meter** (e.g. 4/4). Beside the key, ▶ plays a short
-  I–IV–V–I on a keyboard so you can hear the key, and the waveform button starts
-  a pad on the key's chord (major or minor) that plays until you press ⏸. Beside the
-  meter, ▶ starts a metronome at that tempo — beat 1 accented by the meter, a
-  plain click without one (6/8 counts the dotted beat). The pad and the
-  metronome can play together; both stop when you leave the page or switch
-  arrangement;
+- a **Key**, **BPM** and **Meter** (e.g. 4/4). After the meter, three small
+  buttons play them: the **waveform** starts a pad on the key's chord (major or
+  minor) that plays until you press ⏸; the **piano** plays a short I–IV–V–I so
+  you can hear the key; the **metronome** clicks at the tempo — beat 1 accented
+  by the meter, a plain click without one (6/8 counts the dotted beat). The pad
+  and the metronome can play together; all stop when you leave the page or
+  switch arrangement;
 - **Reference recordings** — links (e.g. YouTube) to the versions the band
   follows, such as a studio take and a live one. Press ▶ beside a link to play
   it in a new tab, and **Add another recording** for up to ten. Each plan picks

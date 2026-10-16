@@ -1,6 +1,7 @@
-import { AudioWaveform, Pause, Play, type LucideIcon } from 'lucide-react'
+import { AudioWaveform, Pause, Piano, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { songKeyTone } from '@/features/services/chord-notation'
+import { MetronomeButton } from '@/features/services/metronome-button'
 import { keySoundSupported } from '@/lib/key-sound'
 import { useKeySound } from '@/lib/use-key-sound'
 
@@ -24,27 +25,15 @@ function Blocked({ icon: Icon, label, reason }: { icon: LucideIcon; label: strin
   )
 }
 
-/** The idle icon, filled when it is the ▶ triangle; an outline icon (the
- * waveform, the piano) stays an outline. */
-function Idle({ icon: Icon }: { icon: LucideIcon }) {
-  return <Icon className={Icon === Play ? 'size-4 fill-current' : 'size-4'} />
-}
-
 /**
- * Plays a I–IV–V–I cadence in the key on a soft keyboard (one tap; ⏸ while it
- * sounds, tap to stop). `songKey` is the key as written, e.g. "G#m".
+ * The piano: a I–IV–V–I cadence in the key on a soft keyboard (one tap; ⏸
+ * while it sounds, tap to stop). `songKey` is the key as written, e.g. "G#m".
  */
-export function CadenceButton({
-  songKey,
-  icon = Play,
-}: {
-  songKey: string | null
-  icon?: LucideIcon
-}) {
+export function CadenceButton({ songKey }: { songKey: string | null }) {
   const { cadencePlaying, toggleCadence } = useKeySound(songKeyTone(songKey))
   const blocked = blockedReason(songKey)
   if (blocked && !cadencePlaying) {
-    return <Blocked icon={icon} label="Play the key" reason={blocked} />
+    return <Blocked icon={Piano} label="Play the key" reason={blocked} />
   }
   // The key as the arrangement spells it: "G#m" stays G#m, not A♭ minor.
   const action = cadencePlaying ? 'Stop' : `Hear the key: I–IV–V–I in ${songKey?.trim() ?? ''}`
@@ -59,23 +48,17 @@ export function CadenceButton({
       aria-label={action}
       title={action}
     >
-      {cadencePlaying ? <Pause className="size-4 fill-current" /> : <Idle icon={icon} />}
+      {cadencePlaying ? <Pause className="size-4 fill-current" /> : <Piano className="size-4" />}
     </Button>
   )
 }
 
-/** Toggles a continuous pad on the key's full chord (⏸ while it plays). */
-export function PadButton({
-  songKey,
-  icon = AudioWaveform,
-}: {
-  songKey: string | null
-  icon?: LucideIcon
-}) {
+/** The waveform: a continuous pad on the key's full chord (⏸ while it plays). */
+export function PadButton({ songKey }: { songKey: string | null }) {
   const { padPlaying, togglePad } = useKeySound(songKeyTone(songKey))
   const blocked = blockedReason(songKey)
   if (blocked && !padPlaying) {
-    return <Blocked icon={icon} label="Play a pad" reason={blocked} />
+    return <Blocked icon={AudioWaveform} label="Play a pad" reason={blocked} />
   }
   const action = padPlaying ? 'Stop the pad' : `Play a pad in ${songKey?.trim() ?? ''}`
   return (
@@ -89,20 +72,35 @@ export function PadButton({
       aria-label={action}
       title={action}
     >
-      {padPlaying ? <Pause className="size-4 fill-current" /> : <Idle icon={icon} />}
+      {padPlaying ? (
+        <Pause className="size-4 fill-current" />
+      ) : (
+        <AudioWaveform className="size-4" />
+      )}
     </Button>
   )
 }
 
 /**
- * The song page's pair beside an arrangement's Key: ▶ for the cadence, the
- * waveform for the pad. Both can run under the metronome.
+ * The trio wherever a song's sound is set — after Meter on the song page,
+ * beside BPM in a plan's Edit song: pad, key riff, metronome, in that order.
+ * The pad and the metronome can play together.
  */
-export function KeySoundButtons({ songKey }: { songKey: string | null }) {
+export function SongSoundButtons({
+  songKey,
+  bpm,
+  meter,
+}: {
+  songKey: string | null
+  /** Null when there is no tempo, or the box isn't a whole number above 0. */
+  bpm: number | null
+  meter: string | null
+}) {
   return (
-    <span className="inline-flex shrink-0 gap-2">
-      <CadenceButton songKey={songKey} />
+    <span className="inline-flex shrink-0 items-center gap-2">
       <PadButton songKey={songKey} />
+      <CadenceButton songKey={songKey} />
+      <MetronomeButton bpm={bpm} meter={meter} />
     </span>
   )
 }

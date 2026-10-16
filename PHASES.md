@@ -1048,6 +1048,20 @@ key A and the arrangement's 90 BPM in 3/4, A major pad, metronome over it at
 silent after Cancel, none in Add song, phone fit), and the song page's 21-check
 key-sound and 23-check metronome runs again, unchanged.
 
+(no migration) **One sound trio, same icons everywhere** (2026-10-16): the pad
+icon chosen from an eight-way comparison is **AudioWaveform** (over ▶, Waves,
+AudioLines, Infinity, Cloud, Layers, Wind). The song page now groups all three
+after **Meter** like the plan's dialog — nothing beside Key any more — in the
+edit form and the read-only view, as one shared `SongSoundButtons` (pad
+`AudioWaveform` · key riff `Piano` · metronome `Metronome`), so the two places
+can't drift apart. The per-call `icon` props (and `KeySoundButtons`) went with
+it. The song page's Reference recordings hint now says plans use the first
+unless they pick another (0053). Verified: a 14-check song-page run (order and
+icons after Meter on desktop and phone, nothing beside Key, buttons on the Meter
+line, the box still ≥ 180 px, tooltips, member view), the plan dialog's 14
+checks with the waveform, and the song page's key-sound (21) and metronome (23)
+runs again.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

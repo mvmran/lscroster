@@ -1,4 +1,4 @@
-import { Pause, Play, type LucideIcon } from 'lucide-react'
+import { Metronome, Pause } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   METRONOME_MAX_BPM,
@@ -9,20 +9,11 @@ import {
 import { useMetronome } from '@/lib/use-metronome'
 
 /**
- * ▶ / ⏸ beside an arrangement's BPM and Meter: plays a click at that tempo,
- * accented by the meter when there is one, a plain click when there isn't.
- * `bpm` is null when the box is empty or not a whole number above 0.
+ * The metronome (⏸ while playing): a click at the tempo, accented by the meter
+ * when there is one, a plain click when there isn't. `bpm` is null when the box
+ * is empty or not a whole number above 0.
  */
-export function MetronomeButton({
-  bpm,
-  meter,
-  icon: Icon = Play,
-}: {
-  bpm: number | null
-  meter: string | null
-  /** The idle icon: ▶ on the song page, the metronome in the plan's dialog. */
-  icon?: LucideIcon
-}) {
+export function MetronomeButton({ bpm, meter }: { bpm: number | null; meter: string | null }) {
   const { playing, toggle } = useMetronome(bpm, meter)
   const meterLabel = parseMeter(meter) ? meter?.replace(/\s+/g, '') : null
 
@@ -39,7 +30,7 @@ export function MetronomeButton({
       // A disabled Button has pointer-events: none, so the hint lives on a span.
       <span className="inline-flex shrink-0" title={blocked}>
         <Button variant="outline" size="icon" disabled aria-label="Play metronome">
-          <Icon className="size-4" />
+          <Metronome className="size-4" />
         </Button>
       </span>
     )
@@ -64,8 +55,7 @@ export function MetronomeButton({
       {playing ? (
         <Pause className="size-4 fill-current" />
       ) : (
-        // Filled when it is the ▶ triangle; an outline icon stays an outline.
-        <Icon className={Icon === Play ? 'size-4 fill-current' : 'size-4'} />
+        <Metronome className="size-4" />
       )}
     </Button>
   )
