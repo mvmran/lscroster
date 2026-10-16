@@ -522,12 +522,12 @@ describe('withVerseHeadings', () => {
       expect(toLines(parsed.layers.lyrics).filter((l) => l === 'Chorus')).toHaveLength(3)
     })
 
-    it('ignores case, punctuation and chords when comparing', () => {
+    it('ignores case, punctuation and where a chord sits when comparing', () => {
       const text = song(
         'Verse words here',
-        CHORUS,
+        '[G]Sing to the [C]Lord my soul\nSing His holy name',
         'Other verse words',
-        '[G]Sing to the [C]Lord, my soul!\nSING His holy name',
+        '[G]Sing to [C]the Lord, my soul!\nSING His holy name',
       )
       expect(headings(withVerseHeadings(text))).toEqual([
         'Verse 1',
@@ -535,6 +535,15 @@ describe('withVerseHeadings', () => {
         'Verse 2',
         'Chorus',
       ])
+    })
+
+    it('tells apart the same words over different chords', () => {
+      const text = song(
+        '[G]There is One\n[C]on the throne',
+        '[G]There is One\n[D]on the throne',
+        '[G]There is One\n[C]on the throne',
+      )
+      expect(headings(withVerseHeadings(text))).toEqual(['Chorus', 'Verse 1', 'Chorus'])
     })
 
     it('keeps one verse number for any other repeat', () => {

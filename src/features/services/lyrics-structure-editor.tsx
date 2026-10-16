@@ -495,32 +495,49 @@ export function LyricsStructureEditor({
   // heading takes the next number ("VERSE" → "VERSE 2"), and changes back if
   // the words come back. `renamed` remembers which headings this did.
   const renamed = useRef<HeadingRename[]>([])
-  const caret = useRef<{ start: number; end: number } | null>(null)
+  const caret = useRef<{ pane: 'base' | 'layer'; start: number; end: number } | null>(
+    null,
+  )
 
-  function onBaseChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
-    const text = event.target.value
-    const followed = followSectionEdit(layers.lyrics, text, renamed.current)
+  /**
+   * Pass an edit on, renumbering a repeat it made a section of its own — by
+   * its words in the lyrics pane, or its chords in the chord pane.
+   */
+  function applyEdit(
+    next: LayeredLyrics,
+    pane: 'base' | 'layer',
+    field: keyof LayeredLyrics,
+    target: HTMLTextAreaElement,
+  ) {
+    const followed = followSectionEdit(layers, next, renamed.current)
     renamed.current = followed.renamed
     if (followed.rename === null) {
-      onChange({ ...layers, lyrics: text })
+      onChange(next)
       return
     }
-    // The heading sits above the words being typed, so the caret moves on by
-    // however much longer (or shorter) the heading became.
-    const shift = followed.rename.to.length - followed.rename.from.length
+    const renumbered = renameSectionHeading(next, followed.rename)
+    // The heading sits above what is being typed, so the caret moves on by
+    // however much longer (or shorter) this pane's text became.
+    const shift = renumbered[field].length - next[field].length
     caret.current = {
-      start: event.target.selectionStart + shift,
-      end: event.target.selectionEnd + shift,
+      pane,
+      start: target.selectionStart + shift,
+      end: target.selectionEnd + shift,
     }
-    onChange(renameSectionHeading({ ...layers, lyrics: text }, followed.rename))
+    onChange(renumbered)
+  }
+
+  function onBaseChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
+    applyEdit({ ...layers, lyrics: event.target.value }, 'base', 'lyrics', event.target)
   }
 
   useLayoutEffect(() => {
     const at = caret.current
-    if (at === null || textareaRef.current === null) return
+    const pane = at?.pane === 'layer' ? chordPaneRef.current : textareaRef.current
+    if (at === null || pane === null) return
     caret.current = null
-    textareaRef.current.setSelectionRange(at.start, at.end)
-  }, [layers.lyrics])
+    pane.setSelectionRange(at.start, at.end)
+  }, [layers.lyrics, layers.chords])
 
   function handleDragStart(event: DragStartEvent) {
     setActiveIndex(indexOfId(event.active.id))
@@ -613,13 +630,14 @@ export function LyricsStructureEditor({
         ? ''
         : layers[activeLayer]
 
-  function onPaneChange(text: string) {
+  function onPaneChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
     if (activeLayer === null) return
+    const text = event.target.value
     const next =
       activeLayer === 'chords' && chordNotation === 'letters'
         ? chordsToNumbers(text, songKey)
         : text
-    onChange({ ...layers, [activeLayer]: next })
+    applyEdit({ ...layers, [activeLayer]: next }, 'layer', activeLayer, event.target)
   }
 
   // Chords read as a chart whenever nobody is typing in them, the way the
@@ -649,7 +667,7 @@ export function LyricsStructureEditor({
           wrap="off"
           aria-label={`${LAYER_LABELS[activeLayer]} text, line by line against the lyrics`}
           value={paneValue}
-          onChange={(e) => onPaneChange(e.target.value)}
+          onChange={onPaneChange}
           onFocus={() => setChordPaneFocused(true)}
           onBlur={() => setChordPaneFocused(false)}
           className={cn(

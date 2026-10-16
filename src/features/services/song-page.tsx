@@ -88,6 +88,7 @@ import {
   findNonLatinLyrics,
   hasAnyLayer,
   insertSectionHeaders,
+  numberSharedHeadingLayers,
   layersOfRow,
   lyricParagraphs,
   mirrorSectionHeaders,
@@ -849,10 +850,20 @@ function ArrangementLyricsBlock({
   // longer layers. Block it so a transliteration (or the meaning/chords) can't be
   // orphaned when someone clears the pane to ask for a fresh one. Clearing every
   // layer to remove the lyrics altogether is still allowed.
-  // Two different sets of words under one heading ("VERSE" twice, each a
-  // different verse) — allowed, but worth a second look before saving: the
-  // order, the sheet and the projection can't tell them apart.
-  const sharedHeadings = useMemo(() => sharedHeadingConflicts(value.lyrics), [value.lyrics])
+  // Two different sections under one heading ("VERSE" twice, each a different
+  // verse — different words, or the same words over different chords) —
+  // allowed, but worth a second look before saving: the order, the sheet and
+  // the projection can't tell them apart.
+  const sharedHeadings = useMemo(
+    () => sharedHeadingConflicts({ lyrics: value.lyrics, chords: value.chords }),
+    [value.lyrics, value.chords],
+  )
+
+  /** Give each differing section under a shared heading its own number. */
+  function numberSharedHeadings() {
+    setConfirmShared(false)
+    setDraft(numberSharedHeadingLayers(value))
+  }
   const baseMissing =
     value.lyrics.trim() === '' &&
     (value.native.trim() !== '' ||
@@ -1165,6 +1176,20 @@ function ArrangementLyricsBlock({
             songKey={songKey}
           />
         )}
+        {/* Shown saved or not: a song can come in from an import, or from
+            before this check, with the conflict already in it. */}
+        {!lyricsPending && sharedHeadings.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 dark:border-amber-700/50 dark:bg-amber-950/30">
+            <p className="mr-auto text-xs text-amber-800 dark:text-amber-300">
+              {sharedHeadingsText(sharedHeadings)} Number them (e.g.{' '}
+              <span className="font-mono">{sharedHeadings[0]} 2</span>) so the order
+              and the Lyrics Sheet can tell them apart.
+            </p>
+            <Button type="button" variant="outline" size="sm" onClick={numberSharedHeadings}>
+              Number them
+            </Button>
+          </div>
+        )}
         {dirty && (
           <div className="flex flex-wrap items-center justify-end gap-2">
             {baseMissing ? (
@@ -1181,12 +1206,6 @@ function ArrangementLyricsBlock({
                 <span className="font-mono">[1]</span>,{' '}
                 <span className="font-mono">[4]</span>, <span className="font-mono">[5]</span>{' '}
                 — so without one there is nothing to number them against.
-              </p>
-            ) : sharedHeadings.length > 0 ? (
-              <p className="mr-auto text-xs text-amber-700 dark:text-amber-400">
-                {sharedHeadingsText(sharedHeadings)} Number them (e.g.{' '}
-                <span className="font-mono">{sharedHeadings[0]} 2</span>) so the order
-                and the Lyrics Sheet can tell them apart.
               </p>
             ) : null}
             {/* The reason for a blocked save rides on a wrapper: a disabled
@@ -1314,6 +1333,10 @@ function ArrangementLyricsBlock({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Go back</AlertDialogCancel>
+            {/* Numbers them in the editor, unsaved, to look over first. */}
+            <Button type="button" variant="outline" onClick={numberSharedHeadings}>
+              Number them
+            </Button>
             <AlertDialogAction onClick={() => void onSaveClick(true)}>
               Save anyway
             </AlertDialogAction>
@@ -1371,12 +1394,12 @@ function ArrangementLyricsBlock({
   )
 }
 
-/** "More than one section is called “VERSE”, with different words." */
+/** "More than one section is called “VERSE”, with different words or chords." */
 function sharedHeadingsText(headings: string[]): string {
   const quoted = headings.map((h) => `“${h}”`)
   const names =
     quoted.length === 1 ? quoted[0] : `${quoted.slice(0, -1).join(', ')} or ${quoted.at(-1)}`
-  return `More than one section is called ${names}, with different words.`
+  return `More than one section is called ${names}, with different words or chords.`
 }
 
 function LinkedSongChips({

@@ -1227,6 +1227,30 @@ sequence line, three VERSEs with Long Lyrics; a save on a scratch song storing
 {"Verse 1",Chorus,"Verse 2",Chorus,Tag} (scratch song removed).
 **Upgrade note:** `db push` (0057) before the bundle; no function change.
 
+(no migration) **Chords tell sections apart too** (2026-10-17): "No One Like
+The Lord" sings its first two VERSEs to the same words over different chords
+([4] vs [1]), and every repeat check compared words alone. A section's identity
+is now `sectionContent(body, chordLayer)` — `lyricWords` plus `lyricChords`
+(each line's chord tokens in order, placement ignored, so "[6m]Ther[4]e" and
+"[6m]Th[4]ere" match but [4] and [1] don't), from the chord layer's rows under
+the heading or from chords written into a paste. It drives
+`sharedHeadingConflicts` and `followSectionEdit` (now taking `{ lyrics,
+chords }`; the editor follows chord-pane edits too, keeping that pane's caret),
+`withoutRepeatedSections` (the sheet shows a same-words, different-chords
+section) and the import's chorus detection. New `numberSharedHeadings` /
+`numberSharedHeadingLayers`: within a conflicting heading, the first content
+keeps the heading's own number written out (VERSE → VERSE 1), each different one
+the next free number of its kind, and a true repeat its twin's; bare cues and
+lettered headings are left alone. The song page shows the note whenever a
+conflict stands — saved or not, since an import or an older save can carry one
+— with **Number them**, which the save dialog offers too (Go back / Number them
+/ Save anyway); numbering edits the draft, unsaved. Verified: 6 new unit tests
+(the import test that ignored chords now checks placement only), and a 10-check
+browser run on the dev song — the note on opening with nothing edited; Number
+them → VERSE 1 / VERSE 2 / VERSE 1 in both panes, the note gone, Save offered;
+after a reload, " [5]" typed into the third VERSE's chord line → VERSE 2 with
+the chord pane's caret in place; nothing saved.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

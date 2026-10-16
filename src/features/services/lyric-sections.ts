@@ -207,6 +207,38 @@ export function lyricWords(text: string): string {
 }
 
 /**
+ * The chords a section plays, line by line — "[6m]Ther[4]e" reads "6m 4" —
+ * so where a chord sits over the syllable doesn't make a different section,
+ * but a different chord does.
+ */
+export function lyricChords(text: string): string {
+  return text
+    .split(/\r?\n/)
+    .map((line) =>
+      [...line.matchAll(/\[([^\]]*)\]/g)]
+        .map((match) => match[1].trim())
+        .filter(Boolean)
+        .join(' '),
+    )
+    .join('\n')
+    .trim()
+}
+
+/**
+ * What makes a section the same as another: its words *and* its chords. Two
+ * verses with the same words over different chords are two verses. `body` is
+ * the section's lyrics (chords written into them, as in a paste, count too)
+ * and `chordLayer` the chord lines beside them, if the song keeps them apart.
+ * Empty for a section with neither — a heading on its own, meaning sing it
+ * again.
+ */
+export function sectionContent(body: string, chordLayer = ''): string {
+  const words = lyricWords(body)
+  const chords = lyricChords(`${body}\n${chordLayer}`)
+  return words === '' && chords === '' ? '' : `${words}\u0001${chords}`
+}
+
+/**
  * Which section a heading line names, for telling repeats apart: its kind and
  * designator, with no designator read as 1 — "Verse" and "Verse 1" are the
  * same verse — and any repeat count ignored. Null for a line that isn't one.
@@ -244,6 +276,12 @@ export function sequenceSteps(sequence: string[]): SequenceStep[] {
   })
 }
 
+/** The texts sections are read from: the lyrics and, if kept apart, their chords. */
+export interface SectionSource {
+  lyrics: string
+  chords?: string
+}
+
 interface HeadedSection {
   /** The heading line exactly as typed. */
   line: string
@@ -252,44 +290,58 @@ interface HeadedSection {
   key: string
   /** The number in the heading, 1 when it has none, 0 for a letter. */
   number: number
-  words: string
+  /** Its words and chords (`sectionContent`); empty for a bare heading. */
+  content: string
 }
 
-/** The labelled sections of `text`, with their headings and words. */
-function headedSections(text: string): HeadedSection[] {
-  return parseLyricSections(text)
+/** The labelled sections of the lyrics, with their headings and content. */
+function headedSections({ lyrics, chords = '' }: SectionSource): HeadedSection[] {
+  const chordLines = chords.split(/\r?\n/)
+  const rowOf = (offset: number) => lyrics.slice(0, offset).split('\n').length - 1
+  return parseLyricSections(lyrics)
     .filter((section) => section.kind !== 'unlabeled')
     .map((section) => {
-      const line = text.slice(section.start, section.bodyStart).replace(/\r?\n$/, '')
+      const line = lyrics.slice(section.start, section.bodyStart).replace(/\r?\n$/, '')
       const designator = matchLyricSectionHeader(line)?.designator ?? null
+      // The chord layer is line-parallel: the rows under this heading.
+      const layer =
+        chords === ''
+          ? ''
+          : chordLines
+              .slice(
+                rowOf(section.start) + 1,
+                section.end >= lyrics.length ? undefined : rowOf(section.end),
+              )
+              .join('\n')
       return {
         line,
         kind: section.kind,
         key: sectionKeyOf(line) ?? section.kind,
         number: designator === null ? 1 : Number.parseInt(designator, 10) || 0,
-        words: lyricWords(text.slice(section.bodyStart, section.end)),
+        content: sectionContent(lyrics.slice(section.bodyStart, section.end), layer),
       }
     })
 }
 
 /**
- * Headings that more than one section shares while their words differ — two
- * "Verse"s that are different verses — which the order of service, the sheet
- * and the projection can't tell apart. A heading with nothing under it is a
- * cue ("Chorus" meaning sing it again), so it never counts as different.
+ * Headings that more than one section shares while their words or chords
+ * differ — two "Verse"s that are different verses — which the order of
+ * service, the sheet and the projection can't tell apart. A heading with
+ * nothing under it is a cue ("Chorus" meaning sing it again), so it never
+ * counts as different.
  */
-export function sharedHeadingConflicts(text: string): string[] {
-  const groups = new Map<string, { line: string; words: Set<string> }>()
-  for (const section of headedSections(text)) {
-    if (section.words === '') continue
+export function sharedHeadingConflicts(source: SectionSource): string[] {
+  const groups = new Map<string, { line: string; contents: Set<string> }>()
+  for (const section of headedSections(source)) {
+    if (section.content === '') continue
     const group = groups.get(section.key) ?? {
       line: section.line.trim(),
-      words: new Set<string>(),
+      contents: new Set<string>(),
     }
-    group.words.add(section.words)
+    group.contents.add(section.content)
     groups.set(section.key, group)
   }
-  return [...groups.values()].filter((g) => g.words.size > 1).map((g) => g.line)
+  return [...groups.values()].filter((g) => g.contents.size > 1).map((g) => g.line)
 }
 
 /**
@@ -326,11 +378,56 @@ export interface HeadingRename {
 }
 
 /**
- * Follow one edit to the lyrics. When it changes the words of a section that
- * was a word-for-word repeat — the third "VERSE" of a song that sings one verse
- * three times — that section is now a verse of its own, so its heading takes
- * the next free number ("VERSE 2"). If a later edit makes it a repeat again
- * (typing back what was deleted), the heading goes back to what it was.
+ * Number the sections that share a heading but not their words or chords
+ * (`sharedHeadingConflicts`), so each is told apart: the first one sung gets
+ * the heading's own number ("VERSE" → "VERSE 1"), each different one the next
+ * free number of its kind ("VERSE 2"), and a word-for-word, chord-for-chord
+ * repeat the same number as the section it repeats. Bare headings are left
+ * alone — which one they repeat is anyone's guess. Apply with
+ * `renameSectionHeading`.
+ */
+export function numberSharedHeadings(source: SectionSource): HeadingRename[] {
+  const sections = headedSections(source)
+  const highest = new Map<string, number>()
+  const contents = new Map<string, string[]>()
+  for (const section of sections) {
+    highest.set(section.kind, Math.max(highest.get(section.kind) ?? 0, section.number))
+    if (section.content === '') continue
+    const seen = contents.get(section.key) ?? []
+    if (!seen.includes(section.content)) seen.push(section.content)
+    contents.set(section.key, seen)
+  }
+  const numbers = new Map<string, number>()
+  const renames: HeadingRename[] = []
+  sections.forEach((section, index) => {
+    const seen = contents.get(section.key)
+    if (seen === undefined || seen.length < 2 || section.content === '') return
+    const id = `${section.key}\u0002${section.content}`
+    let number = numbers.get(id)
+    if (number === undefined) {
+      if (seen[0] === section.content) {
+        number = section.number
+      } else {
+        number = (highest.get(section.kind) ?? 0) + 1
+        highest.set(section.kind, number)
+      }
+      numbers.set(id, number)
+    }
+    // A lettered heading ("Verse A") is already told apart by its letter.
+    if (number === 0) return
+    const to = renumberHeadingLine(section.line, number)
+    if (to !== section.line) renames.push({ index, from: section.line, to })
+  })
+  return renames
+}
+
+/**
+ * Follow one edit to the lyrics or their chords. When it changes a section
+ * that was a word-for-word, chord-for-chord repeat — the third "VERSE" of a
+ * song that sings one verse three times — that section is now a verse of its
+ * own, so its heading takes the next free number ("VERSE 2"). If a later edit
+ * makes it a repeat again (typing back what was deleted), the heading goes
+ * back to what it was.
  *
  * `renamed` is the renumbering still in effect from earlier edits; the result
  * carries it forward. Edits that add, remove or retitle a heading start it
@@ -338,8 +435,8 @@ export interface HeadingRename {
  * theirs to name. `index` counts labelled sections only.
  */
 export function followSectionEdit(
-  prev: string,
-  next: string,
+  prev: SectionSource,
+  next: SectionSource,
   renamed: HeadingRename[],
 ): { rename: HeadingRename | null; renamed: HeadingRename[] } {
   const before = headedSections(prev)
@@ -350,18 +447,20 @@ export function followSectionEdit(
   ) {
     return { rename: null, renamed: [] }
   }
-  const edited = after.flatMap((section, i) => (section.words !== before[i].words ? [i] : []))
+  const edited = after.flatMap((section, i) =>
+    section.content !== before[i].content ? [i] : [],
+  )
   if (edited.length !== 1) return { rename: null, renamed }
   const index = edited[0]
   const section = after[index]
-  if (section.words === '') return { rename: null, renamed }
-  const repeats = (sections: HeadedSection[], key: string, words: string) =>
-    sections.some((other, i) => i !== index && other.key === key && other.words === words)
+  if (section.content === '') return { rename: null, renamed }
+  const repeats = (sections: HeadedSection[], key: string, content: string) =>
+    sections.some((other, i) => i !== index && other.key === key && other.content === content)
 
   const earlier = renamed.find((r) => r.index === index)
   if (earlier) {
-    const original = headedSections(`${earlier.from}\n`)[0]
-    if (original && repeats(after, original.key, section.words)) {
+    const originalKey = sectionKeyOf(earlier.from)
+    if (originalKey !== null && repeats(after, originalKey, section.content)) {
       const rename = { index, from: earlier.to, to: earlier.from }
       return { rename, renamed: renamed.filter((r) => r !== earlier) }
     }
@@ -369,8 +468,8 @@ export function followSectionEdit(
   }
 
   const wasRepeat =
-    before[index].words !== '' && repeats(before, section.key, before[index].words)
-  if (!wasRepeat || repeats(after, section.key, section.words)) {
+    before[index].content !== '' && repeats(before, section.key, before[index].content)
+  if (!wasRepeat || repeats(after, section.key, section.content)) {
     return { rename: null, renamed }
   }
   const number =

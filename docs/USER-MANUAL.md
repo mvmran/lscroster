@@ -830,7 +830,8 @@ stops the first song's, and leaving the page stops them. **Print** downloads the
 Each song shows its **sequence** under the key and tempo — the order it is sung
 in, in short form: *I > V > V > C > V > C …* (Intro, Verse, Verse, Chorus …), in the
 same colours as the song editor. So the sheet stays short, each section is
-shown **once**; the sequence says how often it comes round. Press **Long
+shown **once** — a later section shows again only if its words or chords
+differ — and the sequence says how often it comes round. Press **Long
 Lyrics** (beside **Print**) to show every section each time it is sung instead.
 It is off to begin with, and your browser remembers your choice. The printed
 sheet follows it, and prints the sequence too.
@@ -953,15 +954,22 @@ the song.
 press **Save changes**, and the Lyrics Sheet shows it in short form (§6.5), so
 write the song out in the order it is sung.
 
-**One heading, one set of words.** A song often sings the same section more than
+**One heading, one section.** A song often sings the same section more than
 once, written out each time under the same heading (`VERSE`, `VERSE`, `CHORUS`…).
-If you change the words of one of those repeats, it has become a section of its
+A repeat must match in its words **and** its chords: the same words over
+different chords are a different verse. If you change the words of one of those
+repeats, or its chords in the **Chord** pane, it has become a section of its
 own, so LSCroster numbers its heading for you — the next free number, such as
-`VERSE 2` — and changes it back if you undo the change. Capitals and
-punctuation don't count. If two sections still share a heading but not their
-words (say you renamed one yourself), a note appears under the lyrics and
-**Save changes** asks before saving: press **Go back** to number them, or
-**Save anyway**.
+`VERSE 2` — and changes it back if you undo the change. Capitals, punctuation
+and where a chord sits over the syllable don't count; which chord it is does.
+
+If two sections share a heading but not their words or chords — say you
+renamed one yourself, or the song was saved that way before — a note says so
+above the save button whenever the song is open. Press **Number them** and
+LSCroster numbers them for you: the first `VERSE 1`, the different one
+`VERSE 2`, and a true repeat the same number as the one it repeats. Look them
+over, then **Save changes**. Saving without numbering them asks first: **Go
+back**, **Number them**, or **Save anyway**.
 
 > **Note** — The main lyrics must be in Latin (English-alphabet) script. For a
 > song in another language, put the transliteration here and the original script
@@ -1018,8 +1026,9 @@ If the paste names no sections at all, LSCroster names them for you (untick
 **Number the paragraphs** to keep it as it is). Each paragraph becomes a verse
 — **Verse 1**, **Verse 2** … — except the one sung word for word most often,
 which becomes the **Chorus** every time it comes round. Capitals, punctuation
-and chords don't count when comparing, but a different word does: a last chorus
-with a changed line stays a verse, so rename it by hand.
+and where a chord sits don't count when comparing, but a different word or a
+different chord does: a last chorus with a changed line stays a verse, so
+rename it by hand.
 
 The import is **added to the end** of the lyrics; nothing is saved until you
 press **Save changes**.

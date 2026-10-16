@@ -29,9 +29,10 @@
  */
 
 import {
-  lyricWords,
   matchLyricSectionHeader,
+  numberSharedHeadings,
   parseLyricSections,
+  sectionContent,
   sectionKeyOf,
   type HeadingRename,
   type LyricSection,
@@ -208,12 +209,12 @@ export function zipLyricLines(layers: LayeredLyrics): LyricLineTuple[] {
 
 /**
  * Each section once: leave out a section that repeats one already shown — the
- * same heading ("Verse" and "Verse 1" alike) over the same words, or over
- * nothing at all (a "Chorus" cue meaning sing it again). The song's sequence
- * says how often each comes round. Its blank lines go with it, so the
+ * same heading ("Verse" and "Verse 1" alike) over the same words and chords,
+ * or over nothing at all (a "Chorus" cue meaning sing it again). The song's
+ * sequence says how often each comes round. Its blank lines go with it, so the
  * sections either side keep a single stanza break; lines before the first
- * heading are always kept. Words are compared as a singer reads them
- * (`lyricWords`), so a stray comma doesn't make a second chorus.
+ * heading are always kept. Sections are compared by `sectionContent`, so a
+ * stray comma doesn't make a second chorus, but a different chord does.
  */
 export function withoutRepeatedSections(lines: LyricLineTuple[]): LyricLineTuple[] {
   const kept: LyricLineTuple[] = []
@@ -222,13 +223,17 @@ export function withoutRepeatedSections(lines: LyricLineTuple[]): LyricLineTuple
   const flush = () => {
     const key = section.length > 0 ? sectionKeyOf(section[0].text) : null
     if (key !== null) {
-      const words = lyricWords(section.slice(1).map((line) => line.text).join('\n'))
+      const body = section.slice(1)
+      const content = sectionContent(
+        body.map((line) => line.text).join('\n'),
+        body.map((line) => line.chords).join('\n'),
+      )
       const seen = shown.get(key)
-      if (seen && (words === '' || seen.has(words))) {
+      if (seen && (content === '' || seen.has(content))) {
         section = []
         return
       }
-      shown.set(key, (seen ?? new Set<string>()).add(words))
+      shown.set(key, (seen ?? new Set<string>()).add(content))
     }
     kept.push(...section)
     section = []
@@ -326,6 +331,14 @@ export function renameSectionHeading(
     next[key] = lines.join(eol)
   }
   return next
+}
+
+/**
+ * Number every heading shared by sections with different words or chords
+ * (`numberSharedHeadings`), in the base and the layers alike.
+ */
+export function numberSharedHeadingLayers(layers: LayeredLyrics): LayeredLyrics {
+  return numberSharedHeadings(layers).reduce(renameSectionHeading, layers)
 }
 
 /**

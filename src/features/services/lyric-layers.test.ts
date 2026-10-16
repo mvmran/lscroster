@@ -258,6 +258,15 @@ describe('withoutRepeatedSections', () => {
     expect(texts(song)).toEqual(['Verse 1', 'One', '', 'Chorus', 'Sing', '', 'Verse', 'Another', ''])
   })
 
+  it('keeps a repeat of the same words over different chords', () => {
+    const lines = zipLyricLines({
+      ...EMPTY_LAYERS,
+      lyrics: 'Verse\nOne\n\nVerse\nOne',
+      chords: 'Verse\n[4]One\n\nVerse\n[1]One',
+    })
+    expect(withoutRepeatedSections(lines).filter((l) => l.header)).toHaveLength(2)
+  })
+
   it('keeps lines before the first heading', () => {
     expect(texts('Untitled\n\nChorus\nSing\n\nChorus\nSing')).toEqual([
       'Untitled',
