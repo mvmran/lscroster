@@ -21,8 +21,14 @@ describe('cadenceChords', () => {
 })
 
 describe('padNotes', () => {
-  it('is the full chord: root and fifth low, the 3rd an octave up', () => {
-    expect(padNotes({ tonic: 7, minor: false })).toEqual([43, 50, 55, 59, 62]) // G B D
-    expect(padNotes({ tonic: 0, minor: true })).toEqual([48, 55, 60, 63, 67]) // C Eb G
+  it('defaults to Dark Warm: add9 with the 3rd (1-5 · 3-5-9)', () => {
+    expect(padNotes({ tonic: 7, minor: false })).toEqual([43, 50, 59, 62, 69]) // G D · B D A
+    expect(padNotes({ tonic: 7, minor: true })).toEqual([43, 50, 58, 62, 69]) // B♭ for minor
+  })
+
+  it('follows the voicing and octave asked for', () => {
+    expect(padNotes({ tonic: 7, minor: false }, { voicing: 'full', octave: 0 })).toEqual([43, 50, 55, 59, 62])
+    expect(padNotes({ tonic: 0, minor: true }, { voicing: 'full', octave: 0 })).toEqual([48, 55, 60, 63, 67])
+    expect(padNotes({ tonic: 7, minor: false }, { voicing: 'fifths', octave: 1 })).toEqual([55, 62, 67, 74])
   })
 })

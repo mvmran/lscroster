@@ -2,6 +2,7 @@ import { AudioWaveform, Pause, Piano, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { songKeyTone } from '@/features/services/chord-notation'
 import { MetronomeButton } from '@/features/services/metronome-button'
+import { usePadSettings } from '@/features/settings/use-pad-settings'
 import { keySoundSupported } from '@/lib/key-sound'
 import { useKeySound } from '@/lib/use-key-sound'
 
@@ -53,9 +54,11 @@ export function CadenceButton({ songKey }: { songKey: string | null }) {
   )
 }
 
-/** The waveform: a continuous pad on the key's full chord (⏸ while it plays). */
+/** The waveform: a continuous pad in the key, in the person's chosen pad
+ * sound (⏸ while it plays). */
 export function PadButton({ songKey }: { songKey: string | null }) {
-  const { padPlaying, togglePad } = useKeySound(songKeyTone(songKey))
+  const { settings } = usePadSettings()
+  const { padPlaying, togglePad } = useKeySound(songKeyTone(songKey), settings)
   const blocked = blockedReason(songKey)
   if (blocked && !padPlaying) {
     return <Blocked icon={AudioWaveform} label="Play a pad" reason={blocked} />

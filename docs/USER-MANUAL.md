@@ -494,6 +494,30 @@ Press the sun icon at the top right and choose **Light**, **Dark** or
 **System** (follow your phone or computer's setting). The choice is remembered
 on that device.
 
+## 4.6 Your pad sound
+
+**Who:** everyone. **Where:** Settings → **Pad sound**.
+
+The waveform button beside a song's key (on the song page, in a plan's **Edit
+song** and as **Pad** on a Lyrics Sheet) plays a pad: a soft, held chord in the
+song's key to play or sing over. How that pad sounds is your choice, and it
+follows you to every device you sign in on. Nobody else's pad changes.
+
+The **Pad sound** card shows the pad you have (**Dark Warm** unless you chose
+another), a ▶ to hear it, and **Choose pad sound**, which opens the full page:
+
+1. Press **Preview** and pick a key to hear it in (it starts in G).
+2. Choose one of the eight **presets**: *Dark Warm* (the default), *Plain
+   Vanilla* (the original, brighter pad), *Warm & Soft*, *Ambient Worship*,
+   *Organ*, *Strings*, *Glass Shimmer* or *Deep Drone*. Choosing one plays it.
+3. To make it your own, use **Fine-tune**: waveform and voicing, brightness,
+   drift, reverb and room size, detune, voices, stereo width, sparkle, fade in
+   and out, octave and level. Brightness, drift, reverb and level change while
+   it plays; the rest restart it with a short crossfade.
+4. Press **Save**. **Reset to Dark Warm** goes back to the default (then Save).
+
+If you leave the page with changes unsaved, LSCroster asks first.
+
 ---
 
 # 5. People
@@ -870,8 +894,8 @@ The **Arrangements** card has one tab per arrangement. Each has:
 
 - a **Name** (e.g. *Default*, *Acoustic*, *Christmas*);
 - a **Key**, **BPM** and **Meter** (e.g. 4/4). After the meter, three small
-  buttons play them: the **waveform** starts a pad on the key's chord (major or
-  minor) that plays until you press ⏸; the **piano** plays a short I–IV–V–I so
+  buttons play them: the **waveform** starts a pad in the key, in your own pad
+  sound (§4.6), that plays until you press ⏸; the **piano** plays a short I–IV–V–I so
   you can hear the key; the **metronome** clicks at the tempo — beat 1 accented
   by the meter, a plain click without one (6/8 counts the dotted beat). The pad
   and the metronome can play together; all stop when you leave the page or

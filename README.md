@@ -80,6 +80,8 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
 - Managed accounts for people who need someone answering on their behalf
 - A notice board on Home — PDFs everyone can open, such as the user manual or
   a message of the day, managed from Settings
+- Hear a song before you play it: a pad in its key, a I–IV–V–I on keys and a
+  metronome, synthesised in the browser — each person picks their own pad sound
 - Contact-detail visibility rules, an audit log of who changed what, and a
   read-only Projection API for your projection software
   ([PROJECTION-API.md](docs/PROJECTION-API.md))

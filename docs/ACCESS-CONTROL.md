@@ -61,6 +61,10 @@ everything gated on `is_admin_or_coordinator()`:
 - The **notice board** on Home: add and remove its PDFs (`notices`, bucket
   `notices`). Everyone signed in reads it.
 
+**Everyone, for themselves only:** their **pad sound** (`person_sound_prefs`,
+0054) — read and written by its owner alone; no role, admins included, sees or
+changes anyone else's.
+
 **People & permissions**
 - Grant and revoke member permissions; manage permission templates.
 - See everyone's contact details (email, phone, birthday) and notes
@@ -182,6 +186,7 @@ on, and stacks with their global role and permissions.
 | Service types, conditional rules, pairings | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
 | Grant/revoke member permissions | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
 | Add/remove notice board PDFs | ✅ | ✅ | ⛔ | ⛔ | ⛔ | ⛔ |
+| Choose their own pad sound (no one else's) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Add/remove team members, set positions | ✅ | ✅ | ✅ | ⛔ | ⛔ | ⛔ |
 | Roster a team (plan assignments), email it | ✅ | ✅ | ✅ | ✅ | ⛔ | ⛔ |
 | Set per-plan targets, mute rule warnings | ✅ | ✅ | ✅ | ✅ | ⛔ | ⛔ |

@@ -11,8 +11,13 @@ function Slider({
   value,
   min = 0,
   max = 100,
+  thumbLabel,
   ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
+}: React.ComponentProps<typeof SliderPrimitive.Root> & {
+  /** The accessible name of the handle — what a screen reader announces as it
+   * moves. Radix needs it on the thumb; a label on the root doesn't reach it. */
+  thumbLabel?: string
+}) {
   const _values = React.useMemo(
     () =>
       Array.isArray(value)
@@ -49,6 +54,7 @@ function Slider({
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={index}
+          aria-label={thumbLabel}
           className="border-primary bg-background ring-ring/50 block size-4 shrink-0 cursor-grab rounded-full border shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden active:cursor-grabbing disabled:pointer-events-none disabled:opacity-50"
         />
       ))}

@@ -9,6 +9,7 @@ import {
   subscribeKeySound,
   type KeyTone,
 } from '@/lib/key-sound'
+import { DEFAULT_PAD, type PadSettings } from '@/lib/pad-settings'
 
 /**
  * The cadence and pad for one control. A key edit stops the cadence and
@@ -16,12 +17,18 @@ import {
  * silences it when the key is cleared. Both stop when the component that owns
  * them goes away — leaving the page, or switching to another arrangement's tab.
  */
-export function useKeySound(tone: KeyTone | null) {
+export function useKeySound(tone: KeyTone | null, padSettings: PadSettings = DEFAULT_PAD) {
   const [id] = useState(() => Symbol('key-sound'))
   const cadencePlaying = useSyncExternalStore(subscribeKeySound, cadenceOwner) === id
   const padPlaying = useSyncExternalStore(subscribeKeySound, padOwner) === id
   const tonic = tone?.tonic ?? null
   const minor = tone?.minor ?? false
+
+  // The latest settings, for a retune — a settings change alone doesn't restart.
+  const settings = useRef(padSettings)
+  useEffect(() => {
+    settings.current = padSettings
+  }, [padSettings])
 
   const last = useRef({ tonic, minor })
   useEffect(() => {
@@ -31,7 +38,7 @@ export function useKeySound(tone: KeyTone | null) {
     stopCadence(id)
     if (padOwner() !== id) return
     if (tonic === null) stopPad(id)
-    else startPad(id, { tonic, minor })
+    else startPad(id, { tonic, minor }, settings.current)
   }, [id, tonic, minor])
 
   useEffect(
@@ -49,7 +56,7 @@ export function useKeySound(tone: KeyTone | null) {
 
   function togglePad() {
     if (padPlaying) stopPad(id)
-    else if (tone) startPad(id, tone)
+    else if (tone) startPad(id, tone, settings.current)
   }
 
   return { cadencePlaying, padPlaying, toggleCadence, togglePad }

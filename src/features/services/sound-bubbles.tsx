@@ -1,5 +1,6 @@
 import { AudioWaveform, Metronome, Pause } from 'lucide-react'
 import { songKeyTone } from '@/features/services/chord-notation'
+import { usePadSettings } from '@/features/settings/use-pad-settings'
 import { cn } from '@/lib/utils'
 import { keySoundSupported } from '@/lib/key-sound'
 import {
@@ -42,7 +43,8 @@ function bubbleClass(active: boolean) {
 /** A pad on the song's key for this plan; hidden when there's no key to play. */
 export function PadBubble({ songId, songKey }: { songId: string; songKey: string | null }) {
   const tone = songKeyTone(songKey)
-  const { padPlaying, togglePad } = useKeySound(tone)
+  const { settings } = usePadSettings()
+  const { padPlaying, togglePad } = useKeySound(tone, settings)
   if (!tone || !keySoundSupported()) return null
   const action = padPlaying ? 'Stop the pad' : `Play a pad in ${songKey?.trim() ?? ''}`
   return (

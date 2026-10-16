@@ -3,13 +3,15 @@
  * files, no library):
  *
  * - the **cadence** — I–IV–V–I on a soft keyboard, about 3.5 s, one-shot;
- * - the **pad** — a continuous worship-style pad on the key's full chord (root,
- *   fifth and the major or minor 3rd), until stopped.
+ * - the **pad** — a continuous worship-style pad in the key, until stopped,
+ *   sounding the way the person's pad settings say (`pad-settings`; Dark Warm
+ *   unless they chose otherwise).
  *
  * One of each plays at a time, page-wide; they can overlap each other and the
  * metronome. Both stop when the browser tab is hidden.
  */
 import { audioContext, audioSupported, stopWhenHidden } from '@/lib/audio'
+import { DEFAULT_PAD, PAD_VOICINGS, type PadSettings } from '@/lib/pad-settings'
 
 export interface KeyTone {
   /** The tonic as semitones above C, 0–11. */
@@ -127,48 +129,123 @@ export function stopCadence(owner?: symbol) {
 }
 
 /**
- * The pad's notes as MIDI: root and fifth low, then the chord again an octave
- * up with its 3rd — open at the bottom so it isn't muddy, the 3rd up where it
- * says major or minor.
+ * The pad's notes as MIDI for a voicing. The root sits low but not muddy
+ * (E2–D♯3, the octave setting moves it); the voicing stacks the rest above it.
  */
-export function padNotes({ tonic, minor }: KeyTone): number[] {
-  const root = tonic < 4 ? 48 + tonic : 36 + tonic
-  return [root, root + 7, root + 12, root + 12 + (minor ? 3 : 4), root + 19]
+export function padNotes(
+  { tonic, minor }: KeyTone,
+  { voicing, octave }: Pick<PadSettings, 'voicing' | 'octave'> = DEFAULT_PAD,
+): number[] {
+  const root = (tonic < 4 ? 48 + tonic : 36 + tonic) + 12 * octave
+  return PAD_VOICINGS[voicing].notes(minor ? 3 : 4).map((n) => root + n)
 }
 
-export function startPad(owner: symbol, key: KeyTone) {
+/**
+ * A reverb tail — stereo noise decaying over `seconds` — so the pad sounds in a
+ * room rather than in a box. Rendered once per room size.
+ */
+const impulses = new Map<string, AudioBuffer>()
+function impulse(ctx: AudioContext, seconds: number): AudioBuffer {
+  const key = seconds.toFixed(1)
+  const cached = impulses.get(key)
+  if (cached) return cached
+  const length = Math.floor(ctx.sampleRate * seconds)
+  const buffer = ctx.createBuffer(2, length, ctx.sampleRate)
+  for (let channel = 0; channel < 2; channel++) {
+    const data = buffer.getChannelData(channel)
+    for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 3
+  }
+  impulses.set(key, buffer)
+  return buffer
+}
+
+/** The pad's own output: a compressor straight to the speakers, no headroom
+ * cut, so it is as loud as the page it was tuned on. */
+let padBus: DynamicsCompressorNode | null = null
+
+interface PadNodes {
+  filter: BiquadFilterNode
+  depth: GainNode
+  drift: OscillatorNode
+  dry: GainNode
+  wet: GainNode
+  level: GainNode
+}
+let padNodes: PadNodes | null = null
+
+/**
+ * Start a pad for `owner` in `key`, sounding the way `settings` say — detuned
+ * oscillators per note, spread across the stereo field, through a low-pass
+ * that drifts slowly, a fade in, and a dry/reverb mix.
+ */
+export function startPad(owner: symbol, key: KeyTone, settings: PadSettings = DEFAULT_PAD) {
   if (!keySoundSupported()) return
   stopPad()
   const ctx = audioContext()
+  const s = settings
   const at = ctx.currentTime
+  if (!padBus) {
+    padBus = ctx.createDynamicsCompressor()
+    padBus.connect(ctx.destination)
+  }
+
   const out = ctx.createGain()
   out.gain.setValueAtTime(0.0001, at)
-  out.gain.exponentialRampToValueAtTime(0.5, at + 1.5)
-  // Detuned saws through a low-pass that drifts slowly: warm, and alive.
+  out.gain.exponentialRampToValueAtTime(1, at + s.attack)
+  const level = ctx.createGain()
+  level.gain.value = s.level
   const filter = ctx.createBiquadFilter()
   filter.type = 'lowpass'
-  filter.frequency.value = 900
-  filter.Q.value = 0.7
+  filter.frequency.value = s.cutoff
+  filter.Q.value = s.q
   const drift = ctx.createOscillator()
   const depth = ctx.createGain()
-  drift.frequency.value = 0.12
-  depth.gain.value = 350
+  drift.frequency.value = s.rate
+  depth.gain.value = s.drift
   drift.connect(depth).connect(filter.frequency)
-  filter.connect(out).connect(output(ctx))
+  const dry = ctx.createGain()
+  const wet = ctx.createGain()
+  const verb = ctx.createConvolver()
+  verb.buffer = impulse(ctx, s.room)
+  dry.gain.value = 1 - s.reverb * 0.6
+  wet.gain.value = s.reverb * 1.4
+  filter.connect(out)
+  out.connect(dry).connect(level)
+  out.connect(verb).connect(wet).connect(level)
+  level.connect(padBus)
+
   const oscillators = [drift]
-  padNotes(key).forEach((note, i) => {
-    for (const cents of [-7, 7]) {
+  const notes = padNotes(key, s)
+  const each = 0.32 / (notes.length * Math.sqrt(s.voices))
+  notes.forEach((note, i) => {
+    for (let v = 0; v < s.voices; v++) {
       const osc = ctx.createOscillator()
-      const level = ctx.createGain()
-      osc.type = 'sawtooth'
+      const gain = ctx.createGain()
+      const pan = ctx.createStereoPanner()
+      osc.type = s.wave
       osc.frequency.value = hz(note)
-      osc.detune.value = cents
-      level.gain.value = i === 0 ? 0.07 : 0.05
-      osc.connect(level).connect(filter)
+      osc.detune.value = s.voices === 1 ? 0 : -s.detune + (2 * s.detune * v) / (s.voices - 1)
+      const side = s.voices === 1 ? (i % 2 ? 0.5 : -0.5) : -1 + (2 * v) / (s.voices - 1)
+      pan.pan.value = side * s.spread
+      gain.gain.value = each * (i === 0 ? 1.2 : 1)
+      osc.connect(gain).connect(pan).connect(filter)
       oscillators.push(osc)
     }
   })
+  // A soft sine an octave above the top notes, for air.
+  if (s.sparkle > 0) {
+    for (const note of notes.slice(-2)) {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = hz(note + 12)
+      gain.gain.value = 0.05 * s.sparkle
+      osc.connect(gain).connect(out)
+      oscillators.push(osc)
+    }
+  }
   for (const osc of oscillators) osc.start(at)
+  padNodes = { filter, depth, drift, dry, wet, level }
   pad = {
     owner,
     out,
@@ -177,11 +254,28 @@ export function startPad(owner: symbol, key: KeyTone) {
       const now = ctx.currentTime
       out.gain.cancelScheduledValues(now)
       out.gain.setValueAtTime(Math.max(out.gain.value, 0.0001), now)
-      out.gain.exponentialRampToValueAtTime(0.0001, now + 0.8)
-      for (const osc of oscillators) osc.stop(now + 0.85)
+      out.gain.exponentialRampToValueAtTime(0.0001, now + s.release)
+      for (const osc of oscillators) osc.stop(now + s.release + 0.05)
     },
   }
   notify()
+}
+
+/**
+ * Move a playing pad to new filter, drift, reverb and level settings without
+ * restarting it (`PAD_LIVE_SETTINGS`); anything else needs `startPad` again.
+ */
+export function updatePad(owner: symbol, settings: PadSettings) {
+  if (pad?.owner !== owner || !padNodes) return
+  const now = audioContext().currentTime
+  const n = padNodes
+  n.filter.frequency.setTargetAtTime(settings.cutoff, now, 0.05)
+  n.filter.Q.setTargetAtTime(settings.q, now, 0.05)
+  n.depth.gain.setTargetAtTime(settings.drift, now, 0.05)
+  n.drift.frequency.setTargetAtTime(settings.rate, now, 0.05)
+  n.dry.gain.setTargetAtTime(1 - settings.reverb * 0.6, now, 0.05)
+  n.wet.gain.setTargetAtTime(settings.reverb * 1.4, now, 0.05)
+  n.level.gain.setTargetAtTime(settings.level, now, 0.05)
 }
 
 /** Stop the pad — only if `owner` is the one playing, when given. */
@@ -189,6 +283,7 @@ export function stopPad(owner?: symbol) {
   if (!pad || (owner && pad.owner !== owner)) return
   pad.stop()
   pad = null
+  padNodes = null
   notify()
 }
 

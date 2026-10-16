@@ -815,6 +815,42 @@ export type Database = {
           },
         ]
       }
+      person_sound_prefs: {
+        Row: {
+          created_at: string
+          pad: Json
+          person_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          pad: Json
+          person_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          pad?: Json
+          person_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_sound_prefs_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_sound_prefs_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_assignments: {
         Row: {
           created_at: string

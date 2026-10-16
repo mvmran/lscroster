@@ -29,6 +29,7 @@ import { ManageNoticeBoardCard } from '@/features/notices/manage-notice-board-ca
 import { CommunicationsSetupCard } from '@/features/settings/communications-setup-card'
 import { ProjectionApiCard } from '@/features/settings/projection-api-card'
 import { DeleteSafetyCard } from '@/features/settings/delete-safety-card'
+import { PadSoundCard } from '@/features/settings/pad-sound-card'
 import { PermissionTemplatesCard } from '@/features/settings/permission-templates-card'
 import {
   useChurchSettings,
@@ -431,6 +432,8 @@ export function SettingsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader title="Settings" />
       <ChurchSettingsCard canEdit={isAdmin} />
+      {/* Everyone's own: how their pad sounds. */}
+      <PadSoundCard />
       {canManageServiceTypes && <ServiceTypesLinkCard />}
       {canGovern && <ManageNoticeBoardCard />}
       {canGovern && <PermissionTemplatesCard />}

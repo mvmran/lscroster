@@ -1091,6 +1091,38 @@ both and clicking at 90, tap-to-stop, silence after navigating, phone wrap, and
 the key-sound (21) and Edit song (14) runs again — pad + click still together
 there.
 
+(0054) `person_sound_prefs` **Each person's pad sound** (2026-10-17): the pad
+is now a configurable synth (`src/lib/pad-settings.ts` + `key-sound.ts`) —
+waveform, voices and detune, a low-pass with cutoff / resonance / slow drift,
+a synthesised reverb (stereo noise impulse into a convolver, room size and
+mix), stereo spread, an octave-up sine "sparkle", fade in / out, octave, level
+and seven voicings — tuned by ear with the user on a stand-alone audition page.
+Their tuning, **Dark Warm** (sawtooth ×3 ±10 c, 550 Hz Q 1.2, drift 250 Hz @
+0.04 Hz, 3 s / 2.5 s, reverb 0.75 in a 3.5 s room, width 0.6, add9-with-3rd),
+is the **default for everyone**; the first pad is kept as **Plain Vanilla**;
+six more presets (Warm & Soft, Ambient Worship, Organ, Strings, Glass Shimmer,
+Deep Drone). The pad has its own output (compressor, no headroom cut) so it is
+exactly as loud as on the audition page. Per person, across devices:
+`person_sound_prefs(person_id pk, pad jsonb object)`, RLS own-row-only for all
+four verbs (admins included — nobody needs someone else's pad), explicit
+grants per 0050; the app parses the JSON with Zod and plays Dark Warm for no
+row or anything unreadable, so a future setting needs no migration.
+**Settings → Pad sound** card for everyone (name, ▶ in G, *Choose pad sound*)
+opens `/settings/pad-sound`: a sticky preview bar (Preview / key / mode, status,
+Save), the preset grid, and Fine-tune selects + sliders — filter, drift, reverb
+and level follow the playing preview via `updatePad`, the rest restart it on
+release; unsaved-changes guard; Reset to Dark Warm. Every Pad (song page, Edit
+song, Lyrics Sheet bubble) plays the saved sound (`usePadSettings`). The shared
+`Slider` gained a `thumbLabel` so its handle has an accessible name (Radix needs
+it on the thumb). Verified: a 10-check RLS probe with member / coordinator /
+anon JWTs (own row CRUD; no read, write, update or delete of another's; non-object
+refused; anon nothing), a 20-check browser run as a member (card default and
+preview = Dark Warm's 15 saws in add9-with-3rd; preset → Plain Vanilla's 10;
+brightness live without restart; voices restarting; preview key D; the leave
+guard; Save → DB; the song page and the Lyrics Sheet bubble playing the saved
+pad; reload; reset; phone fit), and unit tests for presets, parsing and voicings.
+**Upgrade note:** `db push` (0054) before the bundle; no function change.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

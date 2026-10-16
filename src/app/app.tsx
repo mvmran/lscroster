@@ -82,6 +82,10 @@ const SettingsPage = lazyPage(
   () => import('@/features/settings/settings-page'),
   'SettingsPage',
 )
+const PadSoundPage = lazyPage(
+  () => import('@/features/settings/pad-sound-page'),
+  'PadSoundPage',
+)
 const EmailLogPage = lazyPage(
   () => import('@/features/settings/email-log-page'),
   'EmailLogPage',
@@ -123,6 +127,7 @@ export function App() {
                 <Route path="/teams/:id" element={<TeamPage />} />
                 <Route path="/my-schedule" element={<MySchedulePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/settings/pad-sound" element={<PadSoundPage />} />
                 <Route element={<RequireAdmin />}>
                   <Route path="/people/new" element={<CreatePersonPage />} />
                   <Route path="/people/import" element={<ImportPage />} />
