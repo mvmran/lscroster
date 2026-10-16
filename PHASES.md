@@ -1072,6 +1072,25 @@ and 326 px on a phone, the buttons level with the boxes (desktop) or just under
 Meter (phone), no sideways scroll, and the key-sound (21) and metronome (23)
 runs again.
 
+(no migration) **Pad and Click bubbles on the Lyrics Sheet** (2026-10-16):
+beside each song's **Listen** on a plan's Lyrics Sheet, a **Pad** bubble
+(`AudioWaveform`) and a **Click** bubble (`Metronome`), styled like Listen and
+filled while playing (⏸). They play the sheet entry's values — this plan's key
+and BPM overrides, else the arrangement's, and its meter — and each hides itself
+when the song has no readable key / no tempo in 20–400. One song at a time on
+the sheet: a song's own Pad and Click play together (the user's call, after a
+first cut that stopped one for the other), but a bubble on a different song
+from the last first calls `stopAllSounds()` (`src/lib/sounds.ts`: cadence, pad,
+metronome), so the previous song falls silent. The sheet remembers the last
+sounding entry by plan item id. The song page and Edit song are unaffected.
+Leaving the page unmounts them (silent); a hidden tab stops the engines as
+before. Not on the printed PDF. Verified with a 19-check browser run: order Listen · Pad · Click, icons, tooltips from G / A / 72 in 3/4,
+styling, G and A pads, another song's Pad or Click stopping the first's, the same
+song's Pad and Click together (G chord at 0.833 s), another song then stopping
+both and clicking at 90, tap-to-stop, silence after navigating, phone wrap, and
+the key-sound (21) and Edit song (14) runs again — pad + click still together
+there.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

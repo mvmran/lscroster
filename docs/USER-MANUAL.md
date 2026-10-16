@@ -784,9 +784,12 @@ to 25 MB each. Anyone who can see the plan can download them; people with
 **Notes** — anything the team should know about this service. Type in the Notes
 box and press **Save notes**. The notes are included in the set-list email.
 
-**Media** — the plan's lyrics sheet: every song in running order. Press the
-reference **Listen** links to hear the recordings each arrangement follows, or
-**Print** to download the lyrics sheet as a PDF (§11.4).
+**Media** — the plan's lyrics sheet: every song in running order. Beside each
+song, **Listen** opens the recording this plan follows, **Pad** plays a pad in
+the song's key and **Click** a metronome at its tempo — both as this plan has
+them. A song's Pad and Click can play together; starting either on another song
+stops the first song's, and leaving the page stops them. **Print** downloads the lyrics sheet as a PDF
+(§11.4).
 
 ## 6.6 Draft vs published
 

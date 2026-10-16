@@ -28,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { downloadLyricsSheetPdf } from '@/features/services/lyrics-sheet-pdf'
 import { ChordNotationToggle } from '@/features/services/chord-notation-toggle'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
+import { ClickBubble, PadBubble } from '@/features/services/sound-bubbles'
 import { useChordNotation } from '@/features/services/use-chord-notation'
 import { LAYER_LABELS } from '@/features/services/lyric-layers'
 import {
@@ -480,6 +481,15 @@ export function PlanMediaCard({
                           Listen
                         </a>
                       )}
+                      {/* Each hides itself when the song has no key / tempo.
+                          The line shows whenever there is a key or tempo, since
+                          those are in `meta` too. */}
+                      <PadBubble songId={entry.songItemId} songKey={entry.key} />
+                      <ClickBubble
+                        songId={entry.songItemId}
+                        bpm={entry.bpm}
+                        meter={entry.meter}
+                      />
                     </div>
                   )}
                   {hasLyrics ? (
