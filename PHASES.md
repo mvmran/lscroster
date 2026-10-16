@@ -979,6 +979,17 @@ Verified with a 21-check browser run: one-arrangement song with key/BPM/notes
 saved, two-arrangement dropdown, title/key/BPM following the choice, a typed
 title surviving a switch, cancel, create-and-add, Edit still Save, phone fit.
 
+- [ ] **Open question, to decide later (user, 2026-10-16):** should **Edit
+  song** also let you change an item's arrangement once it is on the plan?
+  Left out for now. Facts for the decision: drafts pin no lyrics, so a switch
+  there is harmless; publishing pins each song item to its arrangement's latest
+  lyrics (`pin_plan_lyrics` → `plan_items.lyrics_id`, nothing checks it belongs
+  to the item's arrangement), so on a published plan a bare switch would show
+  the old arrangement's words under the new title and key. If yes: the same
+  dropdown as Add, re-pin `lyrics_id` to the new arrangement's latest version
+  in the same save on a published plan, the title follows unless renamed, and
+  key/BPM overrides and notes stay.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
