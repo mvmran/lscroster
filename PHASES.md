@@ -1179,6 +1179,27 @@ repeated bridge; a tie and no repeats; carrying on from Verse 3), and the real
 song re-imported in the browser → Chorus, Verse 6, Chorus, Verse 7, Chorus
 after its existing five verses (not saved).
 
+(no migration) **One heading, one set of words** (2026-10-17): a song written
+out in full repeats a section under the same heading ("No One Like The Lord":
+VERSE ×3), and editing one repeat left two different verses called VERSE. Pure
+helpers in `lyric-sections.ts`: `lyricWords` (the import's comparison, now
+shared — chords, case and punctuation dropped), `sharedHeadingConflicts` (a
+heading — kind + designator, "Verse" ≡ "Verse 1" — over more than one set of
+words; an empty section is a cue and never counts), `renumberHeadingLine`
+(keeps the typed style: VERSE → VERSE 2, [Verse 1] → [Verse 3], Chorus x2 →
+Chorus 2 x2; a count is never read as a number) and `followSectionEdit`, which
+sees an edit change the words of exactly one section that was a word-for-word
+repeat and returns its rename to the next free number of its kind, or the
+rename back once it is a repeat again; any edit that adds, removes or retitles
+a heading resets it. The editor's base pane applies the rename through
+`renameSectionHeading` (base + every layer repeating the heading on that row)
+and moves the caret by the length change. Save shows "Save with a heading used
+twice?" (Go back / Save anyway) and an amber note under the lyrics while a
+conflict stands. Verified: 14 unit tests, and a 13-check browser run on the dev
+song — typing into the second VERSE → VERSE 2 with the caret in place and the
+chord pane following; deleting it → VERSE; CHORUS2 retitled CHORUS → note,
+dialog suggesting CHORUS 2, Go back saving nothing.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

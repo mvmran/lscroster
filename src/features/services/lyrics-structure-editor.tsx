@@ -48,6 +48,7 @@ import {
   LYRIC_LAYER_KEYS,
   moveSectionLayers,
   removeSectionLayers,
+  renameSectionHeading,
   type LayeredLyrics,
   type LyricLayerKey,
 } from '@/features/services/lyric-layers'
@@ -58,7 +59,12 @@ import {
   type SongKey,
 } from '@/features/services/chord-notation'
 import { ChordSpans } from '@/features/services/chord-spans'
-import { parseLyricSections, type LyricSection } from '@/features/services/lyric-sections'
+import {
+  followSectionEdit,
+  parseLyricSections,
+  type HeadingRename,
+  type LyricSection,
+} from '@/features/services/lyric-sections'
 import { cn } from '@/lib/utils'
 
 // One tint per section family, shared by the gutter chevrons, the extent
@@ -522,6 +528,37 @@ export function LyricsStructureEditor({
 
   const indexOfId = (dndId: string | number) => Number(String(dndId).slice(2))
 
+  // A repeat whose words are changed becomes a section of its own, so its
+  // heading takes the next number ("VERSE" → "VERSE 2"), and changes back if
+  // the words come back. `renamed` remembers which headings this did.
+  const renamed = useRef<HeadingRename[]>([])
+  const caret = useRef<{ start: number; end: number } | null>(null)
+
+  function onBaseChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
+    const text = event.target.value
+    const followed = followSectionEdit(layers.lyrics, text, renamed.current)
+    renamed.current = followed.renamed
+    if (followed.rename === null) {
+      onChange({ ...layers, lyrics: text })
+      return
+    }
+    // The heading sits above the words being typed, so the caret moves on by
+    // however much longer (or shorter) the heading became.
+    const shift = followed.rename.to.length - followed.rename.from.length
+    caret.current = {
+      start: event.target.selectionStart + shift,
+      end: event.target.selectionEnd + shift,
+    }
+    onChange(renameSectionHeading({ ...layers, lyrics: text }, followed.rename))
+  }
+
+  useLayoutEffect(() => {
+    const at = caret.current
+    if (at === null || textareaRef.current === null) return
+    caret.current = null
+    textareaRef.current.setSelectionRange(at.start, at.end)
+  }, [layers.lyrics])
+
   function handleDragStart(event: DragStartEvent) {
     setActiveIndex(indexOfId(event.active.id))
   }
@@ -548,7 +585,7 @@ export function LyricsStructureEditor({
       rows={6}
       wrap={split ? 'off' : undefined}
       value={layers.lyrics}
-      onChange={(e) => onChange({ ...layers, lyrics: e.target.value })}
+      onChange={onBaseChange}
       className={cn(
         // Proportional, like every other lyric surface — chords are
         // placed by their brackets now, so no pane needs a monospace grid.

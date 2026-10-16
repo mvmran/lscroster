@@ -184,3 +184,159 @@ export function parseLyricSections(text: string): LyricSection[] {
   }
   return sections
 }
+
+// --- sections that share a heading ---------------------------------------------
+
+/**
+ * A section's words as a singer reads them — chords, case and punctuation
+ * dropped, blank lines gone — so two copies of a chorus compare equal however
+ * they were typed. Empty for a section with nothing to sing.
+ */
+export function lyricWords(text: string): string {
+  return text
+    .split(/\r?\n/)
+    .map((line) =>
+      line
+        .replace(/\[[^\]]*\]/g, '')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ')
+        .trim(),
+    )
+    .filter(Boolean)
+    .join('\n')
+}
+
+interface HeadedSection {
+  /** The heading line exactly as typed. */
+  line: string
+  kind: string
+  /** Which one of its kind: "Verse" and "Verse 1" are the same section. */
+  key: string
+  /** The number in the heading, 1 when it has none, 0 for a letter. */
+  number: number
+  words: string
+}
+
+/** The labelled sections of `text`, with their headings and words. */
+function headedSections(text: string): HeadedSection[] {
+  return parseLyricSections(text)
+    .filter((section) => section.kind !== 'unlabeled')
+    .map((section) => {
+      const line = text.slice(section.start, section.bodyStart).replace(/\r?\n$/, '')
+      const designator = matchLyricSectionHeader(line)?.designator ?? null
+      return {
+        line,
+        kind: section.kind,
+        key: `${section.kind}:${(designator ?? '1').toUpperCase()}`,
+        number: designator === null ? 1 : Number.parseInt(designator, 10) || 0,
+        words: lyricWords(text.slice(section.bodyStart, section.end)),
+      }
+    })
+}
+
+/**
+ * Headings that more than one section shares while their words differ — two
+ * "Verse"s that are different verses — which the order of service, the sheet
+ * and the projection can't tell apart. A heading with nothing under it is a
+ * cue ("Chorus" meaning sing it again), so it never counts as different.
+ */
+export function sharedHeadingConflicts(text: string): string[] {
+  const groups = new Map<string, { line: string; words: Set<string> }>()
+  for (const section of headedSections(text)) {
+    if (section.words === '') continue
+    const group = groups.get(section.key) ?? {
+      line: section.line.trim(),
+      words: new Set<string>(),
+    }
+    group.words.add(section.words)
+    groups.set(section.key, group)
+  }
+  return [...groups.values()].filter((g) => g.words.size > 1).map((g) => g.line)
+}
+
+/**
+ * Rewrite a heading line with a new number, keeping how it was typed —
+ * "VERSE" → "VERSE 2", "[Verse 1]" → "[Verse 3]", "Chorus x2:" → "Chorus 2 x2:".
+ * Falls back to the keyword and number alone if the line won't take one in
+ * place.
+ */
+export function renumberHeadingLine(line: string, number: number): string {
+  const header = matchLyricSectionHeader(line)
+  if (header === null) return line
+  const inPlace = line.replace(
+    new RegExp(`^(\\s*[\\[(]?\\s*(?:${KEYWORD_PATTERN}))(?:\\s*\\d{1,2}|\\s+[A-Da-d])?`, 'i'),
+    `$1 ${number}`,
+  )
+  const check = matchLyricSectionHeader(inPlace)
+  if (
+    check !== null &&
+    check.kind === header.kind &&
+    check.designator === String(number) &&
+    check.repeat === header.repeat
+  ) {
+    return inPlace
+  }
+  const keyword = new RegExp(`(${KEYWORD_PATTERN})`, 'i').exec(line)?.[1] ?? header.kind
+  return `${keyword} ${number}${header.repeat ? ` x${header.repeat}` : ''}`
+}
+
+/** A heading the editor renumbered: section `index`'s line went `from` → `to`. */
+export interface HeadingRename {
+  index: number
+  from: string
+  to: string
+}
+
+/**
+ * Follow one edit to the lyrics. When it changes the words of a section that
+ * was a word-for-word repeat — the third "VERSE" of a song that sings one verse
+ * three times — that section is now a verse of its own, so its heading takes
+ * the next free number ("VERSE 2"). If a later edit makes it a repeat again
+ * (typing back what was deleted), the heading goes back to what it was.
+ *
+ * `renamed` is the renumbering still in effect from earlier edits; the result
+ * carries it forward. Edits that add, remove or retitle a heading start it
+ * afresh: section indexes no longer line up, and a heading someone typed is
+ * theirs to name. `index` counts labelled sections only.
+ */
+export function followSectionEdit(
+  prev: string,
+  next: string,
+  renamed: HeadingRename[],
+): { rename: HeadingRename | null; renamed: HeadingRename[] } {
+  const before = headedSections(prev)
+  const after = headedSections(next)
+  if (
+    before.length !== after.length ||
+    before.some((section, i) => section.line !== after[i].line)
+  ) {
+    return { rename: null, renamed: [] }
+  }
+  const edited = after.flatMap((section, i) => (section.words !== before[i].words ? [i] : []))
+  if (edited.length !== 1) return { rename: null, renamed }
+  const index = edited[0]
+  const section = after[index]
+  if (section.words === '') return { rename: null, renamed }
+  const repeats = (sections: HeadedSection[], key: string, words: string) =>
+    sections.some((other, i) => i !== index && other.key === key && other.words === words)
+
+  const earlier = renamed.find((r) => r.index === index)
+  if (earlier) {
+    const original = headedSections(`${earlier.from}\n`)[0]
+    if (original && repeats(after, original.key, section.words)) {
+      const rename = { index, from: earlier.to, to: earlier.from }
+      return { rename, renamed: renamed.filter((r) => r !== earlier) }
+    }
+    return { rename: null, renamed }
+  }
+
+  const wasRepeat =
+    before[index].words !== '' && repeats(before, section.key, before[index].words)
+  if (!wasRepeat || repeats(after, section.key, section.words)) {
+    return { rename: null, renamed }
+  }
+  const number =
+    Math.max(...after.filter((s) => s.kind === section.kind).map((s) => s.number)) + 1
+  const rename = { index, from: section.line, to: renumberHeadingLine(section.line, number) }
+  return { rename, renamed: [...renamed, rename] }
+}

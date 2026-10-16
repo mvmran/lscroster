@@ -60,6 +60,7 @@ import {
   LyricsStructureEditor,
 } from '@/features/services/lyrics-structure-editor'
 import { LyricsImportDialog } from '@/features/services/lyrics-import-dialog'
+import { sharedHeadingConflicts } from '@/features/services/lyric-sections'
 import {
   useGenerateMeaning,
   useLyricsAssistAvailable,
@@ -823,6 +824,7 @@ function ArrangementLyricsBlock({
   const polish = usePolishTransliteration()
   const suggestSections = useSuggestSections()
   const [confirmPolish, setConfirmPolish] = useState(false)
+  const [confirmShared, setConfirmShared] = useState(false)
   const [checkingPin, setCheckingPin] = useState(false)
   const [notation, setNotation] = useChordNotation()
 
@@ -847,6 +849,10 @@ function ArrangementLyricsBlock({
   // longer layers. Block it so a transliteration (or the meaning/chords) can't be
   // orphaned when someone clears the pane to ask for a fresh one. Clearing every
   // layer to remove the lyrics altogether is still allowed.
+  // Two different sets of words under one heading ("VERSE" twice, each a
+  // different verse) — allowed, but worth a second look before saving: the
+  // order, the sheet and the projection can't tell them apart.
+  const sharedHeadings = useMemo(() => sharedHeadingConflicts(value.lyrics), [value.lyrics])
   const baseMissing =
     value.lyrics.trim() === '' &&
     (value.native.trim() !== '' ||
@@ -861,8 +867,12 @@ function ArrangementLyricsBlock({
   }, [dirty, onDirtyChange])
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
-  async function onSaveClick() {
+  async function onSaveClick(sharedConfirmed = false) {
     if (scriptBlocked || chordsNeedKey || baseMissing) return
+    if (sharedHeadings.length > 0 && !sharedConfirmed) {
+      setConfirmShared(true)
+      return
+    }
     setCheckingPin(true)
     try {
       const pinned = current ? await isLyricsVersionPinned(current.id) : false
@@ -1172,6 +1182,12 @@ function ArrangementLyricsBlock({
                 <span className="font-mono">[4]</span>, <span className="font-mono">[5]</span>{' '}
                 — so without one there is nothing to number them against.
               </p>
+            ) : sharedHeadings.length > 0 ? (
+              <p className="mr-auto text-xs text-amber-700 dark:text-amber-400">
+                {sharedHeadingsText(sharedHeadings)} Number them (e.g.{' '}
+                <span className="font-mono">{sharedHeadings[0]} 2</span>) so the order
+                and the Lyrics Sheet can tell them apart.
+              </p>
             ) : null}
             {/* The reason for a blocked save rides on a wrapper: a disabled
                 button has pointer events off, so its own title never shows. */}
@@ -1188,7 +1204,7 @@ function ArrangementLyricsBlock({
               }
             >
               <Button
-                onClick={onSaveClick}
+                onClick={() => void onSaveClick()}
                 disabled={
                   save.isPending ||
                   checkingPin ||
@@ -1286,6 +1302,25 @@ function ArrangementLyricsBlock({
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={confirmShared} onOpenChange={setConfirmShared}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save with a heading used twice?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {sharedHeadingsText(sharedHeadings)} Numbering them (e.g. “
+              {sharedHeadings[0]} 2”) lets the order and the Lyrics Sheet tell them
+              apart.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go back</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void onSaveClick(true)}>
+              Save anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={confirmPolish} onOpenChange={setConfirmPolish}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1334,6 +1369,14 @@ function ArrangementLyricsBlock({
       </AlertDialog>
     </div>
   )
+}
+
+/** "More than one section is called “VERSE”, with different words." */
+function sharedHeadingsText(headings: string[]): string {
+  const quoted = headings.map((h) => `“${h}”`)
+  const names =
+    quoted.length === 1 ? quoted[0] : `${quoted.slice(0, -1).join(', ')} or ${quoted.at(-1)}`
+  return `More than one section is called ${names}, with different words.`
 }
 
 function LinkedSongChips({

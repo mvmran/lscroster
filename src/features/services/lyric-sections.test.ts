@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  followSectionEdit,
+  lyricWords,
   matchLyricSectionHeader,
   parseLyricSections,
+  renumberHeadingLine,
+  sharedHeadingConflicts,
+  type HeadingRename,
 } from '@/features/services/lyric-sections'
 
 describe('matchLyricSectionHeader', () => {
@@ -118,5 +123,127 @@ describe('repeat counts in a heading', () => {
   it('is still not fooled by a lyric line', () => {
     expect(matchLyricSectionHeader('Praise the Lord')).toBeNull()
     expect(matchLyricSectionHeader('REPEAT CHORUS')).toBeNull()
+  })
+})
+
+// The shape of "No One Like The Lord": one verse sung three times, a chorus.
+const VERSE = 'There is One on the throne\nHe is worthy of praise'
+const CHORUS = 'Worthy is the Lamb\nNo one like the Lord'
+const REPEATS = [
+  'INTRO',
+  '',
+  'VERSE',
+  VERSE,
+  '',
+  'VERSE',
+  VERSE,
+  '',
+  'CHORUS',
+  CHORUS,
+  '',
+  'VERSE',
+  VERSE,
+  '',
+  'CHORUS2',
+  CHORUS,
+].join('\n')
+
+describe('lyricWords', () => {
+  it('reads past chords, case, punctuation and blank lines', () => {
+    expect(lyricWords('[G]Worthy is the [C]Lamb,\n\nNO ONE like the Lord!\n')).toBe(
+      'worthy is the lamb\nno one like the lord',
+    )
+    expect(lyricWords('\n\n')).toBe('')
+  })
+})
+
+describe('sharedHeadingConflicts', () => {
+  it('is empty while every repeat of a heading has the same words', () => {
+    expect(sharedHeadingConflicts(REPEATS)).toEqual([])
+  })
+
+  it('names a heading whose sections have different words', () => {
+    const edited = REPEATS.replace('VERSE\n' + VERSE + '\n\nCHORUS', 'VERSE\nA new verse\n\nCHORUS')
+    expect(sharedHeadingConflicts(edited)).toEqual(['VERSE'])
+  })
+
+  it('reads "Verse" and "Verse 1" as the same section, "Verse 2" as another', () => {
+    expect(sharedHeadingConflicts('Verse\nOne\n\nVerse 1\nTwo')).toEqual(['Verse'])
+    expect(sharedHeadingConflicts('Verse 1\nOne\n\nVerse 2\nTwo')).toEqual([])
+  })
+
+  it('lets a heading with nothing under it stand as a cue', () => {
+    expect(sharedHeadingConflicts(`Chorus\n${CHORUS}\n\nVerse 2\nWords\n\nChorus\n`)).toEqual([])
+  })
+})
+
+describe('renumberHeadingLine', () => {
+  it('keeps the heading as it was typed', () => {
+    expect(renumberHeadingLine('VERSE', 2)).toBe('VERSE 2')
+    expect(renumberHeadingLine('[Verse 1]', 3)).toBe('[Verse 3]')
+    expect(renumberHeadingLine('Chorus:', 2)).toBe('Chorus 2:')
+    expect(renumberHeadingLine('CHORUS2', 3)).toBe('CHORUS 3')
+    expect(renumberHeadingLine('Chorus x2', 2)).toBe('Chorus 2 x2')
+    expect(renumberHeadingLine('Pre-Chorus', 2)).toBe('Pre-Chorus 2')
+  })
+
+  it('reads a count as a count, not a number', () => {
+    // "Verse 2x" is the verse sung twice, not verse 2.
+    const line = renumberHeadingLine('Verse 2x', 3)
+    expect(matchLyricSectionHeader(line)).toMatchObject({ designator: '3', repeat: 2 })
+  })
+})
+
+describe('followSectionEdit', () => {
+  // Typing one letter into the second VERSE (labelled section 2).
+  const typed = (text: string) => {
+    const at = text.indexOf(VERSE, text.indexOf('VERSE', text.indexOf('VERSE') + 1))
+    return `${text.slice(0, at)}X${text.slice(at)}`
+  }
+
+  it('numbers a repeat whose words change', () => {
+    const { rename, renamed } = followSectionEdit(REPEATS, typed(REPEATS), [])
+    expect(rename).toEqual({ index: 2, from: 'VERSE', to: 'VERSE 2' })
+    expect(renamed).toEqual([rename])
+  })
+
+  it('takes the next number free for the kind', () => {
+    // CHORUS2 is already taken, so the edited CHORUS becomes CHORUS 3.
+    const song = `CHORUS\n${CHORUS}\n\nCHORUS\n${CHORUS}\n\nCHORUS2\nAnother`
+    const edited = song.replace(`CHORUS\n${CHORUS}`, `CHORUS\nX${CHORUS}`)
+    expect(followSectionEdit(song, edited, []).rename).toEqual({
+      index: 0,
+      from: 'CHORUS',
+      to: 'CHORUS 3',
+    })
+  })
+
+  it('leaves punctuation and case edits alone', () => {
+    const touched = REPEATS.replace('VERSE\n' + VERSE + '\n\nCHORUS', 'VERSE\n' + VERSE + '!\n\nCHORUS')
+    expect(followSectionEdit(REPEATS, touched, []).rename).toBeNull()
+  })
+
+  it('leaves a section that was not a repeat alone', () => {
+    const song = 'Verse 1\nOne\n\nVerse 2\nTwo'
+    expect(followSectionEdit(song, 'Verse 1\nOne\n\nVerse 2\nTwo more', []).rename).toBeNull()
+  })
+
+  it('puts the heading back when the words become a repeat again', () => {
+    const first = followSectionEdit(REPEATS, typed(REPEATS), [])
+    // As the editor holds it after the rename: the heading reads VERSE 2.
+    const lines = typed(REPEATS).split('\n')
+    expect(lines[6]).toBe('VERSE')
+    lines[6] = 'VERSE 2'
+    const after = lines.join('\n')
+    lines[7] = lines[7].replace('X', '')
+    const back = followSectionEdit(after, lines.join('\n'), first.renamed)
+    expect(back.rename).toEqual({ index: 2, from: 'VERSE 2', to: 'VERSE' })
+    expect(back.renamed).toEqual([])
+  })
+
+  it('starts afresh when a heading is added, removed or retitled', () => {
+    const prior: HeadingRename[] = [{ index: 2, from: 'VERSE', to: 'VERSE 2' }]
+    const retitled = REPEATS.replace('INTRO', 'Intro')
+    expect(followSectionEdit(REPEATS, retitled, prior)).toEqual({ rename: null, renamed: [] })
   })
 })

@@ -940,6 +940,16 @@ on its own line, such as `[Verse 1]`, `Chorus`, `Pre-Chorus 2:` or `Bridge` —
 LSCroster recognises the usual section names and uses them to show and rearrange
 the song.
 
+**One heading, one set of words.** A song often sings the same section more than
+once, written out each time under the same heading (`VERSE`, `VERSE`, `CHORUS`…).
+If you change the words of one of those repeats, it has become a section of its
+own, so LSCroster numbers its heading for you — the next free number, such as
+`VERSE 2` — and changes it back if you undo the change. Capitals and
+punctuation don't count. If two sections still share a heading but not their
+words (say you renamed one yourself), a note appears under the lyrics and
+**Save changes** asks before saving: press **Go back** to number them, or
+**Save anyway**.
+
 > **Note** — The main lyrics must be in Latin (English-alphabet) script. For a
 > song in another language, put the transliteration here and the original script
 > in the **Native** layer. If a line strays, LSCroster marks it in red and won't

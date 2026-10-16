@@ -12,6 +12,7 @@ import {
   moveSectionLayers,
   padLayers,
   removeSectionLayers,
+  renameSectionHeading,
   splitChordLine,
   toLines,
   zipLyricLines,
@@ -209,6 +210,24 @@ describe('removeSectionLayers', () => {
       text: '[Verse 2]',
       meaning: '',
     })
+  })
+})
+
+describe('renameSectionHeading', () => {
+  it('retitles the heading in the base and every layer that repeats it', () => {
+    const layers = {
+      ...EMPTY_LAYERS,
+      lyrics: 'INTRO\n\nVERSE\nOne\n\nVERSE\nOne more',
+      chords: 'INTRO\n[6m] /\nVERSE\n[1]One\n\nVERSE\n[1]One more',
+      meaning: '\n\n\n\n\nnot a heading\n',
+    }
+    const next = renameSectionHeading(layers, { index: 2, from: 'VERSE', to: 'VERSE 2' })
+    expect(toLines(next.lyrics)[5]).toBe('VERSE 2')
+    expect(toLines(next.chords)[5]).toBe('VERSE 2')
+    // Only that row: the first VERSE keeps its heading, and a layer row
+    // holding something else is left alone.
+    expect(toLines(next.lyrics)[2]).toBe('VERSE')
+    expect(next.meaning).toBe(layers.meaning)
   })
 })
 

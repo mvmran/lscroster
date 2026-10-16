@@ -53,6 +53,7 @@ import {
   type LyricParagraph,
 } from '@/features/services/lyric-layers'
 import {
+  lyricWords,
   matchLyricSectionHeader,
   REPEAT_MARKER_RE,
 } from '@/features/services/lyric-sections'
@@ -143,17 +144,7 @@ export function withVerseHeadings(text: string, from = 1): string {
   // Each section's words — its paragraph and any keyword blocks with it — as
   // the singer reads them, for spotting the ones sung again.
   const words = labelled.map((start, i) =>
-    lines
-      .slice(start, labelled[i + 1] ?? lines.length)
-      .map((line) =>
-        line
-          .replace(/\[[^\]]*\]/g, '')
-          .toLowerCase()
-          .replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ')
-          .trim(),
-      )
-      .filter(Boolean)
-      .join('\n'),
+    lyricWords(lines.slice(start, labelled[i + 1] ?? lines.length).join('\n')),
   )
   const counts = new Map<string, number>()
   for (const w of words) counts.set(w, (counts.get(w) ?? 0) + 1)

@@ -30,6 +30,8 @@
 
 import {
   matchLyricSectionHeader,
+  parseLyricSections,
+  type HeadingRename,
   type LyricSection,
 } from '@/features/services/lyric-sections'
 
@@ -259,6 +261,31 @@ export function mirrorSectionHeaders(
     return base[i]
   })
   return changed ? { ...layers, [key]: next.join(eolOf(layers.lyrics)) } : layers
+}
+
+/**
+ * Retitle one section's heading (see `followSectionEdit`) in the base and in
+ * every layer that repeats the heading on that row, so the panes stay in step.
+ * A layer row holding something else is left alone.
+ */
+export function renameSectionHeading(
+  layers: LayeredLyrics,
+  rename: HeadingRename,
+): LayeredLyrics {
+  const labelled = parseLyricSections(layers.lyrics).filter((s) => s.kind !== 'unlabeled')
+  const section = labelled[rename.index]
+  if (section === undefined) return layers
+  const row = toLines(layers.lyrics.slice(0, section.start)).length - 1
+  const eol = eolOf(layers.lyrics)
+  const next = { ...layers }
+  for (const key of ALL_KEYS) {
+    const lines = toLines(layers[key])
+    const line = lines[Math.max(row, 0)]
+    if (line === undefined || line.trim() !== rename.from.trim()) continue
+    lines[Math.max(row, 0)] = key === 'lyrics' ? rename.to : rename.to.trim()
+    next[key] = lines.join(eol)
+  }
+  return next
 }
 
 /**
