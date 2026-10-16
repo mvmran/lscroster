@@ -1062,6 +1062,16 @@ line, the box still ≥ 180 px, tooltips, member view), the plan dialog's 14
 checks with the waveform, and the song page's key-sound (21) and metronome (23)
 runs again.
 
+(no migration) **Key, BPM and Meter boxes the same width** (2026-10-16): the
+trio no longer shares Meter's column. The song page's row is a
+`sm:grid-cols-[1fr_1fr_1fr_auto]` grid — three equal boxes, then the buttons in
+a column of their own, kept level with the boxes by an invisible label-height
+spacer (hidden on phones). On a phone each box is full width and the trio sits
+on its own line under Meter. Verified: Key / BPM / Meter 261 px each on desktop
+and 326 px on a phone, the buttons level with the boxes (desktop) or just under
+Meter (phone), no sideways scroll, and the key-sound (21) and metronome (23)
+runs again.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

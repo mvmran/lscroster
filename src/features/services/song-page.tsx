@@ -520,7 +520,10 @@ function ArrangementForm({
           )}
         </div>
       )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Three equal boxes, then the sound buttons in a column of their own, so
+          Key, BPM and Meter are the same width. On a phone each box is full
+          width and the buttons sit on their own line under Meter. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_1fr_auto]">
         <div className="flex flex-col gap-2">
           <Label htmlFor={`arr-key-${arrangement.id}`}>Key</Label>
           <Input
@@ -552,21 +555,26 @@ function ArrangementForm({
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor={`arr-meter-${arrangement.id}`}>Meter</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              id={`arr-meter-${arrangement.id}`}
-              value={meter}
-              onChange={(e) => setMeter(e.target.value)}
-              placeholder="e.g. 4/4"
-            />
-            {/* Pad, key riff and metronome, following the boxes as typed,
-                saved or not. */}
-            <SongSoundButtons
-              songKey={songKey.trim() || null}
-              bpm={bpmInvalid ? null : bpmValue}
-              meter={meter.trim() || null}
-            />
-          </div>
+          <Input
+            id={`arr-meter-${arrangement.id}`}
+            value={meter}
+            onChange={(e) => setMeter(e.target.value)}
+            placeholder="e.g. 4/4"
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          {/* An invisible label keeps the buttons level with the boxes on a
+              wide screen; a phone stacks them, so it goes. */}
+          <span aria-hidden className="invisible hidden text-sm leading-none font-medium sm:block">
+            Play
+          </span>
+          {/* Pad, key riff and metronome, following the boxes as typed,
+              saved or not. */}
+          <SongSoundButtons
+            songKey={songKey.trim() || null}
+            bpm={bpmInvalid ? null : bpmValue}
+            meter={meter.trim() || null}
+          />
         </div>
       </div>
       <div className="flex flex-col gap-2">
