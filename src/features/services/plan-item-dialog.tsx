@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Metronome, Piano, Play } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { CadenceButton, PadButton } from '@/features/services/key-sound-buttons'
+import { MetronomeButton } from '@/features/services/metronome-button'
 import { PlayRecordingButton } from '@/features/services/play-recording-button'
 import {
   arrangementSongTitle,
@@ -116,6 +118,21 @@ function ItemForm({
   const bpmInvalid =
     bpmValue !== null && (!Number.isInteger(bpmValue) || bpmValue <= 0)
   const pending = createItem.isPending || updateItem.isPending
+  // What the sound buttons play while editing a song: this plan's key and
+  // tempo as typed (saved or not), else the arrangement's; its meter.
+  const soundKey = keyOverride.trim() || arrangementKey
+  const soundBpm = bpmInvalid ? null : (bpmValue ?? arrangementBpm)
+  const soundMeter = arrangement?.meter ?? null
+  const bpmInput = (
+    <Input
+      id="pi-bpm"
+      value={bpmOverride}
+      onChange={(e) => setBpmOverride(e.target.value)}
+      inputMode="numeric"
+      placeholder={arrangementBpm?.toString() ?? 'e.g. 72'}
+      aria-invalid={bpmInvalid}
+    />
+  )
 
   async function save() {
     const trimmed = title.trim()
@@ -235,16 +252,23 @@ function ItemForm({
             {/* Third cell of the two-column grid, so it wraps onto a row of
                 its own rather than widening the dialog. */}
             {kind === 'song' && (
-              <div className="flex flex-col gap-2">
+              // Editing, the row spans both columns: the box stays as wide as
+              // Length above it, and the pad, cadence and metronome buttons
+              // sit beside it, under Key. Adding a song has no buttons.
+              <div className={item ? 'col-span-2 flex flex-col gap-2' : 'flex flex-col gap-2'}>
                 <Label htmlFor="pi-bpm">BPM</Label>
-                <Input
-                  id="pi-bpm"
-                  value={bpmOverride}
-                  onChange={(e) => setBpmOverride(e.target.value)}
-                  inputMode="numeric"
-                  placeholder={arrangementBpm?.toString() ?? 'e.g. 72'}
-                  aria-invalid={bpmInvalid}
-                />
+                {item ? (
+                  <div className="grid grid-cols-2 items-center gap-4">
+                    {bpmInput}
+                    <div className="flex items-center gap-2">
+                      <PadButton songKey={soundKey} icon={Play} />
+                      <CadenceButton songKey={soundKey} icon={Piano} />
+                      <MetronomeButton bpm={soundBpm} meter={soundMeter} icon={Metronome} />
+                    </div>
+                  </div>
+                ) : (
+                  bpmInput
+                )}
                 {bpmInvalid ? (
                   <p className="text-destructive text-sm">Whole number above 0</p>
                 ) : (

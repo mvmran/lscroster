@@ -758,7 +758,11 @@ item is recalculated as you go, from the plan's start time and the lengths
 above it; the total length and finishing time appear under the plan's title.
 
 **Editing or removing.** Use the **⋯** at the end of an item → **Edit** or
-**Remove**.
+**Remove**. Editing a song, three small buttons beside **BPM** play it the way
+this plan has it — your Key and BPM if you changed them, else the arrangement's:
+▶ a pad on the key's chord, the piano a short I–IV–V–I in the key, and the
+metronome a click at the tempo. They can play together, and stop when you close
+the box.
 
 **Start time.** Press *Starts 10:00* under the title to set a different start
 time for this plan only; **Use default** puts the service type's time back.

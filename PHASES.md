@@ -1031,6 +1031,23 @@ picked) + save, the fallback after the pick was removed from the song.
 **Upgrade note:** `db push` (0053), then `functions deploy send-setlist`, before
 the bundle.
 
+(no migration) **Sound buttons in the plan's Edit song dialog** (2026-10-16):
+beside **BPM** (Edit only — Add song has none) three of the song page's buttons:
+the pad (▶ icon), the cadence (lucide `Piano`) and the metronome (lucide
+`Metronome`), in that order. They play this plan's values as typed — the key
+and BPM overrides, else the arrangement's — and the arrangement's meter; editing
+either box retunes the pad / retimes the click live. Editing, the BPM row spans
+both columns so the box keeps Length's width and the buttons sit under Key.
+`KeySoundButtons` was split into `CadenceButton` and `PadButton` (each with its
+own hint when blocked) and both they and `MetronomeButton` take an optional idle
+`icon` (▶ is drawn filled, outline icons stay outlines); the song page keeps
+its own icons. Closing the dialog unmounts them, which stops every sound.
+Verified with a 14-check browser run (icons and order, tooltips from the plan's
+key A and the arrangement's 90 BPM in 3/4, A major pad, metronome over it at
+0.667 s, typed Bb / 120 retuning to Bb and 0.5 s, the piano cadence in Bb, all
+silent after Cancel, none in Add song, phone fit), and the song page's 21-check
+key-sound and 23-check metronome runs again, unchanged.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
