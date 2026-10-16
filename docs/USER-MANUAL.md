@@ -304,7 +304,7 @@ auto-scheduler and the roster warnings use that to tell you what's still empty.
 
 The **song library** holds every song your church sings, with its author, CCLI
 number, copyright line and tags. Each song has one or more **arrangements** — a
-version of the song with its own key, tempo (BPM), meter, reference recording,
+version of the song with its own key, tempo (BPM), meter, reference recordings,
 lyrics and attachments (charts, MP3s, PDFs). Every song has a *Default*
 arrangement; add more when the band plays it differently, e.g. "Acoustic in G".
 
@@ -776,7 +776,7 @@ to 25 MB each. Anyone who can see the plan can download them; people with
 box and press **Save notes**. The notes are included in the set-list email.
 
 **Media** — the plan's lyrics sheet: every song in running order. Press the
-reference **Listen** links to hear the recording each arrangement follows, or
+reference **Listen** links to hear the recordings each arrangement follows, or
 **Print** to download the lyrics sheet as a PDF (§11.4).
 
 ## 6.6 Draft vs published
@@ -858,8 +858,10 @@ The **Arrangements** card has one tab per arrangement. Each has:
 
 - a **Name** (e.g. *Default*, *Acoustic*, *Christmas*);
 - a **Key**, **BPM** and **Meter** (e.g. 4/4);
-- a **Reference recording** — a link (e.g. YouTube) to the version the band
-  follows; it becomes the **Listen** link on plans and in the set-list email;
+- **Reference recordings** — links (e.g. YouTube) to the versions the band
+  follows, such as a studio take and a live one. Press ▶ beside a link to play
+  it in a new tab, and **Add another recording** for up to ten. Each becomes a
+  **Listen** link on plans and in the set-list email, first one first;
 - its **Lyrics** (§7.3) and **attachments** — charts, recordings or PDFs (up to
   25 MB, **Upload file**).
 
@@ -1400,7 +1402,7 @@ Home.
    check it isn't already there, then **Create song**.
 2. On the song's page, fill in **Copyright** and **Tags**, and **Save changes**.
 3. In **Arrangements → Default**, set the **Key**, **BPM**, **Meter** and the
-   **Reference recording** link, and **Save changes**.
+   **Reference recordings** links (▶ plays one to check it), and **Save changes**.
 4. In **Lyrics**, paste the song with **Import** (or type it), with a heading
    such as `[Verse 1]` or `Chorus` before each section. Open the **Chord**,
    **Native** or **Meaning** layer if needed.

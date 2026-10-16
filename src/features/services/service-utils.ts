@@ -396,8 +396,8 @@ export interface LyricsSheetEntry {
   key: string | null
   bpm: number | null
   meter: string | null
-  /** The arrangement's reference recording, for the "Listen" link. */
-  referenceUrl: string | null
+  /** The arrangement's reference recordings, for the "Listen" links. */
+  referenceUrls: string[]
   lyrics: string | null
   /** The base text plus its native / meaning / chord layers (#139). */
   layers: LayeredLyrics
@@ -439,9 +439,9 @@ export function buildLyricsSheet(
         // Tempo follows the same rule: this plan's, else the arrangement's.
         bpm: i.bpm_override ?? info?.arrangement.bpm ?? null,
         meter: info?.arrangement.meter ?? null,
-        // The recording this arrangement follows. Nothing overrides it — it
-        // belongs to the arrangement, not to a plan that happens to use it.
-        referenceUrl: info?.arrangement.reference_url ?? null,
+        // The recordings this arrangement follows. Nothing overrides them —
+        // they belong to the arrangement, not to a plan that happens to use it.
+        referenceUrls: info?.arrangement.reference_urls ?? [],
         lyrics: (pinned ?? latest)?.lyrics ?? null,
         // Chords stay as stored (numbers); the reader and the PDF convert,
         // because which notation to show is the reader's choice, not the data's.
@@ -461,6 +461,11 @@ export function buildLyricsSheet(
 export function playableUrl(url: string | null | undefined): string | null {
   const trimmed = (url ?? '').trim()
   return /^https?:\/\/\S+$/i.test(trimmed) ? trimmed : null
+}
+
+/** Every link in `urls` that `playableUrl` accepts, in order. */
+export function playableUrls(urls: readonly string[] | null | undefined): string[] {
+  return (urls ?? []).map(playableUrl).filter((u): u is string => u !== null)
 }
 
 /** "Key G  ·  72 BPM  ·  4/4" from an entry, or '' when none are set. */

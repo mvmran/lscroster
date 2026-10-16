@@ -96,6 +96,8 @@ import {
   formatPlanDate,
   formatPlanDateShort,
   parseTagsInput,
+  playableUrl,
+  playableUrls,
   songSearchLinks,
   type Song,
 } from '@/features/services/service-utils'
@@ -357,6 +359,49 @@ function DetailsCard({ song, canManage }: { song: Song; canManage: boolean }) {
   )
 }
 
+/** The database caps an arrangement at this many links (0051). */
+const MAX_REFERENCE_URLS = 10
+
+/**
+ * A small ▶ that opens a reference recording in a new tab — YouTube and the like
+ * start playing there. Greyed out, with the reason as its hint, until the box
+ * holds a full http(s) link.
+ */
+function PlayRecordingButton({ url }: { url: string }) {
+  const href = playableUrl(url)
+  if (!href) {
+    return (
+      // A disabled Button has pointer-events: none, so the hint lives on a span.
+      <span
+        className="inline-flex"
+        title={
+          url.trim() === ''
+            ? 'Add a link to play it'
+            : 'Enter a full link starting with http:// or https:// to play it'
+        }
+      >
+        <Button variant="outline" size="icon" disabled aria-label="Play recording">
+          <Play className="size-4" />
+        </Button>
+      </span>
+    )
+  }
+  return (
+    <Button variant="outline" size="icon" className="shrink-0" asChild>
+      {/* With asChild the child wins, so the hint goes on the link itself. */}
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer noopener"
+        title="Play in a new tab"
+        aria-label="Play this recording in a new tab"
+      >
+        <Play className="size-4 fill-current" />
+      </a>
+    </Button>
+  )
+}
+
 function ArrangementForm({
   songId,
   arrangement,
@@ -376,7 +421,10 @@ function ArrangementForm({
   const [songKey, setSongKey] = useState(arrangement.song_key ?? '')
   const [bpm, setBpm] = useState(arrangement.bpm?.toString() ?? '')
   const [meter, setMeter] = useState(arrangement.meter ?? '')
-  const [referenceUrl, setReferenceUrl] = useState(arrangement.reference_url ?? '')
+  // One box per link, and always at least one, so there is somewhere to type.
+  const [referenceUrls, setReferenceUrls] = useState<string[]>(
+    arrangement.reference_urls.length > 0 ? arrangement.reference_urls : [''],
+  )
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const bpmValue = bpm.trim() === '' ? null : Number(bpm)
@@ -384,8 +432,8 @@ function ArrangementForm({
   const nameTaken = siblingNames.some(
     (n) => n.toLowerCase() === name.trim().toLowerCase(),
   )
-  const referenceUrlInvalid =
-    referenceUrl.trim() !== '' && !/^https?:\/\/\S+$/.test(referenceUrl.trim())
+  const cleanReferenceUrls = referenceUrls.map((u) => u.trim()).filter(Boolean)
+  const referenceUrlInvalid = cleanReferenceUrls.some((u) => !/^https?:\/\/\S+$/.test(u))
   // Chords are stored as numbers of the key (see `chord-notation`), so once a
   // chord is saved the key is part of reading them, not a label beside them:
   // clearing it — or typing something that isn't a key — would leave the layer
@@ -402,7 +450,7 @@ function ArrangementForm({
       : bpmInvalid
         ? 'BPM must be a whole number above 0'
         : referenceUrlInvalid
-          ? 'The reference link must start with http:// or https://'
+          ? 'Every reference link must start with http:// or https://'
           : keyUnreadable
             ? 'This arrangement has chords saved, so it needs a key'
             : undefined
@@ -412,9 +460,10 @@ function ArrangementForm({
     songKey !== (arrangement.song_key ?? '') ||
     bpm !== (arrangement.bpm?.toString() ?? '') ||
     meter !== (arrangement.meter ?? '') ||
-    referenceUrl.trim() !== (arrangement.reference_url ?? '')
+    cleanReferenceUrls.join('\n') !== arrangement.reference_urls.join('\n')
 
   if (!canManage) {
+    const references = playableUrls(arrangement.reference_urls)
     return (
       <dl className="grid grid-cols-3 gap-4 text-sm">
         <div>
@@ -429,18 +478,25 @@ function ArrangementForm({
           <dt className="text-muted-foreground">Meter</dt>
           <dd className="font-medium">{arrangement.meter ?? '—'}</dd>
         </div>
-        {arrangement.reference_url && (
+        {references.length > 0 && (
           <div className="col-span-3">
-            <dt className="text-muted-foreground">Reference recording</dt>
-            <dd className="font-medium">
-              <a
-                href={arrangement.reference_url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary underline-offset-2 hover:underline"
-              >
-                {arrangement.reference_url}
-              </a>
+            <dt className="text-muted-foreground">
+              {references.length > 1 ? 'Reference recordings' : 'Reference recording'}
+            </dt>
+            <dd className="flex flex-col gap-1 font-medium">
+              {references.map((href, i) => (
+                <div key={`${i}-${href}`} className="flex min-w-0 items-center gap-2">
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="text-primary min-w-0 truncate underline-offset-2 hover:underline"
+                  >
+                    {href}
+                  </a>
+                  <PlayRecordingButton url={href} />
+                </div>
+              ))}
             </dd>
           </div>
         )}
@@ -459,7 +515,7 @@ function ArrangementForm({
           song_key: songKey.trim() || null,
           bpm: bpmValue,
           meter: meter.trim() || null,
-          reference_url: referenceUrl.trim() || null,
+          reference_urls: cleanReferenceUrls,
         },
       },
       {
@@ -536,22 +592,61 @@ function ArrangementForm({
         </div>
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor={`arr-ref-${arrangement.id}`}>Reference recording</Label>
+        <Label htmlFor={`arr-ref-${arrangement.id}-0`}>Reference recordings</Label>
         <p className="text-muted-foreground text-xs">
-          The YouTube (or other) link this arrangement follows — shown on the
-          worship set list.
+          The YouTube (or other) links this arrangement follows — shown on the
+          worship set list, first one first.
         </p>
-        <Input
-          id={`arr-ref-${arrangement.id}`}
-          type="url"
-          value={referenceUrl}
-          onChange={(e) => setReferenceUrl(e.target.value)}
-          placeholder="https://youtu.be/…"
-        />
+        {referenceUrls.map((url, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Input
+              id={`arr-ref-${arrangement.id}-${i}`}
+              type="url"
+              value={url}
+              onChange={(e) =>
+                setReferenceUrls((all) =>
+                  all.map((u, j) => (j === i ? e.target.value : u)),
+                )
+              }
+              placeholder="https://youtu.be/…"
+              aria-label={i === 0 ? undefined : `Reference recording ${i + 1}`}
+              aria-invalid={url.trim() !== '' && playableUrl(url) === null}
+            />
+            <PlayRecordingButton url={url} />
+            {(referenceUrls.length > 1 || url !== '') && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() =>
+                  // The last box empties rather than going, so one always stays.
+                  setReferenceUrls((all) =>
+                    all.length > 1 ? all.filter((_, j) => j !== i) : [''],
+                  )
+                }
+                title="Remove this link"
+                aria-label={`Remove reference recording ${i + 1}`}
+              >
+                <X className="size-4" />
+              </Button>
+            )}
+          </div>
+        ))}
         {referenceUrlInvalid && (
           <p className="text-destructive text-sm">
             Enter a full link starting with http:// or https://
           </p>
+        )}
+        {referenceUrls.length < MAX_REFERENCE_URLS && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="self-start"
+            onClick={() => setReferenceUrls((all) => [...all, ''])}
+            title="Add a box for another recording of this arrangement"
+          >
+            <Plus className="size-4" />
+            Add another recording
+          </Button>
         )}
       </div>
       <div className="flex items-center justify-between gap-2">

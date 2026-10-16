@@ -39,7 +39,7 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
 **Songs**
 - Song library with authors, CCLI numbers, copyright, tags and usage reports
   (frequency, last played, by service type)
-- Arrangements per song — key, BPM, meter, reference recording, versioned lyrics
+- Arrangements per song — key, BPM, meter, reference recordings, versioned lyrics
 - Medleys: one arrangement spanning several songs, counted for every song it
   contains
 - Multi-lingual songs: alongside the singable lyrics, each line can carry the

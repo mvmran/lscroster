@@ -198,19 +198,19 @@ Deno.serve(async (req) => {
   ]
   const arrangementById = new Map<
     string,
-    { song_key: string | null; bpm: number | null; meter: string | null; reference_url: string | null }
+    { song_key: string | null; bpm: number | null; meter: string | null; reference_urls: string[] }
   >()
   if (arrangementIds.length > 0) {
     const { data: arrRows } = await admin
       .from('song_arrangements')
-      .select('id, song_key, bpm, meter, reference_url')
+      .select('id, song_key, bpm, meter, reference_urls')
       .in('id', arrangementIds)
     for (const a of arrRows ?? []) {
       arrangementById.set(a.id as string, {
         song_key: a.song_key,
         bpm: a.bpm,
         meter: a.meter,
-        reference_url: a.reference_url,
+        reference_urls: a.reference_urls ?? [],
       })
     }
   }
@@ -220,7 +220,7 @@ Deno.serve(async (req) => {
       title: i.title,
       detail: i.description,
       // "Leave empty if not present" — no search-link fallback here.
-      referenceUrl: arr?.reference_url ?? null,
+      referenceUrls: arr?.reference_urls ?? [],
       key: i.key_override ?? arr?.song_key ?? null,
       meter: arr?.meter ?? null,
       bpm: arr?.bpm ?? null,

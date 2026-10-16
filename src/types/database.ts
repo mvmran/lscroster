@@ -1749,6 +1749,7 @@ export type Database = {
           meter: string | null
           name: string
           reference_url: string | null
+          reference_urls: string[]
           song_key: string | null
           sort_order: number
           updated_at: string
@@ -1761,6 +1762,7 @@ export type Database = {
           meter?: string | null
           name?: string
           reference_url?: string | null
+          reference_urls?: string[]
           song_key?: string | null
           sort_order?: number
           updated_at?: string
@@ -1773,6 +1775,7 @@ export type Database = {
           meter?: string | null
           name?: string
           reference_url?: string | null
+          reference_urls?: string[]
           song_key?: string | null
           sort_order?: number
           updated_at?: string
@@ -2154,6 +2157,7 @@ export type Database = {
       }
     }
     Functions: {
+      all_http_urls: { Args: { urls: string[] }; Returns: boolean }
       audit_record: {
         Args: {
           p_action: string

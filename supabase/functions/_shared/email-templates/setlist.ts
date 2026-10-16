@@ -27,7 +27,8 @@ export interface SetlistEmailParams {
     title: string
     /** The item's flow/dynamics note, shown under the title. */
     detail: string | null
-    referenceUrl: string | null
+    /** The arrangement's recordings, first one first; empty when none. */
+    referenceUrls: string[]
     key: string | null
     meter: string | null
     bpm: number | null
@@ -88,9 +89,16 @@ function grid(p: SetlistEmailParams): string {
           ? `<div style="font-size:12px;color:#71717a;padding-top:2px;">${esc(s.detail)}</div>`
           : ''
       }`
-      const link = s.referenceUrl
-        ? `<a href="${esc(s.referenceUrl)}" style="color:#2563eb;text-decoration:none;">Listen&nbsp;›</a>`
-        : ''
+      // Only http(s) is ever linked: the column is checked, but this is the href.
+      const link = s.referenceUrls
+        .filter((u) => /^https?:\/\/\S+$/i.test(u))
+        .map(
+          (u, i) =>
+            `<a href="${esc(u)}" style="color:#2563eb;text-decoration:none;">Listen${
+              i === 0 ? '' : `&nbsp;${i + 1}`
+            }&nbsp;›</a>`,
+        )
+        .join('<br>')
       return `
         <tr>
           <td style="${CELL}">${name}</td>

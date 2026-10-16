@@ -4,6 +4,7 @@ import {
   comparePlansByDateTime,
   findClashingPlans,
   lyricsSheetMeta,
+  playableUrls,
   playableUrl,
   songSearchLinks,
   weeklyDates,
@@ -245,6 +246,15 @@ describe('songSearchLinks', () => {
   })
 })
 
+describe('playableUrls', () => {
+  it('keeps http(s) links in order and drops anything else', () => {
+    expect(
+      playableUrls([' https://youtu.be/a ', 'javascript:alert(1)', '', 'http://x.org/b']),
+    ).toEqual(['https://youtu.be/a', 'http://x.org/b'])
+    expect(playableUrls(null)).toEqual([])
+  })
+})
+
 describe('buildLyricsSheet key and tempo', () => {
   const arrangement: SongArrangement = {
     id: 'arr-1',
@@ -254,7 +264,8 @@ describe('buildLyricsSheet key and tempo', () => {
     meter: '4/4',
     is_default: true,
     sort_order: 0,
-    reference_url: 'https://youtu.be/demo',
+    reference_url: null,
+    reference_urls: ['https://youtu.be/demo', 'https://youtu.be/live'],
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   }
@@ -288,7 +299,7 @@ describe('buildLyricsSheet key and tempo', () => {
     const [entry] = buildLyricsSheet([songItem({})], arrangements, lyrics)
     expect(entry.key).toBe('D')
     expect(entry.bpm).toBe(72)
-    expect(entry.referenceUrl).toBe('https://youtu.be/demo')
+    expect(entry.referenceUrls).toEqual(['https://youtu.be/demo', 'https://youtu.be/live'])
     expect(lyricsSheetMeta(entry)).toBe('Key D  ·  72 BPM  ·  4/4')
   })
 

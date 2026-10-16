@@ -907,6 +907,26 @@ and sequence grant rows identical to before. New CLAUDE.md convention: every
 new table/view is granted in its own migration. `seed.sql`'s local repair stays.
 **Upgrade note:** `db push` (0050); no app or function change.
 
+(0051) `arrangement_reference_urls` **Several reference recordings, with a ▶
+play button** (2026-10-16): an arrangement now holds a list of recordings
+(`song_arrangements.reference_urls text[]`, ≤ 10, every one http(s) — a
+`check` through the immutable helper `all_http_urls()`, since a check can't
+hold a subquery), backfilled from the old single `reference_url`. The song page
+shows one box per link, each with a small solid ▶ (opens the link in a new tab,
+tooltip "Play in a new tab"; greyed with the reason as its hint until the box
+holds a full link), an ✕ to remove it (the last box empties rather than going),
+and **Add another recording**; members see the list read-only, each with its ▶.
+The plan's Lyrics Sheet shows **Listen**, **Listen 2**… chips, and the set-list
+email one "Listen ›" per link, first one first — both pass only http(s) hrefs.
+`reference_url` is kept, unread and unwritten (column comment), so an older
+bundle or `send-setlist` running mid-upgrade keeps working — **drop it in a
+later release**. Verified: constraint refuses `javascript:` and an 11th link;
+migration re-runs as a no-op; a 19-check browser run (greyed/enabled ▶ and its
+hints, the popup opening the link, add/save/reload/remove-to-empty, member
+read-only view, phone layout without sideways scroll); Lyrics Sheet chips; the
+email template rendering 0 / 1 / 2 / unsafe links. **Upgrade note:** `db push`
+(0051), then `functions deploy send-setlist`, before the bundle.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
