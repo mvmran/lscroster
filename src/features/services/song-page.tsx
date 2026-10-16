@@ -76,6 +76,7 @@ import {
 import { ChordNotationToggle } from '@/features/services/chord-notation-toggle'
 import { useChordNotation } from '@/features/services/use-chord-notation'
 import { LyricsReadView } from '@/features/services/lyrics-read-view'
+import { MetronomeButton } from '@/features/services/metronome-button'
 import {
   appendImportedLyrics,
   appendLayers,
@@ -476,7 +477,10 @@ function ArrangementForm({
         </div>
         <div>
           <dt className="text-muted-foreground">Meter</dt>
-          <dd className="font-medium">{arrangement.meter ?? '—'}</dd>
+          <dd className="flex items-center gap-2 font-medium">
+            {arrangement.meter ?? '—'}
+            <MetronomeButton bpm={arrangement.bpm} meter={arrangement.meter} />
+          </dd>
         </div>
         {references.length > 0 && (
           <div className="col-span-3">
@@ -583,12 +587,19 @@ function ArrangementForm({
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor={`arr-meter-${arrangement.id}`}>Meter</Label>
-          <Input
-            id={`arr-meter-${arrangement.id}`}
-            value={meter}
-            onChange={(e) => setMeter(e.target.value)}
-            placeholder="e.g. 4/4"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id={`arr-meter-${arrangement.id}`}
+              value={meter}
+              onChange={(e) => setMeter(e.target.value)}
+              placeholder="e.g. 4/4"
+            />
+            {/* Follows the boxes as typed, saved or not. */}
+            <MetronomeButton
+              bpm={bpmInvalid ? null : bpmValue}
+              meter={meter.trim() || null}
+            />
+          </div>
         </div>
       </div>
       <div className="flex flex-col gap-2">

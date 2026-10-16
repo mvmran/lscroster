@@ -927,6 +927,23 @@ read-only view, phone layout without sideways scroll); Lyrics Sheet chips; the
 email template rendering 0 / 1 / 2 / unsafe links. **Upgrade note:** `db push`
 (0051), then `functions deploy send-setlist`, before the bundle.
 
+(no migration) **Metronome on the song page** (2026-10-16): a ▶ beside an
+arrangement's Meter (edit form and the read-only view) plays a click at its BPM
+— accent on beat 1 from the meter, a plain click with no meter; compound meters
+(6/8, 9/8, 12/8) count the dotted-crotchet pulse with two soft clicks after it.
+It turns into ⏸ while playing, greyed out with a hint until there is a whole BPM
+(20–400). Pure Web Audio, no files or library: `src/lib/metronome.ts` schedules
+short oscillator blips 100 ms ahead on the audio clock (a 25 ms timer only tops
+up the queue), one metronome page-wide, all clicks through one gain node so
+stopping is instant. It follows the boxes live (unsaved edits too) and stops when
+the button goes away — leaving the page, another arrangement's tab (Radix unmounts
+it), clearing the BPM — or when the browser tab is hidden (background timers are
+throttled, so it would stutter). Verified with a 23-check browser run that
+records every scheduled click: 3/4 at 72 (ABB, 0.833 s), a live edit to 120
+(0.5 s), no meter (plain), 6/8 (ASSBSS, 0.167 s), stops on pause / clearing BPM /
+tab switch / navigation / hidden tab, hints, member view, phone layout. Unit
+tests in `src/lib/metronome.test.ts`.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
