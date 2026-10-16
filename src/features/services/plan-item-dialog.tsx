@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  arrangementDisplayTitle,
+  arrangementSongTitle,
   DEFAULT_ITEM_LENGTH,
   formatLength,
   isMedley,
@@ -84,11 +84,12 @@ function ItemForm({
   const arrangementBpm = arrangement?.bpm ?? null
   const titleFor = (id: string | null) => {
     const found = id ? arrangements.get(id) : undefined
-    return found ? arrangementDisplayTitle(found) : (picked?.title ?? '')
+    return found ? arrangementSongTitle(found) : (picked?.title ?? '')
   }
 
   const [title, setTitle] = useState(item?.title ?? (picked ? titleFor(arrangementId) : ''))
-  // While adding, the title follows the arrangement until someone types one.
+  // While adding, the title follows the arrangement (a medley names every song)
+  // until someone types one.
   const [titleEdited, setTitleEdited] = useState(false)
   const [length, setLength] = useState(
     formatLength(item?.length_seconds ?? DEFAULT_ITEM_LENGTH[kind]),
@@ -158,7 +159,7 @@ function ItemForm({
                   const medley = found && isMedley(found)
                   return (
                     <SelectItem key={a.id} value={a.id}>
-                      {medley ? arrangementDisplayTitle(found) : a.name}
+                      {medley ? arrangementSongTitle(found) : a.name}
                       {a.song_key ? ` · ${a.song_key}` : ''}
                       {medley ? ' (medley)' : ''}
                     </SelectItem>

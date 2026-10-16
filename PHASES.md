@@ -990,6 +990,27 @@ title surviving a switch, cancel, create-and-add, Edit still Save, phone fit.
   in the same save on a published plan, the title follows unless renamed, and
   key/BPM overrides and notes stay.
 
+(0052) `plan_item_song_titles` **Song name as the title, arrangement under
+it** (2026-10-16): a song on a plan no longer has its arrangement baked into
+the title. `arrangementDisplayTitle()` ("Song (Acoustic)") is split into
+`arrangementSongTitle()` (the song, or "Song A / Song B" for a medley) and
+`arrangementLabel()` (a non-default arrangement's name, else null). The order
+of service shows the title with the label on a line of its own under it —
+"(Acoustic)", small (text-xs) and in the muted colour, indented past the ♪
+icon so it starts where the song name starts, above any description (first
+tried inline after the title; the user asked for it underneath); the Add
+song dialog fills in the song name alone; the Lyrics Sheet (on
+screen and in its PDF) shows the song name only. 0052 rewrites stored titles
+that are exactly the old built text (song name + " (" + arrangement name + ")",
+non-default arrangements only) to the song name, so they don't read
+"Song (Acoustic) (Acoustic)"; anything typed is left alone. Production had one
+such item of 34 (checked read-only). Verified: the migration on an old-pattern,
+a typed and a Default-arrangement title inside a rolled-back transaction, plus a
+second run as a no-op; a browser run on today's plan (title alone, label
+on the line below and starting at the song name's x, smaller and muted, Default unlabelled, no repeated line,
+Lyrics Sheet names, phone label visible, no sideways scroll); unit tests for both helpers and the
+Lyrics Sheet title. **Upgrade note:** `db push` (0052) before the bundle.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

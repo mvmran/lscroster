@@ -94,7 +94,8 @@ import {
 } from '@/features/services/plan-extras-cards'
 import { PlanItemDialog, type PlanItemDialogState } from '@/features/services/plan-item-dialog'
 import {
-  arrangementDisplayTitle,
+  arrangementLabel,
+  arrangementSongTitle,
   buildArrangementIndex,
   comparePlansByDateTime,
   computeItemTimes,
@@ -150,6 +151,7 @@ function ItemRow({
   offsetSeconds,
   canManage,
   songTitle,
+  arrangementName,
   defaultKey,
   onEdit,
   onDelete,
@@ -159,6 +161,8 @@ function ItemRow({
   offsetSeconds: number
   canManage: boolean
   songTitle?: string
+  /** A non-default arrangement's name, shown small and light under the title. */
+  arrangementName?: string | null
   defaultKey?: string | null
   onEdit: () => void
   onDelete: () => void
@@ -220,6 +224,11 @@ function ItemRow({
               </Badge>
             )}
           </div>
+          {item.kind === 'song' && arrangementName && (
+            // Indented past the music icon (size-3.5 + gap-2 = 22px), so it
+            // lines up with the song name rather than the icon.
+            <p className="text-muted-foreground truncate pl-5.5 text-xs">({arrangementName})</p>
+          )}
           {item.description && (
             <p className="text-muted-foreground truncate text-xs">{item.description}</p>
           )}
@@ -1333,7 +1342,8 @@ export function PlanPage() {
                         startsAt={startsAt}
                         offsetSeconds={offsetSeconds}
                         canManage={canEditOrder}
-                        songTitle={info ? arrangementDisplayTitle(info) : undefined}
+                        songTitle={info ? arrangementSongTitle(info) : undefined}
+                        arrangementName={info ? arrangementLabel(info) : null}
                         defaultKey={info?.arrangement.song_key}
                         onEdit={() => setItemDialog({ mode: 'edit', item })}
                         onDelete={() => setDeletingItem(item)}

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  arrangementLabel,
+  arrangementSongTitle,
   buildLyricsSheet,
   comparePlansByDateTime,
   findClashingPlans,
@@ -255,6 +257,35 @@ describe('playableUrls', () => {
   })
 })
 
+describe('arrangementSongTitle and arrangementLabel', () => {
+  const base: SongArrangement = {
+    id: 'a', name: 'Default', song_key: null, bpm: null, meter: null, is_default: true,
+    sort_order: 0, reference_url: null, reference_urls: [],
+    created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+  }
+  const song = { id: 's1', title: 'Amazing Grace' }
+
+  it('is the song name, with no label for the Default', () => {
+    const info = { arrangement: base, songs: [song] }
+    expect(arrangementSongTitle(info)).toBe('Amazing Grace')
+    expect(arrangementLabel(info)).toBeNull()
+  })
+
+  it('labels a named arrangement apart from the title', () => {
+    const info = { arrangement: { ...base, name: 'Acoustic', is_default: false }, songs: [song] }
+    expect(arrangementSongTitle(info)).toBe('Amazing Grace')
+    expect(arrangementLabel(info)).toBe('Acoustic')
+  })
+
+  it('names every song of a medley', () => {
+    const info = {
+      arrangement: { ...base, name: 'Medley', is_default: false },
+      songs: [song, { id: 's2', title: 'How Great Thou Art' }],
+    }
+    expect(arrangementSongTitle(info)).toBe('Amazing Grace / How Great Thou Art')
+  })
+})
+
 describe('buildLyricsSheet key and tempo', () => {
   const arrangement: SongArrangement = {
     id: 'arr-1',
@@ -301,6 +332,19 @@ describe('buildLyricsSheet key and tempo', () => {
     expect(entry.bpm).toBe(72)
     expect(entry.referenceUrls).toEqual(['https://youtu.be/demo', 'https://youtu.be/live'])
     expect(lyricsSheetMeta(entry)).toBe('Key D  ·  72 BPM  ·  4/4')
+  })
+
+  it('titles a song by its name alone, whichever arrangement', () => {
+    const acoustic: ArrangementInfo = {
+      arrangement: { ...arrangement, id: 'arr-2', name: 'Acoustic', is_default: false },
+      songs: [{ id: 'song-1', title: 'Amazing Grace' }],
+    }
+    const [entry] = buildLyricsSheet(
+      [songItem({ arrangement_id: 'arr-2' })],
+      new Map([['arr-2', acoustic]]),
+      lyrics,
+    )
+    expect(entry.title).toBe('Amazing Grace')
   })
 
   it('prefers the plan’s own key and tempo when it sets them', () => {

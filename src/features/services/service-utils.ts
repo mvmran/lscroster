@@ -72,13 +72,20 @@ export function isMedley(info: ArrangementInfo): boolean {
 }
 
 /**
- * Display title for an arrangement on a plan: the song title, "Song (Acoustic)"
- * for a named non-default arrangement, or "Song A / Song B" for a medley.
+ * The title of an arrangement on a plan: the song's name, or "Song A / Song B"
+ * for a medley. The arrangement itself is shown under it, not in it — see
+ * `arrangementLabel`.
  */
-export function arrangementDisplayTitle(info: ArrangementInfo): string {
-  const names = info.songs.map((s) => s.title).join(' / ')
-  if (isMedley(info) || info.arrangement.is_default) return names
-  return `${names} (${info.arrangement.name})`
+export function arrangementSongTitle(info: ArrangementInfo): string {
+  return info.songs.map((s) => s.title).join(' / ')
+}
+
+/**
+ * The arrangement's name, shown small and light in brackets under the song on
+ * a plan — or null for the Default, which needs no label.
+ */
+export function arrangementLabel(info: ArrangementInfo): string | null {
+  return info.arrangement.is_default ? null : info.arrangement.name
 }
 export type PlanItemKind = Enums<'plan_item_kind'>
 
@@ -431,7 +438,8 @@ export function buildLyricsSheet(
         : undefined
       return {
         songItemId: i.id,
-        title: info ? arrangementDisplayTitle(info) : i.title,
+        // The song alone: the lyrics are the song's, whichever arrangement.
+        title: info ? arrangementSongTitle(info) : i.title,
         // The key the plan plays the song in, which is also the key its stored
         // chord numbers are read back in — so a key override transposes the
         // chord chart along with the label, for nothing.
