@@ -22,6 +22,11 @@
 # Docker running (the CLI runs pg_dump in a container), and a Supabase access
 # token — `SUPABASE_ACCESS_TOKEN`, or `~/.supabase-token` exporting it, which
 # is what makes it work from cron. See docs/BACKUPS.md.
+#
+# Optional: BACKUP_NOTIFY_URL, or ~/.lscroster-backup-notify holding just the
+# URL — a run that fails POSTs it there as JSON, {"status": "failed",
+# "message", "project", "host"}: a Home Assistant webhook, ntfy, a chat bot.
+# A good run sends nothing.
 
 set -euo pipefail
 
@@ -37,8 +42,40 @@ if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ] && [ -f "$HOME/.supabase-token" ]; then
   . "$HOME/.supabase-token"
 fi
 
+if [ -z "${BACKUP_NOTIFY_URL:-}" ] && [ -f "$HOME/.lscroster-backup-notify" ]; then
+  BACKUP_NOTIFY_URL="$(head -n 1 "$HOME/.lscroster-backup-notify")"
+fi
+
 log() { printf '%s  %s\n' "$(date '+%F %T')" "$*"; }
-die() { log "FAILED: $*"; exit 1; }
+
+# Report a failure, once. A report that can't be sent is logged, never fatal —
+# the backup itself is what matters — and the URL is never written to the log:
+# whoever has it can raise the alarm.
+REPORTED=0
+notify() {
+  REPORTED=1
+  [ -n "${BACKUP_NOTIFY_URL:-}" ] || return 0
+  jq -nc --arg status "$1" --arg message "$2" --arg project "${REF:-unknown}" \
+    --arg host "$(hostname)" \
+    '{status: $status, message: $message, project: $project, host: $host}' \
+    | curl -fsS --max-time 20 -X POST -H 'Content-Type: application/json' \
+      --data @- "$BACKUP_NOTIFY_URL" >/dev/null 2>&1 \
+    || log "could not send the report to BACKUP_NOTIFY_URL"
+}
+die() { log "FAILED: $*"; notify failed "$*"; exit 1; }
+
+# On the way out: tidy the work folder, and report a run that stopped without
+# saying why (a command failing under set -e) — silence is what an alarm
+# exists to catch.
+on_exit() {
+  local rc=$?
+  if [ -n "${WORK:-}" ]; then rm -rf "$WORK" "$DEST/$NAME.tar.gz.part"; fi
+  if [ "$rc" -ne 0 ] && [ "$REPORTED" = 0 ]; then
+    log "FAILED: stopped unexpectedly (exit $rc)"
+    notify failed "stopped unexpectedly (exit $rc) — see backup.log"
+  fi
+}
+trap on_exit EXIT
 
 cd "$REPO"
 [ -f supabase/.temp/project-ref ] || die "not linked — run: npx supabase link --project-ref <ref>"
@@ -54,7 +91,6 @@ umask 077
 mkdir -p "$DEST"
 chmod 700 "$DEST"
 WORK="$(mktemp -d "$DEST/.$NAME.XXXX")"
-trap 'rm -rf "$WORK" "$DEST/$NAME.tar.gz.part"' EXIT
 
 log "backing up $REF to $DEST"
 

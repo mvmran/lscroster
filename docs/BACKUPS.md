@@ -63,7 +63,54 @@ On a Linux machine that stays on (or macOS), `crontab -e` and add:
 ```
 
 Check `backup.log` now and then: every good night ends with a `wrote …`
-line. The simplest alarm is the date on the newest archive.
+line. Better still, have the backup tell you when it fails (below) — a backup
+that has quietly stopped is worse than none, because you are counting on it.
+
+### Getting told when it fails
+
+Give the script a URL and a run that fails POSTs the reason there, as JSON:
+
+```json
+{"status": "failed", "message": "downloaded 1 files, storage holds 2",
+ "project": "abcd…", "host": "flint"}
+```
+
+A good run sends nothing. Anything that takes a webhook will do — Home
+Assistant, ntfy, a chat bot. Put the URL, on its own, in
+`~/.lscroster-backup-notify` (or set `BACKUP_NOTIFY_URL`):
+
+```bash
+echo 'https://example/your-webhook' > ~/.lscroster-backup-notify
+chmod 600 ~/.lscroster-backup-notify     # whoever has it can raise the alarm
+```
+
+A report that can't be sent is noted in `backup.log`; it never stops the backup.
+It needs the script to run, though: if the machine is off or cron has stopped,
+nothing is sent — so still glance at the date on the newest archive now and then.
+
+**Home Assistant**, for example — one automation (YAML mode; Home Assistant
+2024.10 or later — older versions spell `triggers:`/`trigger:` as
+`trigger:`/`platform:`). Use a long random webhook ID — it is the password —
+and your own notify action:
+
+```yaml
+alias: LSCroster backup failed
+triggers:
+  - trigger: webhook
+    webhook_id: lscroster-backup-CHANGE-ME-TO-SOMETHING-RANDOM
+    allowed_methods: [POST]
+    local_only: true          # false if the backup machine isn't on your LAN
+actions:
+  - action: notify.mobile_app_YOUR_PHONE
+    data:
+      title: LSCroster backup failed
+      message: "{{ trigger.json.message }} ({{ trigger.json.host }})"
+```
+
+The URL for `~/.lscroster-backup-notify` is then
+`http://<home-assistant>:8123/api/webhook/<your webhook id>`. Test it with
+`curl -X POST -H 'Content-Type: application/json' -d '{"status":"failed","message":"test","host":"test"}' <url>`
+— your phone should buzz.
 
 ## Backing up by hand
 

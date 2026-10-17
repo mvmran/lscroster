@@ -1329,6 +1329,22 @@ both files and wrote a complete archive (deleted afterwards).
 **Upgrade note:** none for the database; the nightly cron runs the main checkout's
 script, so pull `main` there, then run `scripts/backup.sh` once by hand.
 
+(no migration) **The backup reports its failures** (2026-10-17): twelve silent
+failures showed a log nobody reads is no alarm. A failed run of `backup.sh` now
+POSTs `{"status": "failed", "message", "project", "host"}` to
+`BACKUP_NOTIFY_URL` or the URL in `~/.lscroster-backup-notify` (mode 600; unset =
+no report, as before). A good run sends nothing — failures only, by choice, to
+keep it quiet. `die` reports its reason; an `on_exit` trap (which also replaced
+the old clean-up trap) reports any run that stops without one, such as a command
+failing under `set -e`. A report that can't be sent is logged and never fatal,
+and the URL is never written to the log. docs/BACKUPS.md gains "Getting told
+when it fails", with a one-automation Home Assistant recipe (webhook → phone)
+and the caveat that a machine that's off or a stopped cron sends nothing.
+Verified against a local stand-in webhook: "not linked" reported by `die`, an
+unwritable destination reported as "stopped unexpectedly (exit 1)", and a dead
+URL logged without changing the exit code; a real run (archive deleted) sent a
+report before success went quiet, so the post path itself is proven.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
