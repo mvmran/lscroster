@@ -138,6 +138,27 @@ export function usePositions(teamId: string | undefined) {
   })
 }
 
+/**
+ * How many plan assignments — past and future — a position has, for the
+ * warning before it is deleted: every one of them goes with it (the foreign
+ * key cascades). Null while there is no position to ask about.
+ */
+export function usePositionAssignmentCount(positionId: string | null) {
+  return useQuery({
+    queryKey: ['position-assignment-count', positionId ?? ''],
+    enabled: !!positionId,
+    staleTime: 0,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('plan_assignments')
+        .select('id', { count: 'exact', head: true })
+        .eq('position_id', positionId!)
+      if (error) throw new Error(error.message)
+      return count ?? 0
+    },
+  })
+}
+
 /** Every team's positions in one query (scheduling panel needs all of them). */
 export function useAllPositions() {
   return useQuery({

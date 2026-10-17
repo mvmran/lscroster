@@ -71,6 +71,7 @@ import {
   TEAM_TYPE_OPTIONS,
   useDeleteTeam,
   useMembershipMutations,
+  usePositionAssignmentCount,
   usePositionMutations,
   usePositions,
   useSetTeamServiceTypes,
@@ -245,6 +246,14 @@ function PositionsCard({
   const [newName, setNewName] = useState('')
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null)
   const [reqDialog, setReqDialog] = useState<Position | null>(null)
+  // Confirm before deleting a position: it can't be undone, and every
+  // assignment in it — past and future — goes with it.
+  const [positionToDelete, setPositionToDelete] = useState<{
+    id: string
+    name: string
+    members: number
+  } | null>(null)
+  const assignmentCount = usePositionAssignmentCount(positionToDelete?.id ?? null)
 
   function addPosition() {
     const trimmed = newName.trim()
@@ -347,8 +356,10 @@ function PositionsCard({
                               size="icon"
                               className="size-8"
                               onClick={() =>
-                                remove.mutate(position.id, {
-                                  onError: (e) => toast.error(e.message),
+                                setPositionToDelete({
+                                  id: position.id,
+                                  name: position.name,
+                                  members: total,
                                 })
                               }
                               aria-label={`Delete ${position.name}`}
@@ -406,6 +417,52 @@ function PositionsCard({
           </form>
         )}
       </CardContent>
+
+      <AlertDialog
+        open={!!positionToDelete}
+        onOpenChange={(open) => !open && setPositionToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{positionToDelete?.name}”?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="flex flex-col gap-2">
+                <p>This can’t be undone. Along with the position, LSCroster deletes:</p>
+                <ul className="list-disc pl-5">
+                  <li>
+                    {plural(positionToDelete?.members ?? 0, 'member')} set up to
+                    play it (they stay on the team)
+                  </li>
+                  <li>
+                    {assignmentCount.isPending
+                      ? 'its plan assignments'
+                      : plural(assignmentCount.data ?? 0, 'plan assignment')}{' '}
+                    in it — past and future, on draft and published plans
+                  </li>
+                  <li>its per-plan targets and any scheduling rules that name it</li>
+                </ul>
+                <p>To keep the history, rename the position instead.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (!positionToDelete) return
+                remove.mutate(positionToDelete.id, {
+                  onSuccess: () => toast.success(`“${positionToDelete.name}” deleted`),
+                  onError: (e) => toast.error(e.message),
+                })
+                setPositionToDelete(null)
+              }}
+            >
+              Delete position
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <PositionRequirementsDialog
         position={reqDialog}
@@ -657,6 +714,11 @@ function MembersCard({
       </AlertDialog>
     </Card>
   )
+}
+
+/** "1 member", "3 members". */
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
 export function TeamPage() {

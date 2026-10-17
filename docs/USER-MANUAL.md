@@ -1094,6 +1094,11 @@ Each scheduled person has a **⋯** menu:
 position, set its requirements (§8.4), add members (**Add member**), and tick the
 positions each member can fill, marking each as Qualified or Trainee.
 
+Deleting a position (the bin beside it) asks first, and says what goes with it:
+every member's place in it, **every plan assignment in it — past and future**,
+and its targets and rules. It can't be undone; to keep the history, rename the
+position instead.
+
 **Per-person rules.** Admins and coordinators can set, on a person's page under
 **Scheduling rules**:
 

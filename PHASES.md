@@ -1251,6 +1251,20 @@ them → VERSE 1 / VERSE 2 / VERSE 1 in both panes, the note gone, Save offered;
 after a reload, " [5]" typed into the third VERSE's chord line → VERSE 2 with
 the chord pane's caret in place; nothing saved.
 
+(no migration) **Confirm before deleting a position** (2026-10-17): the bin on a
+team's position deleted it on the spot. Not a regression — git shows it unconfirmed
+since the team page first landed (`2cb5166`, 2026-06-12); issue #66 added the
+confirmation for removing a *member* only. It matters more than it looks: every
+foreign key to `positions` cascades, so a delete takes the position's member
+qualifications, **all its plan assignments, past and future, on published plans
+too**, its per-plan targets and any conditional rules naming it. The bin now
+opens an AlertDialog listing those, with live counts (members from the team's
+data; assignments from a head count, `usePositionAssignmentCount`) and the advice
+to rename instead to keep the history. Verified on a scratch position with one
+member and one assignment: the dialog's counts, Cancel keeping it, Delete
+position removing it and its assignment. Other deletes that still skip a
+confirmation were listed for review rather than changed.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
