@@ -1315,6 +1315,20 @@ service type deleted; both plans' files gone from storage) and an API probe of
 goes).
 **Upgrade note:** `db push` (0058) before the bundle; no function change.
 
+(no migration) **Backups failed from 5 October: the `notices` bucket** (2026-10-17):
+`scripts/backup.sh` copied a fixed list of buckets (photos, song-attachments,
+plan-attachments, church-logo); the notice board (0049) added `notices`, and once
+the first notice PDF was uploaded (4 Oct) every nightly run stopped at its own
+completeness check — "downloaded 1 files, storage holds 2" — and wrote no archive.
+Twelve nights were lost (the newest archive was 2026-10-03T16:00Z). The script now
+copies every bucket that holds files, the same list the check counts, so a new
+bucket can't do this again; `restore.sh` already restores whatever buckets an
+archive holds. Found while reading the 3 Oct archive to recover a deleted position.
+Verified: the fixed script run against production into a scratch folder copied
+both files and wrote a complete archive (deleted afterwards).
+**Upgrade note:** none for the database; the nightly cron runs the main checkout's
+script, so pull `main` there, then run `scripts/backup.sh` once by hand.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

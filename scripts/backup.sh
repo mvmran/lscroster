@@ -6,7 +6,8 @@
 #     roles.sql      custom database roles (usually empty on a church instance)
 #     schema.sql     every schema, as it is in the live project
 #     data.sql       every row in public and auth: records AND logins
-#     storage/       every file in every bucket (photos, attachments, logo)
+#     storage/       every file in every bucket (photos, attachments, logo,
+#                    notices — whichever buckets hold files)
 #     manifest.txt   row counts, file counts, the migration the database is at,
 #                    and the NAMES of the secrets a restore has to re-set
 #
@@ -27,7 +28,6 @@ set -euo pipefail
 DEST="${1:-$HOME/dev/backups/lscroster}"
 KEEP="${KEEP:-30}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUCKETS=(photos song-attachments plan-attachments church-logo)
 
 # cron starts with a bare PATH and no profile: find node/npx, the user-prefix
 # npm and docker, and the access token, the way a login shell would.
@@ -103,12 +103,13 @@ live_people="$(awk '$1=="people"{print $2}' <<<"$COUNTS")"
   || die "data.sql has $dumped_people people rows, the project has $live_people"
 
 mkdir -p "$WORK/storage"
-for bucket in "${BUCKETS[@]}"; do
-  if grep -q "^$bucket " <<<"$FILES"; then
-    supa storage cp -r "ss:///$bucket" "$WORK/storage/$bucket" \
-      --experimental --linked >/dev/null 2>"$WORK/err" \
-      || die "storage $bucket: $(tail -3 "$WORK/err")"
-  fi
+# Every bucket that holds files — the same list the count below checks against.
+# A fixed list missed `notices` when the notice board added it (0049), and every
+# backup from then on failed the count.
+for bucket in $(awk '{print $1}' <<<"$FILES"); do
+  supa storage cp -r "ss:///$bucket" "$WORK/storage/$bucket" \
+    --experimental --linked >/dev/null 2>"$WORK/err" \
+    || die "storage $bucket: $(tail -3 "$WORK/err")"
 done
 got_files="$(find "$WORK/storage" -type f | wc -l)"
 want_files="$(awk '{s+=$2} END{print s+0}' <<<"$FILES")"
