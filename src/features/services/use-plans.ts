@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { COUNT_ONLY, countRows } from '@/lib/count-rows'
 import type { Tables, TablesUpdate } from '@/types/database'
 import { todayISODate } from '@/features/services/service-utils'
+import { removePlanFiles } from '@/features/services/use-plan-attachments'
 
 /** A plan row with its service type embedded (the lists always need the name). */
 export type PlanWithType = Tables<'plans'> & {
@@ -237,12 +239,29 @@ export function useUpdatePlan() {
   })
 }
 
+/**
+ * Delete a plan, then its attachment files — the rows cascade, the files
+ * don't (0058). `filesLeft` counts any storage wouldn't remove.
+ */
 export function useDeletePlan() {
   const invalidate = useInvalidatePlans()
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('plans').delete().eq('id', id)
+      // Where its files are, before the rows that say so cascade away.
+      const { data: files, error: filesError } = await supabase
+        .from('plan_attachments')
+        .select('storage_path')
+        .eq('plan_id', id)
+      if (filesError) throw new Error(filesError.message)
+      const { data: gone, error } = await supabase
+        .from('plans')
+        .delete()
+        .eq('id', id)
+        .select('id')
       if (error) throw new Error(error.message)
+      // RLS refuses a delete by deleting nothing — and then the files must stay.
+      if (gone.length === 0) throw new Error('You can’t delete this plan')
+      return { filesLeft: await removePlanFiles(files.map((f) => f.storage_path)) }
     },
     onSuccess: () => invalidate(),
   })
@@ -253,4 +272,29 @@ export function splitUpcomingPast(plans: PlanWithType[]) {
   const upcoming = plans.filter((p) => p.date >= today).sort((a, b) => a.date.localeCompare(b.date))
   const past = plans.filter((p) => p.date < today)
   return { upcoming, past }
+}
+
+/**
+ * What deleting a plan takes with it, for the warning before it goes: its
+ * order of service, everyone scheduled on it and its attachments (all cascade).
+ */
+export function usePlanDeleteImpact(planId: string | null) {
+  return useQuery({
+    queryKey: ['delete-impact', 'plan', planId ?? ''],
+    enabled: !!planId,
+    staleTime: 0,
+    queryFn: async () => {
+      const id = planId!
+      const [items, assignments, attachments] = await Promise.all([
+        countRows(supabase.from('plan_items').select('id', COUNT_ONLY).eq('plan_id', id)),
+        countRows(
+          supabase.from('plan_assignments').select('id', COUNT_ONLY).eq('plan_id', id),
+        ),
+        countRows(
+          supabase.from('plan_attachments').select('id', COUNT_ONLY).eq('plan_id', id),
+        ),
+      ])
+      return { items, assignments, attachments }
+    },
+  })
 }

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { COUNT_ONLY, countRows } from '@/lib/count-rows'
 import { PERSON_SAFE_COLUMNS } from '@/features/people/use-people'
 import type { Proficiency } from '@/features/scheduling/scheduling-utils'
 import type { Enums, Tables, TablesInsert, TablesUpdate } from '@/types/database'
@@ -527,4 +528,27 @@ export function useMembershipMutations() {
     onSuccess: (m) => invalidate(m.team_id, m.person_id),
   })
   return { add, addPosition, removePosition, setProficiency, remove }
+}
+
+/**
+ * What deleting a team takes with it: its positions, its members' places on
+ * it and every assignment for it, past and future (all cascade).
+ */
+export function useTeamDeleteImpact(teamId: string | null) {
+  return useQuery({
+    queryKey: ['delete-impact', 'team', teamId ?? ''],
+    enabled: !!teamId,
+    staleTime: 0,
+    queryFn: async () => {
+      const id = teamId!
+      const [positions, members, assignments] = await Promise.all([
+        countRows(supabase.from('positions').select('id', COUNT_ONLY).eq('team_id', id)),
+        countRows(supabase.from('team_members').select('id', COUNT_ONLY).eq('team_id', id)),
+        countRows(
+          supabase.from('plan_assignments').select('id', COUNT_ONLY).eq('team_id', id),
+        ),
+      ])
+      return { positions, members, assignments }
+    },
+  })
 }

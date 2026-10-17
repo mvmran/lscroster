@@ -55,6 +55,18 @@ export function useUploadPlanAttachment(planId: string) {
   })
 }
 
+/**
+ * Delete files from the plan-attachments bucket once the plan (or service
+ * type) they belonged to has gone: its attachment rows cascade away, but files
+ * in storage don't. Returns how many couldn't be removed — storage refuses
+ * quietly, by removing fewer — so the caller can say so.
+ */
+export async function removePlanFiles(paths: string[]): Promise<number> {
+  if (paths.length === 0) return 0
+  const { data, error } = await supabase.storage.from(BUCKET).remove(paths)
+  return error ? paths.length : paths.length - data.length
+}
+
 export function useDeletePlanAttachment(planId: string) {
   const queryClient = useQueryClient()
   return useMutation({

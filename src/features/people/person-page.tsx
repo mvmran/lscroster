@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { plural } from '@/lib/utils'
 import {
   Card,
   CardContent,
@@ -61,6 +62,7 @@ import {
   useDeletePerson,
   usePeopleManagedBy,
   usePerson,
+  usePersonDeleteImpact,
   useUpdatePerson,
 } from '@/features/people/use-people'
 import {
@@ -110,6 +112,9 @@ export function PersonPage() {
 
   const [editOpen, setEditOpen] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
+  // The delete warning counts what goes with the person, once it opens.
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const deleteImpact = usePersonDeleteImpact(deleteOpen ? (id ?? null) : null)
   // Holds the form values while the admin confirms removing an account's email
   // (issue #92), which revokes its sign-in and resets it to a fresh record.
   const [pendingEmailRemoval, setPendingEmailRemoval] =
@@ -557,7 +562,7 @@ export function PersonPage() {
                     </AlertDialogContent>
                   </AlertDialog>
                 )}
-                <AlertDialog>
+                <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
                   {/* The span carries the hint: a disabled Button has
                       pointer-events: none, so its own title never shows. */}
                   <span
@@ -583,12 +588,41 @@ export function PersonPage() {
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>
-                        Delete {fullName(p)}?
+                        Delete {fullName(p)} permanently?
                       </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This permanently removes their record and any sign-in
-                        access. Usually archiving is better — it keeps history
-                        but hides them from the directory.
+                      <AlertDialogDescription asChild>
+                        <div className="flex flex-col gap-2">
+                          <p>
+                            This can’t be undone. Along with {p.first_name}’s
+                            record, LSCroster deletes:
+                          </p>
+                          <ul className="list-disc pl-5">
+                            <li>their sign-in and photo</li>
+                            <li>
+                              <strong>
+                                {deleteImpact.data
+                                  ? plural(deleteImpact.data.assignments, 'plan assignment')
+                                  : 'every plan assignment'}
+                              </strong>{' '}
+                              — their whole scheduling history
+                              {deleteImpact.data && deleteImpact.data.upcoming > 0
+                                ? `, ${deleteImpact.data.upcoming} of them still to come`
+                                : ''}
+                            </li>
+                            <li>
+                              their place on{' '}
+                              {deleteImpact.data
+                                ? plural(deleteImpact.data.teams, 'team')
+                                : 'their teams'}
+                              , their blockouts, scheduling rules, permissions and
+                              team access
+                            </li>
+                          </ul>
+                          <p>
+                            <strong>Archive</strong> keeps all of this and just hides
+                            them — usually the better choice.
+                          </p>
+                        </div>
                       </AlertDialogDescription>
                       {upcomingCount > 0 && (
                         <div className="rounded-md border border-amber-500/50 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
@@ -601,9 +635,17 @@ export function PersonPage() {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={onDelete}
-                        className="bg-destructive text-white hover:bg-destructive/90"
+                        variant="destructive"
+                        disabled={deletePerson.isPending}
+                        onClick={(event) => {
+                          // Stays open while it runs; success leaves the page.
+                          event.preventDefault()
+                          void onDelete()
+                        }}
                       >
+                        {deletePerson.isPending && (
+                          <Loader2 className="size-4 animate-spin" />
+                        )}
                         Delete permanently
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -662,8 +704,8 @@ export function PersonPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={confirmEmailRemoval}
-              className="bg-destructive text-white hover:bg-destructive/90"
             >
               Remove email &amp; revoke access
             </AlertDialogAction>

@@ -568,3 +568,56 @@ export async function fetchDefaultLyrics(
   if (error) throw new Error(error.message)
   return data
 }
+
+/** The distinct plans whose order of service uses any of these arrangements. */
+async function plansUsing(arrangementIds: string[]): Promise<number> {
+  if (arrangementIds.length === 0) return 0
+  const { data, error } = await supabase
+    .from('plan_items')
+    .select('plan_id')
+    .in('arrangement_id', arrangementIds)
+  if (error) throw new Error(error.message)
+  return new Set(data.map((row) => row.plan_id)).size
+}
+
+/**
+ * What deleting a song takes with it: the arrangements it doesn't share with
+ * another song (a medley's are kept), and the plans that lose its lyrics.
+ */
+export function useSongDeleteImpact(songId: string | null) {
+  return useQuery({
+    queryKey: ['delete-impact', 'song', songId ?? ''],
+    enabled: !!songId,
+    staleTime: 0,
+    queryFn: async () => {
+      const id = songId!
+      const { data: links, error } = await supabase
+        .from('song_arrangement_songs')
+        .select('arrangement_id')
+        .eq('song_id', id)
+      if (error) throw new Error(error.message)
+      const ids = links.map((l) => l.arrangement_id)
+      const { data: shared, error: sharedError } = ids.length
+        ? await supabase
+            .from('song_arrangement_songs')
+            .select('arrangement_id')
+            .in('arrangement_id', ids)
+            .neq('song_id', id)
+        : { data: [], error: null }
+      if (sharedError) throw new Error(sharedError.message)
+      const keep = new Set(shared.map((l) => l.arrangement_id))
+      const going = ids.filter((a) => !keep.has(a))
+      return { arrangements: going.length, plans: await plansUsing(going) }
+    },
+  })
+}
+
+/** What deleting an arrangement takes with it: the plans that lose its lyrics. */
+export function useArrangementDeleteImpact(arrangementId: string | null) {
+  return useQuery({
+    queryKey: ['delete-impact', 'arrangement', arrangementId ?? ''],
+    enabled: !!arrangementId,
+    staleTime: 0,
+    queryFn: async () => ({ plans: await plansUsing([arrangementId!]) }),
+  })
+}

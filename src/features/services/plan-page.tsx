@@ -57,6 +57,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { plural } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -123,6 +125,7 @@ import {
   useCreatePlan,
   useDeletePlan,
   usePlan,
+  usePlanDeleteImpact,
   usePlans,
   useUpdatePlan,
   type PlanWithType,
@@ -629,10 +632,7 @@ function SaveTemplateDialog({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
               {deleteTemplate.isPending && (
                 <Loader2 className="size-4 animate-spin" />
               )}
@@ -821,6 +821,7 @@ export function PlanPage() {
   const [duplicateOpen, setDuplicateOpen] = useState(false)
   const [templateOpen, setTemplateOpen] = useState(false)
   const [confirmDeletePlan, setConfirmDeletePlan] = useState(false)
+  const deleteImpact = usePlanDeleteImpact(confirmDeletePlan ? (id ?? null) : null)
   const [deletingItem, setDeletingItem] = useState<PlanItem | null>(null)
   const [gateOpen, setGateOpen] = useState(false)
   const [confirmSetlist, setConfirmSetlist] = useState(false)
@@ -1058,8 +1059,13 @@ export function PlanPage() {
 
   async function confirmDelete() {
     try {
-      await deletePlan.mutateAsync(plan!.id)
+      const { filesLeft } = await deletePlan.mutateAsync(plan!.id)
       toast.success('Plan deleted')
+      if (filesLeft > 0) {
+        toast.warning(
+          `${plural(filesLeft, 'attached file')} couldn’t be removed from storage`,
+        )
+      }
       navigate('/services')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not delete plan')
@@ -1491,27 +1497,36 @@ export function PlanPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={confirmDeletePlan} onOpenChange={setConfirmDeletePlan}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this plan?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Deletes the {formatPlanDate(plan.date)} plan and its whole order of
-              service. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deletePlan.isPending && <Loader2 className="size-4 animate-spin" />}
-              Delete plan
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={confirmDeletePlan}
+        onOpenChange={setConfirmDeletePlan}
+        title={`Delete the ${formatPlanDate(plan.date)} plan?`}
+        confirmLabel="Delete plan"
+        pending={deletePlan.isPending}
+        onConfirm={() => void confirmDelete()}
+      >
+        <p>This can’t be undone. Along with the plan, LSCroster deletes:</p>
+        <ul className="list-disc pl-5">
+          <li>
+            its order of service
+            {deleteImpact.data ? ` (${plural(deleteImpact.data.items, 'item')})` : ''} and
+            its times
+          </li>
+          <li>
+            {deleteImpact.data
+              ? plural(deleteImpact.data.assignments, 'plan assignment')
+              : 'every plan assignment'}{' '}
+            — everyone scheduled on it, confirmed or not.{' '}
+            <strong>Nobody is emailed</strong>, so let them know yourself.
+          </li>
+          <li>
+            {deleteImpact.data
+              ? plural(deleteImpact.data.attachments, 'attachment')
+              : 'its attachments'}{' '}
+            (the files too) and its publish record
+          </li>
+        </ul>
+      </ConfirmDialog>
     </div>
   )
 }

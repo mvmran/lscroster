@@ -1283,6 +1283,38 @@ Cancel / Keep them changing nothing, confirming doing the deed (unsent request
 cancelled, both attachments deleted, the key revoked) and the red button; the
 scratch data removed and `ava`'s temporary admin role restored.
 
+(0058) `plan_deleters_remove_files` **Clear warnings for the big deletes, and no
+leftover files** (2026-10-17): the dialogs before the deletes that take the most
+with them said the least, all behind a primary-coloured button. Six now use
+`ConfirmDialog` — red button, "This can't be undone. Along with …, LSCroster
+deletes:" and a list with **live counts** (one count-only query each,
+`countRows` / `COUNT_ONLY` in `src/lib/count-rows.ts`, fetched when the dialog
+opens): a **service type** (its plans, upcoming / past, their assignments —
+"Nobody is emailed" — attachments, templates, team links, rules), a **plan**
+(items, assignments, "Nobody is emailed", attachments), a **team** (positions,
+members, assignments, links, access), a **person** (sign-in and photo, every
+assignment with how many are still to come, teams, blockouts, rules,
+permissions, access; Archive suggested; the upcoming-roster note kept), a
+**song** and an **arrangement** (what goes, and how many plans lose their
+lyrics, key and chords on the Lyrics Sheet). `ConfirmDialog` gained `pending`:
+the dialog stays open with a spinner until the delete finishes, so a failure
+stays beside its error. Template, conditional rule, notice and remove-email
+dialogs just get the red button (`variant="destructive"`); `plural()` moved to
+`src/lib/utils.ts`.
+**Leftover files:** deleting a plan or a service type cascaded the attachment
+rows but never touched the files, so they stayed in `plan-attachments` for good.
+`useDeletePlan` / `useDeleteServiceType` now read the storage paths first,
+delete, check a row really went (RLS refuses by deleting nothing, and then the
+files must stay), then `removePlanFiles` — warning in a toast if storage keeps
+any. 0058 adds a delete-only storage policy for `create_delete_plans`, which
+could delete a plan but not its files. Production had **no** orphaned files in
+any bucket (read-only check), so nothing to clean. Verified: a 15-check browser
+run on scratch data (each dialog's counts and red button; plan, team and
+service type deleted; both plans' files gone from storage) and an API probe of
+0058 (a member without `create_delete_plans` removes nothing, with it the file
+goes).
+**Upgrade note:** `db push` (0058) before the bundle; no function change.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

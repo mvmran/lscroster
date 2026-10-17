@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { plural } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -118,8 +119,10 @@ import {
   useArrangementLyrics,
   useArrangements,
   useCreateArrangement,
+  useArrangementDeleteImpact,
   useDeleteArrangement,
   useDeleteSong,
+  useSongDeleteImpact,
   useLinkSongToArrangement,
   useSaveArrangementLyrics,
   useSong,
@@ -391,6 +394,9 @@ function ArrangementForm({
     arrangement.reference_urls.length > 0 ? arrangement.reference_urls : [''],
   )
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const arrangementImpact = useArrangementDeleteImpact(
+    confirmDelete ? arrangement.id : null,
+  )
 
   const bpmValue = bpm.trim() === '' ? null : Number(bpm)
   const bpmInvalid = bpmValue !== null && (!Number.isInteger(bpmValue) || bpmValue <= 0)
@@ -677,27 +683,29 @@ function ArrangementForm({
         )}
       </div>
 
-      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{arrangement.name}”?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Deletes this arrangement, its lyrics and its attachments
-              {isMedley ? ' — for every song in the medley' : ''}. Plans that
-              used it keep their items, but lose the link back here.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={onDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete arrangement
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`Delete “${arrangement.name}”?`}
+        confirmLabel="Delete arrangement"
+        onConfirm={onDelete}
+      >
+        <p>
+          This can’t be undone. Along with the arrangement
+          {isMedley ? ' — for every song in the medley' : ''}, LSCroster deletes:
+        </p>
+        <ul className="list-disc pl-5">
+          <li>its lyrics and chords — every saved version — and its attachments</li>
+          <li>
+            on{' '}
+            {arrangementImpact.data
+              ? plural(arrangementImpact.data.plans, 'plan')
+              : 'the plans'}{' '}
+            that used it, the song stays in their order of service,
+            but its lyrics, key and chords no longer show on their Lyrics Sheets
+          </li>
+        </ul>
+      </ConfirmDialog>
     </div>
   )
 }
@@ -1737,6 +1745,7 @@ export function SongPage() {
   const updateSong = useUpdateSong()
   const deleteSong = useDeleteSong()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const songImpact = useSongDeleteImpact(confirmDelete ? (song?.id ?? null) : null)
 
   const { can, songDeleteAllowed } = usePermissions()
   const canManage = can('manage_songs')
@@ -1888,30 +1897,34 @@ export function SongPage() {
       <ArrangementsCard song={song} canManage={canManage} />
       <UsageCard songId={song.id} />
 
-      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{song.title}”?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Deletes the song, its arrangements, lyrics and attachments from
-              the library. Medley arrangements shared with another song are
-              kept. Plans that used it keep their items, but the link back to
-              the library is removed. Consider archiving instead if it might
-              come back.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteSong}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteSong.isPending && <Loader2 className="size-4 animate-spin" />}
-              Delete song
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`Delete “${song.title}”?`}
+        confirmLabel="Delete song"
+        pending={deleteSong.isPending}
+        onConfirm={() => void confirmDeleteSong()}
+      >
+        <p>This can’t be undone. Along with the song, LSCroster deletes:</p>
+        <ul className="list-disc pl-5">
+          <li>
+            {songImpact.data
+              ? plural(songImpact.data.arrangements, 'arrangement')
+              : 'its arrangements'}{' '}
+            with their lyrics and chords — every saved version — and attachments
+            (medley arrangements shared with another song are kept)
+          </li>
+          <li>
+            on{' '}
+            {songImpact.data ? plural(songImpact.data.plans, 'plan') : 'the plans'} that
+            used it, the song stays in their order of service,
+            but its lyrics, key and chords no longer show on their Lyrics Sheets
+          </li>
+        </ul>
+        <p>
+          <strong>Archive</strong> it instead if it might come back.
+        </p>
+      </ConfirmDialog>
     </div>
   )
 }

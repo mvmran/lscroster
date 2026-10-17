@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { plural } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -71,6 +72,7 @@ import {
   TEAM_TYPE_LABELS,
   TEAM_TYPE_OPTIONS,
   useDeleteTeam,
+  useTeamDeleteImpact,
   useMembershipMutations,
   usePositionAssignmentCount,
   usePositionMutations,
@@ -702,11 +704,6 @@ function MembersCard({
   )
 }
 
-/** "1 member", "3 members". */
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`
-}
-
 export function TeamPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -719,6 +716,7 @@ export function TeamPage() {
 
   const [editOpen, setEditOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const deleteImpact = useTeamDeleteImpact(confirmDelete ? (team?.id ?? null) : null)
   const [name, setName] = useState('')
   const [teamType, setTeamType] = useState<TeamType>('general')
   const [serviceTypeIds, setServiceTypeIds] = useState<string[]>([])
@@ -906,27 +904,38 @@ export function TeamPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {team.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Deletes the team, its positions, its membership list and every
-              scheduling assignment that used it. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteTeam}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteTeam.isPending && <Loader2 className="size-4 animate-spin" />}
-              Delete team
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`Delete “${team.name}”?`}
+        confirmLabel="Delete team"
+        pending={deleteTeam.isPending}
+        onConfirm={() => void confirmDeleteTeam()}
+      >
+        <p>This can’t be undone. Along with the team, LSCroster deletes:</p>
+        <ul className="list-disc pl-5">
+          <li>
+            {deleteImpact.data
+              ? plural(deleteImpact.data.positions, 'position')
+              : 'its positions'}{' '}
+            and who’s set up to play them
+          </li>
+          <li>
+            the team’s list of{' '}
+            {deleteImpact.data
+              ? plural(deleteImpact.data.members, 'member')
+              : 'members'}{' '}
+            (they stay in the directory)
+          </li>
+          <li>
+            {deleteImpact.data
+              ? plural(deleteImpact.data.assignments, 'plan assignment')
+              : 'every plan assignment'}{' '}
+            for the team — past and future, on published plans too
+          </li>
+          <li>its links to service types, its team access and set-list recipient entry</li>
+        </ul>
+      </ConfirmDialog>
     </div>
   )
 }

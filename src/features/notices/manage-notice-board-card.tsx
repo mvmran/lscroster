@@ -268,7 +268,7 @@ export function ManageNoticeBoardCard() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90 text-white"
+              variant="destructive"
               onClick={() => {
                 if (!deleting) return
                 remove.mutate(deleting, {

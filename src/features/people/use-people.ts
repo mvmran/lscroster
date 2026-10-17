@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invokeFunction } from '@/lib/functions'
 import { invitationKeys } from '@/features/people/use-invitations'
 import { supabase } from '@/lib/supabase'
+import { todayISODate } from '@/features/services/service-utils'
+import { COUNT_ONLY, countRows } from '@/lib/count-rows'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
 export type Person = Tables<'people'>
@@ -178,5 +180,36 @@ export function useDeletePerson() {
     mutationFn: (id: string) =>
       invokeFunction<{ ok: boolean }>('delete-person', { personId: id }),
     onSuccess: invalidate,
+  })
+}
+
+/**
+ * What deleting a person takes with it: every assignment they have had — their
+ * scheduling history — and their places on teams (all cascade).
+ */
+export function usePersonDeleteImpact(personId: string | null) {
+  return useQuery({
+    queryKey: ['delete-impact', 'person', personId ?? ''],
+    enabled: !!personId,
+    staleTime: 0,
+    queryFn: async () => {
+      const id = personId!
+      const [assignments, upcoming, teams] = await Promise.all([
+        countRows(
+          supabase.from('plan_assignments').select('id', COUNT_ONLY).eq('person_id', id),
+        ),
+        countRows(
+          supabase
+            .from('plan_assignments')
+            .select('id, plans!inner(date)', COUNT_ONLY)
+            .eq('person_id', id)
+            .gte('plans.date', todayISODate()),
+        ),
+        countRows(
+          supabase.from('team_members').select('id', COUNT_ONLY).eq('person_id', id),
+        ),
+      ])
+      return { assignments, upcoming, teams }
+    },
   })
 }

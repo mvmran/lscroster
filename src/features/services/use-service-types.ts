@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { todayISODate } from '@/features/services/service-utils'
+import { removePlanFiles } from '@/features/services/use-plan-attachments'
+import { COUNT_ONLY, countRows } from '@/lib/count-rows'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
 type ServiceTypeRow = Tables<'service_types'>
@@ -104,12 +107,30 @@ export function useReorderServiceTypes() {
   })
 }
 
+/**
+ * Delete a service type — every plan under it cascades — then those plans'
+ * attachment files, which don't (0058). `filesLeft` counts any storage
+ * wouldn't remove.
+ */
 export function useDeleteServiceType() {
   const invalidate = useInvalidateServiceTypes()
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('service_types').delete().eq('id', id)
+      // Where its plans' files are, before the rows that say so cascade away.
+      const { data: files, error: filesError } = await supabase
+        .from('plan_attachments')
+        .select('storage_path, plans!inner(service_type_id)')
+        .eq('plans.service_type_id', id)
+      if (filesError) throw new Error(filesError.message)
+      const { data: gone, error } = await supabase
+        .from('service_types')
+        .delete()
+        .eq('id', id)
+        .select('id')
       if (error) throw new Error(error.message)
+      // RLS refuses a delete by deleting nothing — and then the files must stay.
+      if (gone.length === 0) throw new Error('You can’t delete this service type')
+      return { filesLeft: await removePlanFiles(files.map((f) => f.storage_path)) }
     },
     onSuccess: invalidate,
   })
@@ -169,6 +190,52 @@ export function useSetServiceTypeTeams() {
       queryClient.invalidateQueries({ queryKey: serviceTypeTeamsKey(serviceTypeId) })
       // Team displays (Teams list, team page) read the same join table.
       queryClient.invalidateQueries({ queryKey: ['teams'] })
+    },
+  })
+}
+
+/**
+ * What deleting a service type takes with it: every plan under it — and with
+ * each, everyone scheduled and its attachments — plus its templates.
+ */
+export function useServiceTypeDeleteImpact(serviceTypeId: string | null) {
+  return useQuery({
+    queryKey: ['delete-impact', 'service-type', serviceTypeId ?? ''],
+    enabled: !!serviceTypeId,
+    staleTime: 0,
+    queryFn: async () => {
+      const id = serviceTypeId!
+      const [plans, upcoming, assignments, attachments, templates] = await Promise.all([
+        countRows(
+          supabase.from('plans').select('id', COUNT_ONLY).eq('service_type_id', id),
+        ),
+        countRows(
+          supabase
+            .from('plans')
+            .select('id', COUNT_ONLY)
+            .eq('service_type_id', id)
+            .gte('date', todayISODate()),
+        ),
+        countRows(
+          supabase
+            .from('plan_assignments')
+            .select('id, plans!inner(service_type_id)', COUNT_ONLY)
+            .eq('plans.service_type_id', id),
+        ),
+        countRows(
+          supabase
+            .from('plan_attachments')
+            .select('id, plans!inner(service_type_id)', COUNT_ONLY)
+            .eq('plans.service_type_id', id),
+        ),
+        countRows(
+          supabase
+            .from('plan_templates')
+            .select('id', COUNT_ONLY)
+            .eq('service_type_id', id),
+        ),
+      ])
+      return { plans, upcoming, assignments, attachments, templates }
     },
   })
 }

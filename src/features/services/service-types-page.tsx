@@ -31,16 +31,8 @@ import {
 import { toast } from 'sonner'
 import { EmptyState } from '@/components/empty-state'
 import { PageHeader } from '@/components/page-header'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { plural } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -74,6 +66,7 @@ import {
   useCreateServiceType,
   useDeleteServiceType,
   useReorderServiceTypes,
+  useServiceTypeDeleteImpact,
   useServiceTypes,
   useServiceTypeTeamIds,
   useSetServiceTypeTeams,
@@ -547,6 +540,7 @@ export function ServiceTypesPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<ServiceType | null>(null)
   const [deleting, setDeleting] = useState<ServiceType | null>(null)
+  const impact = useServiceTypeDeleteImpact(deleting?.id ?? null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -576,8 +570,13 @@ export function ServiceTypesPage() {
   async function confirmDelete() {
     if (!deleting) return
     try {
-      await remove.mutateAsync(deleting.id)
+      const { filesLeft } = await remove.mutateAsync(deleting.id)
       toast.success(`Deleted ${deleting.name}`)
+      if (filesLeft > 0) {
+        toast.warning(
+          `${plural(filesLeft, 'attached file')} couldn’t be removed from storage`,
+        )
+      }
       setDeleting(null)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not delete')
@@ -649,28 +648,44 @@ export function ServiceTypesPage() {
         onOpenChange={setDialogOpen}
       />
 
-      <AlertDialog open={!!deleting} onOpenChange={(open) => !open && setDeleting(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently deletes the service type <strong>and every plan
-              under it</strong>, including their orders of service. This cannot
-              be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {remove.isPending && <Loader2 className="size-4 animate-spin" />}
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title={`Delete “${deleting?.name ?? 'this service type'}”?`}
+        confirmLabel="Delete service type"
+        pending={remove.isPending}
+        onConfirm={() => void confirmDelete()}
+      >
+        <p>This can’t be undone. Along with the service type, LSCroster deletes:</p>
+        <ul className="list-disc pl-5">
+          <li>
+            <strong>
+              {impact.data ? plural(impact.data.plans, 'plan') : 'every plan'} under it
+            </strong>
+            {impact.data
+              ? ` (${impact.data.upcoming} upcoming, ` +
+                `${impact.data.plans - impact.data.upcoming} past)`
+              : ''}
+            , with their orders of service and times
+          </li>
+          <li>
+            {impact.data
+              ? plural(impact.data.assignments, 'plan assignment')
+              : 'every plan assignment'}{' '}
+            — everyone scheduled on those plans, confirmed or not. Nobody is emailed.
+          </li>
+          <li>
+            {impact.data
+              ? plural(impact.data.attachments, 'attachment')
+              : 'their attachments'}{' '}
+            (the files too)
+          </li>
+          <li>
+            {impact.data ? plural(impact.data.templates, 'template') : 'its templates'}, its
+            team links and its conditional rules
+          </li>
+        </ul>
+      </ConfirmDialog>
     </div>
   )
 }
