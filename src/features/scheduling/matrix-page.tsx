@@ -43,6 +43,8 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { RemoveAndNotifyDialog } from '@/features/scheduling/remove-and-notify-dialog'
 import { EmptyState } from '@/components/empty-state'
 import { FullPageError } from '@/components/full-page-error'
 import { Badge } from '@/components/ui/badge'
@@ -240,6 +242,8 @@ function MatrixCell({
   const deleteAssignment = useDeleteAssignment(plan.id)
   const cancelAssignment = useCancelAssignment(plan.id)
   const sendRequests = useSendRequests(plan.id)
+  // Remove and Notify emails the person at once, so it asks first.
+  const [toNotify, setToNotify] = useState<AssignmentWithPerson | null>(null)
 
   // Mirror the plan page: re-send a single person's request email (#15).
   function sendOne(assignmentId: string) {
@@ -360,7 +364,7 @@ function MatrixCell({
                 (assignment.status === 'pending' && assignment.notified_at) ? (
                   <DropdownMenuItem
                     variant="destructive"
-                    onClick={() => removeAndNotify(assignment.id)}
+                    onClick={() => setToNotify(assignment)}
                   >
                     <Trash2 className="size-4" />
                     Remove and Notify
@@ -429,6 +433,12 @@ function MatrixCell({
           </div>
         )}
       </div>
+      <RemoveAndNotifyDialog
+        assignment={toNotify}
+        positionName={position.name}
+        onClose={() => setToNotify(null)}
+        onConfirm={(id) => removeAndNotify(id)}
+      />
     </td>
   )
 }
@@ -485,6 +495,25 @@ function CancelUnsentColumnButton({
   unsentIds: string[]
 }) {
   const deleteAssignment = useDeleteAssignment(plan.id)
+  const [confirming, setConfirming] = useState(false)
+  const count = `${unsentIds.length} unsent request${unsentIds.length === 1 ? '' : 's'}`
+
+  function cancelAll() {
+    setConfirming(false)
+    Promise.allSettled(unsentIds.map((id) => deleteAssignment.mutateAsync(id))).then(
+      (results) => {
+        const failed = results.filter((r) => r.status === 'rejected').length
+        const removed = results.length - failed
+        if (removed > 0) {
+          toast.success(
+            `${removed} unsent assignment${removed === 1 ? '' : 's'} cancelled`,
+          )
+        }
+        if (failed > 0) toast.error(`${failed} could not be cancelled`)
+      },
+    )
+  }
+
   const tooltip =
     unsentIds.length > 0
       ? `Cancel ${unsentIds.length} unsent request${unsentIds.length === 1 ? '' : 's'}`
@@ -497,20 +526,7 @@ function CancelUnsentColumnButton({
         className="size-6 shrink-0 border-muted-foreground/40 p-0"
         aria-label={tooltip}
         disabled={unsentIds.length === 0 || deleteAssignment.isPending}
-        onClick={() =>
-          Promise.allSettled(
-            unsentIds.map((id) => deleteAssignment.mutateAsync(id)),
-          ).then((results) => {
-            const failed = results.filter((r) => r.status === 'rejected').length
-            const removed = results.length - failed
-            if (removed > 0) {
-              toast.success(
-                `${removed} unsent assignment${removed === 1 ? '' : 's'} cancelled`,
-              )
-            }
-            if (failed > 0) toast.error(`${failed} could not be cancelled`)
-          })
-        }
+        onClick={() => setConfirming(true)}
       >
         {deleteAssignment.isPending ? (
           <Loader2 className="size-3.5 animate-spin" />
@@ -518,6 +534,19 @@ function CancelUnsentColumnButton({
           <CircleX className="size-3.5" />
         )}
       </Button>
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title={`Cancel ${count}?`}
+        confirmLabel="Cancel requests"
+        cancelLabel="Keep them"
+        onConfirm={cancelAll}
+      >
+        <p>
+          Everyone in this service’s column whose request hasn’t been emailed yet comes
+          off it. Nobody is emailed — they were never asked.
+        </p>
+      </ConfirmDialog>
     </span>
   )
 }

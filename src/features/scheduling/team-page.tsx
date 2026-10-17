@@ -24,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -418,51 +419,36 @@ function PositionsCard({
         )}
       </CardContent>
 
-      <AlertDialog
+      <ConfirmDialog
         open={!!positionToDelete}
         onOpenChange={(open) => !open && setPositionToDelete(null)}
+        title={`Delete “${positionToDelete?.name ?? 'this position'}”?`}
+        confirmLabel="Delete position"
+        onConfirm={() => {
+          if (!positionToDelete) return
+          remove.mutate(positionToDelete.id, {
+            onSuccess: () => toast.success(`“${positionToDelete.name}” deleted`),
+            onError: (e) => toast.error(e.message),
+          })
+          setPositionToDelete(null)
+        }}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{positionToDelete?.name}”?</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="flex flex-col gap-2">
-                <p>This can’t be undone. Along with the position, LSCroster deletes:</p>
-                <ul className="list-disc pl-5">
-                  <li>
-                    {plural(positionToDelete?.members ?? 0, 'member')} set up to
-                    play it (they stay on the team)
-                  </li>
-                  <li>
-                    {assignmentCount.isPending
-                      ? 'its plan assignments'
-                      : plural(assignmentCount.data ?? 0, 'plan assignment')}{' '}
-                    in it — past and future, on draft and published plans
-                  </li>
-                  <li>its per-plan targets and any scheduling rules that name it</li>
-                </ul>
-                <p>To keep the history, rename the position instead.</p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (!positionToDelete) return
-                remove.mutate(positionToDelete.id, {
-                  onSuccess: () => toast.success(`“${positionToDelete.name}” deleted`),
-                  onError: (e) => toast.error(e.message),
-                })
-                setPositionToDelete(null)
-              }}
-            >
-              Delete position
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <p>This can’t be undone. Along with the position, LSCroster deletes:</p>
+        <ul className="list-disc pl-5">
+          <li>
+            {plural(positionToDelete?.members ?? 0, 'member')} set up to play it (they
+            stay on the team)
+          </li>
+          <li>
+            {assignmentCount.isPending
+              ? 'its plan assignments'
+              : plural(assignmentCount.data ?? 0, 'plan assignment')}{' '}
+            in it — past and future, on draft and published plans
+          </li>
+          <li>its per-plan targets and any scheduling rules that name it</li>
+        </ul>
+        <p>To keep the history, rename the position instead.</p>
+      </ConfirmDialog>
 
       <PositionRequirementsDialog
         position={reqDialog}

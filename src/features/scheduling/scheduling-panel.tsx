@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { RemoveAndNotifyDialog } from '@/features/scheduling/remove-and-notify-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -546,6 +548,10 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
   const sendRequests = useSendRequests(plan.id)
   const [picker, setPicker] = useState<PickerTarget | null>(null)
   const [replaceTarget, setReplaceTarget] = useState<ReplaceTarget | null>(null)
+  // Both ask first: Remove and Notify emails the person at once, and Cancel
+  // unsent takes everyone not yet emailed off the plan in one go.
+  const [toNotify, setToNotify] = useState<AssignmentWithPerson | null>(null)
+  const [confirmingUnsent, setConfirmingUnsent] = useState(false)
 
   // Live scheduling-rules validation (issue #34) — badges update on every edit.
   const validation = usePlanValidation(plan)
@@ -696,6 +702,7 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
   // Cancel every assignment whose request email hasn't gone out yet — no email
   // is sent since the person was never notified, so we just delete the rows.
   function cancelUnsent() {
+    setConfirmingUnsent(false)
     if (unsentAssignments.length === 0) return
     Promise.allSettled(
       unsentAssignments.map((a) => deleteAssignment.mutateAsync(a.id)),
@@ -769,7 +776,7 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={cancelUnsent}
+                  onClick={() => setConfirmingUnsent(true)}
                   disabled={deleteAssignment.isPending}
                   title="Remove the people who haven't been emailed yet"
                 >
@@ -779,6 +786,36 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                   Cancel unsent
                 </Button>
               )}
+              <ConfirmDialog
+                open={confirmingUnsent}
+                onOpenChange={setConfirmingUnsent}
+                title={
+                  `Cancel ${unsentCount} unsent ` +
+                  `request${unsentCount === 1 ? '' : 's'}?`
+                }
+                confirmLabel="Cancel requests"
+                cancelLabel="Keep them"
+                onConfirm={cancelUnsent}
+              >
+                <p>
+                  {listNames(
+                    unsentAssignments.map((a) =>
+                      `${a.people.first_name} ${a.people.last_name}`.trim(),
+                    ),
+                  )}{' '}
+                  {unsentCount === 1 ? 'comes' : 'come'} off this plan. Nobody is
+                  emailed — they were never asked.
+                </p>
+              </ConfirmDialog>
+              <RemoveAndNotifyDialog
+                assignment={toNotify}
+                positionName={
+                  positions?.find((p) => p.id === toNotify?.position_id)?.name ??
+                  'their position'
+                }
+                onClose={() => setToNotify(null)}
+                onConfirm={(id) => removeAndNotify(id)}
+              />
             </div>
           )}
         </div>
@@ -988,7 +1025,7 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                                         assignment.notified_at) ? (
                                         <DropdownMenuItem
                                           variant="destructive"
-                                          onClick={() => removeAndNotify(assignment.id)}
+                                          onClick={() => setToNotify(assignment)}
                                         >
                                           <Trash2 className="size-4" />
                                           Remove and Notify
@@ -1054,4 +1091,11 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
       />
     </Card>
   )
+}
+
+/** "Ann Lee", "Ann Lee and Bo Ng", "Ann Lee, Bo Ng and 3 others". */
+function listNames(names: string[]): string {
+  if (names.length <= 2) return names.join(' and ')
+  if (names.length <= 4) return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+  return `${names.slice(0, 3).join(', ')} and ${names.length - 3} others`
 }

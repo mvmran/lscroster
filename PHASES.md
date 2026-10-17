@@ -1265,6 +1265,24 @@ member and one assignment: the dialog's counts, Cancel keeping it, Delete
 position removing it and its assignment. Other deletes that still skip a
 confirmation were listed for review rather than changed.
 
+(no migration) **Confirm before six more deletes** (2026-10-17): from that
+review list, the ones that can't be taken back now ask first, through one
+shared `ConfirmDialog` (`src/components/confirm-dialog.tsx`, an AlertDialog with
+the destructive confirm variant): **Remove and Notify** on the plan's People card
+and in the Matrix (`RemoveAndNotifyDialog`, its own file so the plan page doesn't
+load the Matrix; never confirmed in testing, so no email), the People card's
+**Cancel unsent** (names who) and the Matrix column's **Cancel unsent requests**
+(both "Keep them" / "Cancel requests"), deleting a **plan** or **song
+attachment**, and **Revoke** on a projection key. The position dialog moved onto
+it too. Why its button looked primary: `bg-destructive` passed as a class to
+`AlertDialogAction` loses to the Button's own variant colours — `variant` is the
+way; the older dialogs that pass the class (team, member, grants, plan, template,
+song, arrangement, service type, permission template) still show a primary
+button. Verified: an 18-check browser run on scratch rows — each dialog's text,
+Cancel / Keep them changing nothing, confirming doing the deed (unsent request
+cancelled, both attachments deleted, the key revoked) and the red button; the
+scratch data removed and `ava`'s temporary admin role restored.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

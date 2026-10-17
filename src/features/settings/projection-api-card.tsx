@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { Check, Copy, KeyRound, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -153,6 +154,8 @@ function GenerateKeyDialog({
 
 function KeyRow({ apiKey }: { apiKey: ProjectionKey }) {
   const revoke = useRevokeProjectionKey()
+  // A revoked key can't be switched back on, so revoking asks first.
+  const [confirming, setConfirming] = useState(false)
   const revoked = apiKey.revoked_at !== null
 
   return (
@@ -180,18 +183,32 @@ function KeyRow({ apiKey }: { apiKey: ProjectionKey }) {
           size="sm"
           variant="outline"
           disabled={revoke.isPending}
-          onClick={() =>
-            revoke.mutate(apiKey.id, {
-              onSuccess: () =>
-                toast.success(`“${apiKey.label}” can no longer access the API`),
-              onError: (e) => toast.error(e.message),
-            })
-          }
+          onClick={() => setConfirming(true)}
           title={`Stop “${apiKey.label}” from accessing the projection API`}
         >
           Revoke
         </Button>
       )}
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title={`Revoke “${apiKey.label}”?`}
+        confirmLabel="Revoke key"
+        onConfirm={() => {
+          setConfirming(false)
+          revoke.mutate(apiKey.id, {
+            onSuccess: () =>
+              toast.success(`“${apiKey.label}” can no longer access the API`),
+            onError: (e) => toast.error(e.message),
+          })
+        }}
+      >
+        <p>
+          Whatever uses this key — your projection software — loses access to the
+          API at once. A revoked key can’t be switched back on: you’d create a new
+          one and enter it there.
+        </p>
+      </ConfirmDialog>
     </div>
   )
 }

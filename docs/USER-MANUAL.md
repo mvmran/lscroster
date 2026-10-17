@@ -815,7 +815,8 @@ time.
 
 **Attachments** — files for this plan (run sheets, notice slides, readings), up
 to 25 MB each. Anyone who can see the plan can download them; people with
-*Attach plan files* can upload and delete them (**Upload file**).
+*Attach plan files* can upload and delete them (**Upload file**). Deleting one
+asks first — the file is gone for good.
 
 **Notes** — anything the team should know about this service. Type in the Notes
 box and press **Save notes**. The notes are included in the set-list email.
@@ -928,7 +929,7 @@ The **Arrangements** card has one tab per arrangement. Each has:
   one of them for the song (the first, unless changed in the plan's song box),
   and that one is the **Listen** link on the plan and in the set-list email;
 - its **Lyrics** (§7.3) and **attachments** — charts, recordings or PDFs (up to
-  25 MB, **Upload file**).
+  25 MB, **Upload file**). Deleting one asks first — the file is gone for good.
 
 **Add arrangement** creates another version of the song with its own key and
 lyrics; it starts with a copy of the Default arrangement's lyrics.
@@ -1077,7 +1078,8 @@ this service type, and under each team its positions and who's scheduled.
 3. The person is added as **Not sent**.
 4. When you've finished the roster, press **Send N requests** at the top of the
    People card to email everyone not asked yet. **Cancel unsent** removes everyone
-   you added but haven't emailed.
+   you added but haven't emailed — it names them and asks first. The Matrix has
+   the same button at the top of each service's column.
 
 Each scheduled person has a **⋯** menu:
 
@@ -1086,7 +1088,7 @@ Each scheduled person has a **⋯** menu:
 | **Find replacement** | For someone who declined — suggests who could fill the spot. |
 | **Replace…** | Swap in someone else (the previous person is notified if they'd been emailed). |
 | **Send email** | Send (or resend) this one person's request. |
-| **Remove and Notify** | Take them off and email them that they're no longer needed. |
+| **Remove and Notify** | Take them off and email them that they're no longer needed. Asks first — the email goes straight away. |
 | **Remove** | Take them off without an email (for people who were never sent a request). |
 
 **Teams and members.** A team's page (**Teams** → the team) lists its
@@ -1752,7 +1754,8 @@ the whole list.
 **Projection API.** If your projection software reads songs from LSCroster,
 generate a key per device here (**Generate key**, e.g. "AV Desk Mac Mini"). The
 key is shown **only once** — copy it into the projection app. **Revoke** a key
-to cut off one device without affecting the others. You can also choose whether
+to cut off one device without affecting the others; it asks first, as a revoked
+key can't be switched back on (generate a new one instead). You can also choose whether
 chords are sent as letters or numbers. Technical details are in
 [PROJECTION-API.md](PROJECTION-API.md).
 

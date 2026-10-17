@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -194,6 +195,10 @@ export function PlanAttachmentsCard({
   const { data: attachments, isPending } = usePlanAttachments(planId)
   const upload = useUploadPlanAttachment(planId)
   const remove = useDeletePlanAttachment(planId)
+  // The file goes for good, so deleting one asks first.
+  const [toDelete, setToDelete] = useState<NonNullable<typeof attachments>[number] | null>(
+    null,
+  )
   const open = useOpenPlanAttachment()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -257,12 +262,7 @@ export function PlanAttachmentsCard({
                     variant="ghost"
                     size="icon"
                     className="size-8"
-                    onClick={() =>
-                      remove.mutate(attachment, {
-                        onSuccess: () => toast.success('Attachment removed'),
-                        onError: (e) => toast.error(e.message),
-                      })
-                    }
+                    onClick={() => setToDelete(attachment)}
                     aria-label={`Delete ${attachment.label}`}
                     title="Delete this file from the plan"
                   >
@@ -297,6 +297,26 @@ export function PlanAttachmentsCard({
           </div>
         )}
       </CardContent>
+      <ConfirmDialog
+        open={toDelete !== null}
+        onOpenChange={(open) => !open && setToDelete(null)}
+        title={`Delete “${toDelete?.label ?? 'this attachment'}”?`}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (toDelete) {
+            remove.mutate(toDelete, {
+              onSuccess: () => toast.success('Attachment removed'),
+              onError: (e) => toast.error(e.message),
+            })
+          }
+          setToDelete(null)
+        }}
+      >
+        <p>
+          The file is deleted for everyone who can see this plan, and can’t be
+          restored. Keep your own copy if you might need it again.
+        </p>
+      </ConfirmDialog>
     </Card>
   )
 }

@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -1432,6 +1433,10 @@ function AttachmentsSection({
   const { data: attachments, isPending } = useSongAttachments(arrangementId)
   const upload = useUploadSongAttachment(arrangementId)
   const remove = useDeleteSongAttachment(arrangementId)
+  // The file goes for good, so deleting one asks first.
+  const [toDelete, setToDelete] = useState<NonNullable<typeof attachments>[number] | null>(
+    null,
+  )
   const open = useOpenSongAttachment()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -1487,12 +1492,7 @@ function AttachmentsSection({
                   variant="ghost"
                   size="icon"
                   className="size-8"
-                  onClick={() =>
-                    remove.mutate(attachment, {
-                      onSuccess: () => toast.success('Attachment removed'),
-                      onError: (e) => toast.error(e.message),
-                    })
-                  }
+                  onClick={() => setToDelete(attachment)}
                   aria-label={`Delete ${attachment.label}`}
                   title={`Delete ${attachment.label}`}
                 >
@@ -1527,6 +1527,26 @@ function AttachmentsSection({
           </Button>
         </div>
       )}
+      <ConfirmDialog
+        open={toDelete !== null}
+        onOpenChange={(open) => !open && setToDelete(null)}
+        title={`Delete “${toDelete?.label ?? 'this attachment'}”?`}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (toDelete) {
+            remove.mutate(toDelete, {
+              onSuccess: () => toast.success('Attachment removed'),
+              onError: (e) => toast.error(e.message),
+            })
+          }
+          setToDelete(null)
+        }}
+      >
+        <p>
+          The file is deleted from this arrangement for everyone, and can’t be
+          restored. Keep your own copy if you might need it again.
+        </p>
+      </ConfirmDialog>
     </div>
   )
 }
