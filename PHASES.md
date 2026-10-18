@@ -1377,6 +1377,14 @@ dev plan with the real model (layout by position, the estimate filling Length on
 a quarter minute, the toast, nothing saved; probe configured; a member refused,
 403). Three direct calls agreed (112 bars → 6:13 → 6:45); the browser's run said
 96 bars — the spread is noted in the docs.
+Follow-up the same day: the sanity floor was a minute, so a song whose lyrics
+are only a fragment (the demo Amazing Grace: one verse and a line of chorus, 20
+bars of 3/4 at 72 = 50 s) was refused as "not a sensible length" though the
+count was right. The floor is now 10 s (it only catches a broken answer); a
+result under 1½ minutes gets "Only N bars are written out — if the lyrics are
+incomplete, so is this estimate" in the toast; the refusal now says to try
+again or type the length. Verified on Amazing Grace in the browser: 5:00 → 1:30
+with that note.
 **Upgrade note:** `supabase functions deploy estimate-song-length` before the
 bundle (or the probe fails closed and the button stays hidden); no migration.
 

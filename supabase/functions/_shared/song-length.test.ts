@@ -53,6 +53,11 @@ Deno.test('beats per bar follow the metronome: compound meters count dotted beat
   assertEquals(beatsPerBar('free'), 4)
 })
 
+Deno.test('a fragment of a song times as what is written', () => {
+  // One verse and a line of chorus, in 3/4 at 72: 20 bars, 50 s — honest, not refused.
+  assertEquals(songSeconds({ bars: [16, 4] }, 2, 72, '3/4'), { seconds: 50, bars: 20 })
+})
+
 Deno.test('the seconds come from the bars, not from the model', () => {
   // 88 bars of 4/4 at 72 BPM: 352 beats × 60 / 72 = 293 s (4:53).
   assertEquals(songSeconds({ bars: [8, 40, 40] }, 3, 72, '4/4'), { seconds: 293, bars: 88 })
@@ -65,7 +70,7 @@ Deno.test('a count that doesn\'t fit the song is refused', () => {
   assertEquals(songSeconds({ bars: [8, 40, 4.5] }, 3, 72, '4/4'), null) // not whole
   assertEquals(songSeconds({ bars: [8, 40, -1] }, 3, 72, '4/4'), null)
   assertEquals(songSeconds({ bars: [8, 400, 8] }, 3, 72, '4/4'), null) // one absurd section
-  assertEquals(songSeconds({ bars: [2, 2, 2] }, 3, 72, '4/4'), null) // 20 s: too short
+  assertEquals(songSeconds({ bars: [0, 0, 1] }, 3, 72, '4/4'), null) // 3 s: no song at all
   assertEquals(songSeconds({ seconds: 245 }, 3, 72, '4/4'), null)
 })
 

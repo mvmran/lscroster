@@ -144,10 +144,17 @@ function ItemForm({
       {
         onSuccess: (result) => {
           setLength(formatLength(result.totalSeconds))
+          // Under 1½ minutes is usually lyrics written out only in part — the
+          // estimate can only count what's there, so say so.
+          const short =
+            result.songSeconds < 90
+              ? `Only ${result.bars} bars are written out — if the lyrics are ` +
+                'incomplete, so is this estimate. '
+              : ''
           toast.success(
             `About ${formatLength(result.songSeconds)} to play (${result.bars} bars), ` +
               `plus ${result.changeSeconds} s to change songs`,
-            { description: result.reasoning || undefined },
+            { description: `${short}${result.reasoning}`.trim() || undefined },
           )
         },
         onError: (e) => toast.error(e.message),

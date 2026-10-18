@@ -73,8 +73,10 @@ from its bars (`toApiSections` drops those).
 **The model counts bars, never seconds.** Asked for seconds, its number and its
 own working disagreed (175 bars at 72 BPM is not 4:53). So `LENGTH_SCHEMA` asks
 for one integer per section; `songSeconds` refuses a count that doesn't match
-the section count, isn't whole, has a section over 96 bars or comes to under a
-minute or over 20, then works seconds out as bars × `beatsPerBar(meter)` × 60 /
+the section count, isn't whole, has a section over 96 bars or comes to under ten
+seconds or over 20 minutes (the floor only catches a broken answer — a song
+whose lyrics are a fragment honestly times under a minute, and the toast says
+so), then works seconds out as bars × `beatsPerBar(meter)` × 60 /
 BPM — `beatsPerBar` reads a meter the way the metronome does (6/8 counts two
 dotted beats). `planLength` adds `SONG_CHANGE_SECONDS` (30) and rounds up to a
 quarter minute. Default model, `thinkingLevel: 'low'`. Expect some spread — the

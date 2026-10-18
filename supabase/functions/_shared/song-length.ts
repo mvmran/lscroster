@@ -14,8 +14,13 @@ import { matchHeader } from './lyric-sections.ts'
 /** Time to finish one song and start the next — counted into every song. */
 export const SONG_CHANGE_SECONDS = 30
 
-/** The shortest and longest song length the model's answer may be. */
-export const MIN_SONG_SECONDS = 60
+/**
+ * The shortest and longest song length the model's answer may come to. The
+ * floor only catches a broken answer: a song whose lyrics are a fragment (one
+ * verse and a line of chorus) honestly times at under a minute, and the client
+ * says why a short estimate is short.
+ */
+export const MIN_SONG_SECONDS = 10
 export const MAX_SONG_SECONDS = 20 * 60
 
 /** Most bars one section may have before the answer reads as nonsense. */

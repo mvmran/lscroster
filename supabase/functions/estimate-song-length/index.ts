@@ -106,7 +106,10 @@ Deno.serve(async (req) => {
     const timed = songSeconds(answer, sections.length, bpm, arrangement.meter)
     if (timed === null) {
       console.error('estimate-song-length: unusable answer', JSON.stringify(answer))
-      return jsonResponse({ error: 'The estimate didn’t come back as a sensible length' }, 502)
+      return jsonResponse(
+        { error: 'The bar count didn’t add up for this song — try again, or type the length' },
+        502,
+      )
     }
     return jsonResponse({
       songSeconds: timed.seconds,
