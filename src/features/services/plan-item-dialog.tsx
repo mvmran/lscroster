@@ -154,7 +154,11 @@ function ItemForm({
           toast.success(
             `About ${formatLength(result.songSeconds)} to play (${result.bars} bars), ` +
               `plus ${result.changeSeconds} s to change songs`,
-            { description: `${short}${result.reasoning}`.trim() || undefined },
+            {
+              description: `${short}${result.reasoning}`.trim() || undefined,
+              // Twice the usual 4 s: there's a working to read, not just "done".
+              duration: 8000,
+            },
           )
         },
         onError: (e) => toast.error(e.message),
