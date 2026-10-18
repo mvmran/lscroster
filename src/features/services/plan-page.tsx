@@ -244,6 +244,21 @@ function ItemRow({
             {formatLength(item.length_seconds)}
           </span>
         )}
+        {/* Songs are edited all the time — key, tempo, recording — so Edit has
+            a button of its own as well as its place in the menu. Remove stays
+            in the menu only, away from a button people hit without looking. */}
+        {canManage && item.kind === 'song' && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-8 shrink-0"
+            onClick={onEdit}
+            aria-label={`Edit ${item.title}`}
+            title="Edit this song for this plan — key, tempo, recording, notes"
+          >
+            <Pencil className="size-4" />
+          </Button>
+        )}
         {canManage && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

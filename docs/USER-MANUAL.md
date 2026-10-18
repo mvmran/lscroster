@@ -794,7 +794,9 @@ item is recalculated as you go, from the plan's start time and the lengths
 above it; the total length and finishing time appear under the plan's title.
 
 **Editing or removing.** Use the **⋯** at the end of an item → **Edit** or
-**Remove**. Editing a song, three small buttons beside **BPM** play it the way
+**Remove**. A song also has a **pen** button beside its **⋯**, for the edit you
+make most — Remove stays in the menu, out of the way of a quick tap. Editing a
+song, three small buttons beside **BPM** play it the way
 this plan has it — your Key and BPM if you changed them, else the arrangement's:
 the waveform a pad on the key's chord, the piano a short I–IV–V–I in the key,
 and the metronome a click at the tempo — the same three as on the song page. They can play together, and stop when you close

@@ -1345,6 +1345,17 @@ unwritable destination reported as "stopped unexpectedly (exit 1)", and a dead
 URL logged without changing the exit code; a real run (archive deleted) sent a
 report before success went quiet, so the post path itself is proven.
 
+(no migration) **A pen on every song in the order of service** (2026-10-18):
+songs are edited all the time (key, tempo, recording, notes), and Edit sat
+behind the ⋯ menu. Each song row now has a square outline pen button before its
+⋯, opening the same Edit song dialog; Edit stays in the menu too. Remove does
+**not** get a button: beside a button people hit without looking it would be an
+accident waiting to happen, so it stays one menu away. Headings and other items
+are unchanged. Verified: a pen per song on the dev draft plan (with a scratch
+heading and item showing menu-only, then removed), the pen opening the dialog,
+the menu keeping Edit and Remove, a member seeing no pens, phone fit; a
+published plan's locked order of service shows no pens, as it shows no menus.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
