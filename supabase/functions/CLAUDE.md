@@ -55,6 +55,32 @@ model, `thinkingLevel` (`minimal`|`low`|`medium`|`high`) and schema so a
 reasoning caller can raise both). Pure helpers and their Deno tests are in
 `_shared/meaning.ts`, `_shared/lyrics-assist.ts` and `_shared/song-suggest.ts`.
 
+## estimate-song-length (optional, per instance)
+
+The stopwatch beside Length in a plan's song box. Same optionality and probe as
+the others (`GEMINI_API_KEY`; `{probe:true}` → `{configured}`; deploy before the
+bundle or the button stays hidden), gated on **`edit_order_of_service`** like
+suggest-song. It **writes nothing**: the client puts the answer in the Length
+box.
+
+The client sends `arrangementId`, the item's pinned `lyricsId` (else the latest
+version is read) and the plan's `bpm` (else the arrangement's; none → 422). The
+handler reads the lyrics and chord layer itself and `playedSections` (pure,
+tested, in `_shared/song-length.ts`) lays them out in sung order — keeping
+chord-only rows, because an intro written as bars is exactly the part counted
+from its bars (`toApiSections` drops those).
+
+**The model counts bars, never seconds.** Asked for seconds, its number and its
+own working disagreed (175 bars at 72 BPM is not 4:53). So `LENGTH_SCHEMA` asks
+for one integer per section; `songSeconds` refuses a count that doesn't match
+the section count, isn't whole, has a section over 96 bars or comes to under a
+minute or over 20, then works seconds out as bars × `beatsPerBar(meter)` × 60 /
+BPM — `beatsPerBar` reads a meter the way the metronome does (6/8 counts two
+dotted beats). `planLength` adds `SONG_CHANGE_SECONDS` (30) and rounds up to a
+quarter minute. Default model, `thinkingLevel: 'low'`. Expect some spread — the
+same song has come back 96 and 112 bars, as a sung line reads as two bars or
+four — which is why it's a suggestion in an editable box.
+
 ## suggest-song (optional, per instance)
 
 On a plan's "Add a song" box, suggests the next song to add. Same optionality

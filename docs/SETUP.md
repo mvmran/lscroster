@@ -171,7 +171,7 @@ npx supabase secrets set RESEND_API_KEY=re_xxx EMAIL_FROM=onboarding@resend.dev 
 
 ### Optional: AI help with songs
 
-Five things around a song can be drafted for you by a language model. All five
+Six things around a song can be drafted for you by a language model. All six
 are opt-in, billed to you, and switched on by the same key:
 
 - the **meaning** — the English sense of each line of a song written in another
@@ -187,9 +187,12 @@ are opt-in, billed to you, and switched on by the same key:
   add: one that sits well against the keys already chosen (even if it needs
   transposing), fits how your church has grouped songs before, and keeps the
   language mix sensible
+- a **song length** — on a plan's song box, the stopwatch beside Length counts
+  the bars in the song's lyrics and chords; the app turns them into minutes at
+  the plan's tempo and adds 30 seconds to change songs
 
 Skip this and everything else still works: the buttons simply never appear, and
-anyone can do all five by hand as before.
+anyone can do all six by hand as before.
 
 To switch it on, get a key from
 [Google AI Studio](https://aistudio.google.com/apikey) and set it:
@@ -200,15 +203,15 @@ npx supabase secrets set GEMINI_API_KEY=<your-key>
 
 | Secret | What it does |
 | --- | --- |
-| `GEMINI_API_KEY` | authenticates with the Gemini API — its presence is what enables all five |
+| `GEMINI_API_KEY` | authenticates with the Gemini API — its presence is what enables all six |
 | `GEMINI_MODEL` | optional; defaults to `gemini-3.5-flash-lite`, the cheapest model that does the four lyrics jobs well |
 | `GEMINI_SUGGEST_MODEL` | optional; the model for song suggestions only, which is a reasoning task — defaults to `gemini-3.5-flash` at a higher thinking level |
 
 The key never reaches the browser: the app calls the `generate-meaning`,
-`lyrics-assist` and `suggest-song` Edge Functions, which hold the key and call
-Google. The four lyrics jobs need Manage songs (admins, coordinators and members
-granted it); the song suggestion needs Edit order of service, since it adds to a
-plan.
+`lyrics-assist`, `suggest-song` and `estimate-song-length` Edge Functions, which
+hold the key and call Google. The four lyrics jobs need Manage songs (admins,
+coordinators and members granted it); the song suggestion and the song length
+need Edit order of service, since they add to a plan.
 
 Everything drafted lands in the editor for review and is only stored when
 someone presses **Save changes**, so nothing is written to your database without

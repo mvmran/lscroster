@@ -1356,6 +1356,30 @@ heading and item showing menu-only, then removed), the pen opening the dialog,
 the menu keeping Edit and Remove, a member seeing no pens, phone fit; a
 published plan's locked order of service shows no pens, as it shows no menus.
 
+(no migration) **The song box rearranged, and an AI length estimate** (2026-10-18):
+in a plan's song box, **Key** moved beside **BPM** (Key first) under Length, and
+the pad / key riff / metronome trio moved to where Key was, beside Length. New
+there, left of the pad: a **stopwatch** that estimates the song's length with
+Gemini — new Edge Function `estimate-song-length` (optional like the other AI
+helpers, own probe, gated on `edit_order_of_service`, writes nothing). The model
+counts the **bars** in each section of the lyrics and chords as written (sung
+order, repeats included, chord-only intro / outro rows kept by `playedSections`);
+the seconds are worked out in code from the bars, the meter's beats per bar
+(metronome reading: 6/8 = 2) and the plan's BPM, then 30 s of changeover is added
+and the total rounded up to 15 s (`planLength`). The first version asked for
+seconds and got a number its own reasoning contradicted, hence the split. The
+toast reports the bars and the model's one-line working; the Length box stays
+editable and nothing is saved until Save / Add. Shown in Add too (no sound
+buttons there, as before); disabled with a reason without an arrangement or
+BPM. Verified: 7 Deno tests (sections, prompt, beats per bar, seconds from bars,
+refusals, plan length), the function checked, and a 10-check browser run on the
+dev plan with the real model (layout by position, the estimate filling Length on
+a quarter minute, the toast, nothing saved; probe configured; a member refused,
+403). Three direct calls agreed (112 bars → 6:13 → 6:45); the browser's run said
+96 bars — the spread is noted in the docs.
+**Upgrade note:** `supabase functions deploy estimate-song-length` before the
+bundle (or the probe fails closed and the button stays hidden); no migration.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

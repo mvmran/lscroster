@@ -426,6 +426,9 @@ verify_jwt = true
 [functions.suggest-song]
 verify_jwt = true
 
+[functions.estimate-song-length]
+verify_jwt = true
+
 [functions.send-requests]
 verify_jwt = true
 

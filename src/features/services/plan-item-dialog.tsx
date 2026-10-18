@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Timer } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -41,6 +41,10 @@ import {
   useCreatePlanItem,
   useUpdatePlanItem,
 } from '@/features/services/use-plan-items'
+import {
+  useEstimateSongLength,
+  useSongLengthAvailable,
+} from '@/features/services/use-song-length'
 
 /** A song picked in the SongPickerDialog, on its way onto the plan. */
 export interface PickedSong {
@@ -122,16 +126,34 @@ function ItemForm({
   const soundKey = keyOverride.trim() || arrangementKey
   const soundBpm = bpmInvalid ? null : (bpmValue ?? arrangementBpm)
   const soundMeter = arrangement?.meter ?? null
-  const bpmInput = (
-    <Input
-      id="pi-bpm"
-      value={bpmOverride}
-      onChange={(e) => setBpmOverride(e.target.value)}
-      inputMode="numeric"
-      placeholder={arrangementBpm?.toString() ?? 'e.g. 72'}
-      aria-invalid={bpmInvalid}
-    />
-  )
+  // The AI length estimate (optional per church): from the song's lyrics and
+  // chords at this plan's tempo, plus the changeover. It only fills the Length
+  // box — nothing is saved until Save or Add.
+  const { data: canEstimate } = useSongLengthAvailable(kind === 'song')
+  const estimate = useEstimateSongLength()
+  const estimateBlocked = !linkedId
+    ? 'Choose an arrangement first'
+    : soundBpm === null
+      ? 'Give the song a BPM first — the length comes from it'
+      : null
+
+  function estimateLength() {
+    if (!linkedId || estimateBlocked) return
+    estimate.mutate(
+      { arrangementId: linkedId, lyricsId: item?.lyrics_id ?? null, bpm: soundBpm },
+      {
+        onSuccess: (result) => {
+          setLength(formatLength(result.totalSeconds))
+          toast.success(
+            `About ${formatLength(result.songSeconds)} to play (${result.bars} bars), ` +
+              `plus ${result.changeSeconds} s to change songs`,
+            { description: result.reasoning || undefined },
+          )
+        },
+        onError: (e) => toast.error(e.message),
+      },
+    )
+  }
 
   async function save() {
     const trimmed = title.trim()
@@ -232,6 +254,52 @@ function ItemForm({
                 <p className="text-destructive text-sm">Use minutes or m:ss, e.g. 4:30</p>
               )}
             </div>
+            {/* Beside Length: the length estimate and, editing, the pad /
+                key riff / metronome trio. The label is invisible, there only
+                to keep the buttons level with the Length box. */}
+            {kind === 'song' && (canEstimate || item) && (
+              <div className="flex flex-col gap-2">
+                <Label aria-hidden className="invisible">
+                  Sounds
+                </Label>
+                <div className="flex items-center gap-2">
+                  {canEstimate && (
+                    <span
+                      className="inline-flex shrink-0"
+                      title={estimateBlocked ?? undefined}
+                    >
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={estimateLength}
+                        disabled={!!estimateBlocked || estimate.isPending}
+                        aria-label="Estimate the length with AI"
+                        title={
+                          estimateBlocked
+                            ? undefined
+                            : 'Estimate the length with AI — from the lyrics, chords ' +
+                              'and BPM, plus time to change songs'
+                        }
+                      >
+                        {estimate.isPending ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Timer className="size-4" />
+                        )}
+                      </Button>
+                    </span>
+                  )}
+                  {item && (
+                    <SongSoundButtons
+                      songKey={soundKey}
+                      bpm={soundBpm}
+                      meter={soundMeter}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
             {kind === 'song' && (
               <div className="flex flex-col gap-2">
                 <Label htmlFor="pi-key">Key</Label>
@@ -248,22 +316,18 @@ function ItemForm({
                 )}
               </div>
             )}
-            {/* Third cell of the two-column grid, so it wraps onto a row of
-                its own rather than widening the dialog. */}
+            {/* Key and BPM side by side, under Length and the buttons. */}
             {kind === 'song' && (
-              // Editing, the row spans both columns: the box stays as wide as
-              // Length above it, and the pad, cadence and metronome buttons
-              // sit beside it, under Key. Adding a song has no buttons.
-              <div className={item ? 'col-span-2 flex flex-col gap-2' : 'flex flex-col gap-2'}>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="pi-bpm">BPM</Label>
-                {item ? (
-                  <div className="grid grid-cols-2 items-center gap-4">
-                    {bpmInput}
-                    <SongSoundButtons songKey={soundKey} bpm={soundBpm} meter={soundMeter} />
-                  </div>
-                ) : (
-                  bpmInput
-                )}
+                <Input
+                  id="pi-bpm"
+                  value={bpmOverride}
+                  onChange={(e) => setBpmOverride(e.target.value)}
+                  inputMode="numeric"
+                  placeholder={arrangementBpm?.toString() ?? 'e.g. 72'}
+                  aria-invalid={bpmInvalid}
+                />
                 {bpmInvalid ? (
                   <p className="text-destructive text-sm">Whole number above 0</p>
                 ) : (
