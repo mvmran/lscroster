@@ -1388,6 +1388,35 @@ with that note.
 **Upgrade note:** `supabase functions deploy estimate-song-length` before the
 bundle (or the probe fails closed and the button stays hidden); no migration.
 
+(0059) `audit_critical_deletes` **The audit log records the deletes that lose
+history** (2026-10-18): the log (0032) covered people, membership, access and
+permissions, but none of the deletes that take the most. BEFORE DELETE row
+triggers (counts taken while the cascading rows still exist; a failed delete
+rolls its entry back) write through `audit_record`: `service_type.delete`,
+`plan.delete`, `team.delete`, `position.delete`, `song.delete`,
+`arrangement.delete`, and — for plans dated before today in the church's
+timezone only — `plan.assignment_remove` (targets the person) and
+`plan.item_remove`. Each skips when `pg_trigger_depth() > 1`, so a cascade is
+one entry with counts (a service type's plans, a plan's assignments, a song's
+arrangements via 0033's clean-up). The two plan-row triggers look up the plan's
+date by primary key and stop for upcoming plans, so rostering costs what it did.
+Helpers `audit_church_today`, `audit_plan_label` ("Sun 12 Oct 2026 · Sunday
+10am"), `audit_count`. `cancel-assignment` now deletes as the caller
+(`serviceClient(caller.id)` → `x-audit-actor`), so Remove and Notify on a past
+plan names who did it. Audit log page: labels for the new events and the
+`team.grant_*` ones (0048, which showed as raw codes), "Person" → **Affected**,
+the detail wraps, and a fix — "To" is minutes only and was read as hh:mm:00, so
+anything done in the current minute was hidden; it now runs to the minute's end.
+No new table; audit_log's RLS (admins read, definer triggers write) unchanged.
+Verified: every trigger in a rolled-back transaction as ava (eight entries,
+upcoming-plan removals silent, a position with past assignments one entry, a
+song's default arrangement and a service type's plan not logged separately,
+re-applying the migration clean), and a 7-check run through the app — REST and
+the Remove-and-Notify function both logged as Ava, plan and position deletes in
+the app logged, the page's filter, column and row.
+**Upgrade note:** `db push` (0059) and `supabase functions deploy
+cancel-assignment` before the bundle.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

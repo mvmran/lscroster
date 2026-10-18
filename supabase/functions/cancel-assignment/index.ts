@@ -139,7 +139,9 @@ Deno.serve(async (req) => {
     }
   }
 
-  const { error: deleteError } = await admin
+  // As the caller, so the audit log (0059: removing someone from a past plan)
+  // names who did it rather than "System".
+  const { error: deleteError } = await serviceClient(caller.id)
     .from('plan_assignments')
     .delete()
     .eq('id', assignmentId)

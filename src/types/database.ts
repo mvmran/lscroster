@@ -2209,6 +2209,15 @@ export type Database = {
     }
     Functions: {
       all_http_urls: { Args: { urls: string[] }; Returns: boolean }
+      audit_church_today: { Args: never; Returns: string }
+      audit_count: {
+        Args: { p_count: number; p_noun: string }
+        Returns: string
+      }
+      audit_plan_label: {
+        Args: { p_date: string; p_service_type: string }
+        Returns: string
+      }
       audit_record: {
         Args: {
           p_action: string

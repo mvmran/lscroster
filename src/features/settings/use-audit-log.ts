@@ -22,6 +22,18 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'team.leader_remove': 'Team leader removed',
   'team.viewer_add': 'Team viewer added',
   'team.viewer_remove': 'Team viewer removed',
+  'team.grant_add': 'Team access granted',
+  'team.grant_change': 'Team access changed',
+  'team.grant_remove': 'Team access removed',
+  // Deletes that lose plans, songs or history (0059).
+  'service_type.delete': 'Service type deleted',
+  'plan.delete': 'Plan deleted',
+  'plan.assignment_remove': 'Taken off a past plan',
+  'plan.item_remove': 'Item removed from a past plan',
+  'team.delete': 'Team deleted',
+  'position.delete': 'Position deleted',
+  'song.delete': 'Song deleted',
+  'arrangement.delete': 'Arrangement deleted',
 }
 
 export const AUDIT_ACTIONS = Object.keys(AUDIT_ACTION_LABELS)
@@ -31,7 +43,7 @@ export interface AuditFilters {
   from: string
   to: string
   action: string | 'all'
-  /** Free-text match on the affected person's name. */
+  /** Free-text match on what was affected: a person, plan, song, team… */
   target: string
   /** Free-text match on the acting user's name. */
   actor: string

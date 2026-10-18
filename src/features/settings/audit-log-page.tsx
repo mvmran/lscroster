@@ -54,18 +54,21 @@ function defaultFilters(): AuditFilters {
 
 /**
  * Admin-only audit trail (issue #116). Records of who changed what, newest
- * first, filtered by date range (default 3 days), event type, the affected
- * person, and the user who made the change. Capped at 200 rows.
+ * first, filtered by date range (default 3 days), event type, what was
+ * affected — a person, or since 0059 a plan, song, team or position by name —
+ * and the user who made the change. Capped at 200 rows.
  */
 export function AuditLogPage() {
   const [filters, setFilters] = useState<AuditFilters>(defaultFilters)
 
-  // The query takes ISO bounds; the inputs hold local datetime strings.
+  // The query takes ISO bounds; the inputs hold local datetime strings, to the
+  // minute. "To" runs to the end of its minute: read as hh:mm:00 it hid
+  // anything done in the current minute — the event you just made.
   const queryFilters = useMemo<AuditFilters>(
     () => ({
       ...filters,
       from: new Date(filters.from).toISOString(),
-      to: new Date(filters.to).toISOString(),
+      to: new Date(new Date(filters.to).getTime() + 59_999).toISOString(),
     }),
     [filters],
   )
@@ -84,7 +87,10 @@ export function AuditLogPage() {
         title="Audit log"
         backTo="/settings"
         backLabel="Settings"
-        description="Who changed what, newest first. Covers people and team changes."
+        description={
+          'Who changed what, newest first: people and team changes, and deletes ' +
+          'that lose plans, songs or history.'
+        }
       />
 
       <Card className="py-0">
@@ -126,12 +132,12 @@ export function AuditLogPage() {
             </Select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="audit-target">Person</Label>
+            <Label htmlFor="audit-target">Affected</Label>
             <Input
               id="audit-target"
               value={filters.target}
               onChange={(e) => set('target', e.target.value)}
-              placeholder="Affected person’s name…"
+              placeholder="Person, plan, song or team…"
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -178,7 +184,7 @@ export function AuditLogPage() {
               <TableRow>
                 <TableHead>When</TableHead>
                 <TableHead>Event</TableHead>
-                <TableHead>Person</TableHead>
+                <TableHead>Affected</TableHead>
                 <TableHead>Changed by</TableHead>
                 <TableHead>Detail</TableHead>
               </TableRow>
@@ -200,7 +206,10 @@ export function AuditLogPage() {
                   <TableCell className="text-muted-foreground whitespace-nowrap">
                     {entry.actor_label ?? 'System'}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  {/* Wraps: a delete's detail lists what went with it. */}
+                  <TableCell
+                    className="text-muted-foreground min-w-64 whitespace-normal"
+                  >
                     {entry.summary}
                   </TableCell>
                 </TableRow>

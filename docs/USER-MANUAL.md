@@ -1405,9 +1405,26 @@ you a test message to check email is working.
 
 A record of who added, archived, reactivated or deleted people, changed
 someone's role, added or removed team members, changed team access, and granted
-or removed permissions — newest first. Filter by date range (the last 3 days by
-default), event, the person affected, and who made the change. The log can't be
-edited, and it stays readable even after a person is renamed or deleted.
+or removed permissions — newest first.
+
+It also records the deletes that lose plans, songs or history, each with what
+went with it:
+
+- deleting a **service type**, a **plan**, a **team**, a **position**, a
+  **song** or an **arrangement** — e.g. *Deleted the Sun 12 Oct 2026 · Sunday
+  10am plan (published) with 14 assignments (12 confirmed), 8 items and 2
+  attachments*;
+- taking someone off a plan that is **already past**, or removing an item from
+  one — changing the record of what happened. (Changes to upcoming plans are
+  ordinary planning and aren't recorded.)
+
+A delete that takes other things with it is one entry, with counts — deleting a
+service type doesn't add an entry for every plan under it.
+
+Filter by date range (the last 3 days by default), event, what was **affected**
+(a person, or a plan, song, team or position by name), and who made the change.
+The log can't be edited, and it stays readable even after a person is renamed or
+deleted.
 
 ## 11.4 Printing and PDF run sheets
 
