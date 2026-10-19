@@ -83,6 +83,7 @@ import { SongSoundButtons } from '@/features/services/key-sound-buttons'
 import { PlayRecordingButton } from '@/features/services/play-recording-button'
 import {
   appendImportedLyrics,
+  appendImportedChords,
   appendLayers,
 } from '@/features/services/lyric-import'
 import { detectLyricsLanguage } from '@/features/services/transliterate'
@@ -1259,7 +1260,13 @@ function ArrangementLyricsBlock({
         songKey={arrangement.song_key}
         songBpm={arrangement.bpm}
         songMeter={arrangement.meter}
-        onImport={(imported) => setDraft(appendImportedLyrics(value, imported))}
+        onImport={(imported, chordsOnly) =>
+          setDraft(
+            chordsOnly
+              ? appendImportedChords(value, imported)
+              : appendImportedLyrics(value, imported),
+          )
+        }
         onApplyMetadata={(meta) => {
           // Only what the file actually said; a field it omitted keeps what
           // the arrangement already has. Written straight away rather than

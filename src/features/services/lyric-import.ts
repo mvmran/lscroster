@@ -41,6 +41,7 @@ import {
 } from '@/features/services/chordpro-directives'
 import {
   alignLayer,
+  EMPTY_LAYERS,
   findNonLatinLyrics,
   hasAnyLayer,
   lyricParagraphs,
@@ -677,6 +678,41 @@ export function appendImportedLyrics(
 }
 
 /**
+ * Add a chord chart's chords alone, leaving the lyrics as they are.
+ *
+ * A section whose words the song already has takes the chart's chords on its
+ * own rows, exactly as `appendImportedLyrics` places them. One it doesn't have
+ * is appended to the chord layer only, below the song, against blank lyric
+ * rows: nothing is written into the base, so a song whose words were typed
+ * with care — or carry native script and a meaning — can take a chart from a
+ * chord site whose wording differs, and the chords that didn't find a home are
+ * there in the chord pane to be moved onto the right lines. The paste's other
+ * layers are ignored.
+ */
+export function appendImportedChords(
+  current: LayeredLyrics,
+  imported: LayeredLyrics,
+): LayeredLyrics {
+  if (imported.chords.trim() === '') return current
+  const chart = { ...EMPTY_LAYERS, lyrics: imported.lyrics, chords: imported.chords }
+  return mergeLayers(current, chart, true, true)
+}
+
+/**
+ * How many of a chart's sections would land on lyrics the editor already
+ * holds, out of how many — for the import dialog to say before anything moves.
+ */
+export function chartSectionMatches(
+  currentBase: string,
+  importedBase: string,
+): { matched: number; total: number } {
+  return {
+    matched: placeImportedSections(currentBase, importedBase).length,
+    total: lyricParagraphs(importedBase).length,
+  }
+}
+
+/**
  * Append one song's four layers after another's, blank row between.
  *
  * This is the medley's join, and it never matches sections. Two songs are put
@@ -697,9 +733,12 @@ function mergeLayers(
   current: LayeredLyrics,
   imported: LayeredLyrics,
   matchSections: boolean,
+  chordsOnly = false,
 ): LayeredLyrics {
   if (imported.lyrics === '' && !hasAnyLayer(imported)) return current
-  if (current.lyrics.trim() === '' && !hasAnyLayer(current)) return imported
+  if (!chordsOnly && current.lyrics.trim() === '' && !hasAnyLayer(current)) {
+    return imported
+  }
 
   const currentBase = toLines(current.lyrics)
   const importedBase = toLines(imported.lyrics)
@@ -740,10 +779,12 @@ function mergeLayers(
     chords: padTo(toLines(imported.chords), height),
   }
   // Blank in every layer, not merely in the base — that is what makes a row
-  // safe to drop from the join.
+  // safe to drop from the join. Adding chords alone, only the chords count.
   const blankRow = (row: number) =>
-    importedRows.lyrics[row].trim() === '' &&
-    LYRIC_LAYER_KEYS.every((key) => importedRows[key][row].trim() === '')
+    chordsOnly
+      ? importedRows.chords[row].trim() === ''
+      : importedRows.lyrics[row].trim() === '' &&
+        LYRIC_LAYER_KEYS.every((key) => importedRows[key][row].trim() === '')
 
   const tail = trimBlankRows(
     Array.from({ length: height }, (_, row) => row).filter(
@@ -765,11 +806,15 @@ function mergeLayers(
     return lines.some((line) => line.trim() !== '') ? lines.join('\n') : ''
   }
 
+  // Adding chords alone, the appended rows are blank in the base: they hold
+  // the layers in step without putting a word into the lyrics.
+  const baseRow = (row: number) => (chordsOnly ? '' : importedRows.lyrics[row])
+
   return {
     lyrics:
       tail.length === 0
         ? currentBase.join('\n')
-        : [...currentBase, '', ...tail.map((row) => importedRows.lyrics[row])].join('\n'),
+        : [...currentBase, '', ...tail.map(baseRow)].join('\n'),
     native: layer('native'),
     meaning: layer('meaning'),
     chords: layer('chords'),

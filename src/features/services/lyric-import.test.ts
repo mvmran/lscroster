@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  appendImportedChords,
   appendImportedLyrics,
   appendLayers,
+  chartSectionMatches,
   nextVerseNumber,
   parseImportedLyrics,
   withGeneratedMeaning,
@@ -431,6 +433,61 @@ describe('appendImportedLyrics: chord charts for sections already there', () => 
     // No chords means no chart: a second copy of the words is a second verse.
     const next = onto('Chorus\nWe give You all the glory\nWe worship You our Lord')
     expect(toLines(next.lyrics).length).toBe(toLines(ALPHA).length + 4)
+  })
+})
+
+describe('appendImportedChords: a chart without its lyrics', () => {
+  const onto = (chart: string, current = { ...EMPTY_LAYERS, lyrics: ALPHA }) =>
+    appendImportedChords(current, parseImportedLyrics(chart).layers)
+  const CHORUS = 'Chorus\nWe [Ab]give You all the glory\nWe [Gb]worship You our Lord'
+
+  it('writes a matching section’s chords and leaves the lyrics alone', () => {
+    const next = onto(CHORUS)
+    expect(next.lyrics).toBe(ALPHA)
+    expect(toLines(next.chords).slice(4)).toEqual([
+      'Chorus',
+      'We [Ab]give You all the glory',
+      'We [Gb]worship You our Lord',
+    ])
+  })
+
+  it('appends a section the song does not have to the chord layer alone', () => {
+    const next = onto(`${CHORUS}\n\nBridge\nHoly [1]holy holy`)
+    // Blank rows in the base hold the layers in step; no word lands there.
+    expect(toLines(next.lyrics)).toEqual([...toLines(ALPHA), '', '', ''])
+    expect(toLines(next.chords).slice(-2)).toEqual(['Bridge', 'Holy [1]holy holy'])
+    expect(lineCount(next.chords)).toBe(lineCount(next.lyrics))
+  })
+
+  it('drops a chart line with no chords from the end of what is appended', () => {
+    const next = onto('Bridge\nHoly [1]holy holy\nWorthy is the Lamb')
+    expect(toLines(next.chords).at(-1)).toBe('Holy [1]holy holy')
+    expect(lineCount(next.chords)).toBe(lineCount(next.lyrics))
+  })
+
+  it('ignores the paste’s other layers and keeps the song’s own in step', () => {
+    const native = ['V', 'a', 'b', '', 'C', 'c', 'd'].join('\n')
+    const next = onto('Bridge\nHoly [1]holy holy', {
+      ...EMPTY_LAYERS,
+      lyrics: ALPHA,
+      native,
+    })
+    expect(toLines(next.native).slice(0, 7)).toEqual(toLines(native))
+    expect(lineCount(next.native)).toBe(lineCount(next.lyrics))
+    expect(next.meaning).toBe('')
+  })
+
+  it('changes nothing for a paste without chords', () => {
+    const current = { ...EMPTY_LAYERS, lyrics: ALPHA }
+    expect(onto('Bridge\nHoly holy holy', current)).toEqual(current)
+  })
+
+  it('counts the sections that will match', () => {
+    const parsed = parseImportedLyrics(`${CHORUS}\n\nBridge\nHoly [1]holy holy`)
+    expect(chartSectionMatches(ALPHA, parsed.layers.lyrics)).toEqual({
+      matched: 1,
+      total: 2,
+    })
   })
 })
 

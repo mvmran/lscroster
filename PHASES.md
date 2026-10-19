@@ -1417,6 +1417,21 @@ the app logged, the page's filter, column and row.
 **Upgrade note:** `db push` (0059) and `supabase functions deploy
 cancel-assignment` before the bundle.
 
+(no migration) **Import a chord chart without its lyrics** (2026-10-20): a chart
+pasted into a song that already has words used to bring them along — matched
+sections took their chords in place, but any section whose wording differed
+(a chord site's "Twas" against the team's "'Twas") was appended again as
+lyrics. The import box now shows **Also add lyrics**, unticked, whenever the
+paste has chords and the editor has lyrics. Unticked, `appendImportedChords`
+writes matched sections' chords on their rows (`placeImportedSections`, as
+before) and appends the rest to the chord layer only, against blank base rows
+so the layers stay parallel; the paste's native and meaning layers are
+ignored, nothing is numbered and no transliteration or meaning is drafted. The
+summary counts the matches first (`chartSectionMatches`) and the button reads
+**Add chords**. Ticked — or into an empty song, where there is nothing to lay
+chords on — the import is unchanged. 6 tests; verified on Amazing Grace in the
+browser (chords only, ticked, and a plain paste with no box).
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

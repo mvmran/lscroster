@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { chordsToNumbers, parseSongKey } from '@/features/services/chord-notation'
 import { hasMetadata, type ImportedMetadata } from '@/features/services/chordpro-directives'
 import {
+  chartSectionMatches,
   nextVerseNumber,
   parseImportedLyrics,
   prepareImport,
@@ -60,7 +61,11 @@ export function LyricsImportDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onImport: (layers: LayeredLyrics) => void
+  /**
+   * `chordsOnly`: the paste is a chord chart and "Also add lyrics" was left
+   * unticked, so only its chords are to land (`appendImportedChords`).
+   */
+  onImport: (layers: LayeredLyrics, chordsOnly: boolean) => void
   /** What the editor already holds — the import lands after it. */
   existingLyrics?: string
   /**
@@ -78,6 +83,7 @@ export function LyricsImportDialog({
   const [text, setText] = useState('')
   const [numbering, setNumbering] = useState(true)
   const [applyMeta, setApplyMeta] = useState(true)
+  const [withLyrics, setWithLyrics] = useState(false)
   const [working, setWorking] = useState(false)
   // The import lands after whatever the editor holds, so the count carries on
   // from the last verse already there rather than restarting at 1.
@@ -86,13 +92,29 @@ export function LyricsImportDialog({
   // before the paragraphs are counted, so neither a `{comment: Verse}` nor a
   // chart's chords can be mistaken for the start of a verse.
   const prepared = useMemo(() => prepareImport(text), [text])
+  // A chart pasted into a song that already has its words can bring its
+  // chords alone — the default, so lyrics typed with care (or carrying native
+  // script and a meaning) are never doubled by a chord site's wording. Into an
+  // empty song there is nothing to lay chords on, so the words come too.
+  const charted = useMemo(
+    () => parseImportedLyrics(prepared.text).hasChords,
+    [prepared],
+  )
+  const askLyrics = charted && existingLyrics.trim() !== ''
+  const chordsOnly = askLyrics && !withLyrics
   // Numbering rewrites the paste before it is parsed, so the summary below
-  // counts the sections that will actually land — headings included.
+  // counts the sections that will actually land — headings included. Chords
+  // alone add no headings, so nothing is numbered.
   const source = useMemo(
-    () => (numbering ? withVerseHeadings(prepared.text, from) : prepared.text),
-    [prepared, numbering, from],
+    () =>
+      numbering && !chordsOnly ? withVerseHeadings(prepared.text, from) : prepared.text,
+    [prepared, numbering, chordsOnly, from],
   )
   const parsed = useMemo(() => parseImportedLyrics(source), [source])
+  const matches = useMemo(
+    () => (chordsOnly ? chartSectionMatches(existingLyrics, parsed.layers.lyrics) : null),
+    [chordsOnly, existingLyrics, parsed],
+  )
   const labelled = toLines(text).some((line) => matchLyricSectionHeader(line) !== null)
   const { data: meaningAvailable } = useMeaningGenerationAvailable()
   const { data: assistAvailable } = useLyricsAssistAvailable()
@@ -101,11 +123,14 @@ export function LyricsImportDialog({
   // A native-only paste leaves the base blank; `lyrics` then holds headers
   // alone, or nothing at all when the paste had none.
   const empty = parsed.layers.lyrics === '' && parsed.layers.native === ''
-  const generating = parsed.needsTransliteration && parsed.script !== null
+  // Chords alone take nothing but the chord layer, so nothing is drafted.
+  const generating =
+    !chordsOnly && parsed.needsTransliteration && parsed.script !== null
   // A paste that brought its own gloss is left alone — the team's words beat a
   // model's. Otherwise native script is enough to draft one, whatever the
   // script: the model reads languages the romaniser cannot.
-  const drafting = meaningAvailable === true && parsed.hasNative && !parsed.hasMeaning
+  const drafting =
+    !chordsOnly && meaningAvailable === true && parsed.hasNative && !parsed.hasMeaning
   // The offline romaniser gets every letter right and the word breaks wrong,
   // so a generated draft is read back by the model before it lands.
   const polishing = assistAvailable === true && generating
@@ -130,6 +155,7 @@ export function LyricsImportDialog({
     if (!next) {
       setText('')
       setApplyMeta(true)
+      setWithLyrics(false)
     }
     onOpenChange(next)
   }
@@ -143,7 +169,7 @@ export function LyricsImportDialog({
       // outcome worth ruling out.
       let layers = parsed.layers
       let romanised = false
-      if (parsed.script && parsed.needsTransliteration) {
+      if (parsed.script && generating) {
         try {
           layers = await withGeneratedTransliteration(layers, parsed.script)
           romanised = true
@@ -194,7 +220,7 @@ export function LyricsImportDialog({
         layers.chords,
         parseSongKey(prepared.metadata.key ?? songKey),
       )
-      onImport({ ...layers, chords })
+      onImport({ ...layers, chords }, chordsOnly)
       if (offered && applyMeta) onApplyMetadata?.(meta)
       close(false)
     } finally {
@@ -202,9 +228,21 @@ export function LyricsImportDialog({
     }
   }
 
+  const unmatched = matches ? matches.total - matches.matched : 0
   const summary = empty
     ? 'Nothing to import yet.'
-    : [
+    : matches
+      ? [
+          `Chords only · ${matches.matched} of ${matches.total} ` +
+            `section${matches.total === 1 ? '' : 's'} match the lyrics`,
+          unmatched > 0
+            ? `${unmatched === 1 ? 'the other goes' : `the other ${unmatched} go`} ` +
+              'below the song, in the chord layer alone'
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : [
         parsed.sections === 0
           ? 'No section headers'
           : `${parsed.sections} section${parsed.sections === 1 ? '' : 's'}`,
@@ -219,8 +257,8 @@ export function LyricsImportDialog({
             ? 'no transliteration — that script needs typing by hand'
             : null,
       ]
-        .filter(Boolean)
-        .join(' · ')
+          .filter(Boolean)
+          .join(' · ')
 
   return (
     <Dialog open={open} onOpenChange={close}>
@@ -237,8 +275,10 @@ export function LyricsImportDialog({
             native script on its own and a transliteration — and, where a
             meaning is missing, an English meaning — is drafted for you to
             correct. Chords written above the words are recognised too and
-            become the chord layer. Whatever you import is added to the end of
-            the editor; nothing already there is replaced.
+            become the chord layer — on their own, onto the lyrics already
+            here, unless you tick <span className="font-mono">Also add lyrics</span>.
+            Whatever you import is added to the end of the editor; nothing
+            already there is replaced.
           </DialogDescription>
         </DialogHeader>
         {/* Monospaced: a chord chart's chords are positioned by the column
@@ -260,25 +300,47 @@ export function LyricsImportDialog({
           placeholder={PLACEHOLDER}
           className="min-h-48 flex-1 font-mono text-sm"
         />
-        <div className="flex shrink-0 items-start gap-2 text-xs">
-          <Checkbox
-            id="import-number-sections"
-            checked={numbering}
-            onCheckedChange={(next) => setNumbering(next === true)}
-          />
-          <label
-            htmlFor="import-number-sections"
-            className="text-muted-foreground cursor-pointer"
-          >
-            Number the paragraphs as{' '}
-            <span className="font-mono">Verse {from}</span>,{' '}
-            <span className="font-mono">Verse {from + 1}</span> …, and the one sung
-            again and again as <span className="font-mono">Chorus</span>
-            {labelled && (
-              <> — not this paste, though: it already names its own sections.</>
-            )}
-          </label>
-        </div>
+        {askLyrics && (
+          <div className="flex shrink-0 items-start gap-2 text-xs">
+            <Checkbox
+              id="import-with-lyrics"
+              checked={withLyrics}
+              onCheckedChange={(next) => setWithLyrics(next === true)}
+            />
+            <label
+              htmlFor="import-with-lyrics"
+              className="text-muted-foreground cursor-pointer"
+            >
+              <span className="text-foreground font-medium">Also add lyrics</span>
+              {withLyrics
+                ? ' — sections the song doesn’t have are added to the lyrics, ' +
+                  'with their chords.'
+                : ' — unticked, only the chords are added, onto the matching ' +
+                  'lines; the lyrics stay exactly as they are.'}
+            </label>
+          </div>
+        )}
+        {!chordsOnly && (
+          <div className="flex shrink-0 items-start gap-2 text-xs">
+            <Checkbox
+              id="import-number-sections"
+              checked={numbering}
+              onCheckedChange={(next) => setNumbering(next === true)}
+            />
+            <label
+              htmlFor="import-number-sections"
+              className="text-muted-foreground cursor-pointer"
+            >
+              Number the paragraphs as{' '}
+              <span className="font-mono">Verse {from}</span>,{' '}
+              <span className="font-mono">Verse {from + 1}</span> …, and the one sung
+              again and again as <span className="font-mono">Chorus</span>
+              {labelled && (
+                <> — not this paste, though: it already names its own sections.</>
+              )}
+            </label>
+          </div>
+        )}
         {offered && (
           <div className="flex shrink-0 items-start gap-2 text-xs">
             <Checkbox
@@ -325,10 +387,18 @@ export function LyricsImportDialog({
               className="w-full sm:w-auto"
               disabled={empty || working}
               onClick={add}
-              title="Add the pasted song to the end of the lyrics"
+              title={
+                chordsOnly
+                  ? 'Add the chart’s chords, leaving the lyrics as they are'
+                  : 'Add the pasted song to the end of the lyrics'
+              }
             >
               {working && <Loader2 className="size-4 animate-spin" />}
-              {working && (drafting || polishing) ? 'Drafting…' : 'Add to lyrics'}
+              {working && (drafting || polishing)
+                ? 'Drafting…'
+                : chordsOnly
+                  ? 'Add chords'
+                  : 'Add to lyrics'}
             </Button>
           </span>
         </DialogFooter>

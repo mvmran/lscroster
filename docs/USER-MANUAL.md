@@ -1043,6 +1043,16 @@ and where a chord sits don't count when comparing, but a different word or a
 different chord does: a last chorus with a changed line stays a verse, so
 rename it by hand.
 
+**Chords without the lyrics.** Paste a chart with chords into a song that
+already has its words and an **Also add lyrics** box appears, unticked. Left
+unticked, only the chords come in: each section whose words the song already
+has takes the chart's chords on its own lines, and a section it doesn't have is
+added below the song in the chord layer alone, for you to move onto the right
+lines. The lyrics themselves don't change, so a song typed with care — or with
+its native script and meaning — keeps its words when a chord site words a line
+differently. The box underneath says how many sections matched before you press
+**Add chords**. Tick **Also add lyrics** to bring the chart's words in too.
+
 The import is **added to the end** of the lyrics; nothing is saved until you
 press **Save changes**.
 
