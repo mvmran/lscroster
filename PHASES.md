@@ -1516,6 +1516,15 @@ edits show. 8 diff tests; verified in the browser at desktop and phone width
 (bars while typing, red on blur, a red chord, cleared on save, the chord
 primary after it, only a new edit red after that; the song restored).
 
+(no migration) **The plan's song box fits a long sequence** (2026-10-20): with
+14 chips (No One Like The Lord) the Add/Edit song box ran off the top and
+bottom of the screen. It is wider (`sm:max-w-lg`, 32rem), capped at 90svh and
+scrolls inside past that; the chips are smaller (11px, smaller grip and ×,
+tighter gaps). The form also gets `min-w-0` — a long reference-recording link
+had made the grid column wider than a phone, cutting the form off on the
+right once the box scrolled. Verified at 1280×720 and 390×700: on screen,
+scrolling inside, the sequence check (12 steps) still passing.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

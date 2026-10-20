@@ -61,23 +61,27 @@ function SequenceChip({
         type="button"
         aria-label={`Drag to move ${label}`}
         title={`Drag to move ${label}`}
-        className="shrink-0 cursor-grab touch-none py-1.5 pl-2 opacity-70 hover:opacity-100 active:cursor-grabbing"
+        className="shrink-0 cursor-grab touch-none py-1 pl-1.5 opacity-60 hover:opacity-100 active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >
-        <GripVertical className="size-3" />
+        <GripVertical className="size-2.5" />
       </button>
-      <span aria-label={label} title={label} className="px-1 text-xs font-semibold">
+      <span
+        aria-label={label}
+        title={label}
+        className="px-0.5 text-[11px] leading-4 font-semibold"
+      >
         {short}
       </span>
       <button
         type="button"
         aria-label={`Remove ${label}`}
         title={`Remove ${label}`}
-        className="shrink-0 rounded-full py-1.5 pr-2 pl-0.5 opacity-70 hover:opacity-100"
+        className="shrink-0 rounded-full py-1 pr-1.5 pl-0.5 opacity-60 hover:opacity-100"
         onClick={onRemove}
       >
-        <X className="size-3" />
+        <X className="size-2.5" />
       </button>
     </div>
   )
@@ -152,7 +156,7 @@ export function PlanSequenceEditor({
       <div
         role="group"
         aria-labelledby="pi-sequence-label"
-        className="flex flex-wrap items-center gap-x-1 gap-y-1.5"
+        className="flex flex-wrap items-center gap-x-0.5 gap-y-1"
       >
         <DndContext
           sensors={sensors}
@@ -165,7 +169,7 @@ export function PlanSequenceEditor({
                 {index > 0 && (
                   <ChevronRight
                     aria-hidden
-                    className="text-muted-foreground/60 size-3.5 shrink-0"
+                    className="text-muted-foreground/60 size-3 shrink-0"
                   />
                 )}
                 <SequenceChip
@@ -186,7 +190,7 @@ export function PlanSequenceEditor({
               size="sm"
               aria-label="Add a section to the sequence"
               title="Add a section to the end"
-              className={cn('h-7 rounded-full px-2.5 text-xs', value.length > 0 && 'ml-1')}
+              className={cn('h-6 rounded-full px-2 text-[11px]', value.length > 0 && 'ml-1')}
             >
               <Plus className="size-3" />
               Add

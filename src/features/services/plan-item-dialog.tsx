@@ -229,7 +229,10 @@ function ItemForm({
 
   return (
     <>
-      <div className="flex flex-col gap-4">
+      {/* min-w-0: a grid item won't shrink below its widest unbreakable
+          content, and a long recording link would push the whole form past
+          a phone's edge; this lets the link truncate instead. */}
+      <div className="flex min-w-0 flex-col gap-4">
         {picked && picked.arrangements.length > 1 && (
           <div className="flex flex-col gap-2">
             <Label htmlFor="pi-arrangement">Arrangement</Label>
@@ -502,7 +505,10 @@ export function PlanItemDialog({
 
   return (
     <Dialog open={!!state} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      {/* A song's box carries the sequence chips, which wrap onto more rows
+          the longer the song: wider so they wrap less, and never taller than
+          the screen — past that it scrolls inside, footer and all. */}
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{heading}</DialogTitle>
           <DialogDescription>
