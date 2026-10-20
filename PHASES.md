@@ -1499,6 +1499,23 @@ blue, as on the people archive dialog — nothing is lost — via a new
 `ConfirmDialog` `variant` prop (`'destructive'` by default, so every delete
 stays red).
 
+(no migration) **The lyrics editor marks what isn't saved** (2026-10-20): every
+pane — Lyrics, Native, Meaning, Chords — compares itself with the saved layers
+(`saved` prop, the song page's stored row; the chord pane in the notation it
+shows). `lyric-diff.ts` matches lines ignoring spaces (LCS), pairs the changed
+lines of each run in order and diffs their non-space characters; blank lines
+and space-only edits count for nothing. A red bar beside each changed line
+shows while typing (`ChangeMarks`, placed from `useLineRects`, which lays the
+text out in the same hidden mirror the section rails use — so a wrapped line's
+bar spans its rows); a tick marks a line removed outright. On blur the pane's
+text goes transparent under an overlay (`DiffSpans`) with the added characters
+in red and a changed chord red instead of primary — the chord pane's existing
+overlay, extended to every pane and to the wrapping Lyrics pane, with sideways
+scroll followed. Saving refreshes `saved`, so the marks clear and only later
+edits show. 8 diff tests; verified in the browser at desktop and phone width
+(bars while typing, red on blur, a red chord, cleared on save, the chord
+primary after it, only a new edit red after that; the song restored).
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

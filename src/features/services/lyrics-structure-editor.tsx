@@ -58,7 +58,14 @@ import {
   type ChordNotation,
   type SongKey,
 } from '@/features/services/chord-notation'
-import { ChordSpans } from '@/features/services/chord-spans'
+import {
+  diffText,
+  hasChanges,
+  hasInserted,
+  NO_DIFF,
+  type TextDiff,
+} from '@/features/services/lyric-diff'
+import { DiffSpans } from '@/features/services/lyric-diff-spans'
 import {
   followSectionEdit,
   parseLyricSections,
@@ -112,6 +119,111 @@ interface SectionRect {
 }
 
 /**
+ * A hidden div set exactly like the textarea — typography, padding, border and
+ * width — so text appended to it wraps where the textarea's does. The caller
+ * fills it, appends it to the body, measures, and removes it.
+ */
+function makeMirror(el: HTMLTextAreaElement): HTMLDivElement {
+  const cs = getComputedStyle(el)
+  const mirror = document.createElement('div')
+  mirror.setAttribute('aria-hidden', 'true')
+  mirror.style.position = 'absolute'
+  mirror.style.visibility = 'hidden'
+  mirror.style.left = '-99999px'
+  mirror.style.top = '0'
+  mirror.style.height = 'auto'
+  mirror.style.whiteSpace = 'pre-wrap'
+  mirror.style.overflowWrap = 'break-word'
+  mirror.style.boxSizing = 'border-box'
+  mirror.style.width = `${el.offsetWidth}px`
+  for (const prop of MIRROR_STYLE_PROPS) {
+    mirror.style.setProperty(prop, cs.getPropertyValue(prop))
+  }
+  return mirror
+}
+
+/**
+ * Where each line of a pane sits, top and height in pixels from the
+ * textarea's top edge — a wrapped line spans its rows — for the unsaved-change
+ * bars beside it. Measured only while `active` (there is something to mark),
+ * since it lays the whole text out on every keystroke.
+ */
+function useLineRects(
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>,
+  value: string,
+  active: boolean,
+) {
+  const [rects, setRects] = useState<SectionRect[]>([])
+  useLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!el || !active) {
+      setRects([])
+      return
+    }
+    function measure() {
+      if (!el) return
+      const mirror = makeMirror(el)
+      const spans = value.split('\n').map((line, i) => {
+        if (i > 0) mirror.append(document.createTextNode('\n'))
+        const span = document.createElement('span')
+        // An empty span has no height of its own; a zero-width space gives
+        // a blank line its row.
+        span.textContent = line === '' ? '​' : line
+        mirror.append(span)
+        return span
+      })
+      document.body.append(mirror)
+      const top = mirror.getBoundingClientRect().top
+      setRects(
+        spans.map((span) => {
+          const r = span.getBoundingClientRect()
+          return { top: r.top - top, height: r.height }
+        }),
+      )
+      mirror.remove()
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [textareaRef, value, active])
+  return rects
+}
+
+/**
+ * The unsaved-change marks at a pane's left edge: a red bar beside each line
+ * changed in any way, and a short tick where a line was taken out altogether.
+ * Placed over the textarea's left padding, so they never cover the text.
+ */
+function ChangeMarks({ diff, rects }: { diff: TextDiff; rects: SectionRect[] }) {
+  if (rects.length === 0) return null
+  const last = rects[rects.length - 1]
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-2">
+      {[...diff.changed.keys()].map((line) =>
+        rects[line] === undefined ? null : (
+          <div
+            key={`c${line}`}
+            className="bg-destructive absolute left-[3px] w-[3px] rounded-full"
+            style={{
+              top: rects[line].top + 1,
+              height: Math.max(rects[line].height - 2, 4),
+            }}
+          />
+        ),
+      )}
+      {[...diff.removedBefore].map((line) => (
+        <div
+          key={`r${line}`}
+          className="bg-destructive absolute left-[2px] h-[3px] w-2 -translate-y-1/2 rounded-full"
+          style={{ top: line < rects.length ? rects[line].top : last.top + last.height }}
+        />
+      ))}
+    </div>
+  )
+}
+
+/**
  * Measure each section's vertical pixel extent (header line through last
  * non-blank line) by rendering the lyrics into a hidden div that mirrors the
  * textarea's typography and width. The textarea auto-grows
@@ -144,21 +256,7 @@ function useSectionRects(
     }
     function measure() {
       if (!el) return
-      const cs = getComputedStyle(el)
-      const mirror = document.createElement('div')
-      mirror.setAttribute('aria-hidden', 'true')
-      mirror.style.position = 'absolute'
-      mirror.style.visibility = 'hidden'
-      mirror.style.left = '-99999px'
-      mirror.style.top = '0'
-      mirror.style.height = 'auto'
-      mirror.style.whiteSpace = 'pre-wrap'
-      mirror.style.overflowWrap = 'break-word'
-      mirror.style.boxSizing = 'border-box'
-      mirror.style.width = `${el.offsetWidth}px`
-      for (const prop of MIRROR_STYLE_PROPS) {
-        mirror.style.setProperty(prop, cs.getPropertyValue(prop))
-      }
+      const mirror = makeMirror(el)
       let cursor = 0
       const markers: HTMLSpanElement[] = []
       for (const s of sections) {
@@ -456,9 +554,15 @@ export function LyricsStructureEditor({
   labellingSections,
   chordNotation = 'letters',
   songKey = null,
+  saved,
 }: {
   id?: string
   layers: LayeredLyrics
+  /**
+   * The layers as last saved. What differs is marked: red text once a pane
+   * loses focus, a red bar beside each changed line. Absent, nothing is.
+   */
+  saved?: LayeredLyrics
   activeLayer: LyricLayerKey | null
   onChange: (next: LayeredLyrics) => void
   /** Draft the meaning from the native text; absent when not configured. */
@@ -484,6 +588,9 @@ export function LyricsStructureEditor({
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const chordPaneRef = useRef<HTMLTextAreaElement>(null)
   const [chordPaneFocused, setChordPaneFocused] = useState(false)
+  const [baseFocused, setBaseFocused] = useState(false)
+  const baseOverlayRef = useRef<HTMLDivElement>(null)
+  const paneOverlayRef = useRef<HTMLDivElement>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   )
@@ -558,6 +665,34 @@ export function LyricsStructureEditor({
     onRemove: () => onChange(removeSectionLayers(layers, sections, index)),
   })
 
+  // What isn't saved yet. The bars show as soon as a line changes, typing or
+  // not; the red text needs the overlay, which only stands in for the
+  // textarea once it loses focus (a textarea can't colour its own text).
+  const baseDiff = useMemo(
+    () => (saved ? diffText(saved.lyrics, layers.lyrics) : NO_DIFF),
+    [saved, layers.lyrics],
+  )
+  const baseRects = useLineRects(textareaRef, layers.lyrics, hasChanges(baseDiff))
+  const showBaseOverlay = !baseFocused && hasInserted(baseDiff)
+
+  // The overlay is a copy of the text over the textarea; it follows any
+  // sideways scroll of a pane that doesn't wrap.
+  function followScroll(
+    overlay: HTMLDivElement | null,
+    event: React.UIEvent<HTMLTextAreaElement>,
+  ) {
+    if (overlay === null) return
+    overlay.scrollLeft = event.currentTarget.scrollLeft
+    overlay.scrollTop = event.currentTarget.scrollTop
+  }
+
+  // Shared by the textarea and its overlay, so the copy wraps where it does.
+  const baseTextClasses = cn(
+    'font-sans text-sm',
+    sections.length > 0 && 'pl-5',
+    split && `${PANE_LEADING} whitespace-pre`,
+  )
+
   const baseTextarea = (
     <Textarea
       id={id}
@@ -566,6 +701,9 @@ export function LyricsStructureEditor({
       wrap={split ? 'off' : undefined}
       value={layers.lyrics}
       onChange={onBaseChange}
+      onFocus={() => setBaseFocused(true)}
+      onBlur={() => setBaseFocused(false)}
+      onScroll={(event) => followScroll(baseOverlayRef.current, event)}
       className={cn(
         // Proportional, like every other lyric surface — chords are
         // placed by their brackets now, so no pane needs a monospace grid.
@@ -578,10 +716,28 @@ export function LyricsStructureEditor({
         // where they were and hang off the bottom. Fixed to the content, a
         // song of any length lines up with its own gutter.
         'resize-none',
-        sections.length > 0 && 'pl-5',
-        split && `${PANE_LEADING} whitespace-pre`,
+        baseTextClasses,
+        showBaseOverlay && 'text-transparent',
       )}
     />
+  )
+
+  const baseOverlay = showBaseOverlay && (
+    <div
+      aria-hidden
+      ref={(node) => {
+        baseOverlayRef.current = node
+        if (node && textareaRef.current) node.scrollLeft = textareaRef.current.scrollLeft
+      }}
+      className={cn(
+        'pointer-events-none absolute inset-0 overflow-hidden rounded-lg',
+        'border border-transparent px-2.5 py-2',
+        split ? '' : 'break-words whitespace-pre-wrap',
+        baseTextClasses,
+      )}
+    >
+      <DiffSpans text={layers.lyrics} diff={baseDiff} />
+    </div>
   )
 
   const baseColumn = (
@@ -614,7 +770,11 @@ export function LyricsStructureEditor({
         </div>
       )}
       {split && <LineNumbers count={lineCount(layers.lyrics)} />}
-      <div className="min-w-0 flex-1">{baseTextarea}</div>
+      <div className="relative min-w-0 flex-1">
+        {baseTextarea}
+        {baseOverlay}
+        <ChangeMarks diff={baseDiff} rects={baseRects} />
+      </div>
     </div>
   )
 
@@ -640,17 +800,35 @@ export function LyricsStructureEditor({
     applyEdit({ ...layers, [activeLayer]: next }, 'layer', activeLayer, event.target)
   }
 
+  // The pane's unsaved changes, compared in the notation it shows, so flipping
+  // letters/numbers never reads as an edit.
+  const savedPane =
+    saved === undefined || activeLayer === null
+      ? null
+      : activeLayer === 'chords'
+        ? chordsIn(saved.chords, chordNotation, songKey)
+        : saved[activeLayer]
+  const paneDiff = useMemo(
+    () => (savedPane === null ? NO_DIFF : diffText(savedPane, paneValue)),
+    [savedPane, paneValue],
+  )
+  const paneRects = useLineRects(chordPaneRef, paneValue, hasChanges(paneDiff))
+
   // Chords read as a chart whenever nobody is typing in them, the way the
   // Services sheet sets them, and fall back to plain text on focus: colouring
-  // a half-typed bracket fights the person writing it.
+  // a half-typed bracket fights the person writing it. Any other layer gets
+  // the overlay only to show what isn't saved.
   const showChordSpans =
-    activeLayer === 'chords' && !chordPaneFocused && paneValue.trim() !== ''
+    !chordPaneFocused &&
+    paneValue.trim() !== '' &&
+    (activeLayer === 'chords' || hasInserted(paneDiff))
 
   // The coloured text is laid *over* the textarea rather than swapped in for
   // it. Same box, same metrics, so nothing shifts on focus — and because the
   // overlay ignores the pointer, a click lands in the textarea underneath at
   // the character it was aimed at, instead of dropping the caret at the end.
   const syncOverlayScroll = useCallback((node: HTMLDivElement | null) => {
+    paneOverlayRef.current = node
     const pane = chordPaneRef.current
     if (node === null || pane === null) return
     node.scrollLeft = pane.scrollLeft
@@ -670,6 +848,7 @@ export function LyricsStructureEditor({
           onChange={onPaneChange}
           onFocus={() => setChordPaneFocused(true)}
           onBlur={() => setChordPaneFocused(false)}
+          onScroll={(event) => followScroll(paneOverlayRef.current, event)}
           className={cn(
             // Fixed for the same reason as the base pane, plus one of its
             // own: this pane is line-parallel to that one, and a handle that
@@ -691,9 +870,10 @@ export function LyricsStructureEditor({
               PANE_LEADING,
             )}
           >
-            <ChordSpans text={paneValue} />
+            <DiffSpans text={paneValue} diff={paneDiff} chords={activeLayer === 'chords'} />
           </div>
         )}
+        <ChangeMarks diff={paneDiff} rects={paneRects} />
       </div>
     </div>
   )

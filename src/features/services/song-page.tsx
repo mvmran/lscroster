@@ -1168,6 +1168,7 @@ function ArrangementLyricsBlock({
           <LyricsStructureEditor
             id={`arr-lyrics-${arrangement.id}`}
             layers={value}
+            saved={saved}
             activeLayer={activeLayer}
             onChange={setDraft}
             onGenerateMeaning={meaningAvailable ? draftMeaning : undefined}

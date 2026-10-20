@@ -985,6 +985,15 @@ the song.
 press **Save changes**, and the Lyrics Sheet shows it in short form (§6.5), so
 write the song out in the order it is sung.
 
+**What isn't saved yet.** Every box — Lyrics, Native, Meaning and Chords —
+marks your changes until you press **Save changes**. A **red bar** at the box's
+left edge marks each line you've changed in any way, as you type; a short red
+**tick** marks where a whole line was taken out. When you click away from the
+box, the letters you added show in **red** (a changed chord too, instead of its
+usual colour). Taking letters out, with nothing in their place, shows the bar
+alone. Spaces and blank lines don't count. Once you save, the marks go — only
+what you change after that shows again.
+
 **One heading, one section.** A song often sings the same section more than
 once, written out each time under the same heading (`VERSE`, `VERSE`, `CHORUS`…).
 A repeat must match in its words **and** its chords: the same words over
