@@ -3,10 +3,11 @@ import { supabase } from '@/lib/supabase'
 import type { LayeredLyrics } from '@/features/services/lyric-layers'
 import { lyricSequence } from '@/features/services/lyric-sections'
 import { resolveNativeLanguage } from '@/features/services/transliterate'
-import type {
-  ArrangementLyrics,
-  Song,
-  SongArrangement,
+import {
+  todayISODate,
+  type ArrangementLyrics,
+  type Song,
+  type SongArrangement,
 } from '@/features/services/service-utils'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
@@ -608,6 +609,57 @@ export function useSongDeleteImpact(songId: string | null) {
       const keep = new Set(shared.map((l) => l.arrangement_id))
       const going = ids.filter((a) => !keep.has(a))
       return { arrangements: going.length, plans: await plansUsing(going) }
+    },
+  })
+}
+
+/** A plan dated today or later that has a song on it. */
+export interface UpcomingSongPlan {
+  id: string
+  date: string
+  /** The plan's own title, else its service type's name. */
+  label: string
+  status: Tables<'plans'>['status']
+}
+
+/**
+ * The current and future plans a song is on, through any of its arrangements
+ * (a medley's included), soonest first — for the warning before it is
+ * archived. Archiving leaves them alone; this only says which they are. Reads
+ * the plans the viewer can see, which for anyone who can archive a song
+ * without seeing every draft may leave a draft out.
+ */
+export function useSongUpcomingPlans(songId: string | null) {
+  return useQuery({
+    queryKey: ['song-upcoming-plans', songId ?? ''],
+    enabled: !!songId,
+    staleTime: 0,
+    queryFn: async (): Promise<UpcomingSongPlan[]> => {
+      const { data: links, error } = await supabase
+        .from('song_arrangement_songs')
+        .select('arrangement_id')
+        .eq('song_id', songId!)
+      if (error) throw new Error(error.message)
+      if (links.length === 0) return []
+      const { data, error: itemsError } = await supabase
+        .from('plan_items')
+        .select('plans!inner(id, date, title, status, service_types(name))')
+        .in(
+          'arrangement_id',
+          links.map((l) => l.arrangement_id),
+        )
+        .gte('plans.date', todayISODate())
+      if (itemsError) throw new Error(itemsError.message)
+      const plans = new Map<string, UpcomingSongPlan>()
+      for (const { plans: plan } of data) {
+        plans.set(plan.id, {
+          id: plan.id,
+          date: plan.date,
+          label: plan.title?.trim() || plan.service_types?.name || 'Plan',
+          status: plan.status,
+        })
+      }
+      return [...plans.values()].sort((a, b) => a.date.localeCompare(b.date))
     },
   })
 }

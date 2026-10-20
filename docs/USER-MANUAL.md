@@ -933,7 +933,10 @@ script — LSCroster shows it first so you don't add it twice.
   song in a new tab.
 
 **Archive** hides a song from the list without deleting it, keeping its history;
-**Restore** brings it back. **Delete** removes the song, its arrangements, lyrics
+**Restore** brings it back. Plans that already have the song keep it — in their
+order of service and on their Lyrics Sheets — and it just stops coming up when
+adding songs to a plan. If the song is on a current or upcoming plan, Archive
+asks first and lists those plans. **Delete** removes the song, its arrangements, lyrics
 and attachments for good, and is only available if your admin allows deleting
 songs (§14.2).
 

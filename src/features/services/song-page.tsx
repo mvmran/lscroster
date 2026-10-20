@@ -124,6 +124,7 @@ import {
   useDeleteArrangement,
   useDeleteSong,
   useSongDeleteImpact,
+  useSongUpcomingPlans,
   useLinkSongToArrangement,
   useSaveArrangementLyrics,
   useSong,
@@ -1756,6 +1757,12 @@ export function SongPage() {
 
   const { can, songDeleteAllowed } = usePermissions()
   const canManage = can('manage_songs')
+  // Read ahead while the song is active, so Archive knows straight away
+  // whether to warn: a song on no upcoming plan archives in one click.
+  const [confirmArchive, setConfirmArchive] = useState(false)
+  const upcoming = useSongUpcomingPlans(
+    canManage && song?.status === 'active' ? song.id : null,
+  )
 
   if (isError) return <FullPageError message={error.message} />
   if (isPending) {
@@ -1781,12 +1788,23 @@ export function SongPage() {
   }
 
   function toggleArchived() {
-    const next = song!.status === 'active' ? 'archived' : 'active'
+    // Archiving a song that current or future plans have on them asks first,
+    // naming them; until the check is back, the dialog says it's checking.
+    if (song!.status === 'active' && upcoming.data?.length !== 0) {
+      setConfirmArchive(true)
+      return
+    }
+    setStatus(song!.status === 'active' ? 'archived' : 'active')
+  }
+
+  function setStatus(next: 'active' | 'archived') {
     updateSong.mutate(
       { id: song!.id, values: { status: next } },
       {
-        onSuccess: () =>
-          toast.success(next === 'archived' ? 'Song archived' : 'Song restored'),
+        onSuccess: () => {
+          setConfirmArchive(false)
+          toast.success(next === 'archived' ? 'Song archived' : 'Song restored')
+        },
         onError: (e) => toast.error(e.message),
       },
     )
@@ -1903,6 +1921,43 @@ export function SongPage() {
       <DetailsCard key={song.updated_at} song={song} canManage={canManage} />
       <ArrangementsCard song={song} canManage={canManage} />
       <UsageCard songId={song.id} />
+
+      <ConfirmDialog
+        open={confirmArchive}
+        onOpenChange={setConfirmArchive}
+        title={`Archive “${song.title}”?`}
+        confirmLabel="Archive"
+        pending={updateSong.isPending}
+        onConfirm={() => setStatus('archived')}
+      >
+        {upcoming.data === undefined ? (
+          <p>Checking which upcoming plans have it…</p>
+        ) : upcoming.data.length === 0 ? (
+          <p>It isn’t on any current or upcoming plan.</p>
+        ) : (
+          <>
+            <p>
+              It’s on {plural(upcoming.data.length, 'current or upcoming plan')}:
+            </p>
+            <ul className="list-disc pl-5">
+              {upcoming.data.slice(0, 5).map((plan) => (
+                <li key={plan.id}>
+                  {formatPlanDate(plan.date)} · {plan.label}
+                  {plan.status === 'draft' ? ' (draft)' : ''}
+                </li>
+              ))}
+              {upcoming.data.length > 5 && (
+                <li>and {upcoming.data.length - 5} more</li>
+              )}
+            </ul>
+            <p>
+              They keep it: it stays in their order of service, with its lyrics,
+              chords and key on the Lyrics Sheet. Archiving only takes it off the
+              song list and out of the search when adding songs to a plan.
+            </p>
+          </>
+        )}
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={confirmDelete}

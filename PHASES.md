@@ -1484,6 +1484,18 @@ and the migration re-applied clean.
 `sequence` on every song save, reorder and template save, which fails against
 a database without the column.
 
+(no migration) **Archiving a song on upcoming plans asks first** (2026-10-20):
+archiving only ever set `songs.status` — plans that have the song keep it, in
+the order of service, on the sheet and in the set-list email — but it said
+nothing when the song was on next Sunday's plan. Archive now opens a
+ConfirmDialog listing the current and future plans the song is on (through any
+of its arrangements, medleys included; date, title or service type, draft
+marked; five shown, then "and N more"), says they keep it, and archives on
+confirm. `useSongUpcomingPlans` is read ahead while the song is active, so a
+song on no upcoming plan still archives in one click; Restore never asks.
+Verified in the browser (dialog and its plan, Cancel, Archive, Restore, and a
+song on no plan archiving straight away).
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
