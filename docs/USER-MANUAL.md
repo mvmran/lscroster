@@ -853,7 +853,8 @@ A song's **description** in the set list (*Repeat last chorus a cappella*)
 shows under its sequence, in the same small grey type, on screen and printed.
 
 **This plan's sequence.** The song's box (adding a song or editing one) has a
-**Sequence** row under Key and BPM, as coloured chips. It starts as the song's
+**Sequence** row under Key and BPM, as coloured chips in short form (*V1*,
+*C*, *B* — hover or press for the full name). It starts as the song's
 own sequence. Drag a chip by its grip to move it, press **×** to drop it, or
 **Add** to put any of the song's sections on the end — the same one as often as
 it is sung. The order is kept for this plan only: the Lyrics Sheet shows it,

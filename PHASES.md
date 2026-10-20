@@ -1462,9 +1462,10 @@ meta lines' 8 pt grey italic in the PDF, counted in the keep-together height.
 
 (0060) `plan_item_sequence` **A song's sequence for one plan** (2026-10-20):
 the song box (Add song and Edit song) gets a **Sequence** chips editor after
-Key and BPM — `PlanSequenceEditor`, the lyrics editor's tinted pills with a
-grip (dnd-kit sortable, pointer and keyboard), × to drop, and an Add menu of
-the song's section names (`sequenceChoices`: each heading once, then any the
+Key and BPM — `PlanSequenceEditor`, the lyrics editor's tinted pills in short
+form ("V1", via `sequenceSteps`, full label as the title) with a grip (dnd-kit
+sortable, pointer and keyboard), × to drop, and an Add menu of the song's
+section names in full (`sequenceChoices`: each heading once, then any the
 saved sequence still names). New nullable `plan_items.sequence text[]` (and
 `plan_template_items.sequence`, carried through save/update template and
 create-from-template/plan like `reference_url`; ≤ 200 entries). Null = the

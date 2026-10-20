@@ -24,7 +24,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { matchLyricSectionHeader } from '@/features/services/lyric-sections'
+import {
+  matchLyricSectionHeader,
+  sequenceSteps,
+} from '@/features/services/lyric-sections'
 import { tintOf } from '@/features/services/section-tints'
 import { cn } from '@/lib/utils'
 
@@ -33,10 +36,13 @@ const kindOf = (label: string) => matchLyricSectionHeader(label)?.kind ?? 'unlab
 function SequenceChip({
   id,
   label,
+  short,
   onRemove,
 }: {
   id: string
   label: string
+  /** What the chip reads, as the Lyrics Sheet's pills do: "V1", "C×2". */
+  short: string
   onRemove: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -61,7 +67,9 @@ function SequenceChip({
       >
         <GripVertical className="size-3" />
       </button>
-      <span className="px-1 text-xs font-medium">{label}</span>
+      <span aria-label={label} title={label} className="px-1 text-xs font-semibold">
+        {short}
+      </span>
       <button
         type="button"
         aria-label={`Remove ${label}`}
@@ -106,6 +114,9 @@ export function PlanSequenceEditor({
       return `${label}\u0001${n}`
     })
   }, [value])
+  // Chips read short ("V1"), as on the Lyrics Sheet; the Add menu stays long,
+  // since that is where a section is picked by name.
+  const steps = useMemo(() => sequenceSteps(value), [value])
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -160,6 +171,7 @@ export function PlanSequenceEditor({
                 <SequenceChip
                   id={ids[index]}
                   label={label}
+                  short={steps[index].short}
                   onRemove={() => onChange(value.filter((_, i) => i !== index))}
                 />
               </Fragment>
