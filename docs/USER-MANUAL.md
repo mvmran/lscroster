@@ -849,6 +849,9 @@ Lyrics** (beside **Print**) to show every section each time it is sung instead.
 It is off to begin with, and your browser remembers your choice. The printed
 sheet follows it, and prints the sequence too.
 
+A song's **description** in the set list (*Repeat last chorus a cappella*)
+shows under its sequence, in the same small grey type, on screen and printed.
+
 ## 6.6 Draft vs published
 
 A new plan is a **draft**. Members can't see drafts — unless they're scheduled

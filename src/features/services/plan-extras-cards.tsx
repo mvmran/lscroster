@@ -575,6 +575,13 @@ export function PlanMediaCard({
                     </div>
                   )}
                   <SongSequence sequence={entry.sequence} />
+                  {/* The set list's notes for the song, light and small like
+                      the Sequence label above. */}
+                  {entry.description && (
+                    <p className="text-muted-foreground text-xs whitespace-pre-line">
+                      {entry.description}
+                    </p>
+                  )}
                   {hasLyrics ? (
                     <LyricsReadView
                       layers={entry.layers}

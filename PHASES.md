@@ -1453,6 +1453,13 @@ box). It now shows in the Add song box as well, playing the picked
 arrangement's key, tempo and meter, or the Key and BPM typed. Verified in the
 browser: Come Thou Fount → pad and riff in D, metronome 96 BPM 4/4.
 
+(no migration) **The set list's description on the Lyrics Sheet** (2026-10-20):
+a song item's description (this plan's notes for it) now shows under the
+Sequence line — `LyricsSheetEntry.description` (trimmed, null when blank),
+`text-muted-foreground text-xs` on screen like the Sequence label, and the
+meta lines' 8 pt grey italic in the PDF, counted in the keep-together height.
+1 test; verified in the browser (screen) and the downloaded PDF's text.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

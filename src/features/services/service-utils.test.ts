@@ -387,6 +387,17 @@ describe('buildLyricsSheet key and tempo', () => {
     ])
   })
 
+  it('carries the set list’s description, and none for a blank one', () => {
+    const [noted] = buildLyricsSheet(
+      [songItem({ description: '  Acapella first verse\n' })],
+      arrangements,
+      lyrics,
+    )
+    expect(noted.description).toBe('Acapella first verse')
+    const [blank] = buildLyricsSheet([songItem({ description: '   ' })], arrangements, lyrics)
+    expect(blank.description).toBeNull()
+  })
+
   it('links the recording the plan picked', () => {
     const [entry] = buildLyricsSheet(
       [songItem({ reference_url: 'https://youtu.be/live' })],

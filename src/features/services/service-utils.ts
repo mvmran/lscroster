@@ -411,6 +411,8 @@ export interface LyricsSheetEntry {
   layers: LayeredLyrics
   /** The order the song is sung in, as section labels (0057). */
   sequence: string[]
+  /** The plan item's description — this plan's notes for the song — or null. */
+  description: string | null
 }
 
 /**
@@ -458,6 +460,9 @@ export function buildLyricsSheet(
         // headings say the same thing.
         sequence:
           (pinned ?? latest)?.sequence ?? lyricSequence((pinned ?? latest)?.lyrics ?? ''),
+        // What the set list says about the song on this plan ("acapella first
+        // verse"), under the sequence.
+        description: i.description?.trim() || null,
         // Chords stay as stored (numbers); the reader and the PDF convert,
         // because which notation to show is the reader's choice, not the data's.
         layers: layersOfRow(pinned ?? latest ?? null),

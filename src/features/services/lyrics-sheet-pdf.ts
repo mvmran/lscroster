@@ -203,12 +203,21 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
     // Keep the title (and its meta lines) with the first lines of lyrics so a
     // song title never strands at the bottom of a column.
     const keepTogether =
-      TITLE_LH + (meta ? META_LH : 0) + (sequence ? META_LH : 0) + LYRIC_LH * 2
+      TITLE_LH +
+      (meta ? META_LH : 0) +
+      (sequence ? META_LH : 0) +
+      (entry.description ? META_LH : 0) +
+      LYRIC_LH * 2
     if (!atColumnTop() && y + keepTogether > contentBottom) advanceColumn()
 
     drawWrapped(entry.title, TITLE_SIZE, 'bold', 15, TITLE_LH)
     if (meta) drawWrapped(meta, META_SIZE, 'italic', 120, META_LH)
     if (sequence) drawWrapped(sequence, META_SIZE, 'italic', 120, META_LH)
+    // The set list's notes for the song, in the same small grey as the lines
+    // above it.
+    if (entry.description) {
+      drawWrapped(entry.description, META_SIZE, 'italic', 120, META_LH)
+    }
     y += 1
 
     if (entry.lyrics && entry.lyrics.trim()) {
