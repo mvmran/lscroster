@@ -232,7 +232,7 @@ function ItemForm({
       {/* min-w-0: a grid item won't shrink below its widest unbreakable
           content, and a long recording link would push the whole form past
           a phone's edge; this lets the link truncate instead. */}
-      <div className="flex min-w-0 flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-3">
         {picked && picked.arrangements.length > 1 && (
           <div className="flex flex-col gap-2">
             <Label htmlFor="pi-arrangement">Arrangement</Label>
@@ -284,31 +284,24 @@ function ItemForm({
           />
         </div>
 
+        {/* Length, then the length estimate and the pad / key riff /
+            metronome buttons, on one row; on a phone the buttons wrap below. */}
         {kind !== 'header' && (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="pi-length">Length (min or m:ss)</Label>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+              <Label htmlFor="pi-length" className="shrink-0">
+                Length (m:ss)
+              </Label>
               <Input
                 id="pi-length"
                 value={length}
                 onChange={(e) => setLength(e.target.value)}
                 inputMode="numeric"
                 placeholder="5:00"
+                className="w-24"
               />
-              {lengthInvalid && (
-                <p className="text-destructive text-sm">Use minutes or m:ss, e.g. 4:30</p>
-              )}
-            </div>
-            {/* Beside Length: the length estimate and the pad / key riff /
-                metronome trio, adding a song as well as editing one. The label
-                is invisible, there only to keep the buttons level with the
-                Length box. */}
-            {kind === 'song' && (
-              <div className="flex flex-col gap-2">
-                <Label aria-hidden className="invisible">
-                  Sounds
-                </Label>
-                <div className="flex items-center gap-2">
+              {kind === 'song' && (
+                <div className="ml-auto flex items-center gap-2">
                   {canEstimate && (
                     <span
                       className="inline-flex shrink-0"
@@ -342,28 +335,34 @@ function ItemForm({
                     meter={soundMeter}
                   />
                 </div>
-              </div>
+              )}
+            </div>
+            {lengthInvalid && (
+              <p className="text-destructive text-sm">Use minutes or m:ss, e.g. 4:30</p>
             )}
-            {kind === 'song' && (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="pi-key">Key</Label>
+          </div>
+        )}
+
+        {/* Key and BPM on one row, each label beside its box, and one line
+            under both saying what blank means. */}
+        {kind === 'song' && (
+          <div className="flex flex-col gap-1.5">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="pi-key" className="shrink-0">
+                  Key
+                </Label>
                 <Input
                   id="pi-key"
                   value={keyOverride}
                   onChange={(e) => setKeyOverride(e.target.value)}
                   placeholder={arrangementKey ?? 'e.g. G'}
                 />
-                {arrangementKey && (
-                  <p className="text-muted-foreground text-xs">
-                    Leave blank for the arrangement’s key ({arrangementKey}).
-                  </p>
-                )}
               </div>
-            )}
-            {/* Key and BPM side by side, under Length and the buttons. */}
-            {kind === 'song' && (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="pi-bpm">BPM</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="pi-bpm" className="shrink-0">
+                  BPM
+                </Label>
                 <Input
                   id="pi-bpm"
                   value={bpmOverride}
@@ -372,16 +371,23 @@ function ItemForm({
                   placeholder={arrangementBpm?.toString() ?? 'e.g. 72'}
                   aria-invalid={bpmInvalid}
                 />
-                {bpmInvalid ? (
-                  <p className="text-destructive text-sm">Whole number above 0</p>
-                ) : (
-                  arrangementBpm !== null && (
-                    <p className="text-muted-foreground text-xs">
-                      Leave blank for the arrangement’s tempo ({arrangementBpm}).
-                    </p>
-                  )
-                )}
               </div>
+            </div>
+            {bpmInvalid ? (
+              <p className="text-destructive text-sm">BPM is a whole number above 0</p>
+            ) : (
+              (arrangementKey || arrangementBpm !== null) && (
+                <p className="text-muted-foreground text-xs">
+                  Leave blank for the arrangement’s{' '}
+                  {[
+                    arrangementKey && `key (${arrangementKey})`,
+                    arrangementBpm !== null && `tempo (${arrangementBpm})`,
+                  ]
+                    .filter(Boolean)
+                    .join(' and ')}
+                  .
+                </p>
+              )
             )}
           </div>
         )}
@@ -508,7 +514,7 @@ export function PlanItemDialog({
       {/* A song's box carries the sequence chips, which wrap onto more rows
           the longer the song: wider so they wrap less, and never taller than
           the screen — past that it scrolls inside, footer and all. */}
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{heading}</DialogTitle>
           <DialogDescription>

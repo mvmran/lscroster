@@ -1523,7 +1523,12 @@ scrolls inside past that; the chips are smaller (11px, smaller grip and ×,
 tighter gaps). The form also gets `min-w-0` — a long reference-recording link
 had made the grid column wider than a phone, cutting the form off on the
 right once the box scrolled. Verified at 1280×720 and 390×700: on screen,
-scrolling inside, the sequence check (12 steps) still passing.
+scrolling inside, the sequence check (12 steps) still passing. Then packed
+tighter: 42rem wide (`sm:max-w-2xl`), `gap-3` between fields, "Length (m:ss)"
+beside a narrow box with the estimate and sound buttons on the same row
+(wrapping below on a phone), and Key and BPM each labelled beside its box on
+one row, with a single "Leave blank for the arrangement's key (E) and tempo
+(72)" under both. At 1280×720 the box now fits without scrolling.
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
