@@ -23,7 +23,9 @@ import {
  *
  * The confirm button uses the destructive variant. (A `bg-destructive` class on
  * `AlertDialogAction` loses to the button's own colours, which is why some
- * older dialogs show a plain primary button.)
+ * older dialogs show a plain primary button.) Pass `variant="default"` for a
+ * warning that loses nothing — archiving, which can be undone — so red stays
+ * reserved for what can't be taken back.
  */
 export function ConfirmDialog({
   open,
@@ -34,6 +36,7 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   onConfirm,
   pending,
+  variant = 'destructive',
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -45,6 +48,8 @@ export function ConfirmDialog({
   onConfirm: () => void
   /** Set while the confirmed action runs; the caller then closes the dialog. */
   pending?: boolean
+  /** Red for a loss (the default); the primary blue for one that loses nothing. */
+  variant?: 'destructive' | 'default'
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -58,7 +63,7 @@ export function ConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
-            variant="destructive"
+            variant={variant}
             disabled={pending}
             onClick={(event) => {
               // Stay open while it runs; the caller closes it when done.

@@ -1494,7 +1494,10 @@ marked; five shown, then "and N more"), says they keep it, and archives on
 confirm. `useSongUpcomingPlans` is read ahead while the song is active, so a
 song on no upcoming plan still archives in one click; Restore never asks.
 Verified in the browser (dialog and its plan, Cancel, Archive, Restore, and a
-song on no plan archiving straight away).
+song on no plan archiving straight away). Its Archive button is the primary
+blue, as on the people archive dialog — nothing is lost — via a new
+`ConfirmDialog` `variant` prop (`'destructive'` by default, so every delete
+stays red).
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,

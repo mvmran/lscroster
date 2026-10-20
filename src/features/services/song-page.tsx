@@ -1927,6 +1927,7 @@ export function SongPage() {
         onOpenChange={setConfirmArchive}
         title={`Archive “${song.title}”?`}
         confirmLabel="Archive"
+        variant="default"
         pending={updateSong.isPending}
         onConfirm={() => setStatus('archived')}
       >
