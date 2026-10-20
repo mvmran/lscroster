@@ -805,8 +805,8 @@ at this plan's BPM, adds 30 seconds to change songs, and puts the result in
 **Length**, rounded up to the quarter minute. A message says how it got there
 (e.g. *About 6:13 to play (112 bars), plus 30 s*). It's an estimate — two
 presses can differ by a minute — so change it if you know better; nothing is
-saved until you press **Save** (or **Add**). It needs a BPM. Editing a song,
-three more buttons play it the way
+saved until you press **Save** (or **Add**). It needs a BPM. Adding a song or
+editing one, three more buttons play it the way
 this plan has it — your Key and BPM if you changed them, else the arrangement's:
 the waveform a pad on the key's chord, the piano a short I–IV–V–I in the key,
 and the metronome a click at the tempo — the same three as on the song page. They can play together, and stop when you close

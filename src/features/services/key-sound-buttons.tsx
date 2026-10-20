@@ -86,7 +86,8 @@ export function PadButton({ songKey }: { songKey: string | null }) {
 
 /**
  * The trio wherever a song's sound is set — after Meter on the song page,
- * beside BPM in a plan's Edit song: pad, key riff, metronome, in that order.
+ * beside Length in a plan's song box (adding or editing): pad, key riff,
+ * metronome, in that order.
  * The pad and the metronome can play together.
  */
 export function SongSoundButtons({

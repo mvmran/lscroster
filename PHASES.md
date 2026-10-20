@@ -1446,6 +1446,13 @@ detection, so two differently charted copies with a bare third still number
 back, chord typed, no note, no rename) and No One Like The Lord's chord
 check still passing.
 
+(no migration) **The sound buttons when adding a song to a plan too**
+(2026-10-20): the pad / key riff / metronome trio sat beside Length only in
+Edit song (gated on `item` since it was added, when there was no Add song
+box). It now shows in the Add song box as well, playing the picked
+arrangement's key, tempo and meter, or the Key and BPM typed. Verified in the
+browser: Come Thou Fount → pad and riff in D, metronome 96 BPM 4/4.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

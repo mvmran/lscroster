@@ -121,8 +121,8 @@ function ItemForm({
   const bpmInvalid =
     bpmValue !== null && (!Number.isInteger(bpmValue) || bpmValue <= 0)
   const pending = createItem.isPending || updateItem.isPending
-  // What the sound buttons play while editing a song: this plan's key and
-  // tempo as typed (saved or not), else the arrangement's; its meter.
+  // What the sound buttons play while adding or editing a song: this plan's
+  // key and tempo as typed (saved or not), else the arrangement's; its meter.
   const soundKey = keyOverride.trim() || arrangementKey
   const soundBpm = bpmInvalid ? null : (bpmValue ?? arrangementBpm)
   const soundMeter = arrangement?.meter ?? null
@@ -265,10 +265,11 @@ function ItemForm({
                 <p className="text-destructive text-sm">Use minutes or m:ss, e.g. 4:30</p>
               )}
             </div>
-            {/* Beside Length: the length estimate and, editing, the pad /
-                key riff / metronome trio. The label is invisible, there only
-                to keep the buttons level with the Length box. */}
-            {kind === 'song' && (canEstimate || item) && (
+            {/* Beside Length: the length estimate and the pad / key riff /
+                metronome trio, adding a song as well as editing one. The label
+                is invisible, there only to keep the buttons level with the
+                Length box. */}
+            {kind === 'song' && (
               <div className="flex flex-col gap-2">
                 <Label aria-hidden className="invisible">
                   Sounds
@@ -301,13 +302,11 @@ function ItemForm({
                       </Button>
                     </span>
                   )}
-                  {item && (
-                    <SongSoundButtons
-                      songKey={soundKey}
-                      bpm={soundBpm}
-                      meter={soundMeter}
-                    />
-                  )}
+                  <SongSoundButtons
+                    songKey={soundKey}
+                    bpm={soundBpm}
+                    meter={soundMeter}
+                  />
                 </div>
               </div>
             )}
