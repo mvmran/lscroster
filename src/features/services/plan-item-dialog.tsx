@@ -52,6 +52,7 @@ import {
   useEstimateSongLength,
   useSongLengthAvailable,
 } from '@/features/services/use-song-length'
+import { cn } from '@/lib/utils'
 
 /** A song picked in the SongPickerDialog, on its way onto the plan. */
 export interface PickedSong {
@@ -343,11 +344,13 @@ function ItemForm({
           </div>
         )}
 
-        {/* Key and BPM on one row, each label beside its box, and one line
-            under both saying what blank means. */}
+        {/* Key, BPM and Meter on one row, each label beside its box, and one
+            line under them saying what blank means. */}
         {kind === 'song' && (
           <div className="flex flex-col gap-1.5">
-            <div className="grid grid-cols-2 gap-4">
+            {/* Three across from sm up; a phone is too narrow for three
+                boxes, so Meter takes the next row there. */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
               <div className="flex items-center gap-2">
                 <Label htmlFor="pi-key" className="shrink-0">
                   Key
@@ -372,20 +375,46 @@ function ItemForm({
                   aria-invalid={bpmInvalid}
                 />
               </div>
+              {/* The meter is the arrangement's: shown for reference (the
+                  metronome counts in it), changed on the song's page. */}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="pi-meter" className="text-muted-foreground shrink-0">
+                  Meter
+                </Label>
+                <Input
+                  id="pi-meter"
+                  value={soundMeter ?? ''}
+                  readOnly
+                  tabIndex={-1}
+                  placeholder="Not set"
+                  title="The arrangement’s meter — change it on the song’s page"
+                  className={cn(
+                    'text-muted-foreground bg-muted/40 dark:bg-muted/30 cursor-default',
+                    // Read-only: a click selects nothing worth a focus ring.
+                    'focus-visible:border-input focus-visible:ring-0',
+                  )}
+                />
+              </div>
             </div>
             {bpmInvalid ? (
               <p className="text-destructive text-sm">BPM is a whole number above 0</p>
             ) : (
-              (arrangementKey || arrangementBpm !== null) && (
+              (arrangementKey || arrangementBpm !== null || soundMeter === null) && (
                 <p className="text-muted-foreground text-xs">
-                  Leave blank for the arrangement’s{' '}
-                  {[
-                    arrangementKey && `key (${arrangementKey})`,
-                    arrangementBpm !== null && `tempo (${arrangementBpm})`,
-                  ]
-                    .filter(Boolean)
-                    .join(' and ')}
-                  .
+                  {(arrangementKey || arrangementBpm !== null) && (
+                    <>
+                      Leave blank for the arrangement’s{' '}
+                      {[
+                        arrangementKey && `key (${arrangementKey})`,
+                        arrangementBpm !== null && `tempo (${arrangementBpm})`,
+                      ]
+                        .filter(Boolean)
+                        .join(' and ')}
+                      .{' '}
+                    </>
+                  )}
+                  {soundMeter === null &&
+                    'The song has no meter yet — set one on its page for the metronome.'}
                 </p>
               )
             )}

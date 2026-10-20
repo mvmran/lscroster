@@ -797,8 +797,10 @@ above it; the total length and finishing time appear under the plan's title.
 **Remove**. A song also has a **pen** button beside its **⋯**, for the edit you
 make most — Remove stays in the menu, out of the way of a quick tap.
 
-In the song's box, **Key** and **BPM** sit side by side under **Length**, and
-small buttons sit beside Length. The **stopwatch** (if your church has AI help
+In the song's box, **Key**, **BPM** and **Meter** sit side by side under
+**Length** (Meter on its own line on a phone), and small buttons sit beside
+Length. Meter is shown in grey for reference — it's the arrangement's, so
+change it on the song's page; a song without one says so. The **stopwatch** (if your church has AI help
 switched on) estimates the song's length: it counts the bars in the lyrics and
 chords as written — so a repeated chorus counts each time — works out the time
 at this plan's BPM, adds 30 seconds to change songs, and puts the result in

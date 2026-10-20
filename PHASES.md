@@ -1528,7 +1528,10 @@ tighter: 42rem wide (`sm:max-w-2xl`), `gap-3` between fields, "Length (m:ss)"
 beside a narrow box with the estimate and sound buttons on the same row
 (wrapping below on a phone), and Key and BPM each labelled beside its box on
 one row, with a single "Leave blank for the arrangement's key (E) and tempo
-(72)" under both. At 1280×720 the box now fits without scrolling.
+(72)" under both. At 1280×720 the box now fits without scrolling. Then a
+read-only **Meter** box after BPM (the arrangement's meter, grey on a muted
+fill, no focus ring, "Not set" when empty, and a help-line note pointing to
+the song's page); three across from `sm`, Meter on its own row on a phone.
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
