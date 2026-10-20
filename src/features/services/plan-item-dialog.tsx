@@ -446,7 +446,7 @@ function ItemForm({
             {info.songs.map((s, i) => (
               <span key={s.id}>
                 {i > 0 && ' / '}
-                <Link to={`/songs/${s.id}`} className="text-foreground underline">
+                <Link to={`/songs/${s.id}`} className="text-primary underline">
                   {s.title}
                 </Link>
               </span>

@@ -144,7 +144,7 @@ export function PlanSequenceEditor({
             type="button"
             variant="ghost"
             size="sm"
-            className="text-muted-foreground h-7 px-2 text-xs"
+            className="text-primary hover:text-primary h-7 px-2 text-xs"
             onClick={onReset}
             title="Go back to the sequence saved with the song"
           >
