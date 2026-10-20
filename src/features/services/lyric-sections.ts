@@ -238,6 +238,54 @@ export function sectionContent(body: string, chordLayer = ''): string {
   return words === '' && chords === '' ? '' : `${words}\u0001${chords}`
 }
 
+/** A content's words and chords, apart. */
+function contentParts(content: string): { words: string; chords: string } {
+  const at = content.indexOf('\u0001')
+  return { words: content.slice(0, at), chords: content.slice(at + 1) }
+}
+
+/**
+ * Whether two sections (`sectionContent`) are the same one sung again: the
+ * same words over the same chords — or over no chords on one of them. A chart
+ * writes a chorus's chords out once and plays them every time it comes round,
+ * so a repeat with its chords left off is still a repeat. Only chords written
+ * on both and different make two sections.
+ */
+export function sameSection(a: string, b: string): boolean {
+  if (a === b) return true
+  if (a === '' || b === '') return false
+  const one = contentParts(a)
+  const two = contentParts(b)
+  return one.words === two.words && (one.chords === '' || two.chords === '')
+}
+
+/**
+ * Each section's content as the section it repeats, for grouping and counting
+ * with `sameSection`'s rule. One with no chords written takes the content of
+ * the first section of the same `key` with its words and chords, so a chorus
+ * charted once and repeated bare counts as one chorus; anything else stands as
+ * itself. Mapping to the *chorded* one keeps two differently-chorded verses
+ * apart even when a bare third shares their words.
+ */
+export function canonicalContents(
+  sections: Array<{ key: string; content: string }>,
+): string[] {
+  const chorded = new Map<string, string>()
+  const wordsKey = (key: string, words: string) => `${key}\u0002${words}`
+  for (const { key, content } of sections) {
+    if (content === '') continue
+    const { words, chords } = contentParts(content)
+    if (chords !== '' && !chorded.has(wordsKey(key, words))) {
+      chorded.set(wordsKey(key, words), content)
+    }
+  }
+  return sections.map(({ key, content }) => {
+    if (content === '') return content
+    const { words, chords } = contentParts(content)
+    return chords === '' ? (chorded.get(wordsKey(key, words)) ?? content) : content
+  })
+}
+
 /**
  * Which section a heading line names, for telling repeats apart: its kind and
  * designator, with no designator read as 1 — "Verse" and "Verse 1" are the
@@ -324,15 +372,26 @@ function headedSections({ lyrics, chords = '' }: SectionSource): HeadedSection[]
 }
 
 /**
+ * The labelled sections with each content as the section it repeats
+ * (`canonicalContents`), so a chorus whose chords are written once counts as
+ * one chorus however often it comes round bare.
+ */
+function groupedSections(source: SectionSource): HeadedSection[] {
+  const sections = headedSections(source)
+  const contents = canonicalContents(sections)
+  return sections.map((section, i) => ({ ...section, content: contents[i] }))
+}
+
+/**
  * Headings that more than one section shares while their words or chords
  * differ — two "Verse"s that are different verses — which the order of
  * service, the sheet and the projection can't tell apart. A heading with
  * nothing under it is a cue ("Chorus" meaning sing it again), so it never
- * counts as different.
+ * counts as different, and nor do chords left off a repeat (`sameSection`).
  */
 export function sharedHeadingConflicts(source: SectionSource): string[] {
   const groups = new Map<string, { line: string; contents: Set<string> }>()
-  for (const section of headedSections(source)) {
+  for (const section of groupedSections(source)) {
     if (section.content === '') continue
     const group = groups.get(section.key) ?? {
       line: section.line.trim(),
@@ -387,7 +446,7 @@ export interface HeadingRename {
  * `renameSectionHeading`.
  */
 export function numberSharedHeadings(source: SectionSource): HeadingRename[] {
-  const sections = headedSections(source)
+  const sections = groupedSections(source)
   const highest = new Map<string, number>()
   const contents = new Map<string, string[]>()
   for (const section of sections) {
@@ -454,8 +513,12 @@ export function followSectionEdit(
   const index = edited[0]
   const section = after[index]
   if (section.content === '') return { rename: null, renamed }
+  // Adding chords to one copy of a chorus whose others are bare leaves it a
+  // repeat: `sameSection` reads chords left off as the same chords.
   const repeats = (sections: HeadedSection[], key: string, content: string) =>
-    sections.some((other, i) => i !== index && other.key === key && other.content === content)
+    sections.some(
+      (other, i) => i !== index && other.key === key && sameSection(other.content, content),
+    )
 
   const earlier = renamed.find((r) => r.index === index)
   if (earlier) {

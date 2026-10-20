@@ -1432,6 +1432,20 @@ summary counts the matches first (`chartSectionMatches`) and the button reads
 chords on — the import is unchanged. 6 tests; verified on Amazing Grace in the
 browser (chords only, ticked, and a plain paste with no box).
 
+(no migration) **Chords written on one copy of a section don't renumber it**
+(2026-10-20): since sections were told apart by words *and* chords, charting
+the first chorus of a song whose later choruses were bare (10,000 Reasons)
+made it a different section — renumbered to "Chorus 2" while editing, and
+flagged on save. A repeat with its chords left off is still a repeat:
+`sameSection` (same words; same chords, or none on one side) for the
+while-editing renumber and the short Lyrics Sheet, and `canonicalContents`
+(a bare section takes the content of the first chorded one with its words and
+heading) for the save warning, **Number them** and the import's chorus
+detection, so two differently charted copies with a bare third still number
+1 / 2 / 1. 5 tests; verified in the browser on 10,000 Reasons (heading put
+back, chord typed, no note, no rename) and No One Like The Lord's chord
+check still passing.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

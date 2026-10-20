@@ -32,6 +32,7 @@ import {
   matchLyricSectionHeader,
   numberSharedHeadings,
   parseLyricSections,
+  sameSection,
   sectionContent,
   sectionKeyOf,
   type HeadingRename,
@@ -229,7 +230,10 @@ export function withoutRepeatedSections(lines: LyricLineTuple[]): LyricLineTuple
         body.map((line) => line.chords).join('\n'),
       )
       const seen = shown.get(key)
-      if (seen && (content === '' || seen.has(content))) {
+      const repeat = [...(seen ?? [])].some((shownContent) =>
+        sameSection(shownContent, content),
+      )
+      if (seen && (content === '' || repeat)) {
         section = []
         return
       }

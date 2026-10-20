@@ -8,6 +8,8 @@ import {
   numberSharedHeadings,
   parseLyricSections,
   renumberHeadingLine,
+  sameSection,
+  sectionContent,
   sectionKeyOf,
   sequenceSteps,
   sharedHeadingConflicts,
@@ -316,5 +318,38 @@ describe('chords tell sections apart', () => {
     const same = chords.replace('Ther[1]e', 'Ther[4]e')
     const { rename } = followSectionEdit({ lyrics, chords: same }, { lyrics, chords }, [])
     expect(rename).toEqual({ index: 2, from: 'VERSE', to: 'VERSE 2' })
+  })
+})
+
+describe('chords written on one copy of a section only', () => {
+  // "10,000 Reasons": the first chorus charted, the two after it left bare.
+  const chorus = 'Chorus\nBless the Lord O my soul\nO my soul'
+  const lyrics = `${chorus}\n\nVerse 1\nThe sun comes up\n\n${chorus}\n\n${chorus}`
+  const chorded = 'Chorus\n[4]Bless the Lord,[1] O my soul,\n[5/7]O my [6m]soul,'
+
+  it('is still a repeat, not a different section', () => {
+    expect(sameSection(sectionContent('a b', '[1]a b'), sectionContent('a b'))).toBe(true)
+    expect(sameSection(sectionContent('a b', '[1]a'), sectionContent('a b', '[4]a'))).toBe(
+      false,
+    )
+    expect(conflicts(lyrics, chorded)).toEqual([])
+    expect(numberSharedHeadings({ lyrics, chords: chorded })).toEqual([])
+  })
+
+  it('does not renumber the chorus its chords were added to', () => {
+    const { rename } = followSectionEdit({ lyrics }, { lyrics, chords: chorded }, [])
+    expect(rename).toBeNull()
+  })
+
+  it('keeps two differently charted copies apart, with a bare third', () => {
+    const second = `\n\n\n\n\n${chorded.replace('[6m]', '[2m]')}`
+    const chords = `${chorded}${second}`
+    expect(conflicts(lyrics, chords)).toEqual(['Chorus'])
+    // The bare one goes with the first charted chorus.
+    expect(numberSharedHeadings({ lyrics, chords })).toEqual([
+      { index: 0, from: 'Chorus', to: 'Chorus 1' },
+      { index: 2, from: 'Chorus', to: 'Chorus 2' },
+      { index: 3, from: 'Chorus', to: 'Chorus 1' },
+    ])
   })
 })

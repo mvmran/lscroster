@@ -579,6 +579,18 @@ describe('withVerseHeadings', () => {
       expect(toLines(parsed.layers.lyrics).filter((l) => l === 'Chorus')).toHaveLength(3)
     })
 
+    it('finds a chorus whose chords are written on the first time only', () => {
+      const charted = 'Sing to the [4]Lord my soul\nSing His [1]holy name'
+      const text = song(charted, 'The sun comes up', CHORUS, 'Rich in love', CHORUS)
+      expect(headings(withVerseHeadings(text))).toEqual([
+        'Chorus',
+        'Verse 1',
+        'Chorus',
+        'Verse 2',
+        'Chorus',
+      ])
+    })
+
     it('ignores case, punctuation and where a chord sits when comparing', () => {
       const text = song(
         'Verse words here',

@@ -975,6 +975,9 @@ repeats, or its chords in the **Chord** pane, it has become a section of its
 own, so LSCroster numbers its heading for you — the next free number, such as
 `VERSE 2` — and changes it back if you undo the change. Capitals, punctuation
 and where a chord sits over the syllable don't count; which chord it is does.
+A repeat with **no** chords written is still a repeat: chords are often written
+on the first chorus only, so adding them there doesn't make it a new section.
+Only chords written on both copies, and different, do.
 
 If two sections share a heading but not their words or chords — say you
 renamed one yourself, or the song was saved that way before — a note says so
