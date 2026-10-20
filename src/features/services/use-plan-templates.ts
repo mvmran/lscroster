@@ -102,6 +102,7 @@ export function useSaveAsTemplate() {
             key_override: item.key_override,
             bpm_override: item.bpm_override,
             reference_url: item.reference_url,
+            sequence: item.sequence,
             length_seconds: item.length_seconds,
             description: item.description,
           }))
@@ -166,6 +167,7 @@ export function useUpdateTemplate() {
           key_override: item.key_override,
           bpm_override: item.bpm_override,
           reference_url: item.reference_url,
+          sequence: item.sequence,
           length_seconds: item.length_seconds,
           description: item.description,
         }))

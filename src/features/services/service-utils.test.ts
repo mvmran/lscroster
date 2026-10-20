@@ -345,6 +345,7 @@ describe('buildLyricsSheet key and tempo', () => {
       length_seconds: 240,
       description: null,
       reference_url: null,
+      sequence: null,
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
       ...overrides,
@@ -383,6 +384,13 @@ describe('buildLyricsSheet key and tempo', () => {
     expect(buildLyricsSheet([songItem({})], arrangements, older)[0].sequence).toEqual([
       'Verse 1',
       'Chorus',
+      'Chorus',
+    ])
+    // The plan's own order for the song wins over the version's (0060).
+    const own = songItem({ sequence: ['Chorus', 'Intro', 'Chorus'] })
+    expect(buildLyricsSheet([own], arrangements, saved)[0].sequence).toEqual([
+      'Chorus',
+      'Intro',
       'Chorus',
     ])
   })

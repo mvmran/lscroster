@@ -1460,6 +1460,29 @@ Sequence line — `LyricsSheetEntry.description` (trimmed, null when blank),
 meta lines' 8 pt grey italic in the PDF, counted in the keep-together height.
 1 test; verified in the browser (screen) and the downloaded PDF's text.
 
+(0060) `plan_item_sequence` **A song's sequence for one plan** (2026-10-20):
+the song box (Add song and Edit song) gets a **Sequence** chips editor after
+Key and BPM — `PlanSequenceEditor`, the lyrics editor's tinted pills with a
+grip (dnd-kit sortable, pointer and keyboard), × to drop, and an Add menu of
+the song's section names (`sequenceChoices`: each heading once, then any the
+saved sequence still names). New nullable `plan_items.sequence text[]` (and
+`plan_template_items.sequence`, carried through save/update template and
+create-from-template/plan like `reference_url`; ≤ 200 entries). Null = the
+song's own — the item's lyrics version (`songSequenceOf`: pinned once
+published, else latest, read by the new `usePlanItemLyrics`). The dialog
+stores an array only when it differs from the song's, so an untouched item —
+and every song added afresh — follows later edits to the song; picking another
+arrangement or **Use the song's** goes back to null. `buildLyricsSheet` prefers
+the item's sequence, so the screen sheet and the PDF both show it. Long Lyrics
+still prints the lyrics as written. Tests for the helpers and the sheet's
+preference; verified in the browser (12 checks: chips start as the song's,
+remove/add/drag, saved on the item, the sheet shows it, the same song added
+again starts from the song's and stores null, edit → Use the song's → null)
+and the migration re-applied clean.
+**Upgrade note:** `db push` (0060) before the bundle — the new bundle writes
+`sequence` on every song save, reorder and template save, which fails against
+a database without the column.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

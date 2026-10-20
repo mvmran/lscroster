@@ -307,6 +307,30 @@ export function lyricSequence(text: string): string[] {
     .map((section) => section.label)
 }
 
+/**
+ * A lyrics version's sequence: as saved with it (0057), or read from its
+ * headings for one saved before. Empty with no lyrics.
+ */
+export function songSequenceOf(
+  row: { lyrics: string; sequence: string[] | null } | null,
+): string[] {
+  return row ? (row.sequence ?? lyricSequence(row.lyrics)) : []
+}
+
+/**
+ * The section names a plan's sequence for the song can be built from: each
+ * heading in its lyrics once, in the order they first come, then any the
+ * song's saved sequence names that the headings no longer do.
+ */
+export function sequenceChoices(lyrics: string, sequence: string[] = []): string[] {
+  return [...new Set([...lyricSequence(lyrics), ...sequence])]
+}
+
+/** Whether two sequences name the same sections in the same order. */
+export function sameSequence(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((label, i) => label === b[i])
+}
+
 export interface SequenceStep {
   label: string
   /** The pill's short form, with any repeat count: "V2", "C×2". */

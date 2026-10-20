@@ -992,6 +992,7 @@ export type Database = {
           lyrics_id: string | null
           plan_id: string
           reference_url: string | null
+          sequence: string[] | null
           sort_order: number
           title: string
           updated_at: string
@@ -1008,6 +1009,7 @@ export type Database = {
           lyrics_id?: string | null
           plan_id: string
           reference_url?: string | null
+          sequence?: string[] | null
           sort_order?: number
           title: string
           updated_at?: string
@@ -1024,6 +1026,7 @@ export type Database = {
           lyrics_id?: string | null
           plan_id?: string
           reference_url?: string | null
+          sequence?: string[] | null
           sort_order?: number
           title?: string
           updated_at?: string
@@ -1138,6 +1141,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["plan_item_kind"]
           length_seconds: number
           reference_url: string | null
+          sequence: string[] | null
           sort_order: number
           template_id: string
           title: string
@@ -1153,6 +1157,7 @@ export type Database = {
           kind?: Database["public"]["Enums"]["plan_item_kind"]
           length_seconds?: number
           reference_url?: string | null
+          sequence?: string[] | null
           sort_order?: number
           template_id: string
           title: string
@@ -1168,6 +1173,7 @@ export type Database = {
           kind?: Database["public"]["Enums"]["plan_item_kind"]
           length_seconds?: number
           reference_url?: string | null
+          sequence?: string[] | null
           sort_order?: number
           template_id?: string
           title?: string

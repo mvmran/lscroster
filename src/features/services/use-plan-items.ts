@@ -37,6 +37,29 @@ export function usePlanLyrics(
   })
 }
 
+/**
+ * The lyrics version a song box reads the song's sequence from: the item's
+ * pinned version once the plan is published, else the arrangement's latest.
+ * Null with no arrangement, or no lyrics.
+ */
+export function usePlanItemLyrics(arrangementId: string | null, lyricsId: string | null) {
+  return useQuery({
+    queryKey: ['plan-item-lyrics', arrangementId ?? '', lyricsId ?? ''],
+    enabled: !!arrangementId,
+    queryFn: async () => {
+      const rows = supabase.from('song_arrangement_lyrics').select('*')
+      const { data, error } = await (lyricsId
+        ? rows.eq('id', lyricsId)
+        : rows.eq('arrangement_id', arrangementId!).order('version', { ascending: false })
+      )
+        .limit(1)
+        .maybeSingle()
+      if (error) throw new Error(error.message)
+      return data as ArrangementLyrics | null
+    },
+  })
+}
+
 export function usePlanItems(planId: string | undefined) {
   return useQuery({
     queryKey: planItemsKey(planId ?? ''),
@@ -164,6 +187,7 @@ export function useReorderPlanItems(planId: string) {
         key_override: item.key_override,
         bpm_override: item.bpm_override,
         reference_url: item.reference_url,
+        sequence: item.sequence,
         length_seconds: item.length_seconds,
         description: item.description,
         sort_order: index,

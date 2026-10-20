@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Loader2, Timer } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -22,6 +22,12 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { SongSoundButtons } from '@/features/services/key-sound-buttons'
+import {
+  sameSequence,
+  sequenceChoices,
+  songSequenceOf,
+} from '@/features/services/lyric-sections'
+import { PlanSequenceEditor } from '@/features/services/plan-sequence-editor'
 import { PlayRecordingButton } from '@/features/services/play-recording-button'
 import {
   arrangementSongTitle,
@@ -39,6 +45,7 @@ import {
 } from '@/features/services/service-utils'
 import {
   useCreatePlanItem,
+  usePlanItemLyrics,
   useUpdatePlanItem,
 } from '@/features/services/use-plan-items'
 import {
@@ -112,6 +119,21 @@ function ItemForm({
   const [recording, setRecording] = useState(() =>
     chosenReferenceUrl(item?.reference_url, arrangement?.reference_urls),
   )
+  // The song's sequence for this plan (0060). Null follows the song's own —
+  // its pinned lyrics version once published, else the latest — which is
+  // where a song added afresh starts; the item keeps an order only once it is
+  // rearranged. Picking another arrangement starts again from that one's.
+  const songLyrics = usePlanItemLyrics(
+    kind === 'song' ? linkedId : null,
+    item?.lyrics_id ?? null,
+  )
+  const songSequence = useMemo(() => songSequenceOf(songLyrics.data ?? null), [songLyrics.data])
+  const choices = useMemo(
+    () => sequenceChoices(songLyrics.data?.lyrics ?? '', songSequence),
+    [songLyrics.data, songSequence],
+  )
+  const [ownSequence, setOwnSequence] = useState<string[] | null>(item?.sequence ?? null)
+  const sequence = ownSequence ?? songSequence
 
   const lengthSeconds = parseLengthInput(length)
   const lengthInvalid = lengthSeconds === null
@@ -176,7 +198,15 @@ function ItemForm({
       key_override: keyOverride.trim() || null,
       bpm_override: bpmValue,
       description: description.trim() || null,
-      ...(kind === 'song' ? { reference_url: recording } : {}),
+      ...(kind === 'song'
+        ? {
+            reference_url: recording,
+            // Stored only when it differs from the song's, so an item nobody
+            // rearranged follows later edits to the song.
+            sequence:
+              ownSequence && !sameSequence(ownSequence, songSequence) ? ownSequence : null,
+          }
+        : {}),
     }
     try {
       if (item) {
@@ -212,6 +242,7 @@ function ItemForm({
                   arrangements.get(id)?.arrangement ??
                   picked.arrangements.find((a) => a.id === id)
                 setRecording(chosenReferenceUrl(null, next?.reference_urls))
+                setOwnSequence(null)
               }}
             >
               <SelectTrigger id="pi-arrangement" className="w-full">
@@ -350,6 +381,17 @@ function ItemForm({
               </div>
             )}
           </div>
+        )}
+
+        {/* After Key and BPM: hidden for a song with no sections to order. */}
+        {kind === 'song' && (choices.length > 0 || sequence.length > 0) && (
+          <PlanSequenceEditor
+            value={sequence}
+            choices={choices}
+            custom={ownSequence !== null && !sameSequence(ownSequence, songSequence)}
+            onChange={setOwnSequence}
+            onReset={() => setOwnSequence(null)}
+          />
         )}
 
         {kind === 'song' && recordings.length > 0 && (

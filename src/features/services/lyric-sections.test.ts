@@ -9,8 +9,11 @@ import {
   parseLyricSections,
   renumberHeadingLine,
   sameSection,
+  sameSequence,
   sectionContent,
   sectionKeyOf,
+  sequenceChoices,
+  songSequenceOf,
   sequenceSteps,
   sharedHeadingConflicts,
   type HeadingRename,
@@ -286,6 +289,41 @@ describe('the sequence', () => {
     expect(sectionKeyOf('Chorus x2')).toBe(sectionKeyOf('Chorus'))
     expect(sectionKeyOf('Verse 2')).not.toBe(sectionKeyOf('Verse'))
     expect(sectionKeyOf('Amazing grace')).toBeNull()
+  })
+})
+
+describe('a plan’s own sequence', () => {
+  const lyrics = 'Intro\n\nVerse 1\nOne\n\nChorus\nSing\n\nVerse 2\nTwo\n\nChorus\nSing'
+
+  it('starts from the version’s saved sequence, else its headings', () => {
+    expect(songSequenceOf({ lyrics, sequence: ['Verse 1', 'Chorus'] })).toEqual([
+      'Verse 1',
+      'Chorus',
+    ])
+    expect(songSequenceOf({ lyrics, sequence: null })).toEqual([
+      'Intro',
+      'Verse 1',
+      'Chorus',
+      'Verse 2',
+      'Chorus',
+    ])
+    expect(songSequenceOf(null)).toEqual([])
+  })
+
+  it('offers each section once, then any the saved sequence still names', () => {
+    expect(sequenceChoices(lyrics, ['Bridge', 'Chorus'])).toEqual([
+      'Intro',
+      'Verse 1',
+      'Chorus',
+      'Verse 2',
+      'Bridge',
+    ])
+  })
+
+  it('compares order as well as sections', () => {
+    expect(sameSequence(['Verse 1', 'Chorus'], ['Verse 1', 'Chorus'])).toBe(true)
+    expect(sameSequence(['Chorus', 'Verse 1'], ['Verse 1', 'Chorus'])).toBe(false)
+    expect(sameSequence(['Chorus'], ['Chorus', 'Chorus'])).toBe(false)
   })
 })
 

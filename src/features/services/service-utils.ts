@@ -1,7 +1,7 @@
 import { addDays, addSeconds, format, parseISO } from 'date-fns'
 import type { Enums, Tables } from '@/types/database'
 import { layersOfRow, type LayeredLyrics } from '@/features/services/lyric-layers'
-import { lyricSequence } from '@/features/services/lyric-sections'
+import { songSequenceOf } from '@/features/services/lyric-sections'
 import { timesOverlap } from '@/features/scheduling/scheduling-utils'
 
 export type Plan = Tables<'plans'>
@@ -456,10 +456,10 @@ export function buildLyricsSheet(
         // its first.
         referenceUrl: chosenReferenceUrl(i.reference_url, info?.arrangement.reference_urls),
         lyrics: (pinned ?? latest)?.lyrics ?? null,
-        // As saved with that version; one saved before 0057 has none, and its
+        // This plan's own order for the song if it set one (0060), else the
+        // one saved with that version; one saved before 0057 has none, and its
         // headings say the same thing.
-        sequence:
-          (pinned ?? latest)?.sequence ?? lyricSequence((pinned ?? latest)?.lyrics ?? ''),
+        sequence: i.sequence ?? songSequenceOf(pinned ?? latest ?? null),
         // What the set list says about the song on this plan ("acapella first
         // verse"), under the sequence.
         description: i.description?.trim() || null,

@@ -852,6 +852,17 @@ sheet follows it, and prints the sequence too.
 A song's **description** in the set list (*Repeat last chorus a cappella*)
 shows under its sequence, in the same small grey type, on screen and printed.
 
+**This plan's sequence.** The song's box (adding a song or editing one) has a
+**Sequence** row under Key and BPM, as coloured chips. It starts as the song's
+own sequence. Drag a chip by its grip to move it, press **×** to drop it, or
+**Add** to put any of the song's sections on the end — the same one as often as
+it is sung. The order is kept for this plan only: the Lyrics Sheet shows it,
+and the song, and any other plan it is on, keep their own. Add the same song
+again and it starts from the song's sequence. **Use the song's** puts the
+song's own order back. With **Long Lyrics** on, the sheet still prints the
+lyrics as the song has them written; the sequence says how this plan sings
+them.
+
 ## 6.6 Draft vs published
 
 A new plan is a **draft**. Members can't see drafts — unless they're scheduled
