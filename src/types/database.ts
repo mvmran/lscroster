@@ -2260,6 +2260,7 @@ export type Database = {
       manages_photo_folder: { Args: { object_name: string }; Returns: boolean }
       person_delete_allowed: { Args: never; Returns: boolean }
       pin_plan_lyrics: { Args: { p_plan_id: string }; Returns: undefined }
+      plan_file_in_use: { Args: { path: string }; Returns: boolean }
       schedules_any_team: { Args: never; Returns: boolean }
       schedules_team_on_plan: {
         Args: { target_plan_id: string }
@@ -2267,6 +2268,7 @@ export type Database = {
       }
       song_delete_allowed: { Args: never; Returns: boolean }
       team_of_member: { Args: { target_member_id: string }; Returns: string }
+      valid_sequence: { Args: { labels: string[] }; Returns: boolean }
       views_team: { Args: { target_team_id: string }; Returns: boolean }
     }
     Enums: {

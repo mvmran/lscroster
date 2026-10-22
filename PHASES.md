@@ -1550,6 +1550,31 @@ delete → 42501; applied twice clean; types unchanged.
 **Upgrade note:** `db push` (0061) — no app change, so order doesn't matter,
 but every running instance has the hole until it's applied.
 
+(0062) `tighten_files_urls_sequences` **Four tightenings from the same review**
+(2026-10-22):
+- **Plan deleters remove only a deleted plan's files.** 0058's delete policy
+  let `create_delete_plans` delete any file in `plan-attachments`, a live
+  plan's included (unaudited, leaving a dead attachment row). The migration
+  role can't drop a storage policy, so a **restrictive** delete policy narrows
+  it: admins, coordinators and `attach_plan_files` as before; anyone else only
+  once no `plan_attachments` row names the file (`plan_file_in_use`, security
+  definer so RLS can't hide a row). Deleting a plan cascades the rows away
+  before the app removes the files, so that still works.
+- `audit_plan_label` and `audit_count` (0059) get `search_path = ''` (the
+  security advisor's function_search_path_mutable).
+- `all_http_urls` (0051) rejects NULL links — `bool_and` skipped them, so
+  `'{NULL}'` passed.
+- Sequence labels (0057, 0060) can't be NULL or longer than 100 characters:
+  the three `*_sequence_check` constraints now call `valid_sequence()`
+  (which keeps the ≤ 200 cap).
+Production held no NULL link or label, and its longest label was 10. Verified
+on the local stack through the storage API: a plan deleter can't remove a live
+plan's file but can remove a deleted plan's; an attacher and an admin can still
+remove a live file; a member with neither can't. Each constraint refuses a
+NULL / 101-character value in a rolled-back write and takes "Verse 1",
+"Chorus ×2"; applied twice clean.
+**Upgrade note:** `db push` (0062) — no app change.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
