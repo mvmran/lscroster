@@ -1533,6 +1533,23 @@ read-only **Meter** box after BPM (the arrangement's meter, grey on a muted
 fill, no focus ring, "Not set" when empty, and a help-line note pointing to
 the song's page); three across from `sm`, Meter on its own row on a phone.
 
+(0061) `lock_people_directory_grants` **people_directory is read-only, signed
+in only** (2026-10-22, security): found by `/code-review` over the migrations.
+The view runs as its owner (it has to, to mask email/phone/birthday/notes), so
+RLS on `people` never applies through it, and Postgres treats it as
+auto-updatable. It carried Supabase's default grants — select, insert, update,
+delete to anon and authenticated, written down by 0050 — so the public anon key
+alone could read every active person and rename or delete them (assignments,
+blockouts and grants cascading), and any member could delete anyone or set
+`managed_by_person_id` on anyone to unmask their contact details. Now: revoke
+all from public/anon/authenticated/service_role, grant select to authenticated
+and service_role. The app only ever selects from it, signed in; no Edge
+Function uses it. Verified on the local stack through PostgREST: anon select
+and delete → 42501, member select still returns 15 rows, member update and
+delete → 42501; applied twice clean; types unchanged.
+**Upgrade note:** `db push` (0061) — no app change, so order doesn't matter,
+but every running instance has the hole until it's applied.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
