@@ -17,7 +17,17 @@ export type PermissionTemplate = Tables<'permission_templates'>
 const permissionKeys = {
   person: (personId: string) => ['person-permissions', personId] as const,
   templates: ['permission-templates'] as const,
+  /** Every grant write for one person — toggles and templates alike. */
+  writes: (personId: string) => ['person-permissions-write', personId] as const,
 }
+
+/**
+ * Grant writes for one person run one at a time, in the order they were made
+ * (a TanStack mutation scope; each optimistic tick still shows at once). Two
+ * quick clicks otherwise race: a revoke can reach the database before the
+ * grant it undoes, leaving the permission granted while the box shows it off.
+ */
+const writeScope = (personId: string) => ({ id: `person-permissions:${personId}` })
 
 async function fetchPersonPermissions(personId: string): Promise<Set<Permission>> {
   const { data, error } = await supabase
@@ -82,9 +92,15 @@ export function usePermissions(): Permissions {
   )
 }
 
-function useInvalidateAfterGrant() {
+/**
+ * Reconcile with the server once the last queued write for this person
+ * settles, success or failure. Refetching after an earlier one would briefly
+ * un-tick a box whose write is still queued.
+ */
+function useSettleGrantWrite(personId: string) {
   const queryClient = useQueryClient()
-  return (personId: string) => {
+  return () => {
+    if (queryClient.isMutating({ mutationKey: permissionKeys.writes(personId) }) > 1) return
     queryClient.invalidateQueries({ queryKey: permissionKeys.person(personId) })
     // A grant can change which plans the holder sees.
     queryClient.invalidateQueries({ queryKey: ['plans'] })
@@ -95,13 +111,20 @@ function useInvalidateAfterGrant() {
 /** Grant or revoke one permission. */
 export function useTogglePermission(personId: string) {
   const queryClient = useQueryClient()
-  const invalidate = useInvalidateAfterGrant()
-  const mutationKey = ['toggle-permission', personId]
+  const settle = useSettleGrantWrite(personId)
   return useMutation({
-    mutationKey,
+    mutationKey: permissionKeys.writes(personId),
+    scope: writeScope(personId),
     mutationFn: async ({ permission, granted }: { permission: Permission; granted: boolean }) => {
+      // Granting what is already granted (a stale screen) is a no-op, not a
+      // duplicate-key error.
       const { error } = granted
-        ? await supabase.from('person_permissions').insert({ person_id: personId, permission })
+        ? await supabase
+            .from('person_permissions')
+            .upsert(
+              { person_id: personId, permission },
+              { onConflict: 'person_id,permission', ignoreDuplicates: true },
+            )
         : await supabase
             .from('person_permissions')
             .delete()
@@ -129,43 +152,29 @@ export function useTogglePermission(personId: string) {
         queryClient.setQueryData(permissionKeys.person(personId), context.previous)
       }
     },
-    // Refetch only when the last in-flight toggle settles: two quick ticks
-    // otherwise race, and the first one's refetch (which doesn't yet include
-    // the second write) briefly un-ticks the second box.
-    onSettled: () => {
-      if (queryClient.isMutating({ mutationKey }) === 1) invalidate(personId)
-    },
+    onSettled: settle,
   })
 }
 
 /**
- * Make a person's grants exactly `permissions` (applying a template). Only the
- * difference is written, so the audit log records what actually changed.
+ * Make a person's grants exactly `permissions` (applying a template). One
+ * transaction (`replace_person_permissions`, 0064), so a failure leaves the
+ * grants as they were; only the difference is written, so the audit log
+ * records what actually changed. Queued behind any toggles still in flight.
  */
 export function useReplacePermissions(personId: string) {
-  const invalidate = useInvalidateAfterGrant()
+  const settle = useSettleGrantWrite(personId)
   return useMutation({
+    mutationKey: permissionKeys.writes(personId),
+    scope: writeScope(personId),
     mutationFn: async (permissions: Permission[]) => {
-      const current = await fetchPersonPermissions(personId)
-      const wanted = new Set(permissions)
-      const toAdd = [...wanted].filter((p) => !current.has(p))
-      const toRemove = [...current].filter((p) => !wanted.has(p))
-      if (toRemove.length > 0) {
-        const { error } = await supabase
-          .from('person_permissions')
-          .delete()
-          .eq('person_id', personId)
-          .in('permission', toRemove)
-        if (error) throw new Error(error.message)
-      }
-      if (toAdd.length > 0) {
-        const { error } = await supabase
-          .from('person_permissions')
-          .insert(toAdd.map((permission) => ({ person_id: personId, permission })))
-        if (error) throw new Error(error.message)
-      }
+      const { error } = await supabase.rpc('replace_person_permissions', {
+        p_person_id: personId,
+        p_permissions: permissions,
+      })
+      if (error) throw new Error(error.message)
     },
-    onSuccess: () => invalidate(personId),
+    onSettled: settle,
   })
 }
 

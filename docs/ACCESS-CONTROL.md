@@ -166,7 +166,10 @@ granting team access, creating/deleting teams, service types,
 conditional rules, pairings and scheduling preferences.
 
 **Permission templates** are presets: applying one *copies* its permissions onto
-the person, so editing or deleting the template later changes nobody.
+the person, so editing or deleting the template later changes nobody. Applying
+one is a single transaction (`replace_person_permissions`, 0064, security
+invoker — the table's RLS still decides who may): it lands whole or not at all,
+and writes only the difference, so the audit log shows just what changed.
 
 ---
 

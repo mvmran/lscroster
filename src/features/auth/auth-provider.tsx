@@ -22,17 +22,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userId = nextId
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      track(data.session)
-      setSession(data.session)
-      setLoading(false)
-    })
-
+    // INITIAL_SESSION brings the starting session, and still fires (with none)
+    // when restoring it fails, so loading always ends. A separate getSession()
+    // left loading stuck when it rejected, and its late answer could bring back
+    // a session another tab had just signed out.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       track(newSession)
       setSession(newSession)
+      if (event === 'INITIAL_SESSION') setLoading(false)
     })
 
     return () => subscription.unsubscribe()

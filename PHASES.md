@@ -1659,16 +1659,37 @@ problem card on the way. Admin views an upcoming draft, signs out, a member
 signs in in the same tab with their reads held back: old provider shows the
 admin's draft, new one shows nothing until the member's data arrives.
 **Upgrade note:** none — app only.
-- [ ] **Open from the same review** (unverified, worst first):
-  `useReplacePermissions` deletes then inserts with no transaction or
-  `onSettled` invalidation (a failed insert strips grants); rapid grant/revoke
-  toggles can land out of order (check against the 2026-10-02 checkbox race
-  fixes first); `AuthProvider`'s `getSession()` has no rejection handler, so
-  `loading` can stick, and its late result can resurrect a signed-out session;
-  sign-in drops `search`/`hash` from `state.from`; the case rule in
+- [ ] **Open from the same review** (unverified, worst first): sign-in drops `search`/`hash` from `state.from`; the case rule in
   `password-utils.ts` is ASCII-only; the current person's role is cached 5 min
   (UI only — RLS enforces); `changePasswordSchema` duplicates
   `passwordWithConfirm`, and the digits-only common passwords can't be hit.
+
+(0064) `replace_person_permissions` **Grant writes land whole and in order**
+(2026-10-22, findings 3–5 of the same review):
+- Applying a permission template was read → delete → insert from the browser;
+  an insert failing after the delete stripped grants, and with no `onSettled`
+  the card kept showing the old ticks. It is now one call to
+  `replace_person_permissions(person, permissions[])` — security invoker, so
+  `person_permissions`' RLS still decides; writes only the difference, so the
+  per-row audit trigger logs just what changed — then always refetches.
+- Toggles and templates for one person share a TanStack mutation `scope`, so
+  writes run in the order made (optimistic ticks still show at once). Before,
+  tick-then-untick could send the DELETE ahead of the INSERT and leave the
+  permission granted. A grant is now an `ignoreDuplicates` upsert, so a stale
+  screen's re-grant is a no-op, not a 23505.
+- `AuthProvider` drops its separate `getSession()`: `INITIAL_SESSION` brings
+  the starting session and ends `loading` (it fires even when restoring the
+  session fails), so a rejection can't leave the app spinning and a late answer
+  can't bring back a session another tab signed out.
+Verified on the local stack: as admin the RPC wrote only the difference (four
+audit rows, duplicates ignored), `[]` revoked everything, a bad value failed
+before any write; a member's call changed nothing, anon got 42501. A trigger
+forcing the insert to fail after the delete (rolled back) left the grants
+untouched. In headless Chromium, tick-then-untick with the INSERT held 1.5 s:
+old hook → granted in the database and ticked after reload; new hook → not
+granted, unticked. 0064 applied twice clean.
+**Upgrade note:** `db push` (0064) before the app — the new bundle calls the
+function.
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
