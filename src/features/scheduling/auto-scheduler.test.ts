@@ -6,6 +6,7 @@ import {
   type EnginePosition,
   type EngineState,
 } from './auto-scheduler'
+import { personPositionKey } from './conditional-rules'
 
 const SUNDAY = '2026-07-05'
 const SVC = 'svc-sunday'
@@ -522,6 +523,23 @@ describe('person-identity rules in the engine (issue #113 extension)', () => {
     const gap = res.unfilled.find((u) => u.positionId === 'keys')
     expect(gap?.reason).toContain('Rule "Sam leads & plays" needs Sharon Lee on Keys')
     expect(gap?.reason).toContain("they're unavailable that day")
+  })
+
+  it('never sends a still-serving person back to the slot they declined', () => {
+    const res = autoSchedule(
+      samState({
+        // Sam leads, but already said no to guitar on this plan.
+        existingAssignments: [{ personId: 'sam', positionId: 'wl', teamId: 'team-1' }],
+        declinedSlots: new Set([personPositionKey('sam', 'guitar')]),
+        candidates: [
+          candidate({ id: 'sam', name: 'Sam Smith', eligibility: { wl: 'qualified', guitar: 'qualified' } }),
+          candidate({ id: 'sharon', name: 'Sharon Lee', eligibility: { keys: 'qualified' } }),
+        ],
+      }),
+    )
+    expect(res.suggestions.find((s) => s.positionId === 'guitar')).toBeUndefined()
+    const gap = res.unfilled.find((u) => u.positionId === 'guitar')
+    expect(gap?.reason).toContain("they've declined this service")
   })
 
   it('mirror rule assigns the same person cross-team, exempt from double-booking', () => {

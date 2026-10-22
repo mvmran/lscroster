@@ -81,6 +81,13 @@ export interface EngineState {
    * assignments' unique key and fail the whole insert.
    */
   declinedPersonIds?: ReadonlySet<string>
+  /**
+   * Every declined (person, position) pair on this plan, as `personPositionKey`s
+   * — including people still serving elsewhere on it, whom a rule could
+   * otherwise send straight back to the slot they turned down (and the insert
+   * would hit the unique key).
+   */
+  declinedSlots?: ReadonlySet<string>
 }
 
 export interface Suggestion {
@@ -172,7 +179,12 @@ function rejectionReason(
   // still lists them — the archive flag is the only thing keeping them out.
   if (person.archived || person.status !== 'active') return 'inactive'
   if (isUnavailableOn(person, state.service.date)) return 'unavailable'
-  if (state.declinedPersonIds?.has(person.id)) return 'declined'
+  if (
+    state.declinedPersonIds?.has(person.id) ||
+    state.declinedSlots?.has(personPositionKey(person.id, pos.id))
+  ) {
+    return 'declined'
+  }
 
   // No multi-position — except a slot a fired rule explicitly demands of this
   // person ("Sam leads AND plays guitar"); never the same slot twice.

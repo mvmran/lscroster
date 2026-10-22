@@ -21,6 +21,7 @@ import {
   type RankedCandidate,
   type Suggestion,
 } from '@/features/scheduling/auto-scheduler'
+import { personPositionKey } from '@/features/scheduling/conditional-rules'
 import type { SchedulingRulesData } from '@/features/scheduling/use-service-state'
 import type { ValidationProficiency } from '@/features/scheduling/validate-service'
 import type { AssignmentWithPerson } from '@/features/scheduling/use-assignments'
@@ -83,10 +84,12 @@ function buildEngineState(
     .filter((a) => a.status !== 'declined')
     .map((a) => ({ personId: a.person_id, positionId: a.position_id, teamId: a.team_id }))
   const serving = new Set(existingAssignments.map((a) => a.personId))
+  const declined = planAssignments.filter((a) => a.status === 'declined')
   const declinedPersonIds = new Set(
-    planAssignments
-      .filter((a) => a.status === 'declined' && !serving.has(a.person_id))
-      .map((a) => a.person_id),
+    declined.filter((a) => !serving.has(a.person_id)).map((a) => a.person_id),
+  )
+  const declinedSlots = new Set(
+    declined.map((a) => personPositionKey(a.person_id, a.position_id)),
   )
 
   const { rules, mutedRuleIds } = planRuleContext(plan.id, data)
@@ -105,6 +108,7 @@ function buildEngineState(
     planMinOverrides: minOverrides,
     mutedRuleIds,
     declinedPersonIds,
+    declinedSlots,
   }
 }
 

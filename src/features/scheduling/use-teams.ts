@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { COUNT_ONLY, countRows } from '@/lib/count-rows'
 import { PERSON_SAFE_COLUMNS } from '@/features/people/use-people'
+import { useInvalidateAssignments } from '@/features/scheduling/use-assignments'
+import { schedulingRuleKeys } from '@/features/scheduling/use-scheduling-rules'
+import { planTemplatesKey } from '@/features/services/use-plan-templates'
 import type { Proficiency } from '@/features/scheduling/scheduling-utils'
 import type { Enums, Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
@@ -389,12 +392,22 @@ export function usePositionMutations(teamId: string) {
     },
     onSuccess: invalidate,
   })
+  const invalidateAssignments = useInvalidateAssignments()
   const remove = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('positions').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
-    onSuccess: invalidate,
+    // The delete cascades to the position's assignments (and so the rostered
+    // history the validator counts), its per-plan and template minimums, and
+    // every rule that triggers on or targets it.
+    onSuccess: () => {
+      invalidate()
+      void invalidateAssignments()
+      queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.allPlanMinCounts })
+      queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.conditionalRules })
+      queryClient.invalidateQueries({ queryKey: planTemplatesKey })
+    },
   })
   return { create, update, remove }
 }

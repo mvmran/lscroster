@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { invokeFunction } from '@/lib/functions'
 import { supabase } from '@/lib/supabase'
 import type { Tables, TablesInsert } from '@/types/database'
@@ -213,21 +213,28 @@ export function useMyAssignments(personIds: string[] | undefined) {
   })
 }
 
-function useInvalidateAssignments() {
+/**
+ * Refresh everything that shows assignments — one plan's list, or every plan's
+ * when no plan is named (a bulk send, a deleted position). Resolves once the
+ * active queries have refetched — a mutation that returns it stays pending
+ * until then.
+ */
+export function useInvalidateAssignments() {
   const queryClient = useQueryClient()
-  return (planId?: string) => {
-    if (planId) {
-      queryClient.invalidateQueries({ queryKey: assignmentKeys.plan(planId) })
-    }
-    queryClient.invalidateQueries({ queryKey: assignmentKeys.mine })
-    queryClient.invalidateQueries({ queryKey: ['assignments-on-date'] })
-    queryClient.invalidateQueries({ queryKey: ['assignments-matrix'] })
-    // The validator's workload/cadence history (issue #34).
-    queryClient.invalidateQueries({ queryKey: ['rostered-dates'] })
-    // Profile Schedules card (issue #52) — refresh for every person.
-    queryClient.invalidateQueries({ queryKey: ['person-schedule'] })
-    // Team workload percentile in the Activity summary (issue #56).
-    queryClient.invalidateQueries({ queryKey: ['roster-workload'] })
+  return async (planId?: string): Promise<void> => {
+    const keys: QueryKey[] = [
+      assignmentKeys.mine,
+      ['assignments-on-date'],
+      ['assignments-matrix'],
+      // The validator's workload/cadence history (issue #34).
+      ['rostered-dates'],
+      // Profile Schedules card (issue #52) — refresh for every person.
+      ['person-schedule'],
+      // Team workload percentile in the Activity summary (issue #56).
+      ['roster-workload'],
+    ]
+    keys.unshift(planId ? assignmentKeys.plan(planId) : ['assignments'])
+    await Promise.all(keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })))
   }
 }
 
@@ -251,7 +258,7 @@ export function useCreateAssignment(planId: string) {
       }
       return data
     },
-    onSuccess: () => invalidate(planId),
+    onSuccess: () => void invalidate(planId),
   })
 }
 
@@ -265,7 +272,7 @@ export function useDeleteAssignment(planId: string) {
         .eq('id', id)
       if (error) throw new Error(error.message)
     },
-    onSuccess: () => invalidate(planId),
+    onSuccess: () => void invalidate(planId),
   })
 }
 
@@ -315,7 +322,7 @@ export function useReplaceAssignment(planId: string) {
       }
       return data
     },
-    onSuccess: () => invalidate(planId),
+    onSuccess: () => void invalidate(planId),
   })
 }
 
@@ -342,7 +349,7 @@ export function useRespondInApp() {
         .eq('id', id)
       if (error) throw new Error(error.message)
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => void invalidate(),
   })
 }
 
@@ -366,7 +373,7 @@ export function useSendRequests(planId: string) {
         planId,
         ...(assignmentIds ? { assignmentIds } : {}),
       }),
-    onSuccess: () => invalidate(planId),
+    onSuccess: () => void invalidate(planId),
   })
 }
 
@@ -410,6 +417,7 @@ export function useBulkSendRequests() {
       }
       return { ok: failed.length === 0, sent, skipped, failed }
     },
+    // Returned, so Send stays disabled until the list holds only what is unsent.
     onSettled: () => invalidate(),
   })
 }
@@ -426,7 +434,7 @@ export function useCancelAssignment(planId: string) {
       invokeFunction<{ ok: boolean; notified: boolean }>('cancel-assignment', {
         assignmentId,
       }),
-    onSuccess: () => invalidate(planId),
+    onSuccess: () => void invalidate(planId),
   })
 }
 
