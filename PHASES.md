@@ -1575,6 +1575,32 @@ NULL / 101-character value in a rolled-back write and takes "Verse 1",
 "Chorus ×2"; applied twice clean.
 **Upgrade note:** `db push` (0062) — no app change.
 
+(0063) `audit_skips_failed_creates` **The delete audit skips a failed create**
+(2026-10-22, the rest of the same review):
+- When copying a new plan's items/times/minimums, or linking a new
+  arrangement to its song, failed, the app deleted what it had just made and
+  0059 logged that as a real delete. `audit_arrangement_delete` now skips an
+  arrangement linked to no song (invisible, so nobody lost it).
+  `audit_plan_delete` skips a draft made in the last two minutes with no
+  assignments and no files — so deleting such a draft by hand that soon goes
+  unlogged too. It loses nothing, since its items are still in their source. A new
+  `plans_keep_created_at` trigger stops an update changing `created_at`, so
+  no plan can be made to look new to dodge the log.
+- `audit_service_type_delete`, `audit_team_delete` and
+  `audit_position_delete` read the church's date after the
+  `pg_trigger_depth()` check, not in `declare`, so a team's cascaded
+  positions no longer each pay for it.
+- 0049 (`notice_board`): its three storage policies are now created inside
+  `pg_policies` guards, so the file re-applies cleanly. Edited in place — it is
+  already applied everywhere, and the guarded form creates the same policies.
+Verified in rolled-back transactions on the local stack: a young empty draft
+and an unlinked arrangement → no entry; an old draft (`created_at` refusing an
+update to now), a young draft with an assignment, a young published plan and
+a linked arrangement → one entry each; a team with 7 positions → one
+`team.delete` (13 past assignments counted), no `position.delete`; a position
+deleted directly → still logged. 0049 and 0063 each applied twice clean.
+**Upgrade note:** `db push` (0063) — no app change.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

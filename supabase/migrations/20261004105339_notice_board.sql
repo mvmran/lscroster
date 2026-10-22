@@ -61,17 +61,40 @@ on conflict (id) do update
       file_size_limit = excluded.file_size_limit,
       allowed_mime_types = excluded.allowed_mime_types;
 
-create policy "Signed-in people read notice files"
-  on storage.objects for select
-  to authenticated
-  using (bucket_id = 'notices');
+-- Storage policies can be created but not dropped by the migration role (0045),
+-- so each is created only if missing, keeping the file re-runnable.
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and policyname = 'Signed-in people read notice files'
+  ) then
+    create policy "Signed-in people read notice files"
+      on storage.objects for select
+      to authenticated
+      using (bucket_id = 'notices');
+  end if;
 
-create policy "Coordinators add notice files"
-  on storage.objects for insert
-  to authenticated
-  with check (bucket_id = 'notices' and public.is_admin_or_coordinator());
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and policyname = 'Coordinators add notice files'
+  ) then
+    create policy "Coordinators add notice files"
+      on storage.objects for insert
+      to authenticated
+      with check (bucket_id = 'notices' and public.is_admin_or_coordinator());
+  end if;
 
-create policy "Coordinators remove notice files"
-  on storage.objects for delete
-  to authenticated
-  using (bucket_id = 'notices' and public.is_admin_or_coordinator());
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and policyname = 'Coordinators remove notice files'
+  ) then
+    create policy "Coordinators remove notice files"
+      on storage.objects for delete
+      to authenticated
+      using (bucket_id = 'notices' and public.is_admin_or_coordinator());
+  end if;
+end $$;
