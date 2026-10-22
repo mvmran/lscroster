@@ -1879,15 +1879,36 @@ green. Not on a real iPhone.
 function.
 - [ ] **Open from the same review**: template updates are still several
   requests with no transaction (`useUpdateTemplate`, with
-  `replaceTemplateMinCounts`); editing a song item before the song library
-  loads can save `reference_url: null`; the song page's AI helpers and
-  link-a-song build the draft from the text before the await, losing what was
-  typed meanwhile; a new service type whose team save fails is created again
-  on retry; weekly plan creation stops at the first failed week without
-  saying the earlier ones were made (a retry duplicates them). Cut by the cap:
-  duplicated `useFunctionAvailable` hooks, near-duplicate plan/song
-  attachment hooks, a run-sheet PDF failure only logged to the console,
-  `plan-item-lyrics` not refreshed after lyrics are saved.
+  `replaceTemplateMinCounts`); weekly plan creation stops at the first failed
+  week without saying the earlier ones were made (a retry duplicates them).
+  Cut by the cap: duplicated `useFunctionAvailable` hooks, near-duplicate
+  plan/song attachment hooks, a run-sheet PDF failure only logged to the
+  console, `plan-item-lyrics` not refreshed after lyrics are saved.
+
+(no migration) **Services: a song item keeps its recording, AI helpers keep
+your typing, a half-made service type isn't made twice** (2026-10-23,
+findings 5, 7 and 8 of the same review):
+- The plan item dialog froze its recording choice on mount. Editing before
+  the song library had loaded made it null, and saving any change (the key)
+  wrote `reference_url: null` over the item's pick. The choice is now derived
+  until someone picks one, and while the arrangement is still unknown the
+  item keeps the recording it has.
+- Draft meaning, polish transliteration, label sections and link-a-song built
+  the new draft from the text captured when pressed, so anything typed while
+  the request ran was lost. They now build on the current text (a `latest`
+  ref). Meaning, polish and labels are answers to the text that was sent, so
+  when that text changed meanwhile they are refused with a "changed while
+  that ran — run it again" message instead of landing on top of it.
+- Creating a service type whose team save then failed left the dialog in
+  create mode, so Save made a second one. The dialog keeps the new id,
+  updates it on the next Save, and says it was created.
+Verified in headless Chromium on the local stack, songs held 6 s and the AI
+and team calls faked: a song item edited before the library arrived kept its
+second recording; text typed while "Label them for me" ran survived and the
+stale labels were refused, a second untouched run added them; a failed team
+save showed "… was created, but its teams weren't saved", the button turned
+to Save, and Save left exactly one service type. `npm run ci` green.
+**Upgrade note:** none — app only.
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
