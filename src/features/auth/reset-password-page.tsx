@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { PASSWORD_HINT, passwordWithConfirm } from '@/features/auth/password-utils'
+import { isRecentRecovery } from '@/features/auth/recovery-session'
 import { ChurchLogo } from '@/features/settings/church-logo'
 import { useChurchSettings } from '@/features/settings/use-church-settings'
 import { supabase } from '@/lib/supabase'
@@ -33,34 +34,18 @@ export function ResetPasswordPage() {
   const [status, setStatus] = useState<Status>('checking')
   const [serverError, setServerError] = useState<string | null>(null)
 
-  // The recovery link lands here with a token in the URL hash. Supabase JS
-  // auto-detects it and fires PASSWORD_RECOVERY, establishing a temporary
-  // session. If no valid token arrives shortly, treat the link as expired.
+  // The recovery link lands here with a token in the URL hash, which Supabase JS
+  // turns into a session before INITIAL_SESSION fires (PASSWORD_RECOVERY can
+  // follow it, with the same session). Only a session the link opened may set a
+  // password here: anyone merely signed in would otherwise skip Change
+  // password's current-password check. No timer — a slow phone still gets there.
   useEffect(() => {
-    let resolved = false
-    const ready = () => {
-      resolved = true
-      setStatus('ready')
-    }
-
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
-        ready()
+      if (event === 'INITIAL_SESSION' || event === 'PASSWORD_RECOVERY') {
+        setStatus(isRecentRecovery(session?.access_token) ? 'ready' : 'invalid')
       }
     })
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) ready()
-    })
-
-    const timer = setTimeout(() => {
-      if (!resolved) setStatus('invalid')
-    }, 3000)
-
-    return () => {
-      sub.subscription.unsubscribe()
-      clearTimeout(timer)
-    }
+    return () => sub.subscription.unsubscribe()
   }, [])
 
   const form = useForm<PasswordValues>({

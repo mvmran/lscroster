@@ -365,6 +365,9 @@ you've typed.
 **Forgot your password?** Press **Forgot password?** on the sign-in page, enter
 your email and press **Send reset link**. If there's an account for that email,
 a reset link arrives within a minute or two; open it to choose a new password.
+Choose it within an hour of opening the link — after that, request a new one.
+The reset page only works from a link: when you're already signed in, use
+**Change password** on your profile instead.
 
 **Changing your password.** Once signed in, open your profile (the round button
 with your initials at the top right → **My profile**). The **Password** card asks

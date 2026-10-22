@@ -1636,6 +1636,40 @@ change.
   "every 3 days") promise a repeat. Decide which is right — repeat the nudge,
   or reword both to "one follow-up after N days".
 
+(no migration) **Reset page needs a reset link; sign-out clears the cache**
+(2026-10-22, from a `/code-review high` of `src/features/auth`):
+- `/reset-password` showed the form to any signed-in session (`SIGNED_IN` or
+  `getSession()` counted as a recovery), so an unlocked, signed-in phone could
+  set a new password without the current one. It now asks the session itself:
+  `isRecentRecovery()` (`recovery-session.ts`, tested) reads the access
+  token's `amr` claim — a reset link signs in with method `otp`, a normal
+  sign-in with `password`, and the claim survives token refresh — and allows
+  only an `otp` sign-in from the last hour. Nothing else in LSCroster signs in
+  with a one-time code; if magic links are ever added, revisit this. The 3 s
+  timer is gone: the page decides on `INITIAL_SESSION` (supabase-js fires
+  `PASSWORD_RECOVERY` on a `setTimeout` *after* initialising, so it can come
+  second), which also stops a slow phone seeing a valid link as expired.
+- `AuthProvider` calls `queryClient.clear()` when the signed-in user changes
+  (sign-out, or another user signing in in the same tab); a token refresh or
+  Change password's same-user re-check leaves the cache alone.
+Verified in headless Chromium on the local stack: a fresh link → form; signed
+in with no link → problem card; signed in with a forged `#…type=recovery`
+hash → problem card; every Supabase call held 4 s → form after 4.7 s, no
+problem card on the way. Admin views an upcoming draft, signs out, a member
+signs in in the same tab with their reads held back: old provider shows the
+admin's draft, new one shows nothing until the member's data arrives.
+**Upgrade note:** none — app only.
+- [ ] **Open from the same review** (unverified, worst first):
+  `useReplacePermissions` deletes then inserts with no transaction or
+  `onSettled` invalidation (a failed insert strips grants); rapid grant/revoke
+  toggles can land out of order (check against the 2026-10-02 checkbox race
+  fixes first); `AuthProvider`'s `getSession()` has no rejection handler, so
+  `loading` can stick, and its late result can resurrect a signed-out session;
+  sign-in drops `search`/`hash` from `state.from`; the case rule in
+  `password-utils.ts` is ASCII-only; the current person's role is cached 5 min
+  (UI only — RLS enforces); `changePasswordSchema` duplicates
+  `passwordWithConfirm`, and the digits-only common passwords can't be hit.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
