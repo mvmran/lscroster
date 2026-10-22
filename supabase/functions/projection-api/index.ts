@@ -105,11 +105,15 @@ Deno.serve(async (req) => {
   if (!endpoint) return respond({ error: 'not_found' }, 404)
 
   // -- rate limit --------------------------------------------------------------
+  // Refused requests (429) are logged but not counted: counting them would keep
+  // a client that polls once a second or faster locked out for as long as it
+  // keeps polling.
   const windowStart = new Date(Date.now() - 60_000).toISOString()
   const { count: recent } = await admin
     .from('projection_api_requests')
     .select('id', { count: 'exact', head: true })
     .eq('key_id', keyId)
+    .neq('http_status', 429)
     .gte('requested_at', windowStart)
   if ((recent ?? 0) >= RATE_LIMIT_PER_MINUTE) {
     return respond({ error: 'rate_limited', message: 'Max 60 requests per minute' }, 429)

@@ -154,8 +154,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Person has no email to clear' }, 400)
     }
     notice = accessRevokedEmail({ churchName, recipientName: person.first_name })
-    // Send the notice up-front, while we still hold the address.
-    if (notifyEmail) {
+    // Send the notice up-front, while we still hold the address — and, as for
+    // archive, only to someone who actually had a login to lose.
+    if (notifyEmail && person.auth_user_id) {
       const result = await sendEmail({
         to: notifyEmail,
         subject: notice.subject,

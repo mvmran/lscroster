@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { fetchEmailPrefs, prefAllows, resolveRecipient } from './email-prefs.ts'
+import { fetchAll } from './fetch-all.ts'
 import { isEmailableActive } from './person-status.ts'
 import { logEmail } from './email-log.ts'
 import {
@@ -92,17 +93,23 @@ export async function runRosterStatus(
   if (plans.length === 0) return 0
   const planIds = plans.map((p) => p.id)
 
-  const [teamsRes, overridesRes, assignmentsRes, grantsRes] =
+  const [teamsRes, overridesRes, assignments, grantsRes] =
     await Promise.all([
       admin.from('teams').select('id, service_type_teams(service_type_id), positions(id, min_count)'),
       admin
         .from('plan_position_min_counts')
         .select('plan_id, position_id, min_count')
         .in('plan_id', planIds),
-      admin
-        .from('plan_assignments')
-        .select('plan_id, team_id, position_id, status, notified_at')
-        .in('plan_id', planIds),
+      // Paged: a few weeks of a busy roster passes max_rows, and a truncated
+      // read would show plans as understaffed rather than fail.
+      fetchAll<AssignmentRow>((from, to) =>
+        admin
+          .from('plan_assignments')
+          .select('plan_id, team_id, position_id, status, notified_at')
+          .in('plan_id', planIds)
+          .order('id')
+          .range(from, to),
+      ),
       // Every grant level receives the digest (Decision D3) — viewer included.
       admin.from('team_grants').select('person_id, team_id'),
     ])
@@ -110,7 +117,6 @@ export async function runRosterStatus(
   const teams = (teamsRes.data ?? []) as TeamRow[]
   const teamById = new Map(teams.map((t) => [t.id, t]))
   const allTeamIds = new Set(teams.map((t) => t.id))
-  const assignments = (assignmentsRes.data ?? []) as AssignmentRow[]
 
   // Effective min_count per (plan, position): the override if present, else the
   // team-wide positions.min_count (issue #110).

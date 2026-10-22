@@ -52,17 +52,14 @@ Deno.serve(async (req) => {
   if (!person) return jsonResponse({ error: 'Person not found' }, 404)
 
   // Delete the auth account first: its FK sets people.auth_user_id to null,
-  // so a failure here leaves everything intact.
+  // so a failure here leaves everything intact. (The other order would leave a
+  // login with no person behind it.)
   if (person.auth_user_id) {
     const { error } = await admin.auth.admin.deleteUser(person.auth_user_id)
     if (error) {
       console.error('deleteUser failed:', error)
       return jsonResponse({ error: 'Failed to remove sign-in access' }, 500)
     }
-  }
-
-  if (person.photo_url) {
-    await admin.storage.from('photos').remove([person.photo_url])
   }
 
   // Attribute the audit-log deletion event to this admin (issue #116).
@@ -73,6 +70,12 @@ Deno.serve(async (req) => {
   if (deleteError) {
     console.error('person delete failed:', deleteError)
     return jsonResponse({ error: 'Failed to delete person' }, 500)
+  }
+
+  // Only once the row is gone, so a failed delete never leaves it pointing at
+  // a photo that no longer exists. An orphaned file is the worst case here.
+  if (person.photo_url) {
+    await admin.storage.from('photos').remove([person.photo_url])
   }
 
   return jsonResponse({ ok: true })

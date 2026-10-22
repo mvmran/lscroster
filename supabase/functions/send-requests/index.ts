@@ -29,6 +29,7 @@ interface AssignmentRow {
   id: string
   status: string
   notified_at: string | null
+  token_hash: string | null
   team_id: string
   people: {
     id: string
@@ -74,7 +75,7 @@ Deno.serve(async (req) => {
   let query = admin
     .from('plan_assignments')
     .select(
-      'id, status, notified_at, team_id, people(id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at), positions(name), teams(name)',
+      'id, status, notified_at, token_hash, team_id, people(id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at), positions(name), teams(name)',
     )
     .eq('plan_id', planId)
   // For an explicit "send email" on one person (issue #15) we don't restrict to
@@ -116,13 +117,17 @@ Deno.serve(async (req) => {
 
   // Prepare each email (minting + storing its response token) first, then send
   // them all in one Batch API call (issue #18). Token minting is a DB write, so
-  // it doesn't count against the Resend rate limit.
+  // it doesn't count against the Resend rate limit. A send that fails puts the
+  // row back as it was (`restore`), so the bulk send picks it up again and any
+  // link the person already holds keeps working.
   interface Outbound {
     name: string
     to: string
     subject: string
     html: string
     personId: string
+    assignmentId: string
+    restore: { token_hash: string | null; notified_at: string | null }
   }
   const outbound: Outbound[] = []
 
@@ -182,6 +187,11 @@ Deno.serve(async (req) => {
       subject,
       html,
       personId: person.id,
+      assignmentId: assignment.id,
+      restore: {
+        token_hash: assignment.token_hash,
+        notified_at: assignment.notified_at,
+      },
     })
   }
 
@@ -192,6 +202,17 @@ Deno.serve(async (req) => {
       html: o.html,
       fromName,
     })),
+  )
+
+  await Promise.all(
+    outbound.map(async (o, idx) => {
+      if (results[idx].sent) return
+      const { error } = await admin
+        .from('plan_assignments')
+        .update(o.restore)
+        .eq('id', o.assignmentId)
+      if (error) console.error('Token restore failed:', error)
+    }),
   )
 
   await Promise.all(

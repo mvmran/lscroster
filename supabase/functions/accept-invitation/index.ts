@@ -7,6 +7,7 @@
 import { z } from 'npm:zod@4'
 import { serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
+import { sha256Hex } from '../_shared/scheduling.ts'
 
 const requestSchema = z.discriminatedUnion('action', [
   z.object({
@@ -21,16 +22,6 @@ const requestSchema = z.discriminatedUnion('action', [
     password: z.string().min(8).max(200).optional(),
   }),
 ])
-
-async function sha256Hex(input: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(input),
-  )
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {

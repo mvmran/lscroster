@@ -12,6 +12,7 @@ import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { logEmail } from '../_shared/email-log.ts'
 import { passwordResetEmail } from '../_shared/email-templates/password-reset.ts'
 import { sendEmail } from '../_shared/resend.ts'
+import { appUrl } from '../_shared/scheduling.ts'
 
 const schema = z.object({ email: z.email() })
 
@@ -29,16 +30,12 @@ Deno.serve(async (req) => {
 
   const email = parsed.data.email.toLowerCase()
   const admin = serviceClient()
-  const appUrl = (Deno.env.get('APP_URL') ?? 'http://localhost:5173').replace(
-    /\/$/,
-    '',
-  )
 
   const { data: linkData, error: linkError } =
     await admin.auth.admin.generateLink({
       type: 'recovery',
       email,
-      options: { redirectTo: `${appUrl}/reset-password` },
+      options: { redirectTo: `${appUrl()}/reset-password` },
     })
 
   // Unknown email (or any generateLink failure): silently succeed, send nothing.

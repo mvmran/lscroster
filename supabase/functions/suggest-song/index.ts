@@ -15,6 +15,7 @@
 import { z } from 'npm:zod@4'
 import { callerHasPermission, getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
+import { fetchAll } from '../_shared/fetch-all.ts'
 import { askForObject, GeminiError, geminiConfigured } from '../_shared/gemini.ts'
 import {
   buildSuggestPrompt,
@@ -29,28 +30,6 @@ const SUGGEST_MODEL_DEFAULT = 'gemini-3.5-flash'
 /** Bound the prompt: a church library is far smaller, but a fork might not be. */
 const MAX_CANDIDATES = 300
 const MAX_HISTORY_PLANS = 40
-
-/**
- * Read every row, a page at a time. PostgREST stops a response at `max_rows`
- * (1000) without saying so, which would silently drop songs from a big library.
- * Throws on a query error rather than returning nothing — an empty library
- * would otherwise read as "no more songs to suggest".
- */
-async function fetchAll<T>(
-  page: (
-    from: number,
-    to: number,
-  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
-): Promise<T[]> {
-  const size = 1000
-  const rows: T[] = []
-  for (let from = 0; ; from += size) {
-    const { data, error } = await page(from, from + size - 1)
-    if (error) throw new Error(error.message)
-    rows.push(...(data ?? []))
-    if ((data ?? []).length < size) return rows
-  }
-}
 
 const schema = z.object({
   probe: z.boolean().optional(),

@@ -5,6 +5,7 @@
 import { z } from 'npm:zod@4'
 import { getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
+import { logEmail } from '../_shared/email-log.ts'
 import { testEmail } from '../_shared/email-templates/test-email.ts'
 import { sendEmail } from '../_shared/resend.ts'
 
@@ -62,6 +63,7 @@ Deno.serve(async (req) => {
     html,
     fromName: church?.email_from_name ?? churchName,
   })
+  await logEmail(admin, { to, template, subject, result })
   if (!result.sent) {
     return jsonResponse(
       {

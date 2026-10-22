@@ -17,6 +17,7 @@ import {
   prefAllows,
   resolveRecipient,
   type EmailPrefKey,
+  type EmailPrefs,
 } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
 import { isEmailableActive } from '../_shared/person-status.ts'
@@ -49,6 +50,7 @@ type JobName = 'nudge' | 'reminder' | 'roster-status'
 interface ReminderRow {
   id: string
   notified_at: string | null
+  token_hash: string | null
   people: {
     id: string
     first_name: string
@@ -117,14 +119,16 @@ Deno.serve(async (req) => {
     Date.now() - church.request_nudge_days * 24 * 60 * 60 * 1000,
   ).toISOString()
 
-  const selectColumns = `id, notified_at,
+  const selectColumns = `id, notified_at, token_hash,
     people(id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at),
     positions(name), teams(name),
     plans!inner(id, date, title, start_time, service_types(name, default_start_time))`
 
   // Each pass prepares its emails (minting tokens / stamping idempotency
   // columns) first, then sends them in one Batch API call (issue #18). The DB
-  // writes don't count against the Resend rate limit.
+  // writes don't count against the Resend rate limit. A send that fails puts
+  // the row back as it was (`restore`): the job retries it next time round, and
+  // a nudge that never arrived doesn't take away the link the person holds.
   interface OutboundReminder {
     to: string
     subject: string
@@ -132,16 +136,73 @@ Deno.serve(async (req) => {
     personId: string
     planId: string
     template: string
+    assignmentId: string
+    restore: Record<string, string | null>
+  }
+
+  // Sends a pass, restores the rows whose email failed, logs every attempt and
+  // returns how many went out.
+  async function sendPass(outbound: OutboundReminder[]): Promise<number> {
+    const results = await sendEmailBatch(
+      outbound.map((o) => ({
+        to: o.to,
+        subject: o.subject,
+        html: o.html,
+        fromName,
+      })),
+    )
+    await Promise.all(
+      outbound.map(async (o, idx) => {
+        if (results[idx].sent) return
+        const { error } = await admin
+          .from('plan_assignments')
+          .update(o.restore)
+          .eq('id', o.assignmentId)
+        if (error) console.error('Restore after failed send failed:', error)
+      }),
+    )
+    await Promise.all(
+      outbound.map((o, idx) =>
+        logEmail(admin, {
+          to: o.to,
+          template: o.template,
+          subject: o.subject,
+          result: results[idx],
+          personId: o.personId,
+          planId: o.planId,
+        }),
+      ),
+    )
+    return results.filter((r) => r.sent).length
   }
 
   // Resolves a row's recipient, honouring the person's email preference
   // (issue #87) and routing managed people to their manager (issue #89).
-  async function recipientFor(row: ReminderRow, prefKey: EmailPrefKey) {
+  // `prefs` is fetched once per pass for every row's person.
+  function recipientFor(
+    row: ReminderRow,
+    prefs: Map<string, EmailPrefs>,
+    prefKey: EmailPrefKey,
+  ) {
     const person = row.people
     if (!isEmailableActive(person)) return null
-    const prefs = await fetchEmailPrefs(admin, [person.id])
     if (!prefAllows(prefs, person.id, prefKey)) return null
     return resolveRecipient(admin, person)
+  }
+
+  // The times line, read once per plan rather than once per person on it.
+  const timesByPlan = new Map<string, Promise<string | null>>()
+  function timesFor(plan: ReminderRow['plans']) {
+    let times = timesByPlan.get(plan.id)
+    if (!times) {
+      times = planTimesLine(
+        admin,
+        plan.id,
+        formatStartTime(plan.start_time ?? plan.service_types.default_start_time),
+      )
+      timesByPlan.set(plan.id, times)
+    }
+    return times
   }
 
   // -- nudges: pending, emailed at least nudge_days ago, never nudged --------
@@ -157,8 +218,10 @@ Deno.serve(async (req) => {
       .is('nudged_at', null)
       .gte('plans.date', today)
 
-    for (const row of (nudgeRows ?? []) as unknown as ReminderRow[]) {
-      const recipient = await recipientFor(row, 'nudge_emails')
+    const rows = (nudgeRows ?? []) as unknown as ReminderRow[]
+    const prefs = await fetchEmailPrefs(admin, rows.map((r) => r.people.id))
+    for (const row of rows) {
+      const recipient = await recipientFor(row, prefs, 'nudge_emails')
       if (!recipient) continue
 
       const token = randomToken()
@@ -179,11 +242,7 @@ Deno.serve(async (req) => {
         recipientName: recipient.recipientName,
         onBehalfOf: recipient.onBehalfOf,
         planDateLong: formatPlanDateLong(row.plans.date),
-        startTime: await planTimesLine(
-          admin,
-          row.plans.id,
-          formatStartTime(row.plans.start_time ?? row.plans.service_types.default_start_time),
-        ),
+        startTime: await timesFor(row.plans),
         serviceTypeName: row.plans.service_types.name,
         planTitle: row.plans.title,
         teamName: row.teams.name,
@@ -198,31 +257,13 @@ Deno.serve(async (req) => {
         personId: row.people.id,
         planId: row.plans.id,
         template: 'scheduling-nudge',
+        assignmentId: row.id,
+        restore: { token_hash: row.token_hash, nudged_at: null },
       })
     }
   }
 
-  const nudgeResults = await sendEmailBatch(
-    nudgeOutbound.map((o) => ({
-      to: o.to,
-      subject: o.subject,
-      html: o.html,
-      fromName,
-    })),
-  )
-  await Promise.all(
-    nudgeOutbound.map((o, idx) =>
-      logEmail(admin, {
-        to: o.to,
-        template: o.template,
-        subject: o.subject,
-        result: nudgeResults[idx],
-        personId: o.personId,
-        planId: o.planId,
-      }),
-    ),
-  )
-  const nudged = nudgeResults.filter((r) => r.sent).length
+  const nudged = await sendPass(nudgeOutbound)
 
   // -- reminders: confirmed, service within reminder_days_before -------------
   // reminder_days_before = 0 disables the reminder job entirely (issue #88).
@@ -236,8 +277,10 @@ Deno.serve(async (req) => {
       .gte('plans.date', today)
       .lte('plans.date', addDaysISO(today, church.reminder_days_before))
 
-    for (const row of (reminderRows ?? []) as unknown as ReminderRow[]) {
-      const recipient = await recipientFor(row, 'reminder_emails')
+    const rows = (reminderRows ?? []) as unknown as ReminderRow[]
+    const prefs = await fetchEmailPrefs(admin, rows.map((r) => r.people.id))
+    for (const row of rows) {
+      const recipient = await recipientFor(row, prefs, 'reminder_emails')
       if (!recipient) continue
 
       const { error } = await admin
@@ -254,11 +297,7 @@ Deno.serve(async (req) => {
         recipientName: recipient.recipientName,
         onBehalfOf: recipient.onBehalfOf,
         planDateLong: formatPlanDateLong(row.plans.date),
-        startTime: await planTimesLine(
-          admin,
-          row.plans.id,
-          formatStartTime(row.plans.start_time ?? row.plans.service_types.default_start_time),
-        ),
+        startTime: await timesFor(row.plans),
         serviceTypeName: row.plans.service_types.name,
         planTitle: row.plans.title,
         teamName: row.teams.name,
@@ -272,31 +311,13 @@ Deno.serve(async (req) => {
         personId: row.people.id,
         planId: row.plans.id,
         template: 'scheduling-reminder',
+        assignmentId: row.id,
+        restore: { reminded_at: null },
       })
     }
   }
 
-  const reminderResults = await sendEmailBatch(
-    reminderOutbound.map((o) => ({
-      to: o.to,
-      subject: o.subject,
-      html: o.html,
-      fromName,
-    })),
-  )
-  await Promise.all(
-    reminderOutbound.map((o, idx) =>
-      logEmail(admin, {
-        to: o.to,
-        template: o.template,
-        subject: o.subject,
-        result: reminderResults[idx],
-        personId: o.personId,
-        planId: o.planId,
-      }),
-    ),
-  )
-  const reminded = reminderResults.filter((r) => r.sent).length
+  const reminded = await sendPass(reminderOutbound)
 
   // -- roster status: digest to Team Leaders/Viewers/admins (issue #117) ------
   // roster_status_weeks = 0 disables it. The whole job lives in a shared module.

@@ -9,7 +9,9 @@ import {
   invitationEmail,
   managedInvitationEmail,
 } from '../_shared/email-templates/invitation.ts'
+import { logEmail } from '../_shared/email-log.ts'
 import { sendEmail } from '../_shared/resend.ts'
+import { appUrl, randomToken, sha256Hex } from '../_shared/scheduling.ts'
 
 const INVITE_EXPIRY_DAYS = 7
 
@@ -17,24 +19,6 @@ const inviteSchema = z.object({
   personId: z.uuid(),
   action: z.enum(['send', 'revoke']).default('send'),
 })
-
-async function sha256Hex(input: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(input),
-  )
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-}
-
-function randomToken(): string {
-  const bytes = new Uint8Array(32)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -128,11 +112,7 @@ Deno.serve(async (req) => {
     .select('name, email_from_name')
     .maybeSingle()
   const churchName = church?.name ?? 'LSCroster'
-  const appUrl = (Deno.env.get('APP_URL') ?? 'http://localhost:5173').replace(
-    /\/$/,
-    '',
-  )
-  const inviteUrl = `${appUrl}/invite/${token}`
+  const inviteUrl = `${appUrl()}/invite/${token}`
 
   const { subject, html } = managed
     ? managedInvitationEmail({
@@ -148,11 +128,19 @@ Deno.serve(async (req) => {
         inviteUrl,
         expiresInDays: INVITE_EXPIRY_DAYS,
       })
+  const to = managed ? manager!.email! : person.email!
   const result = await sendEmail({
-    to: managed ? manager!.email! : person.email!,
+    to,
     subject,
     html,
     fromName: church?.email_from_name ?? churchName,
+  })
+  await logEmail(admin, {
+    to,
+    template: managed ? 'managed-invitation' : 'invitation',
+    subject,
+    result,
+    personId,
   })
 
   if (!result.sent && result.reason === 'provider_error') {

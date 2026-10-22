@@ -90,6 +90,19 @@ Deno.serve(async (req) => {
   }
   const person = row.people
 
+  // Remove first and email after: a failed delete must not tell the person
+  // they're off a service they are still rostered on. As the caller, so the
+  // audit log (0059: removing someone from a past plan) names who did it
+  // rather than "System".
+  const { error: deleteError } = await serviceClient(caller.id)
+    .from('plan_assignments')
+    .delete()
+    .eq('id', assignmentId)
+  if (deleteError) {
+    console.error('Assignment delete failed:', deleteError)
+    return jsonResponse({ error: 'Could not remove assignment' }, 500)
+  }
+
   // Notify anyone who has already been emailed about this slot: confirmed
   // people, and pending people whose request has gone out (issue #85). People
   // who were never emailed are removed silently.
@@ -137,17 +150,6 @@ Deno.serve(async (req) => {
       })
       notified = result.sent
     }
-  }
-
-  // As the caller, so the audit log (0059: removing someone from a past plan)
-  // names who did it rather than "System".
-  const { error: deleteError } = await serviceClient(caller.id)
-    .from('plan_assignments')
-    .delete()
-    .eq('id', assignmentId)
-  if (deleteError) {
-    console.error('Assignment delete failed:', deleteError)
-    return jsonResponse({ error: 'Could not remove assignment' }, 500)
   }
 
   return jsonResponse({ ok: true, notified })
