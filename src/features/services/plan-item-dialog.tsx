@@ -117,9 +117,17 @@ function ItemForm({
   // Which of the arrangement's recordings this plan follows (0053): the item's
   // pick, else the first. Picking another arrangement starts again from its first.
   const recordings = playableUrls(arrangement?.reference_urls)
-  const [recording, setRecording] = useState(() =>
-    chosenReferenceUrl(item?.reference_url, arrangement?.reference_urls),
-  )
+  // Derived until someone picks: editing before the song library has loaded
+  // leaves `arrangement` unknown for a moment, and a choice frozen then would
+  // be null and save over the item's recording. While it's still unknown,
+  // the item keeps what it has.
+  const [pickedRecording, setRecording] = useState<string | null | undefined>(undefined)
+  const recording =
+    pickedRecording !== undefined
+      ? pickedRecording
+      : arrangement
+        ? chosenReferenceUrl(item?.reference_url, arrangement.reference_urls)
+        : (item?.reference_url ?? null)
   // The song's sequence for this plan (0060). Null follows the song's own —
   // its pinned lyrics version once published, else the latest — which is
   // where a song added afresh starts; the item keeps an order only once it is

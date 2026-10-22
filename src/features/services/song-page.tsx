@@ -847,6 +847,13 @@ function ArrangementLyricsBlock({
 
   const saved = useMemo(() => layersOfRow(current ?? null), [current])
   const value = draft ?? saved
+  // The text as it is now, for a helper whose answer lands after an await:
+  // building on the `value` captured when it was pressed would drop anything
+  // typed in the meantime.
+  const latest = useRef(value)
+  useEffect(() => {
+    latest.current = value
+  })
   const dirty =
     value.lyrics !== saved.lyrics ||
     value.native !== saved.native ||
@@ -916,19 +923,25 @@ function ArrangementLyricsBlock({
   }
 
   async function draftMeaning() {
+    const asked = value.native
     try {
       const meaning = await generateMeaning.mutateAsync({
-        native: value.native,
+        native: asked,
         language: current?.native_language ?? null,
       })
       if (meaning.trim() === '') {
         toast.error('No meaning came back — try again, or type it by hand.')
         return
       }
+      const now = latest.current
+      if (now.native !== asked) {
+        toast.error('The native text changed while the meaning was drafted — run it again.')
+        return
+      }
       // Into the draft, not the database: it is reviewed and saved like any
       // other edit, the same as an imported transliteration. The headers come
       // from the base, since the model is asked to leave those rows blank.
-      setDraft(mirrorSectionHeaders({ ...value, meaning }, 'meaning'))
+      setDraft(mirrorSectionHeaders({ ...now, meaning }, 'meaning'))
       toast.success('Meaning drafted — check it over before saving')
     } catch (error) {
       toast.error(
@@ -950,19 +963,24 @@ function ArrangementLyricsBlock({
    * saved.
    */
   async function polishTransliteration() {
-    const fromScratch = value.lyrics.trim() === ''
+    const asked = { native: value.native, lyrics: value.lyrics }
+    const fromScratch = asked.lyrics.trim() === ''
     setConfirmPolish(false)
     try {
       const lyrics = await polish.mutateAsync({
-        native: value.native,
-        lyrics: value.lyrics,
+        ...asked,
         language: current?.native_language ?? null,
       })
       if (lyrics.trim() === '') {
         toast.error('Nothing came back — the lyrics are unchanged.')
         return
       }
-      setDraft({ ...value, lyrics })
+      const now = latest.current
+      if (now.native !== asked.native || now.lyrics !== asked.lyrics) {
+        toast.error('The lyrics changed while that ran — nothing was replaced. Run it again.')
+        return
+      }
+      setDraft({ ...now, lyrics })
       toast.success(
         fromScratch
           ? 'Transliteration written — check it over before saving'
@@ -983,7 +1001,8 @@ function ArrangementLyricsBlock({
    * meaning a row out of step for the rest of the song.
    */
   async function labelSections() {
-    const paragraphs = lyricParagraphs(value.lyrics)
+    const asked = value.lyrics
+    const paragraphs = lyricParagraphs(asked)
     try {
       const labels = await suggestSections.mutateAsync({
         paragraphs: paragraphs.map((p) => p.lines),
@@ -996,7 +1015,14 @@ function ArrangementLyricsBlock({
         toast.error('No sections came back — type a header like [Verse 1] instead.')
         return
       }
-      setDraft(insertSectionHeaders(value, headers))
+      // The headers go in at line positions counted from the text that was
+      // sent, so they only fit that text.
+      const now = latest.current
+      if (now.lyrics !== asked) {
+        toast.error('The lyrics changed while that ran — no headers were added. Run it again.')
+        return
+      }
+      setDraft(insertSectionHeaders(now, headers))
       toast.success('Sections labelled — check them over before saving')
     } catch (error) {
       toast.error(
@@ -1053,7 +1079,7 @@ function ArrangementLyricsBlock({
         chords: seed?.lyrics_chords ?? '',
       }
       if (appended.lyrics.trim() !== '' || hasAnyLayer(appended)) {
-        setDraft(appendLayers(value, appended))
+        setDraft(appendLayers(latest.current, appended))
         toast.success(`Linked ${target.title} — lyrics added below, save when ready`)
       } else {
         toast.success(`Linked ${target.title}`)
