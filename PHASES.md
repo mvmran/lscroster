@@ -1799,6 +1799,43 @@ USER-MANUAL §8.4, §8.5 and §12.11 updated.
   My Schedule may show its skeleton forever for an account with no linked
   person (a disabled query is pending in TanStack v5) — check the route guard.
 
+(no migration) **Re-review of the scheduling fixes: decliners, bulk resend,
+deleted positions** (2026-10-23, findings 1–3 of a `/code-review high` of
+`abef01e` and `284f6ac`):
+- `declinedPersonIds` left out decliners still serving elsewhere on the plan,
+  so a rule demanding them in the slot they turned down ("the leader also
+  plays guitar", after they declined guitar) suggested them again and the
+  unique key failed the whole insert. The engine now also takes
+  `declinedSlots` (every declined person–position pair) and rejects those
+  even for a rule-sanctioned slot. Tested.
+- Bulk email's `onSettled` didn't wait for the refetch (the invalidation
+  helper returned nothing), so after a partial failure Send re-enabled on the
+  stale list and a second click re-emailed the plans that had gone out.
+  `useInvalidateAssignments` now resolves after the active refetch and is
+  exported; bulk send returns it, the other callers stay fire-and-forget
+  (`void`). Called without a plan it refreshes every plan's assignments.
+  Verified in headless Chromium with `send-requests` faked (one plan sent,
+  one 500) and the refetch held 2.5 s: before, Send re-enabled at 0.27 s still
+  reading "Send 2 emails"; after, it stayed disabled until the list refreshed
+  and came back as "Send 1 email".
+- Deleting a position cascades to its assignments, per-plan and template
+  minimums and the rules on either side; the app refreshed only team members.
+  It now also refreshes assignments (so the rostered history the validator
+  counts), plan minimums, conditional rules and plan templates. Code-checked
+  against the foreign keys, not driven in a browser.
+`npm run ci` green.
+**Upgrade note:** none — app only.
+- [ ] **Open from the same re-review** (unverified): the Matrix stepper is
+  live before the rule data loads, so + can override a rule it hasn't seen
+  yet; `useApplySuggestions` still misses `person-schedule` / `roster-workload`
+  (reuse `useInvalidateAssignments`); a bulk-email dialog left open after a
+  partial failure keeps the sent plans selected ("(3/1)"); every Matrix render
+  re-validates every column (`useSchedulingRulesData`'s data isn't memoised);
+  a service ending after midnight counts as a point in `timesOverlap`;
+  `buildPlanSchedulingView` duplicates `buildPlanValidation` and the two
+  steppers duplicate their markup. Also seen: plan templates still save their
+  minimums as delete-then-insert (`replaceTemplateMinCounts`).
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
