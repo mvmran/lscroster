@@ -2261,6 +2261,10 @@ export type Database = {
       person_delete_allowed: { Args: never; Returns: boolean }
       pin_plan_lyrics: { Args: { p_plan_id: string }; Returns: undefined }
       plan_file_in_use: { Args: { path: string }; Returns: boolean }
+      reorder_plan_items: {
+        Args: { p_item_ids: string[]; p_plan_id: string }
+        Returns: undefined
+      }
       replace_person_permissions: {
         Args: {
           p_permissions: Database["public"]["Enums"]["app_permission"][]

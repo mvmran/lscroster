@@ -471,11 +471,14 @@ function DuplicateDialog({
 function SaveTemplateDialog({
   plan,
   items,
+  itemsReady,
   open,
   onOpenChange,
 }: {
   plan: PlanWithType
   items: PlanItem[]
+  /** The order of service has loaded — `items` is the real list, not a stand-in. */
+  itemsReady: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
@@ -500,6 +503,12 @@ function SaveTemplateDialog({
       (t) => t.name.trim().toLowerCase() === trimmed.toLowerCase(),
     ) ?? null
   const pending = saveTemplate.isPending || updateTemplate.isPending
+  // A template is written whole from what's below, so wait for all of it: a
+  // still-loading list would save as empty and wipe an existing template's
+  // order, times or minimums — and before the templates arrive, an existing
+  // name wouldn't match, so Update would quietly become Save as new.
+  const ready =
+    itemsReady && !!planTimes && !!allMinCounts && !!allTemplates
 
   // Capture the plan's Times alongside its order of service (issue #73).
   const times = (planTimes ?? []).map((t, index) => ({
@@ -514,7 +523,7 @@ function SaveTemplateDialog({
     .map((m) => ({ position_id: m.position_id, min_count: m.min_count }))
 
   async function save() {
-    if (!trimmed) return
+    if (!trimmed || !ready) return
     try {
       if (matching) {
         await updateTemplate.mutateAsync({
@@ -624,9 +633,9 @@ function SaveTemplateDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={save} disabled={pending || !trimmed}>
-              {pending && <Loader2 className="size-4 animate-spin" />}
-              {matching ? 'Update template' : 'Save template'}
+            <Button onClick={save} disabled={pending || !trimmed || !ready}>
+              {(pending || !ready) && <Loader2 className="size-4 animate-spin" />}
+              {!ready ? 'Loading…' : matching ? 'Update template' : 'Save template'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1478,6 +1487,7 @@ export function PlanPage() {
         <SaveTemplateDialog
           plan={plan}
           items={items}
+          itemsReady={!!itemsQuery.data}
           open
           onOpenChange={setTemplateOpen}
         />

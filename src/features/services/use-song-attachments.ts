@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { startDownload } from '@/lib/download'
 import { supabase } from '@/lib/supabase'
 import type { Tables } from '@/types/database'
 
@@ -56,6 +57,17 @@ export function useUploadSongAttachment(arrangementId: string) {
   })
 }
 
+/**
+ * Delete files from the song-attachments bucket once the song or arrangement
+ * they belonged to has gone (the rows cascade; storage doesn't). Returns how
+ * many couldn't be removed — storage refuses quietly, by removing fewer.
+ */
+export async function removeSongFiles(paths: string[]): Promise<number> {
+  if (paths.length === 0) return 0
+  const { data, error } = await supabase.storage.from(BUCKET).remove(paths)
+  return error ? paths.length : paths.length - data.length
+}
+
 export function useDeleteSongAttachment(arrangementId: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -84,7 +96,7 @@ export function useOpenSongAttachment() {
           download: attachment.label,
         })
       if (error) throw new Error(error.message)
-      window.open(data.signedUrl, '_blank', 'noopener')
+      startDownload(data.signedUrl)
     },
   })
 }

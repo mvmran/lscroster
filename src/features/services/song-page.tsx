@@ -507,7 +507,12 @@ function ArrangementForm({
 
   function onDelete() {
     remove.mutate(arrangement.id, {
-      onSuccess: () => toast.success('Arrangement removed'),
+      onSuccess: ({ filesLeft }) => {
+        toast.success('Arrangement removed')
+        if (filesLeft > 0) {
+          toast.warning(`${plural(filesLeft, 'attached file')} couldn’t be removed from storage`)
+        }
+      },
       onError: (e) => toast.error(e.message),
     })
   }
@@ -1813,8 +1818,11 @@ export function SongPage() {
 
   async function confirmDeleteSong() {
     try {
-      await deleteSong.mutateAsync(song!.id)
+      const { filesLeft } = await deleteSong.mutateAsync(song!.id)
       toast.success('Song deleted')
+      if (filesLeft > 0) {
+        toast.warning(`${plural(filesLeft, 'attached file')} couldn’t be removed from storage`)
+      }
       navigate(backToSongs)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not delete song')

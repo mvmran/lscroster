@@ -171,28 +171,18 @@ export function useClearPlanLyricsPins(planId: string) {
 
 /**
  * Persist a drag-reorder. Optimistically writes the new order to the cache so
- * the list doesn't snap back while the upsert is in flight.
+ * the list doesn't snap back while the save is in flight. Only the order is
+ * sent (`reorder_plan_items`, 0066): upserting the cached rows let a stale
+ * screen re-insert deleted items and undo another editor's changes.
  */
 export function useReorderPlanItems(planId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (ordered: PlanItem[]) => {
-      const rows = ordered.map((item, index) => ({
-        id: item.id,
-        plan_id: item.plan_id,
-        kind: item.kind,
-        title: item.title,
-        arrangement_id: item.arrangement_id,
-        lyrics_id: item.lyrics_id,
-        key_override: item.key_override,
-        bpm_override: item.bpm_override,
-        reference_url: item.reference_url,
-        sequence: item.sequence,
-        length_seconds: item.length_seconds,
-        description: item.description,
-        sort_order: index,
-      }))
-      const { error } = await supabase.from('plan_items').upsert(rows)
+      const { error } = await supabase.rpc('reorder_plan_items', {
+        p_plan_id: planId,
+        p_item_ids: ordered.map((item) => item.id),
+      })
       if (error) throw new Error(error.message)
     },
     onMutate: async (ordered) => {

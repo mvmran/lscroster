@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { startDownload } from '@/lib/download'
 import { supabase } from '@/lib/supabase'
 import type { Tables } from '@/types/database'
 
@@ -94,7 +95,7 @@ export function useOpenPlanAttachment() {
           download: attachment.label,
         })
       if (error) throw new Error(error.message)
-      window.open(data.signedUrl, '_blank', 'noopener')
+      startDownload(data.signedUrl)
     },
   })
 }

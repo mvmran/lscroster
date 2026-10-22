@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { LayeredLyrics } from '@/features/services/lyric-layers'
+import { removeSongFiles } from '@/features/services/use-song-attachments'
 import { lyricSequence } from '@/features/services/lyric-sections'
 import { resolveNativeLanguage } from '@/features/services/transliterate'
 import {
@@ -240,36 +241,44 @@ export function useDeleteSong() {
   const invalidate = useInvalidateSongs()
   return useMutation({
     mutationFn: async (id: string) => {
-      // Storage cleanup: only attachments of arrangements that would be
-      // orphaned by this delete — a medley shared with another song survives,
-      // and so must its files. The row cascade handles the DB side.
-      const { data: links } = await supabase
+      // Which files go with it: only attachments of arrangements this delete
+      // orphans — a medley shared with another song survives, and so must its
+      // files. Read now, before the rows that say so cascade away.
+      const { data: links, error: linksError } = await supabase
         .from('song_arrangement_songs')
         .select('arrangement_id')
         .eq('song_id', id)
-      const arrangementIds = (links ?? []).map((l) => l.arrangement_id)
+      if (linksError) throw new Error(linksError.message)
+      const arrangementIds = links.map((l) => l.arrangement_id)
+      let paths: string[] = []
       if (arrangementIds.length > 0) {
-        const { data: otherLinks } = await supabase
+        const { data: otherLinks, error: otherError } = await supabase
           .from('song_arrangement_songs')
           .select('arrangement_id')
           .in('arrangement_id', arrangementIds)
           .neq('song_id', id)
-        const shared = new Set((otherLinks ?? []).map((l) => l.arrangement_id))
+        if (otherError) throw new Error(otherError.message)
+        const shared = new Set(otherLinks.map((l) => l.arrangement_id))
         const exclusive = arrangementIds.filter((a) => !shared.has(a))
         if (exclusive.length > 0) {
-          const { data: attachments } = await supabase
+          const { data: attachments, error: filesError } = await supabase
             .from('song_attachments')
             .select('storage_path')
             .in('arrangement_id', exclusive)
-          if (attachments && attachments.length > 0) {
-            await supabase.storage
-              .from('song-attachments')
-              .remove(attachments.map((a) => a.storage_path))
-          }
+          if (filesError) throw new Error(filesError.message)
+          paths = attachments.map((a) => a.storage_path)
         }
       }
-      const { error } = await supabase.from('songs').delete().eq('id', id)
+      // The row first: RLS refuses a delete (deletion switched off, no
+      // permission) by deleting nothing — and then the files must stay.
+      const { data: gone, error } = await supabase
+        .from('songs')
+        .delete()
+        .eq('id', id)
+        .select('id')
       if (error) throw new Error(error.message)
+      if (gone.length === 0) throw new Error('You can’t delete this song')
+      return { filesLeft: await removeSongFiles(paths) }
     },
     onSuccess: () => invalidate(),
   })
@@ -356,21 +365,22 @@ export function useDeleteArrangement(songId: string) {
   const invalidate = useInvalidateArrangements()
   return useMutation({
     mutationFn: async (id: string) => {
-      // Row cascade won't touch storage, so remove the files first.
-      const { data: attachments } = await supabase
+      // The row cascade won't touch storage: note the files, delete the row,
+      // and only once it's really gone (RLS refuses by deleting nothing)
+      // remove them.
+      const { data: attachments, error: filesError } = await supabase
         .from('song_attachments')
         .select('storage_path')
         .eq('arrangement_id', id)
-      if (attachments && attachments.length > 0) {
-        await supabase.storage
-          .from('song-attachments')
-          .remove(attachments.map((a) => a.storage_path))
-      }
-      const { error } = await supabase
+      if (filesError) throw new Error(filesError.message)
+      const { data: gone, error } = await supabase
         .from('song_arrangements')
         .delete()
         .eq('id', id)
+        .select('id')
       if (error) throw new Error(error.message)
+      if (gone.length === 0) throw new Error('You can’t delete this arrangement')
+      return { filesLeft: await removeSongFiles(attachments.map((a) => a.storage_path)) }
     },
     onSuccess: () => invalidate(songId),
   })

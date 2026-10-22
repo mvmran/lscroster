@@ -287,6 +287,9 @@ function ServiceTypeDialog({
     setTeamIds(teamIdsQuery.data)
   }
   if (!open && teamsSeededFor !== null) setTeamsSeededFor(null)
+  // Saving replaces the whole list, so an edit can't save until the list it
+  // would replace has loaded — an empty one would unlink every required team.
+  const teamsReady = !serviceType || teamsSeededFor === serviceType.id
 
   const pending = create.isPending || update.isPending || setTeams.isPending
 
@@ -333,7 +336,7 @@ function ServiceTypeDialog({
 
   async function save() {
     const trimmed = name.trim()
-    if (!trimmed) return
+    if (!trimmed || !teamsReady) return
     const values = {
       name: trimmed,
       default_start_time: startTime ? `${startTime}:00` : null,
@@ -449,7 +452,13 @@ function ServiceTypeDialog({
 
           <div className="flex flex-col gap-2">
             <Label>Teams required</Label>
-            {!teams || teams.length === 0 ? (
+            {!teamsReady ? (
+              <p className="text-muted-foreground rounded-md border p-3 text-sm">
+                {teamIdsQuery.isError
+                  ? `Couldn’t load this service type’s teams (${teamIdsQuery.error.message}). Close and try again.`
+                  : 'Loading teams…'}
+              </p>
+            ) : !teams || teams.length === 0 ? (
               <p className="text-muted-foreground rounded-md border p-3 text-sm">
                 No teams yet. Create teams first, then add them here.
               </p>
@@ -522,7 +531,7 @@ function ServiceTypeDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={save} disabled={pending || !name.trim()}>
+          <Button onClick={save} disabled={pending || !name.trim() || !teamsReady}>
             {pending && <Loader2 className="size-4 animate-spin" />}
             {serviceType ? 'Save' : 'Create'}
           </Button>
