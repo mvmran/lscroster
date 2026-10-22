@@ -145,7 +145,7 @@ implicitly** — a "limited" person is a member with a subset of these.
 | Permission | What it lets a member do |
 | --- | --- |
 | `edit_order_of_service` | Edit a plan's order of service (items, headers, songs, durations). Does **not** include creating or deleting the plan. |
-| `create_delete_plans` | Create and delete plans, and use plan templates. **Implies `edit_order_of_service`** (creating from a template writes the order). Also lets them delete files in the `plan-attachments` bucket (0058), so a deleted plan's files go with it. |
+| `create_delete_plans` | Create and delete plans, and use plan templates. **Implies `edit_order_of_service`** (creating from a template writes the order). Also lets them delete files in the `plan-attachments` bucket (0058), so a deleted plan's files go with it — but only files no attachment row still names, never a live plan's (0062). |
 | `publish_plans` | Publish a plan (and unpublish), and send the set-list email. |
 | `manage_songs` | Create, edit and delete songs, and use the AI song helpers. |
 | `attach_plan_files` | Upload and manage a plan's attachment files. |

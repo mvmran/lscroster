@@ -1462,6 +1462,9 @@ went with it:
 
 A delete that takes other things with it is one entry, with counts — deleting a
 service type doesn't add an entry for every plan under it.
+A draft plan with nobody scheduled and no files, deleted within two minutes of
+being made, isn't recorded — that is how the app undoes a plan it couldn't
+finish creating.
 
 Filter by date range (the last 3 days by default), event, what was **affected**
 (a person, or a plan, song, team or position by name), and who made the change.
