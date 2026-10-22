@@ -1836,6 +1836,59 @@ deleted positions** (2026-10-23, findings 1–3 of a `/code-review high` of
   steppers duplicate their markup. Also seen: plan templates still save their
   minimums as delete-then-insert (`replaceTemplateMinCounts`).
 
+(0066) `reorder_plan_items` **Services: song deletes, early saves, reorder,
+iPhone downloads** (2026-10-23, findings 1, 2, 3, 6 and 10 of a
+`/code-review high` of `src/features/services`):
+- Deleting a song or an arrangement removed its files from storage first and
+  never checked the row went: with song deletion switched off (or no
+  permission) RLS deletes nothing without an error, so the files were gone,
+  the toast said "Song deleted" and the song stayed with broken attachments.
+  Both now note the paths, delete the row with `.select('id')`, throw when
+  nothing went, and only then remove the files (`removeSongFiles`), warning
+  when some couldn't be — the order `useDeletePlan` already used.
+- The service-type dialog let Save run before the type's required teams had
+  loaded, replacing them with `[]` (unlinking every team). Save now waits for
+  the list it replaces ("Loading teams…", or the load error).
+- The Templates dialog built a template from plan times, minimums and items
+  that might still be loading, so an early Update wiped the template's times
+  and minimums — and before the template list arrived an existing name
+  didn't match, turning Update into Save as new. It waits for all four
+  ("Loading…").
+- A drag-reorder upserted every item's full cached row, so a stale screen
+  re-inserted items another editor had deleted and wrote back their old
+  titles, keys and descriptions. `reorder_plan_items(plan, ids[])` sets
+  `sort_order` only, on rows still on that plan, in one statement; items the
+  caller didn't list follow the listed ones in their existing order.
+- Plan and song attachment downloads called `window.open` after the signed
+  URL request, outside the tap, which iOS Safari blocks without a word. They
+  now navigate to the URL (`startDownload`, `src/lib/download.ts`): it is
+  signed with `download`, so Storage answers `Content-Disposition:
+  attachment` and the page stays put. The notice board was already fine (its
+  URLs are signed ahead and opened by a plain link).
+Verified on the local stack. API: a stale reorder (listing a deleted id,
+missing a new item) gave the right order, re-inserted nothing and left every
+other field unchanged; a member's reorder was refused by the
+protect-columns trigger; with song deletion off, the delete answered
+`200 []` and the song survived — the case the hook now refuses before any
+file goes. Headless Chromium at phone size with requests held 2.5 s: Save
+disabled with "Loading teams…" until the teams arrived; the Templates button
+read "Loading…" until the plan's times arrived; a download arrived with no
+popup and the page stayed on the plan. 0066 applied twice clean; `npm run ci`
+green. Not on a real iPhone.
+**Upgrade note:** `db push` (0066) before the app — the new bundle calls the
+function.
+- [ ] **Open from the same review**: template updates are still several
+  requests with no transaction (`useUpdateTemplate`, with
+  `replaceTemplateMinCounts`); editing a song item before the song library
+  loads can save `reference_url: null`; the song page's AI helpers and
+  link-a-song build the draft from the text before the await, losing what was
+  typed meanwhile; a new service type whose team save fails is created again
+  on retry; weekly plan creation stops at the first failed week without
+  saying the earlier ones were made (a retry duplicates them). Cut by the cap:
+  duplicated `useFunctionAvailable` hooks, near-duplicate plan/song
+  attachment hooks, a run-sheet PDF failure only logged to the console,
+  `plan-item-lyrics` not refreshed after lyrics are saved.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
