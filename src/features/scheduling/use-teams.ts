@@ -312,7 +312,12 @@ export function useUpdateTeam() {
   })
 }
 
-/** Replace the set of service types a team serves (empty = all). */
+/**
+ * Replace the set of service types a team serves (empty = all). One
+ * transaction (`replace_team_service_types`, 0065): links that stay keep their
+ * place in each service type's team order, new ones go to the end, and a
+ * failure leaves the links as they were.
+ */
 export function useSetTeamServiceTypes() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -323,22 +328,11 @@ export function useSetTeamServiceTypes() {
       teamId: string
       serviceTypeIds: string[]
     }) => {
-      const { error: deleteError } = await supabase
-        .from('service_type_teams')
-        .delete()
-        .eq('team_id', teamId)
-      if (deleteError) throw new Error(deleteError.message)
-      if (serviceTypeIds.length > 0) {
-        const { error: insertError } = await supabase
-          .from('service_type_teams')
-          .insert(
-            serviceTypeIds.map((service_type_id) => ({
-              service_type_id,
-              team_id: teamId,
-            })),
-          )
-        if (insertError) throw new Error(insertError.message)
-      }
+      const { error } = await supabase.rpc('replace_team_service_types', {
+        p_team_id: teamId,
+        p_service_type_ids: serviceTypeIds,
+      })
+      if (error) throw new Error(error.message)
       return teamId
     },
     onSuccess: (teamId) => {

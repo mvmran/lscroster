@@ -352,6 +352,11 @@ export interface SendRequestsResult {
   skipped: { name: string; reason: string }[]
 }
 
+export interface BulkSendResult extends SendRequestsResult {
+  /** Plans whose send failed outright; the others went out regardless. */
+  failed: { planId: string; message: string }[]
+}
+
 /** Email pending requests via the send-requests Edge Function. */
 export function useSendRequests(planId: string) {
   const invalidate = useInvalidateAssignments()
@@ -375,25 +380,37 @@ export interface BulkSendGroup {
  * Bulk "send requests" across several plans at once (Matrix bulk-email): calls
  * the send-requests Edge Function once per plan with that plan's chosen
  * assignment ids, then aggregates the per-plan results.
+ *
+ * A plan that fails doesn't stop the rest, and the assignments are refetched
+ * however it ends: explicit ids are emailed even if already notified, so a
+ * retry built from stale data would send the plans that did go out again.
  */
 export function useBulkSendRequests() {
   const invalidate = useInvalidateAssignments()
   return useMutation({
-    mutationFn: async (groups: BulkSendGroup[]): Promise<SendRequestsResult> => {
+    mutationFn: async (groups: BulkSendGroup[]): Promise<BulkSendResult> => {
       let sent = 0
       const skipped: { name: string; reason: string }[] = []
+      const failed: { planId: string; message: string }[] = []
       for (const { planId, assignmentIds } of groups) {
         if (assignmentIds.length === 0) continue
-        const res = await invokeFunction<SendRequestsResult>('send-requests', {
-          planId,
-          assignmentIds,
-        })
-        sent += res.sent
-        skipped.push(...res.skipped)
+        try {
+          const res = await invokeFunction<SendRequestsResult>('send-requests', {
+            planId,
+            assignmentIds,
+          })
+          sent += res.sent
+          skipped.push(...res.skipped)
+        } catch (error) {
+          failed.push({
+            planId,
+            message: error instanceof Error ? error.message : 'Sending failed',
+          })
+        }
       }
-      return { ok: true, sent, skipped }
+      return { ok: failed.length === 0, sent, skipped, failed }
     },
-    onSuccess: () => invalidate(),
+    onSettled: () => invalidate(),
   })
 }
 

@@ -74,6 +74,13 @@ export interface EngineState {
   planMinOverrides?: ReadonlyMap<string, number>
   /** Rules muted on this plan. */
   mutedRuleIds?: ReadonlySet<string>
+  /**
+   * People who declined a request on this plan and aren't serving on it
+   * otherwise. They said no to the date, so they're never suggested again for
+   * it — and re-picking one for the same position would also hit the
+   * assignments' unique key and fail the whole insert.
+   */
+  declinedPersonIds?: ReadonlySet<string>
 }
 
 export interface Suggestion {
@@ -158,13 +165,14 @@ function rejectionReason(
   roster: WorkingAssignment[],
   needsQualified: boolean,
   sanctioned: ReadonlySet<string>,
-): 'level' | 'unavailable' | 'inactive' | 'in-service' | 'avoid' | 'cadence' | null {
+): 'level' | 'unavailable' | 'inactive' | 'declined' | 'in-service' | 'avoid' | 'cadence' | null {
   const level = person.eligibility[pos.id]
   if (needsQualified && level !== 'qualified') return 'level'
   // Archiving someone does not remove them from their teams, so `team_members`
   // still lists them — the archive flag is the only thing keeping them out.
   if (person.archived || person.status !== 'active') return 'inactive'
   if (isUnavailableOn(person, state.service.date)) return 'unavailable'
+  if (state.declinedPersonIds?.has(person.id)) return 'declined'
 
   // No multi-position — except a slot a fired rule explicitly demands of this
   // person ("Sam leads AND plays guitar"); never the same slot twice.
@@ -211,6 +219,7 @@ const REASON_TEXT: Record<string, string> = {
   level: 'no qualified person is free',
   unavailable: 'everyone set up is unavailable',
   inactive: 'everyone set up is on a break',
+  declined: 'everyone set up has declined this service',
   'in-service': 'everyone set up is already serving',
   avoid: 'remaining people are blocked by an avoid rule',
   cadence: 'everyone set up is over their serving limit',
@@ -293,6 +302,7 @@ const PERSON_REASON_TEXT: Record<string, string> = {
   level: "they don't fill it at the required level",
   unavailable: "they're unavailable that day",
   inactive: "they're on a break",
+  declined: "they've declined this service",
   'in-service': "they're already serving in another position",
   avoid: 'an avoid pairing blocks them',
   cadence: "they're over their serving limit",

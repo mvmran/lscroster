@@ -188,10 +188,19 @@ export function BulkEmailButton({
         for (const skip of result.skipped) {
           toast.warning(`${skip.name}: ${skip.reason}`)
         }
-        if (result.sent === 0 && result.skipped.length === 0) {
+        for (const fail of result.failed) {
+          const plan = plans.find((p) => p.id === fail.planId)
+          const label = plan
+            ? `${format(parseISO(plan.date), 'EEE d MMM')} ${plan.service_types.name}`
+            : 'A service'
+          toast.error(`${label}: ${fail.message}`)
+        }
+        if (result.sent === 0 && result.skipped.length === 0 && result.failed.length === 0) {
           toast.info('Nothing to send')
         }
-        setOpen(false)
+        // Stay open after a failure: the list refreshes to what is still
+        // unsent, so sending again only emails those.
+        if (result.failed.length === 0) setOpen(false)
       },
       onError: (e) => toast.error(e.message),
     })

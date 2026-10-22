@@ -2268,6 +2268,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      replace_service_type_teams: {
+        Args: { p_service_type_id: string; p_team_ids: string[] }
+        Returns: undefined
+      }
+      replace_team_service_types: {
+        Args: { p_service_type_ids: string[]; p_team_id: string }
+        Returns: undefined
+      }
+      save_conditional_rule: {
+        Args: { p_effects: Json; p_rule: Json; p_rule_id?: string }
+        Returns: string
+      }
       schedules_any_team: { Args: never; Returns: boolean }
       schedules_team_on_plan: {
         Args: { target_plan_id: string }

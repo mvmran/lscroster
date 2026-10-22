@@ -1731,6 +1731,39 @@ The new bundle works with the setting on or off.
   the JWT by hand where `getClaims()` would do. (Sign-in dropping
   `search`/`hash` is already open above.)
 
+(0065) `replace_team_service_types`, `replace_service_type_teams`,
+`save_conditional_rule` **Team links and rules save whole; Suggest roster skips
+decliners; a failed bulk send can't double-send** (2026-10-23, findings 1–4 of
+a `/code-review high` of `src/features/scheduling`):
+- Editing a team (even a rename) deleted its service-type links and re-inserted
+  them without `sort_order`, sending it to the top of each service type's
+  order; an insert failing after the delete left it with no links, i.e.
+  serving every service type. The service type's "Teams required" save was the
+  same delete-then-insert. Both are now one security-invoker function call:
+  links that stay keep their order, a new one goes to the end, only the
+  difference is written.
+- Saving a conditional rule was update → delete effects → insert effects; a
+  failed insert left the rule enabled with no effects (or, new, an orphan that
+  a retry duplicated). `save_conditional_rule(rule, effects, id?)` does it in
+  one transaction and refreshes the list on settle.
+- Suggest roster and Replace could re-pick someone who declined this plan; for
+  the same position the unique `(plan, person, position)` key then failed the
+  whole insert. The engine takes `declinedPersonIds` (decliners not otherwise
+  serving) and explains an unfillable slot with "declined this service".
+- Bulk email stopped at the first failed plan without refetching, and
+  `send-requests` emails explicit ids even when already notified, so a retry
+  re-emailed the plans that went out. Each plan now runs on its own, the
+  assignments refetch however it ends, and the dialog names each failed plan
+  and stays open on the refreshed list.
+Verified at the API level on the local stack as a coordinator and a member: a
+rename-style save kept the order, a re-added link went last, a bad id rolled
+back drops and renames in all three functions, a new rule with a bad effect
+left no orphan, a member changed nothing (link save a no-op under RLS, rule
+save refused). 0065 applied twice clean; engine test added; `npm run ci`
+green. Not driven in a browser.
+**Upgrade note:** `db push` (0065) before the app — the new bundle calls the
+functions.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

@@ -156,7 +156,11 @@ export function useServiceTypeTeamIds(serviceTypeId: string | undefined) {
   })
 }
 
-/** Replace the set of teams required by a service type. */
+/**
+ * Replace the set of teams required by a service type, in display order. One
+ * transaction (`replace_service_type_teams`, 0065), so a failure leaves the
+ * list as it was.
+ */
 export function useSetServiceTypeTeams() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -167,23 +171,11 @@ export function useSetServiceTypeTeams() {
       serviceTypeId: string
       teamIds: string[]
     }) => {
-      const { error: deleteError } = await supabase
-        .from('service_type_teams')
-        .delete()
-        .eq('service_type_id', serviceTypeId)
-      if (deleteError) throw new Error(deleteError.message)
-      if (teamIds.length > 0) {
-        const { error: insertError } = await supabase
-          .from('service_type_teams')
-          .insert(
-            teamIds.map((team_id, sort_order) => ({
-              service_type_id: serviceTypeId,
-              team_id,
-              sort_order,
-            })),
-          )
-        if (insertError) throw new Error(insertError.message)
-      }
+      const { error } = await supabase.rpc('replace_service_type_teams', {
+        p_service_type_id: serviceTypeId,
+        p_team_ids: teamIds,
+      })
+      if (error) throw new Error(error.message)
       return serviceTypeId
     },
     onSuccess: (serviceTypeId) => {

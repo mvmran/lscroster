@@ -456,13 +456,17 @@ export interface SaveConditionalRuleVars {
   effects: RuleEffect[]
 }
 
-/** Create or update a rule; effects are replaced wholesale (they're tiny). */
+/**
+ * Create or update a rule; effects are replaced wholesale (they're tiny). One
+ * transaction (`save_conditional_rule`, 0065): a failed effect leaves the rule
+ * as it was, never enabled with no effects or half-created.
+ */
 export function useSaveConditionalRule() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (vars: SaveConditionalRuleVars) => {
       const c = vars.condition
-      const row = {
+      const rule: TablesUpdate<'conditional_rules'> = {
         name: vars.name,
         service_type_id: vars.serviceTypeId,
         trigger_position_id: vars.triggerPositionId,
@@ -472,36 +476,22 @@ export function useSaveConditionalRule() {
         strength: vars.strength,
         enabled: vars.enabled,
       }
-      let ruleId = vars.id
-      if (ruleId) {
-        const { error } = await supabase.from('conditional_rules').update(row).eq('id', ruleId)
-        if (error) throw new Error(error.message)
-        const { error: delError } = await supabase
-          .from('conditional_rule_effects')
-          .delete()
-          .eq('rule_id', ruleId)
-        if (delError) throw new Error(delError.message)
-      } else {
-        const { data, error } = await supabase
-          .from('conditional_rules')
-          .insert(row)
-          .select('id')
-          .single()
-        if (error) throw new Error(error.message)
-        ruleId = data.id
-      }
-      const { error: fxError } = await supabase.from('conditional_rule_effects').insert(
+      const effects: Omit<TablesInsert<'conditional_rule_effects'>, 'rule_id'>[] =
         vars.effects.map((e) => ({
-          rule_id: ruleId!,
           target_position_id: e.targetPositionId,
           effect_kind: e.kind === 'same-person' ? 'same_person' : e.kind,
           min_count: e.kind === 'count' ? e.minCount : null,
           required_person_id: e.kind === 'person' ? e.personId : null,
-        })),
-      )
-      if (fxError) throw new Error(fxError.message)
+        }))
+      const { error } = await supabase.rpc('save_conditional_rule', {
+        p_rule: rule,
+        p_effects: effects,
+        ...(vars.id ? { p_rule_id: vars.id } : {}),
+      })
+      if (error) throw new Error(error.message)
     },
-    onSuccess: () =>
+    // Settled, not success: a rule that went away under us should vanish here.
+    onSettled: () =>
       queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.conditionalRules }),
   })
 }

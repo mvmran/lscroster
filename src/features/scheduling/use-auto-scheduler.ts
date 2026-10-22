@@ -82,6 +82,12 @@ function buildEngineState(
   const existingAssignments = planAssignments
     .filter((a) => a.status !== 'declined')
     .map((a) => ({ personId: a.person_id, positionId: a.position_id, teamId: a.team_id }))
+  const serving = new Set(existingAssignments.map((a) => a.personId))
+  const declinedPersonIds = new Set(
+    planAssignments
+      .filter((a) => a.status === 'declined' && !serving.has(a.person_id))
+      .map((a) => a.person_id),
+  )
 
   const { rules, mutedRuleIds } = planRuleContext(plan.id, data)
   return {
@@ -98,6 +104,7 @@ function buildEngineState(
     rules,
     planMinOverrides: minOverrides,
     mutedRuleIds,
+    declinedPersonIds,
   }
 }
 

@@ -108,6 +108,29 @@ describe('autoSchedule', () => {
 
   // Archiving someone leaves them on their teams and leaves their scheduling
   // status 'active', so the archive flag is the only thing keeping them out.
+  it('never re-suggests someone who declined this plan, for any position', () => {
+    const res = autoSchedule(
+      state({
+        positions: [position({ id: 'pos-1' }), position({ id: 'pos-2' })],
+        candidates: [
+          candidate({ id: 'a', eligibility: { 'pos-1': 'qualified', 'pos-2': 'qualified' } }),
+        ],
+        declinedPersonIds: new Set(['a']),
+      }),
+    )
+    expect(res.suggestions).toHaveLength(0)
+    expect(res.unfilled.map((u) => u.reason)).toEqual([
+      'everyone set up has declined this service',
+      'everyone set up has declined this service',
+    ])
+    const replace = state({
+      positions: [position({ id: 'pos-1' })],
+      candidates: [candidate({ id: 'a', eligibility: { 'pos-1': 'qualified' } })],
+      declinedPersonIds: new Set(['a']),
+    })
+    expect(rankCandidates(replace, 'pos-1')).toHaveLength(0)
+  })
+
   it('never suggests an archived person whose scheduling status is still active', () => {
     const res = autoSchedule(
       state({
