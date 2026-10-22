@@ -1764,6 +1764,41 @@ green. Not driven in a browser.
 **Upgrade note:** `db push` (0065) before the app — the new bundle calls the
 functions.
 
+(no migration) **Scheduling caches refresh; the Matrix matches the plan page**
+(2026-10-23, findings 5–10 of the same review):
+- Setting someone's scheduling status, a recurring unavailability or a pairing
+  refreshed only that person's view, not the whole-table caches the validator
+  and Suggest roster read (up to 60 s stale). Team membership changes missed
+  `useAllTeamMembers` (`['team-members']` vs `['team-members', teamId]`), so a
+  newly set-up member was flagged "Not set up" and never suggested; position
+  changes now refresh it too.
+- The Matrix's per-column Suggest / Send / Cancel-unsent buttons sat on
+  `teamIndex === 0` of every team, so a new team with no positions sorted first
+  hid them all; it now maps only the teams that render.
+- The Matrix "Min required" stepper ignored a fired rule's minimum and its cell
+  only went red for `MANDATORY_UNFILLED`, so pressing − silently overrode a
+  rule. Both pages now share `usePlanMinStepper` (override, then rule, then
+  default) and `isUnderstaffed()`; a Matrix column builds its state once
+  (`buildPlanSchedulingView`) for the badges and the minimums.
+- `timesOverlap` missed a service with no end time starting exactly when a
+  ranged one did (10:00 vs 10:00–12:00 — the commonest double-booking); a point
+  now clashes with a range it falls in, start included. Tested.
+- Fill priority 0 saved as 100 (`|| 100`); only a blank falls back now.
+Verified in headless Chromium on the local stack with a throwaway plan, rule
+and empty team (removed after): an empty team first in Sunday's order, all
+four columns kept Suggest roster; a rule raising Keys to 3 showed Min 3 with
+the rule's tooltip and a red understaffed cell. `npm run ci` green.
+USER-MANUAL §8.4, §8.5 and §12.11 updated.
+**Upgrade note:** none — app only.
+- [ ] **Open from the same review** (cut by the finding cap, unverified):
+  `max_count` is saved but neither the validator nor the engine reads it;
+  "Household — serve together" pairings are ignored by both; every Matrix
+  column's Suggest button runs its own `useAutoScheduler` (assignments query
+  plus person maps); `useApplySuggestions` copies part of
+  `useInvalidateAssignments` and misses `person-schedule` / `roster-workload`;
+  My Schedule may show its skeleton forever for an account with no linked
+  person (a disabled query is pending in TanStack v5) — check the route guard.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

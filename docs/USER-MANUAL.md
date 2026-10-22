@@ -1223,13 +1223,16 @@ left, services across the top — so you can roster a month in one sitting.
 
 **Position requirements.** On a team's page, set a position's **Minimum
 needed**, **Maximum**, **Fill priority** (which positions the auto-scheduler
-fills first), and whether it **Requires a qualified person (not just
+fills first — lower numbers first, 0 included; blank means the usual 100), and
+whether it **Requires a qualified person (not just
 trainees)**. Minimums are what make empty spots show up as warnings, and what the
 auto-scheduler fills.
 
 **Per-plan minimums.** On a plan's People card (or the Matrix), the **−** and
 **+** beside a position change how many people it needs **for that service
-only** — for example, one extra vocalist at Easter.
+only** — for example, one extra vocalist at Easter. When a conditional rule
+(below) has raised the number, both places show the rule's number (hover it to
+see which rule); changing it there overrides the rule for that service.
 
 **Conditional rules.** **Who:** admins and coordinators, on the **Teams** page.
 A conditional rule changes what a service needs depending on who is rostered.
@@ -1265,7 +1268,8 @@ plan only. When a rule needs a specific person, the plan shows a one-click
 fills the empty required spots for you. It's not AI — it follows your rules:
 who is set up for each position and at what level, blockouts, how often each
 person serves and when they last did, their limits and pairings, and the
-conditional rules. It shows a list of suggestions grouped by team; untick any you
+conditional rules. It never suggests someone who has already declined that
+service. It shows a list of suggestions grouped by team; untick any you
 don't want and add the rest. It only fills positions that have a minimum set.
 
 **Suggest a song (optional AI).** If your church has switched on AI help, the
@@ -1708,7 +1712,8 @@ appears.
 
 1. Press the **⋯** beside the declined person → **Find replacement**.
 2. The dialog shows their reason, then a ranked list of available people —
-   anyone blocked out, already serving or over their limit is left out. Pick one.
+   anyone blocked out, already serving, over their limit or who has also
+   declined this service is left out. Pick one.
 3. Send the new person's request (**Send email** from their ⋯ menu, or **Send
    requests**).
 
