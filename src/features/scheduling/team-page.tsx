@@ -154,6 +154,8 @@ function PositionRequirementsDialog({
   function save() {
     const min = Number.parseInt(minCount, 10) || 0
     const max = maxCount.trim() === '' ? null : Number.parseInt(maxCount, 10)
+    // 0 is a real priority (lower fills first); only a blank falls back.
+    const parsedPriority = Number.parseInt(priority, 10)
     if (max != null && max < min) {
       toast.error('Maximum must be at least the minimum')
       return
@@ -162,7 +164,7 @@ function PositionRequirementsDialog({
       min_count: min,
       max_count: max,
       requires_level: needsQualified ? 'qualified' : null,
-      fill_priority: Number.parseInt(priority, 10) || 100,
+      fill_priority: Number.isNaN(parsedPriority) ? 100 : parsedPriority,
     })
   }
 

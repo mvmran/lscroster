@@ -242,6 +242,20 @@ export function buildPlanValidation(
   return { errors, warnings, all: [...errors, ...warnings], isPending: false }
 }
 
+/**
+ * Validation plus the resolved minimums for one plan, from one state build —
+ * a Matrix column needs both: the badges, and the number a fired rule set.
+ */
+export function buildPlanSchedulingView(
+  plan: PlanWithType,
+  planAssignments: AssignmentWithPerson[],
+  data: SchedulingRulesData['data'],
+): { all: RuleResult[]; minimums: ResolvedRequirements['minimums'] } {
+  const state = buildServiceState(plan, planAssignments, data)
+  const { errors, warnings } = validateService(state)
+  return { all: [...errors, ...warnings], minimums: resolveStateRequirements(state).minimums }
+}
+
 /** The full validator input for one plan — shared by validation and the
  * effective-requirements resolver (issue #113 chips/steppers). */
 export function buildServiceState(
@@ -376,6 +390,17 @@ const POSITION_LEVEL_CODES = new Set([
   'CONDITIONAL_PERSON_MISSING',
   'NO_REQUIRED_LEVEL',
 ])
+
+const UNDERSTAFFED_CODES = new Set([
+  'MANDATORY_UNFILLED',
+  'CONDITIONAL_MIN_UNFILLED',
+  'CONDITIONAL_PERSON_MISSING',
+])
+
+/** A position still needs people — below its minimum, or a rule's demand unmet. */
+export function isUnderstaffed(positionResults: RuleResult[]): boolean {
+  return positionResults.some((r) => UNDERSTAFFED_CODES.has(r.code))
+}
 
 /** Coverage results for a position (slot header badges). */
 export function resultsByPosition(results: RuleResult[]): Map<string, RuleResult[]> {

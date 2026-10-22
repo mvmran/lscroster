@@ -361,6 +361,8 @@ export function usePositionMutations(teamId: string) {
     queryClient.invalidateQueries({ queryKey: teamKeys.positions(teamId) })
     queryClient.invalidateQueries({ queryKey: ['positions'] })
     queryClient.invalidateQueries({ queryKey: teamKeys.all })
+    // Deleting a position takes members' eligibility for it with it.
+    queryClient.invalidateQueries({ queryKey: ['team-members'] })
   }
   const create = useMutation({
     mutationFn: async (values: Omit<TablesInsert<'positions'>, 'team_id'>) => {
@@ -438,8 +440,10 @@ export function useUpdatePositionMinCount() {
 
 export function useMembershipMutations() {
   const queryClient = useQueryClient()
-  const invalidate = (teamId: string, personId: string) => {
-    queryClient.invalidateQueries({ queryKey: teamKeys.members(teamId) })
+  const invalidate = (personId: string) => {
+    // The prefix covers this team's list and `useAllTeamMembers` — the
+    // church-wide eligibility the validator and the auto-scheduler read.
+    queryClient.invalidateQueries({ queryKey: ['team-members'] })
     queryClient.invalidateQueries({ queryKey: teamKeys.membershipsOf(personId) })
     queryClient.invalidateQueries({ queryKey: teamKeys.all })
   }
@@ -453,7 +457,7 @@ export function useMembershipMutations() {
       if (error) throw new Error(error.message)
       return data
     },
-    onSuccess: (m) => invalidate(m.team_id, m.person_id),
+    onSuccess: (m) => invalidate(m.person_id),
   })
   const addPosition = useMutation({
     mutationFn: async ({
@@ -469,7 +473,7 @@ export function useMembershipMutations() {
       if (error) throw new Error(error.message)
       return member
     },
-    onSuccess: (m) => invalidate(m.team_id, m.person_id),
+    onSuccess: (m) => invalidate(m.person_id),
   })
   const removePosition = useMutation({
     mutationFn: async ({
@@ -487,7 +491,7 @@ export function useMembershipMutations() {
       if (error) throw new Error(error.message)
       return member
     },
-    onSuccess: (m) => invalidate(m.team_id, m.person_id),
+    onSuccess: (m) => invalidate(m.person_id),
   })
   // Change how well a member fills a position: trainee ⇄ qualified (issue #30).
   const setProficiency = useMutation({
@@ -508,7 +512,7 @@ export function useMembershipMutations() {
       if (error) throw new Error(error.message)
       return member
     },
-    onSuccess: (m) => invalidate(m.team_id, m.person_id),
+    onSuccess: (m) => invalidate(m.person_id),
   })
   const remove = useMutation({
     mutationFn: async (member: Tables<'team_members'>) => {
@@ -519,7 +523,7 @@ export function useMembershipMutations() {
       if (error) throw new Error(error.message)
       return member
     },
-    onSuccess: (m) => invalidate(m.team_id, m.person_id),
+    onSuccess: (m) => invalidate(m.person_id),
   })
   return { add, addPosition, removePosition, setProficiency, remove }
 }

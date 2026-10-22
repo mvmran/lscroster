@@ -81,11 +81,13 @@ import {
   type AssignmentWithPerson,
 } from '@/features/scheduling/use-assignments'
 import {
-  buildPlanValidation,
+  buildPlanSchedulingView,
+  isUnderstaffed,
   resultsByPerson,
   resultsByPosition,
   useSchedulingRulesData,
 } from '@/features/scheduling/use-service-state'
+import type { EffectiveMinimum } from '@/features/scheduling/conditional-rules'
 import { worstSeverity, type RuleResult } from '@/features/scheduling/validate-service'
 import { fillMatrixWindow } from '@/features/scheduling/matrix-utils'
 import { SuggestRosterButton } from '@/features/scheduling/auto-schedule-dialog'
@@ -107,10 +109,7 @@ import {
   useAllPositions,
   useTeams,
 } from '@/features/scheduling/use-teams'
-import {
-  useAllPlanMinCounts,
-  useSetPlanMinCount,
-} from '@/features/scheduling/use-scheduling-rules'
+import { usePlanMinStepper } from '@/features/scheduling/use-scheduling-rules'
 import type { Position } from '@/features/scheduling/scheduling-utils'
 import { useTeamPermissions } from '@/features/scheduling/use-team-access'
 import { PERSON_SAFE_COLUMNS } from '@/features/people/use-people'
@@ -157,28 +156,32 @@ function useMatrixAssignments(planIds: string[]) {
 
 /**
  * Inline minimum-required stepper for a position, rendered inside the Matrix
- * add-cell's "…" menu (issue #109). Mirrors the plan page's PositionMinCount —
- * edits the **per-plan** override (issue #110), falling back to the position's
- * team-wide `min_count` default, with an optimistic cache update.
+ * add-cell's "…" menu (issue #109). Same value as the plan page's
+ * PositionMinCount (`usePlanMinStepper`): the **per-plan** override (issue
+ * #110), else a fired rule's minimum, else the team-wide `min_count`.
  */
-function MatrixMinCount({ planId, position }: { planId: string; position: Position }) {
-  const { data: overrides } = useAllPlanMinCounts()
-  const setMin = useSetPlanMinCount()
-  const override = overrides?.find(
-    (o) => o.plan_id === planId && o.position_id === position.id,
-  )?.min_count
-  const value = override ?? position.min_count
-
-  function set(next: number) {
-    if (next < 0 || next > 99 || next === value) return
-    setMin.mutate(
-      { planId, positionId: position.id, minCount: next },
-      { onError: (e) => toast.error(e.message) },
-    )
-  }
+function MatrixMinCount({
+  planId,
+  position,
+  effective,
+}: {
+  planId: string
+  position: Position
+  effective?: EffectiveMinimum
+}) {
+  const stepper = usePlanMinStepper(planId, position, effective)
+  const { value, ruleSet } = stepper
+  const set = (next: number) => stepper.set(next, (e) => toast.error(e.message))
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5">
+    <div
+      className="flex items-center gap-1 px-2 py-1.5"
+      title={
+        ruleSet?.rule
+          ? `Set by rule "${ruleSet.rule.name}". Changing it here overrides the rule for this plan only.`
+          : undefined
+      }
+    >
       <span className="text-muted-foreground mr-auto text-xs">Min required</span>
       <span
         className="inline-flex shrink-0"
@@ -188,7 +191,7 @@ function MatrixMinCount({ planId, position }: { planId: string; position: Positi
           variant="outline"
           size="icon"
           className="size-6"
-          disabled={value <= 0 || setMin.isPending}
+          disabled={value <= 0 || stepper.isPending}
           onClick={() => set(value - 1)}
           aria-label={`Decrease minimum for ${position.name}`}
           title="One less person needed here"
@@ -203,7 +206,7 @@ function MatrixMinCount({ planId, position }: { planId: string; position: Positi
         variant="outline"
         size="icon"
         className="size-6"
-        disabled={setMin.isPending}
+        disabled={stepper.isPending}
         onClick={() => set(value + 1)}
         aria-label={`Increase minimum for ${position.name}`}
         title="One more person needed here"
@@ -221,6 +224,7 @@ function MatrixCell({
   teamServesPlan,
   canManage,
   positionResults,
+  effectiveMin,
   personResultsById,
   onAdd,
   onReplace,
@@ -234,6 +238,8 @@ function MatrixCell({
   canManage: boolean
   /** Coverage results for this position in this plan (issue #34). */
   positionResults: RuleResult[]
+  /** The resolved minimum here — a fired rule's number shows in the stepper. */
+  effectiveMin?: EffectiveMinimum
   /** person_id → that person's validation results in this plan. */
   personResultsById: Map<string, RuleResult[]>
   onAdd: () => void
@@ -277,7 +283,8 @@ function MatrixCell({
     return <td className="text-muted-foreground/40 border-l p-2 text-center">—</td>
   }
 
-  const understaffed = positionResults.some((r) => r.code === 'MANDATORY_UNFILLED')
+  // Same test as the plan page: a rule's unmet minimum or person counts too.
+  const understaffed = isUnderstaffed(positionResults)
 
   return (
     <td className="border-l p-1.5 align-top">
@@ -422,7 +429,7 @@ function MatrixCell({
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>{position.name}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <MatrixMinCount planId={plan.id} position={position} />
+                <MatrixMinCount planId={plan.id} position={position} effective={effectiveMin} />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onAdd}>
                   <UserPlus className="size-4" />
@@ -815,12 +822,24 @@ export function MatrixPage() {
   const validationByPlan = useMemo(() => {
     const map = new Map<
       string,
-      { byPosition: Map<string, RuleResult[]>; byPerson: Map<string, RuleResult[]> }
+      {
+        byPosition: Map<string, RuleResult[]>
+        byPerson: Map<string, RuleResult[]>
+        minimums: Map<string, EffectiveMinimum>
+      }
     >()
     if (rules.isPending) return map
     for (const plan of matrixPlans) {
-      const { all } = buildPlanValidation(plan, assignmentsByPlan[plan.id] ?? [], rules.data)
-      map.set(plan.id, { byPosition: resultsByPosition(all), byPerson: resultsByPerson(all) })
+      const { all, minimums } = buildPlanSchedulingView(
+        plan,
+        assignmentsByPlan[plan.id] ?? [],
+        rules.data,
+      )
+      map.set(plan.id, {
+        byPosition: resultsByPosition(all),
+        byPerson: resultsByPerson(all),
+        minimums,
+      })
     }
     return map
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1164,13 +1183,14 @@ export function MatrixPage() {
                   ))}
                 </tr>
               )}
-              {sortedTeams.map((team, teamIndex) => {
+              {reorderableTeams.map((team, teamIndex) => {
                 const teamPositions = (positions ?? []).filter(
                   (p) => p.team_id === team.id,
                 )
-                if (teamPositions.length === 0) return null
                 // The first team heading carries a per-column "Suggest roster"
-                // button that auto-fills that service's visible roster.
+                // button that auto-fills that service's visible roster. Only
+                // teams with positions are mapped, so a new, empty team sorted
+                // first can't take index 0 and hide the buttons.
                 const showSuggest = teamIndex === 0 && canManageAny
                 const teamCollapsed = collapsedTeamIds.has(team.id)
                 return [
@@ -1269,6 +1289,7 @@ export function MatrixPage() {
                             positionResults={
                               planValidation?.byPosition.get(position.id) ?? []
                             }
+                            effectiveMin={planValidation?.minimums.get(position.id)}
                             personResultsById={
                               planValidation?.byPerson ?? new Map()
                             }

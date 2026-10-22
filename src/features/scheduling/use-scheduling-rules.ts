@@ -4,6 +4,7 @@ import { fullName } from '@/features/people/person-utils'
 import { normalizePair } from '@/features/scheduling/scheduling-utils'
 import type {
   ConditionalRule,
+  EffectiveMinimum,
   RuleAttribute,
   RuleCondition,
   RuleEffect,
@@ -95,6 +96,33 @@ export function useSetPlanMinCount() {
   })
 }
 
+/**
+ * The "Min" stepper's value and setter, shared by the plan page and the Matrix
+ * so they always show the same number. A manual override wins; otherwise a
+ * fired conditional rule's minimum (issue #113); otherwise the team default.
+ * Stepping writes an override, which then wins over the rule for this plan.
+ */
+export function usePlanMinStepper(
+  planId: string,
+  position: { id: string; min_count: number },
+  effective?: EffectiveMinimum,
+) {
+  const { data: overrides } = useAllPlanMinCounts()
+  const setMin = useSetPlanMinCount()
+  const override = overrides?.find(
+    (o) => o.plan_id === planId && o.position_id === position.id,
+  )?.min_count
+  const ruleSet = override == null && effective?.source === 'rule' ? effective : null
+  const value = override ?? ruleSet?.min ?? position.min_count
+
+  function set(next: number, onError: (error: Error) => void) {
+    if (next < 0 || next > 99 || next === value) return
+    setMin.mutate({ planId, positionId: position.id, minCount: next }, { onError })
+  }
+
+  return { value, ruleSet, set, isPending: setMin.isPending }
+}
+
 /** A person's non-declined assignment date for workload/cadence checks. */
 export interface RosteredDate {
   person_id: string
@@ -134,8 +162,11 @@ export function useUpsertPersonPrefs(personId: string) {
       if (error) throw new Error(error.message)
       return data as PersonSchedulingPrefs
     },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.prefs(personId) }),
+    // The whole-table key feeds the validator and the auto-scheduler.
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.prefs(personId) })
+      queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.allPrefs })
+    },
   })
 }
 
@@ -159,8 +190,10 @@ export function useRecurringUnavailability(personId: string | undefined) {
 
 export function useRecurringUnavailabilityMutations(personId: string) {
   const queryClient = useQueryClient()
-  const invalidate = () =>
+  const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.recurring(personId) })
+    queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.allRecurring })
+  }
   const add = useMutation({
     mutationFn: async (
       values: Omit<TablesInsert<'person_recurring_unavailability'>, 'person_id'>,
@@ -208,6 +241,7 @@ export function usePairingMutations(personId: string) {
   const invalidate = (otherId: string) => {
     queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.pairings(personId) })
     queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.pairings(otherId) })
+    queryClient.invalidateQueries({ queryKey: schedulingRuleKeys.allPairings })
   }
   const add = useMutation({
     mutationFn: async ({

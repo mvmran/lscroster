@@ -77,8 +77,7 @@ import {
   useTeams,
 } from '@/features/scheduling/use-teams'
 import {
-  useAllPlanMinCounts,
-  useSetPlanMinCount,
+  usePlanMinStepper,
   useSetPlanRuleMute,
 } from '@/features/scheduling/use-scheduling-rules'
 import {
@@ -88,6 +87,7 @@ import {
   type RuleEvaluation,
 } from '@/features/scheduling/conditional-rules'
 import {
+  isUnderstaffed,
   resultsByPerson,
   resultsByPosition,
   usePlanRequirements,
@@ -388,23 +388,9 @@ function PositionMinCount({
   /** Resolved minimum with provenance — shows when a rule set the number. */
   effective?: EffectiveMinimum
 }) {
-  const { data: overrides } = useAllPlanMinCounts()
-  const setMin = useSetPlanMinCount()
-  const override = overrides?.find(
-    (o) => o.plan_id === planId && o.position_id === position.id,
-  )?.min_count
-  // A fired conditional rule (issue #113) sets the number when there's no
-  // manual override; stepping it writes an override, which then wins.
-  const ruleSet = override == null && effective?.source === 'rule' ? effective : null
-  const value = override ?? ruleSet?.min ?? position.min_count
-
-  function set(next: number) {
-    if (next < 0 || next > 99 || next === value) return
-    setMin.mutate(
-      { planId, positionId: position.id, minCount: next },
-      { onError: (e) => toast.error(e.message) },
-    )
-  }
+  const stepper = usePlanMinStepper(planId, position, effective)
+  const { value, ruleSet } = stepper
+  const set = (next: number) => stepper.set(next, (e) => toast.error(e.message))
 
   return (
     <div
@@ -424,7 +410,7 @@ function PositionMinCount({
           variant="ghost"
           size="icon"
           className="size-6"
-          disabled={value <= 0 || setMin.isPending}
+          disabled={value <= 0 || stepper.isPending}
           onClick={() => set(value - 1)}
           aria-label={`Decrease minimum for ${position.name}`}
           title="One less person needed here"
@@ -446,7 +432,7 @@ function PositionMinCount({
         variant="ghost"
         size="icon"
         className="size-6"
-        disabled={setMin.isPending}
+        disabled={stepper.isPending}
         onClick={() => set(value + 1)}
         aria-label={`Increase minimum for ${position.name}`}
         title="One more person needed here"
@@ -862,12 +848,7 @@ export function SchedulingPanel({ plan }: { plan: PlanWithType }) {
                       (a) => a.position_id === position.id,
                     )
                     const posResults = byPosition.get(position.id) ?? []
-                    const understaffed = posResults.some(
-                      (r) =>
-                        r.code === 'MANDATORY_UNFILLED' ||
-                        r.code === 'CONDITIONAL_MIN_UNFILLED' ||
-                        r.code === 'CONDITIONAL_PERSON_MISSING',
-                    )
+                    const understaffed = isUnderstaffed(posResults)
                     // Unmet person-requirements with no row at all here — a
                     // declined row means they said no; don't offer to re-add.
                     const missingRequired = teamManage

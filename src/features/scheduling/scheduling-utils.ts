@@ -105,8 +105,10 @@ export function isBlockedOut(
  * Times are 'HH:MM:SS' strings, so lexicographic compare is chronological.
  * A service with no end time is treated as a point in time, so two such
  * services only clash when they start at exactly the same time — being on two
- * services the same day at different times is fine. When a start time is
- * unknown we can't rule out a clash, so we warn (conservative).
+ * services the same day at different times is fine. A point clashes with a
+ * range it falls in, start included (10:00 against 10:00–12:00), end excluded.
+ * When a start time is unknown we can't rule out a clash, so we warn
+ * (conservative).
  */
 export function timesOverlap(
   aStart: string | null,
@@ -120,5 +122,7 @@ export function timesOverlap(
   const aIsPoint = ae <= aStart
   const bIsPoint = be <= bStart
   if (aIsPoint && bIsPoint) return aStart === bStart
+  if (aIsPoint) return bStart <= aStart && aStart < be
+  if (bIsPoint) return aStart <= bStart && bStart < ae
   return aStart < be && bStart < ae
 }
