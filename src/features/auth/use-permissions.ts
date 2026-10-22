@@ -108,6 +108,14 @@ function useSettleGrantWrite(personId: string) {
   }
 }
 
+/** A copy of `held` with `permission` added or removed. */
+function setHeld(held: Set<Permission> | undefined, permission: Permission, on: boolean) {
+  const next = new Set(held ?? NONE)
+  if (on) next.add(permission)
+  else next.delete(permission)
+  return next
+}
+
 /** Grant or revoke one permission. */
 export function useTogglePermission(personId: string) {
   const queryClient = useQueryClient()
@@ -133,23 +141,23 @@ export function useTogglePermission(personId: string) {
       if (error) throw new Error(error.message)
     },
     // Optimistic: flip the checkbox in the cache at once so the card never has
-    // to disable itself and block on the round-trip. Roll back on error, then
-    // reconcile with the server on settle (success or failure).
+    // to disable itself and block on the round-trip. On error put back only
+    // this permission — onMutate runs for every queued write straight away, so
+    // restoring a whole snapshot would also undo the ticks of later writes
+    // still waiting their turn. Reconcile with the server on settle.
     onMutate: async ({ permission, granted }) => {
       const key = permissionKeys.person(personId)
       await queryClient.cancelQueries({ queryKey: key })
       const previous = queryClient.getQueryData<Set<Permission>>(key)
-      queryClient.setQueryData<Set<Permission>>(key, (old) => {
-        const next = new Set(old ?? NONE)
-        if (granted) next.add(permission)
-        else next.delete(permission)
-        return next
-      })
+      queryClient.setQueryData<Set<Permission>>(key, (old) => setHeld(old, permission, granted))
       return { previous }
     },
-    onError: (_error, _vars, context) => {
+    onError: (_error, { permission }, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(permissionKeys.person(personId), context.previous)
+        const wasHeld = context.previous.has(permission)
+        queryClient.setQueryData<Set<Permission>>(permissionKeys.person(personId), (old) =>
+          setHeld(old, permission, wasHeld),
+        )
       }
     },
     onSettled: settle,

@@ -6,8 +6,14 @@ import { z } from 'zod'
  */
 export const RECOVERY_WINDOW_SECONDS = 60 * 60
 
+// GoTrue issues `{ method, timestamp }` entries. A custom access-token hook may
+// rewrite them as plain strings (RFC 8176), which carry no time, so they can
+// never prove the link is recent — accepted here only so they don't fail the
+// whole parse, and never counted.
 const claimsSchema = z.object({
-  amr: z.array(z.object({ method: z.string(), timestamp: z.number() })).optional(),
+  amr: z
+    .array(z.union([z.object({ method: z.string(), timestamp: z.number() }), z.string()]))
+    .optional(),
 })
 
 /** The payload of a JWT, or null when it can't be read. */
@@ -39,6 +45,7 @@ export function isRecentRecovery(
   if (!claims.success) return false
   return (claims.data.amr ?? []).some(
     (entry) =>
+      typeof entry !== 'string' &&
       entry.method === 'otp' &&
       nowSeconds - entry.timestamp <= RECOVERY_WINDOW_SECONDS,
   )

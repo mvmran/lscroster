@@ -283,6 +283,15 @@ In the Supabase Dashboard:
    your admin account through a different, one-time-only path.
 2. **Authentication → URL Configuration**: set **Site URL** to your `APP_URL`,
    and add it to **Redirect URLs** as well. Password-reset links depend on this.
+3. **Require the current password to change a password.** Turn on the auth
+   setting that asks for the current password when someone sets a new one (the
+   auth server calls it `update_password_require_current_password`). LSCroster's
+   Change password form already asks for it, but the form isn't what the server
+   checks: without this setting, anyone who picks up a phone that is still
+   signed in can set a new password through the API and lock its owner out.
+   Reset links keep working — the server lets a session opened by a reset link
+   set a password without the old one. Don't confuse it with "Secure password
+   change", which only asks again once a sign-in is more than 24 hours old.
 
 This is the only step in the guide that needs the dashboard. To prove the first
 toggle took effect, ask the API to create an account — it should refuse:

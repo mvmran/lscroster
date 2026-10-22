@@ -42,11 +42,12 @@ const EMPTY: ChangePasswordValues = { current: '', password: '', confirm: '' }
 /**
  * Let someone change their own password from their profile (issue #138).
  *
- * Supabase's `updateUser` does not ask for the old password, so we prove it
- * ourselves first by signing in with it. That re-authenticates the session,
- * which also satisfies Supabase's "secure password change" setting if an
- * instance has it switched on, and means a walked-away-from session cannot be
- * used to lock the owner out.
+ * The current password goes to `updateUser` as `current_password`, which the
+ * auth server checks when the instance requires it (docs/SETUP.md, Step 8) —
+ * that is what stops a walked-away-from session being used to lock the owner
+ * out, since anyone holding the session can call the API without this form.
+ * Without that setting the server ignores the field, so we also prove the
+ * password ourselves first by signing in with it.
  */
 export function ChangePasswordCard() {
   const { session } = useAuth()
@@ -79,7 +80,14 @@ export function ChangePasswordCard() {
       return
     }
 
-    const { error } = await supabase.auth.updateUser({ password: values.password })
+    const { error } = await supabase.auth.updateUser({
+      password: values.password,
+      current_password: values.current,
+    })
+    if (error?.code === 'current_password_invalid') {
+      form.setError('current', { message: 'That is not your current password.' })
+      return
+    }
     if (error) {
       setServerError(error.message)
       return

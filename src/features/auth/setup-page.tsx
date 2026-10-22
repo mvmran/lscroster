@@ -34,14 +34,23 @@ import { COMMON_TIMEZONES, DEFAULT_TIMEZONE } from '@/lib/constants'
 import { invokeFunction } from '@/lib/functions'
 import { supabase } from '@/lib/supabase'
 
-const setupSchema = z.object({
-  churchName: z.string().trim().min(1, { error: 'Enter your church name' }),
-  timezone: z.string().min(1, { error: 'Choose a timezone' }),
-  firstName: z.string().trim().min(1, { error: 'Enter your first name' }),
-  lastName: z.string().trim().min(1, { error: 'Enter your last name' }),
-  email: z.email({ error: 'Enter a valid email address' }),
-  password: passwordField,
-})
+// Confirmed like every other password form: setup runs once, and a mistyped
+// first-admin password (with email not set up yet to reset it) locks the only
+// admin out.
+const setupSchema = z
+  .object({
+    churchName: z.string().trim().min(1, { error: 'Enter your church name' }),
+    timezone: z.string().min(1, { error: 'Choose a timezone' }),
+    firstName: z.string().trim().min(1, { error: 'Enter your first name' }),
+    lastName: z.string().trim().min(1, { error: 'Enter your last name' }),
+    email: z.email({ error: 'Enter a valid email address' }),
+    password: passwordField,
+    confirm: z.string(),
+  })
+  .refine((v) => v.password === v.confirm, {
+    error: 'Passwords do not match',
+    path: ['confirm'],
+  })
 
 type SetupValues = z.infer<typeof setupSchema>
 
@@ -60,6 +69,7 @@ export function SetupPage() {
       lastName: '',
       email: '',
       password: '',
+      confirm: '',
     },
   })
 
@@ -70,7 +80,14 @@ export function SetupPage() {
   async function onSubmit(values: SetupValues) {
     setServerError(null)
     try {
-      await invokeFunction('setup', values)
+      await invokeFunction('setup', {
+        churchName: values.churchName,
+        timezone: values.timezone,
+        firstName: values.firstName,
+        lastName: values.lastName,
+        email: values.email,
+        password: values.password,
+      })
     } catch (error) {
       setServerError(error instanceof Error ? error.message : 'Setup failed')
       return
@@ -197,6 +214,19 @@ export function SetupPage() {
                 </p>
               ) : (
                 <p className="text-muted-foreground text-xs">{PASSWORD_HINT}</p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="confirm">Confirm password</Label>
+              <PasswordInput
+                id="confirm"
+                autoComplete="new-password"
+                {...form.register('confirm')}
+              />
+              {errors.confirm && (
+                <p className="text-destructive text-sm">
+                  {errors.confirm.message}
+                </p>
               )}
             </div>
 

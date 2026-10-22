@@ -30,6 +30,13 @@ describe('isRecentRecovery', () => {
     expect(isRecentRecovery(token({ amr: [{ method: 'otp', timestamp: old }] }), NOW)).toBe(false)
   })
 
+  it('refuses the timeless string form of amr, but still reads object entries beside it', () => {
+    expect(isRecentRecovery(token({ amr: ['otp'] }), NOW)).toBe(false)
+    expect(
+      isRecentRecovery(token({ amr: ['mfa', { method: 'otp', timestamp: NOW - 60 }] }), NOW),
+    ).toBe(true)
+  })
+
   it('refuses no session, a token without amr, and a token that is not a JWT', () => {
     expect(isRecentRecovery(null, NOW)).toBe(false)
     expect(isRecentRecovery(token({ sub: 'someone' }), NOW)).toBe(false)

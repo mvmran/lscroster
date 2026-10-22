@@ -234,6 +234,9 @@ double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
 enable_confirmations = false
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
+# "Recently" is 24 hours, so this does not stop a borrowed signed-in session. The
+# setting that does (require the current password) has no key here: production
+# sets it per docs/SETUP.md Step 8, and the local stack runs without it.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
 max_frequency = "1s"

@@ -38,7 +38,9 @@ export function ResetPasswordPage() {
   // turns into a session before INITIAL_SESSION fires (PASSWORD_RECOVERY can
   // follow it, with the same session). Only a session the link opened may set a
   // password here: anyone merely signed in would otherwise skip Change
-  // password's current-password check. No timer — a slow phone still gets there.
+  // password's current-password check. This only steers the page; the auth
+  // server's require-current-password setting (docs/SETUP.md, Step 8) is what
+  // refuses the API call itself. No timer — a slow phone still gets there.
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'INITIAL_SESSION' || event === 'PASSWORD_RECOVERY') {
