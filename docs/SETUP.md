@@ -313,7 +313,8 @@ setup wizard exactly once. Enter:
 - your church's name
 - your timezone (everything the app displays — service times, reminder hours —
   uses this)
-- your own name, email and a password
+- your own name, email and a password, typed twice — there is no reset email
+  until Resend is working, so a typo here would lock you out
 
 Submit, and you are signed in as the first admin. The wizard is now closed
 permanently: every other account arrives by invitation.

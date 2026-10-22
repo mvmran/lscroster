@@ -1691,6 +1691,46 @@ granted, unticked. 0064 applied twice clean.
 **Upgrade note:** `db push` (0064) before the app — the new bundle calls the
 function.
 
+(no migration) **The server can refuse a password change; setup confirms the
+password** (2026-10-23, `5446bba`, findings 1–4 of a second `/code-review high`
+of `src/features/auth`):
+- Any signed-in session could still set a new password straight through the
+  API (`updateUser({ password })`) — the reset page's check and Change
+  password's sign-in check are both browser-side. GoTrue's
+  `update_password_require_current_password` closes it: tested on local
+  GoTrue 2.189 with a throwaway container, a password session is refused with
+  no current password (`current_password_required`) or a wrong one
+  (`current_password_invalid`), and a reset-link session still sets one
+  without. `secure_password_change` does not help: a session under 24 hours
+  old changed its password with nothing. Change password now sends
+  `current_password` and keeps its sign-in check, because with the setting off
+  the server ignores the field (a wrong one passed). The CLI has no
+  `config.toml` key for it, so it is a dashboard step (`SETUP.md` Step 8).
+- `isRecentRecovery()`: the string form of `amr` (only from a custom
+  access-token hook; a real local reset link issues `{method: 'otp',
+  timestamp}`) no longer fails the whole parse; a timeless entry never counts.
+- The setup wizard asks for the first admin's password twice and sends only
+  the fields `setup` reads.
+- A failed permission toggle rolls back only its own permission — restoring
+  the `onMutate` snapshot also wiped the ticks of later queued writes.
+`npm run ci` green. The setup page was checked by typecheck and build only (the
+local database is already set up, so it redirects).
+**Upgrade note:** app only — but turn on "require current password" in the
+Supabase dashboard's auth settings (`SETUP.md` Step 8, item 3); until then a
+borrowed signed-in session can still change the password through the API.
+The new bundle works with the setting on or off.
+- [ ] **Turn on "require current password" on Life Sanctuary's production
+  project.**
+- [ ] **Open from the same review** (unverified, worst first): the recovery
+  hour compares the device clock with the server's `amr` timestamp, so a phone
+  clock an hour out rejects good links; `usePermissions` has no loading state,
+  so `songDeleteAllowed` / `personDeleteAllowed` read `true` before settings
+  load; accept-invite drops to `/signin` with no message when the
+  auto-sign-in fails (the invite is then used); `use-current-person.ts` casts
+  `people_directory` rows to `Tables<'people'>`; `recovery-session.ts` decodes
+  the JWT by hand where `getClaims()` would do. (Sign-in dropping
+  `search`/`hash` is already open above.)
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
