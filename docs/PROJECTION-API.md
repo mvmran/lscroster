@@ -316,6 +316,8 @@ Suggested operator surfaces (unchanged from the old client doc):
 `429 rate_limited`; back off for at least 30 seconds. A normal operator flow (list →
 pick → fetch → occasional refresh) uses a handful of requests per service, so the limit
 only bites scripted polling. Do not poll on a timer faster than once a minute.
+Refused (429) requests don't count towards the limit, so a client that backs off is
+served again within a minute.
 
 Every request is also logged server-side (key, endpoint, plan ID, timestamp) for the
 church's CCLI usage reporting and abuse detection.

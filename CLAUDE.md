@@ -75,6 +75,7 @@ Storage buckets (all private, served via signed URLs): `photos`,
 
 - Supabase Auth, email + password, **invite-only** (public signups disabled). Admin invites a person → invitation email (Resend) → person sets password → account linked to their `people` row.
 - All outbound email goes through the shared Resend helper in `supabase/functions/_shared/resend.ts`; every send attempt is logged to `email_log` (admin-viewable at Settings → Email log). HTML templates live in `supabase/functions/_shared/email-templates/`.
+- A failed send must not read as sent. Anything stamped before a batch goes out (a new `token_hash`, `notified_at`, `nudged_at`, `reminded_at`) is put back when that email fails, so the job retries and the person's existing link keeps working (`send-requests`, `reminders`). Do the database change before the notice about it (cancel-assignment deletes, then emails).
 - Scheduling requests are answerable **without logging in**: emails link to `APP_URL/respond/<token>` (raw token only ever in the email; sha-256 hash in `plan_assignments.token_hash`), and that public page calls the `respond-to-request` Edge Function (verify_jwt off — the token is the credential). Answers can be changed until the service date passes.
 - Reminders and the roster-status digest: the hourly `pg_cron` job, its Vault secrets and the three jobs it runs are documented in `supabase/functions/CLAUDE.md`.
 

@@ -1436,7 +1436,11 @@ For one person's serving history, see the **Schedules** card on their page
 Every email LSCroster sent in the last 14 days, with how many were delivered and
 how many failed. Search by email address or tick **Show only errors**; hover over
 an *Error* badge to see why it failed. Use it when someone says "I never got the
-email".
+email". Invitations and test emails are listed too.
+
+A failed request, nudge or reminder is tried again: the request stays **Not
+sent**, so the next *Send requests* picks it up, and nudges and reminders retry
+at the next day's send hour.
 
 **Send test email** (on the Email delivery card — admins and coordinators) sends
 you a test message to check email is working.

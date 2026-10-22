@@ -103,7 +103,8 @@ name a language). So it asks a stronger model at a higher thinking level:
 The handler assembles the context server-side (plan songs, candidate library
 songs minus those on the plan and minus the client's rejected ids, and recent
 plan groupings), capped at 300 candidates / 40 history plans to bound the
-prompt. Reads go through `fetchAll`, which pages past PostgREST's `max_rows`
+prompt. Reads go through `fetchAll` (`_shared/fetch-all.ts`, also used by the
+roster digest's assignments read), which pages past PostgREST's `max_rows`
 (1000) — it truncates silently — and throws on a query error, which the handler
 answers as a JSON 500 (an empty library would otherwise read as "exhausted").
 `summarizeUsage` (pure, tested) skips the plan being built and counts "last

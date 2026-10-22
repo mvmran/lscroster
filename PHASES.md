@@ -1601,6 +1601,41 @@ a linked arrangement → one entry each; a team with 7 positions → one
 deleted directly → still logged. 0049 and 0063 each applied twice clean.
 **Upgrade note:** `db push` (0063) — no app change.
 
+(no migration) **A failed email no longer counts as sent** (2026-10-22,
+`8cc0149`, from a `/code-review high` of `supabase/functions`):
+- `send-requests` and `reminders` stamped the row (new `token_hash`,
+  `notified_at` / `nudged_at` / `reminded_at`) before the batch went out and
+  never undid it, so a Resend failure read as delivered: the bulk send skipped
+  the person, and a failed resend or nudge broke the link they already had.
+  Each row is now restored when its email fails; nudges and reminders retry at
+  the next day's send hour.
+- `cancel-assignment` deletes the assignment before emailing the notice;
+  `delete-person` removes the photo only after the row is gone.
+- `projection-api`: 429s no longer count towards the 60/minute limit (a client
+  polling once a second was locked out for as long as it kept polling).
+- Roster digest: the assignments read pages past `max_rows` via `fetchAll`,
+  now shared from `_shared/fetch-all.ts` (was local to `suggest-song`).
+- `account-access` clear-email notifies only someone who had a login;
+  `invite` and `send-email` (test) now write to `email_log`.
+- `reminders` fetches email prefs once per pass and plan times once per plan;
+  `invite`, `accept-invitation` and `request-password-reset` use the shared
+  `sha256Hex` / `randomToken` / `appUrl`.
+Verified on the local stack with Resend unset (every send fails): bulk send
+and resend left rows untouched (an existing `token_hash` survived), forced
+nudge and reminder runs restored `token_hash` / `nudged_at` / `reminded_at`,
+the digest ran through the paged read, and cancel removed the row before the
+email. `npm run ci` green; the three check-excluded files show only their
+known errors. Left alone: `projection-api` still logs requests with no valid
+key (bounded by the function invocation quota).
+**Upgrade note:** `functions deploy` (all functions) — no migration, no app
+change.
+- [ ] **Open — nudges are sent once, but the app says they repeat.** The
+  `reminders` job sends one nudge per request (`nudged_at is null`), yet
+  Settings → Communications ("Days between follow-up emails … until they do")
+  and USER-MANUAL §10.2 / §14.1 ("repeated every few days until you do",
+  "every 3 days") promise a repeat. Decide which is right — repeat the nudge,
+  or reword both to "one follow-up after N days".
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
