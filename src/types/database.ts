@@ -2238,6 +2238,32 @@ export type Database = {
       can_schedule_team: { Args: { target_team_id: string }; Returns: boolean }
       can_see_all_plans: { Args: never; Returns: boolean }
       can_view_contact: { Args: { target: string }; Returns: boolean }
+      create_plans: {
+        Args: {
+          p_dates: string[]
+          p_inherit_start?: boolean
+          p_plan: Json
+          p_source_id?: string
+          p_source_kind?: string
+        }
+        Returns: {
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+          service_type_id: string
+          start_time: string | null
+          status: Database["public"]["Enums"]["plan_status"]
+          title: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "plans"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       current_actor_person_id: { Args: never; Returns: string }
       current_person_id: { Args: never; Returns: string }
       current_person_role: {
@@ -2282,6 +2308,16 @@ export type Database = {
       }
       save_conditional_rule: {
         Args: { p_effects: Json; p_rule: Json; p_rule_id?: string }
+        Returns: string
+      }
+      save_plan_template: {
+        Args: {
+          p_items: Json
+          p_min_counts: Json
+          p_template: Json
+          p_template_id?: string
+          p_times: Json
+        }
         Returns: string
       }
       schedules_any_team: { Args: never; Returns: boolean }

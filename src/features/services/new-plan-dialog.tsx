@@ -32,7 +32,7 @@ import {
   type ClashCandidate,
 } from '@/features/services/service-utils'
 import { PlanClashDialog } from '@/features/services/plan-clash-dialog'
-import { useCreatePlan, type PlanWithType } from '@/features/services/use-plans'
+import { useCreatePlans, type PlanWithType } from '@/features/services/use-plans'
 import { usePlanTemplates } from '@/features/services/use-plan-templates'
 import { useServiceTypes } from '@/features/services/use-service-types'
 
@@ -51,7 +51,7 @@ export function NewPlanDialog({
 }) {
   const { data: serviceTypes } = useServiceTypes()
   const { data: templates } = usePlanTemplates()
-  const createPlan = useCreatePlan()
+  const createPlan = useCreatePlans()
   const navigate = useNavigate()
 
   const [serviceTypeId, setServiceTypeId] = useState<string>('')
@@ -124,23 +124,24 @@ export function NewPlanDialog({
     setClashes([])
     const [kind, id] = source.split(':') as ['template' | 'plan', string] | ['blank', undefined]
     try {
-      let firstPlanId: string | null = null
-      for (const planDate of dates) {
-        const plan = await createPlan.mutateAsync({
-          service_type_id: effectiveTypeId,
-          date: planDate,
-          title: title.trim() || null,
-          // Blank inherits (the source's start, else the service-type default).
-          start_time: startTime ? `${startTime}:00` : undefined,
-          source: kind !== 'blank' && id ? { kind, id } : undefined,
-        })
-        firstPlanId ??= plan.id
-      }
-      if (dates.length > 1) toast.success(`Created ${dates.length} weekly plans`)
+      // Every date in one call: all the weekly plans are made, or none are,
+      // so a retry after a failure never duplicates the earlier weeks.
+      const created = await createPlan.mutateAsync({
+        service_type_id: effectiveTypeId,
+        dates,
+        title: title.trim() || null,
+        // Blank inherits (the source's start, else the service-type default).
+        start_time: startTime ? `${startTime}:00` : undefined,
+        source: kind !== 'blank' && id ? { kind, id } : undefined,
+      })
+      if (created.length > 1) toast.success(`Created ${created.length} weekly plans`)
       onOpenChange(false)
-      navigate(`/services/plans/${firstPlanId}`)
+      navigate(`/services/plans/${created[0].id}`)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not create plan')
+      const message = error instanceof Error ? error.message : 'Could not create plan'
+      toast.error(
+        dates.length > 1 ? `No plans were created — ${message}` : message,
+      )
     }
   }
 

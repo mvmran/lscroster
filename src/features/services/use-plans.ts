@@ -72,142 +72,33 @@ export interface CreatePlanInput {
 }
 
 /**
- * Items copied into a new plan, from either a template or another plan.
- * lyrics_id is deliberately not copied — new plans are drafts, and drafts
- * follow the arrangement's latest lyrics (#130).
+ * Create one plan per date — one, or a weekly run (#72) — each copied from the
+ * source template or plan if given: its order of service, times and
+ * per-position minimums. One transaction (`create_plans`, 0067): every plan
+ * is made or none is, so a failure partway can't leave earlier weeks behind
+ * for a retry to duplicate. lyrics_id is deliberately not copied — new plans
+ * are drafts, and drafts follow the arrangement's latest lyrics (#130).
+ * Returns the plans by date.
  */
-type CopiedItem = {
-  sort_order: number
-  kind: Tables<'plan_items'>['kind']
-  title: string
-  arrangement_id: string | null
-  key_override: string | null
-  bpm_override: number | null
-  reference_url: string | null
-  sequence: string[] | null
-  length_seconds: number
-  description: string | null
-}
-
-async function fetchSourceItems(
-  source: NonNullable<CreatePlanInput['source']>,
-): Promise<CopiedItem[]> {
-  const query =
-    source.kind === 'template'
-      ? supabase
-          .from('plan_template_items')
-          .select('sort_order, kind, title, arrangement_id, key_override, bpm_override, reference_url, sequence, length_seconds, description')
-          .eq('template_id', source.id)
-      : supabase
-          .from('plan_items')
-          .select('sort_order, kind, title, arrangement_id, key_override, bpm_override, reference_url, sequence, length_seconds, description')
-          .eq('plan_id', source.id)
-  const { data, error } = await query.order('sort_order')
-  if (error) throw new Error(error.message)
-  return data
-}
-
-/** Times carried into a new plan from a template or another plan (issue #73). */
-type CopiedTime = { label: string; start_time: string; sort_order: number }
-
-async function fetchSourceTimes(
-  source: NonNullable<CreatePlanInput['source']>,
-): Promise<CopiedTime[]> {
-  const query =
-    source.kind === 'template'
-      ? supabase
-          .from('plan_template_times')
-          .select('label, start_time, sort_order')
-          .eq('template_id', source.id)
-      : supabase
-          .from('plan_times')
-          .select('label, start_time, sort_order')
-          .eq('plan_id', source.id)
-  const { data, error } = await query.order('sort_order')
-  if (error) throw new Error(error.message)
-  return data
-}
-
-/** Per-position minimum overrides carried into a new plan (issue #110). */
-type CopiedMinCount = { position_id: string; min_count: number }
-
-async function fetchSourceMinCounts(
-  source: NonNullable<CreatePlanInput['source']>,
-): Promise<CopiedMinCount[]> {
-  const query =
-    source.kind === 'template'
-      ? supabase
-          .from('plan_template_position_min_counts')
-          .select('position_id, min_count')
-          .eq('template_id', source.id)
-      : supabase
-          .from('plan_position_min_counts')
-          .select('position_id, min_count')
-          .eq('plan_id', source.id)
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
-  return data
-}
-
-/** The start-time override carried from a source template or plan (issue: per-plan start). */
-async function fetchSourceStart(
-  source: NonNullable<CreatePlanInput['source']>,
-): Promise<string | null> {
-  const table = source.kind === 'template' ? 'plan_templates' : 'plans'
-  const { data, error } = await supabase
-    .from(table)
-    .select('start_time')
-    .eq('id', source.id)
-    .single()
-  if (error) throw new Error(error.message)
-  return data.start_time
-}
-
-export function useCreatePlan() {
+export function useCreatePlans() {
   const invalidate = useInvalidatePlans()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ source, start_time, ...values }: CreatePlanInput) => {
-      const [items, times, minCounts, sourceStart] = source
-        ? await Promise.all([
-            fetchSourceItems(source),
-            fetchSourceTimes(source),
-            fetchSourceMinCounts(source),
-            fetchSourceStart(source),
-          ])
-        : [[], [], [], null]
-      // An explicit override wins; otherwise inherit the source's start.
-      const startTime = start_time !== undefined ? start_time : sourceStart
-      const { data: plan, error } = await supabase
-        .from('plans')
-        .insert({ ...values, start_time: startTime })
-        .select()
-        .single()
+    mutationFn: async ({
+      dates,
+      source,
+      start_time,
+      ...values
+    }: Omit<CreatePlanInput, 'date'> & { dates: string[] }) => {
+      const { data, error } = await supabase.rpc('create_plans', {
+        p_plan: { ...values, start_time: start_time ?? null },
+        p_dates: dates,
+        ...(source ? { p_source_kind: source.kind, p_source_id: source.id } : {}),
+        // An explicit start (or null) wins; omitted inherits the source's.
+        p_inherit_start: start_time === undefined,
+      })
       if (error) throw new Error(error.message)
-      try {
-        if (items.length > 0) {
-          const { error: itemsError } = await supabase
-            .from('plan_items')
-            .insert(items.map((item) => ({ ...item, plan_id: plan.id })))
-          if (itemsError) throw new Error(itemsError.message)
-        }
-        if (times.length > 0) {
-          const { error: timesError } = await supabase
-            .from('plan_times')
-            .insert(times.map((time) => ({ ...time, plan_id: plan.id })))
-          if (timesError) throw new Error(timesError.message)
-        }
-        if (minCounts.length > 0) {
-          const { error: minCountsError } = await supabase
-            .from('plan_position_min_counts')
-            .insert(minCounts.map((m) => ({ ...m, plan_id: plan.id })))
-          if (minCountsError) throw new Error(minCountsError.message)
-        }
-      } catch (e) {
-        await supabase.from('plans').delete().eq('id', plan.id)
-        throw e
-      }
-      return plan
+      return data
     },
     onSuccess: () => {
       invalidate()

@@ -122,7 +122,7 @@ import {
   useReorderPlanItems,
 } from '@/features/services/use-plan-items'
 import {
-  useCreatePlan,
+  useCreatePlans,
   useDeletePlan,
   usePlan,
   usePlanDeleteImpact,
@@ -365,7 +365,7 @@ function DuplicateDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const createPlan = useCreatePlan()
+  const createPlan = useCreatePlans()
   const navigate = useNavigate()
   const { data: plans } = usePlans()
   const [date, setDate] = useState(() =>
@@ -401,9 +401,9 @@ function DuplicateDialog({
   async function duplicate() {
     setClashes([])
     try {
-      const copy = await createPlan.mutateAsync({
+      const [copy] = await createPlan.mutateAsync({
         service_type_id: plan.service_type_id,
-        date,
+        dates: [date],
         title: plan.title,
         start_time: startValue,
         source: { kind: 'plan', id: plan.id },

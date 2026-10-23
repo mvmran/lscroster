@@ -11,35 +11,20 @@ export type TemplateTime = { label: string; start_time: string; sort_order: numb
 /** Per-position minimum-required overrides saved on a template (issue #110). */
 export type TemplateMinCount = { position_id: string; min_count: number }
 
-async function replaceTemplateTimes(templateId: string, times: TemplateTime[]) {
-  const { error: clearError } = await supabase
-    .from('plan_template_times')
-    .delete()
-    .eq('template_id', templateId)
-  if (clearError) throw new Error(clearError.message)
-  if (times.length > 0) {
-    const { error } = await supabase
-      .from('plan_template_times')
-      .insert(times.map((t) => ({ ...t, template_id: templateId })))
-    if (error) throw new Error(error.message)
-  }
-}
-
-async function replaceTemplateMinCounts(
-  templateId: string,
-  minCounts: TemplateMinCount[],
-) {
-  const { error: clearError } = await supabase
-    .from('plan_template_position_min_counts')
-    .delete()
-    .eq('template_id', templateId)
-  if (clearError) throw new Error(clearError.message)
-  if (minCounts.length > 0) {
-    const { error } = await supabase
-      .from('plan_template_position_min_counts')
-      .insert(minCounts.map((m) => ({ ...m, template_id: templateId })))
-    if (error) throw new Error(error.message)
-  }
+/** A plan's order of service as template rows (positions follow the list). */
+function templateItemRows(items: PlanItem[]) {
+  return items.map((item, index) => ({
+    sort_order: index,
+    kind: item.kind,
+    title: item.title,
+    arrangement_id: item.arrangement_id,
+    key_override: item.key_override,
+    bpm_override: item.bpm_override,
+    reference_url: item.reference_url,
+    sequence: item.sequence,
+    length_seconds: item.length_seconds,
+    description: item.description,
+  }))
 }
 
 export const planTemplatesKey = ['plan-templates'] as const
@@ -84,40 +69,16 @@ export function useSaveAsTemplate() {
       /** Per-position minimum overrides on the source plan (issue #110). */
       minCounts?: TemplateMinCount[]
     }) => {
-      const { data: template, error } = await supabase
-        .from('plan_templates')
-        .insert({ name, service_type_id: serviceTypeId, start_time: startTime })
-        .select()
-        .single()
+      // One transaction (`save_plan_template`, 0067): the template and its
+      // items, times and minimums all land, or none do.
+      const { data: id, error } = await supabase.rpc('save_plan_template', {
+        p_template: { name, service_type_id: serviceTypeId, start_time: startTime },
+        p_items: templateItemRows(items),
+        p_times: times,
+        p_min_counts: minCounts,
+      })
       if (error) throw new Error(error.message)
-
-      try {
-        if (items.length > 0) {
-          const rows = items.map((item, index) => ({
-            template_id: template.id,
-            sort_order: index,
-            kind: item.kind,
-            title: item.title,
-            arrangement_id: item.arrangement_id,
-            key_override: item.key_override,
-            bpm_override: item.bpm_override,
-            reference_url: item.reference_url,
-            sequence: item.sequence,
-            length_seconds: item.length_seconds,
-            description: item.description,
-          }))
-          const { error: itemsError } = await supabase
-            .from('plan_template_items')
-            .insert(rows)
-          if (itemsError) throw new Error(itemsError.message)
-        }
-        await replaceTemplateTimes(template.id, times)
-        await replaceTemplateMinCounts(template.id, minCounts)
-      } catch (e) {
-        await supabase.from('plan_templates').delete().eq('id', template.id)
-        throw e
-      }
-      return template
+      return id
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planTemplatesKey })
@@ -125,7 +86,7 @@ export function useSaveAsTemplate() {
   })
 }
 
-/** Overwrite an existing template's name and order of service (issue #61). */
+/** Overwrite an existing template's name, order of service, times and minimums (issue #61). */
 export function useUpdateTemplate() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -144,43 +105,16 @@ export function useUpdateTemplate() {
       times?: TemplateTime[]
       minCounts?: TemplateMinCount[]
     }) => {
-      const { error: nameError } = await supabase
-        .from('plan_templates')
-        .update({ name, start_time: startTime })
-        .eq('id', id)
-      if (nameError) throw new Error(nameError.message)
-
-      // Replace the template's items wholesale with the current order of service.
-      const { error: clearError } = await supabase
-        .from('plan_template_items')
-        .delete()
-        .eq('template_id', id)
-      if (clearError) throw new Error(clearError.message)
-
-      if (items.length > 0) {
-        const rows = items.map((item, index) => ({
-          template_id: id,
-          sort_order: index,
-          kind: item.kind,
-          title: item.title,
-          arrangement_id: item.arrangement_id,
-          key_override: item.key_override,
-          bpm_override: item.bpm_override,
-          reference_url: item.reference_url,
-          sequence: item.sequence,
-          length_seconds: item.length_seconds,
-          description: item.description,
-        }))
-        const { error: itemsError } = await supabase
-          .from('plan_template_items')
-          .insert(rows)
-        if (itemsError) throw new Error(itemsError.message)
-      }
-
-      // Times follow the same wholesale-replace as items (issue #73).
-      await replaceTemplateTimes(id, times)
-      // Per-position minimum overrides too (issue #110).
-      await replaceTemplateMinCounts(id, minCounts)
+      // One transaction (`save_plan_template`, 0067): a failure partway used
+      // to leave the template renamed with no order of service.
+      const { error } = await supabase.rpc('save_plan_template', {
+        p_template_id: id,
+        p_template: { name, start_time: startTime },
+        p_items: templateItemRows(items),
+        p_times: times,
+        p_min_counts: minCounts,
+      })
+      if (error) throw new Error(error.message)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planTemplatesKey })
