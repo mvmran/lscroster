@@ -77,6 +77,9 @@ on_exit() {
 }
 trap on_exit EXIT
 
+# 0 or a typo would make the prune below keep nothing — the new archive too.
+[[ "$KEEP" =~ ^[1-9][0-9]*$ ]] || die "KEEP must be a whole number of at least 1 (got '$KEEP')"
+
 cd "$REPO"
 [ -f supabase/.temp/project-ref ] || die "not linked — run: npx supabase link --project-ref <ref>"
 REF="$(cat supabase/.temp/project-ref)"
@@ -123,13 +126,19 @@ COUNTS="$(query "select 'people' t, count(*) n from people union all
 [ -n "$COUNTS" ] || die "could not read row counts"
 FILES="$(query "select bucket_id b, count(*) n from storage.objects group by 1 order by 1" \
   | jq -r '(.rows? // .)[]? | "\(.b) \(.n)"')"
+# These three only label the manifest: one that fails (a token without the
+# secrets scope, a CLI change) reads "unknown" rather than costing the night's
+# backup. The file list above stays strict — it decides what gets copied.
 MIGRATION="$(query "select max(version) v from supabase_migrations.schema_migrations" \
-  | jq -r '(.rows? // .)[0]?.v // empty')"
+  | jq -r '(.rows? // .)[0]?.v // empty' || true)"
 VAULT="$(query "select name from vault.secrets order by name" \
-  | jq -r '(.rows? // .)[]?.name' | tr '\n' ' ')"
+  | jq -r '(.rows? // .)[]?.name' | tr '\n' ' ' || true)"
 SECRETS="$(supa secrets list --project-ref "$REF" -o json 2>/dev/null \
   | jq -r 'if type == "array" then .[].name else empty end
-           | select(startswith("SUPABASE_") | not)' | tr '\n' ' ')"
+           | select(startswith("SUPABASE_") | not)' | tr '\n' ' ' || true)"
+MIGRATION="${MIGRATION:-unknown}"
+VAULT="${VAULT:-unknown}"
+SECRETS="${SECRETS:-unknown}"
 
 # Every data line of a COPY block sits between "COPY <table> ..." and "\.";
 # the dump must hold at least as many people rows as the project reports.

@@ -2283,6 +2283,34 @@ manager picker loaded it on opening; typing three letters in the People
 search made no signing request after the first. `npm run ci` green.
 **Upgrade note:** none — app only.
 
+(no migration) **Backup and restore safety** (2026-10-24, findings 1, 4, 7 and
+8 of a `/code-review high` of `src/components src/lib scripts`):
+- `restore.sh` loaded the records into the database named on the command line
+  but uploaded the files to whatever project the checkout was linked to — run
+  from the main checkout (linked to production for the nightly backup), every
+  restored file would have gone into production's buckets. It now refuses,
+  before writing anything, when the linked ref isn't the one in the
+  connection string (direct `db.<ref>.supabase.co` or pooler
+  `postgres.<ref>`; `TARGET_REF` for anything else). Drill mode is exempt.
+- A failed upload after the records went in left no way to finish: a re-run
+  stopped at "target already has N people". `FILES_ONLY=1` skips the records
+  (and wants people present) and uploads the files again — `storage cp`
+  replaces existing objects (checked locally) — and the failure says so.
+- `backup.sh` died if a lookup that only labels the manifest failed (secrets
+  list, Vault names, latest migration), costing the night's archive; those
+  now read `unknown`. The file list stays strict — it decides what's copied.
+- `KEEP=0`, or a non-number, made the prune delete every archive including
+  the new one; `backup.sh` now refuses anything but a whole number of at
+  least 1, before it starts.
+Verified: `KEEP=0` and `KEEP=abc` refused up front with nothing written; a
+restore naming another project (direct, pooler and `TARGET_REF`) and one with
+an unrecognisable host were refused before connecting; in drill mode against
+the local stack a full restore was refused (15 people) and `FILES_ONLY=1`
+uploaded the archive's file; a real backup into a scratch folder completed
+with every manifest line filled (then deleted). `npm run ci` green.
+**Upgrade note:** none — scripts only. Anyone restoring must link the checkout
+to the target first, as BACKUPS.md already said; the script now enforces it.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

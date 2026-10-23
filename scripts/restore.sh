@@ -7,8 +7,14 @@
 # The target must already have the schema — `npx supabase db push` from this
 # checkout, linked to the target — and nobody in `people` yet. The script
 # refuses anything else, so it cannot overwrite a live instance. Files are
-# uploaded to the project this checkout is linked to, so link the target first.
+# uploaded to the project this checkout is linked to, so link the target first:
+# the script refuses when the linked project isn't the one in the connection
+# string (set TARGET_REF=<ref> when the string doesn't name it).
 # Full procedure, including the secrets to re-set: docs/BACKUPS.md.
+#
+# If the file uploads fail after the records went in, finish with
+#   FILES_ONLY=1 scripts/restore.sh <archive> <url>
+# which uploads the files again (existing ones are replaced) and nothing else.
 #
 # Logins: only auth.users and auth.identities are restored. The rest of the auth
 # schema is sessions, tokens and audit rows — safe to lose, and tied to the auth
@@ -47,25 +53,48 @@ tar -xzf "$ARCHIVE" -C "$WORK"
 [ -f "$WORK/data.sql" ] && [ -f "$WORK/manifest.txt" ] || die "not a backup.sh archive"
 log "restoring $(sed -n 's/^taken (UTC) *//p' "$WORK/manifest.txt") backup of $(sed -n 's/^project *//p' "$WORK/manifest.txt")"
 
-# Guard: schema present, and no people yet.
+# Guard: the files go where the records go. A checkout linked to production
+# (the nightly backup's) would otherwise put every file into production.
+if [ -z "${LOCAL_WORKDIR:-}" ]; then
+  linked="$(cat "$REPO/supabase/.temp/project-ref" 2>/dev/null || true)"
+  [ -n "$linked" ] \
+    || die "this checkout isn't linked to a project — 'npx supabase link --project-ref <target>' first"
+  target="${TARGET_REF:-}"
+  if [[ "$DB_URL" =~ db\.([a-z]{20})\.supabase\.co ]] \
+    || [[ "$DB_URL" =~ postgres\.([a-z]{20})[:@] ]]; then
+    target="${BASH_REMATCH[1]}"
+  fi
+  [ -n "$target" ] \
+    || die "can't tell the project from the connection string — set TARGET_REF=<project ref>"
+  [ "$target" = "$linked" ] \
+    || die "the database is project $target but this checkout is linked to $linked, where the files would go — 'npx supabase link --project-ref $target' and run again"
+fi
+
+# Guard: schema present, and no people yet (or, finishing the files, the
+# records already in).
 people="$(psql_ -tA -c "select count(*) from public.people" 2>&1)" \
   || die "can't read public.people — run 'npx supabase db push' against the target first ($people)"
-[ "$people" = "0" ] || die "target already has $people people; restore only into an empty project"
+if [ -n "${FILES_ONLY:-}" ]; then
+  [ "$people" != "0" ] || die "FILES_ONLY: the target has no people — restore the records first"
+  log "FILES_ONLY: skipping the records ($people people already in)"
+else
+  [ "$people" = "0" ] || die "target already has $people people; restore only into an empty project"
 
-# Everything in public, plus the two auth tables that make up a login.
-awk '
-  /^COPY "auth"\./ {
-    keep = ($2 == "\"auth\".\"users\"" || $2 == "\"auth\".\"identities\"")
-    if (!keep) { skip = 1; next }
-  }
-  skip && /^\\\.$/ { skip = 0; next }
-  !skip { print }
-' "$WORK/data.sql" >"$WORK/restore.sql"
+  # Everything in public, plus the two auth tables that make up a login.
+  awk '
+    /^COPY "auth"\./ {
+      keep = ($2 == "\"auth\".\"users\"" || $2 == "\"auth\".\"identities\"")
+      if (!keep) { skip = 1; next }
+    }
+    skip && /^\\\.$/ { skip = 0; next }
+    !skip { print }
+  ' "$WORK/data.sql" >"$WORK/restore.sql"
 
-# One transaction: it all goes in, or nothing does. data.sql starts with
-# session_replication_role = replica, so row triggers and foreign keys wait.
-psql_ --single-transaction <"$WORK/restore.sql" >/dev/null
-log "records and logins restored"
+  # One transaction: it all goes in, or nothing does. data.sql starts with
+  # session_replication_role = replica, so row triggers and foreign keys wait.
+  psql_ --single-transaction <"$WORK/restore.sql" >/dev/null
+  log "records and logins restored"
+fi
 
 if [ -d "$WORK/storage" ] && [ -n "$(ls -A "$WORK/storage")" ]; then
   if [ -n "${LOCAL_WORKDIR:-}" ]; then
@@ -77,7 +106,8 @@ if [ -d "$WORK/storage" ] && [ -n "$(ls -A "$WORK/storage")" ]; then
     # Copy the bucket's folder to the storage root (ss:///), which keeps each
     # object's path; copying it *into* ss:///<bucket> would nest it one deeper.
     (cd "$REPO" && npx --no-install supabase "${where[@]}" storage cp -r \
-      "${dir%/}" ss:/// --experimental "${scope[@]}" >/dev/null)
+      "${dir%/}" ss:/// --experimental "${scope[@]}" >/dev/null) \
+      || die "uploading $(basename "$dir") failed — the records are in; finish with FILES_ONLY=1 $0 $ARCHIVE <url>"
   done
   log "files restored ($(find "$WORK/storage" -type f | wc -l))"
 fi

@@ -45,7 +45,9 @@ a `~/.supabase-token` file containing `export SUPABASE_ACCESS_TOKEN=…`
 A run takes about a minute. It fails loudly — non-zero exit, `FAILED:` in the
 log — if a dump fails, if the data dump holds fewer people than the project, or
 if a file is missing, and only then prunes: it keeps the newest 30 archives
-(`KEEP=60 scripts/backup.sh` to keep more).
+(`KEEP=60 scripts/backup.sh` to keep more; it refuses anything below 1). The
+manifest's migration and secret names are labels only — if one can't be read
+it says `unknown` rather than failing the night's backup.
 
 **The archive is the membership roll**: names, phone numbers, birthdays and
 password hashes. The script writes it mode 600 into a mode 700 folder. Keep it
@@ -130,7 +132,9 @@ download files from the Dashboard under **Storage**.
 
 A restore goes into a **new, empty** Supabase project — never on top of a live
 one. `scripts/restore.sh` refuses a database that already has anyone in
-`people`.
+`people`, and — because the files go to the project the checkout is linked to —
+refuses when that isn't the project named in the connection string. (A pooler
+or direct Supabase string names it; for any other, set `TARGET_REF=<ref>`.)
 
 1. Create the project and follow SETUP.md from linking through deploying the
    functions: `npx supabase link --project-ref <new-ref>`, `npx supabase db
@@ -149,7 +153,9 @@ one. `scripts/restore.sh` refuses a database that already has anyone in
 
    It loads every record and login in one transaction — all of it or none of
    it — uploads the files, then prints the counts to compare with the live
-   project.
+   project. If an upload fails after the records are in, run the same command
+   with `FILES_ONLY=1` in front: it uploads the files again (replacing any
+   already there) and leaves the records alone.
 5. Point the app at the new project (`VITE_SUPABASE_URL`,
    `VITE_SUPABASE_ANON_KEY` in Vercel) and redeploy. Everyone signs in with the
    password they already had.
