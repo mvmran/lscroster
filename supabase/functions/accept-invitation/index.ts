@@ -75,9 +75,10 @@ Deno.serve(async (req) => {
     )
   }
 
-  // Managed account (issue #89): no email of their own, a managing member is
-  // attached. The manager confirms — no new login is created for this person.
-  const managed = !person.email && !!person.managed_by_person_id
+  // Managed account (issue #89): a managing member is attached, whether or not
+  // the person has an email (as in invite). The manager confirms — no new login
+  // is created for this person.
+  const managed = !!person.managed_by_person_id
   if (!person.email && !managed) {
     return jsonResponse({ error: 'This invitation is no longer valid' }, 410)
   }

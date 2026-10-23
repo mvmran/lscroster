@@ -2051,6 +2051,39 @@ the same file twice made two attempts. `npm run ci` green.
   People-page return-to-row (`focusId`) or remove it with the layout's
   scroll exception.
 
+(0069) trigger `people_manager_clears_invitation` **Re-review of the people
+fixes: managed invitations and photos** (2026-10-23, findings 1, 3 and 10 of a
+`/code-review high` of `src/features/people`):
+- The People page offers "Assign a managing member" to someone with an email
+  of their own, but `invite` and `accept-invitation` only treated a person
+  with *no* email as managed — so Send invitation mailed the person their own
+  sign-up link, undoing the revoke above. Both functions now treat any person
+  with a managing member as managed: the invitation goes to the manager, and
+  accepting it confirms the manager rather than creating a login.
+- Assigning the manager revoked the invitation and then set
+  `managed_by_person_id` as two requests; a failed second one left the link
+  dead and the person unmanaged. 0069's trigger clears the person's unaccepted
+  invitation in the same write whenever a manager is set or changed, and the
+  page makes one request. 0069 also deletes any unaccepted invitation of a
+  managed person who has an email — sent to their own address before this
+  release, it would now be accepted as the manager's confirmation (none on
+  Life Sanctuary's instance).
+- A photo upload or removal whose `people` update RLS let through as zero rows
+  (no error) still deleted the previous file, breaking the avatar. Both now
+  `.select('id')` and refuse when nothing changed; an upload removes its new
+  file.
+Verified on the local stack with this worktree's functions served: an own
+invitation was cleared by the PATCH that set the manager; the next invite went
+to the manager (`managed-invitation`) and `accept-invitation` described it as
+managed; a member's PATCH of another person's photo returned 200 with no rows.
+Headless Chromium: with that PATCH answering no rows, a photo upload showed
+the error and kept `photo_url` and the old file. 0069 applied twice clean;
+`npm run ci` green.
+**Upgrade note:** `db push` (0069), then `functions deploy invite
+accept-invitation`, then the app — in that order, so no own-email invitation of
+a managed person is still live when the functions start reading it as the
+manager's.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

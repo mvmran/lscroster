@@ -37,7 +37,7 @@ import {
 /**
  * Admin-only sign-in controls for a person without their own login: email
  * invitations, plus (issue #89) assigning an existing member to manage the
- * account for someone with no email of their own.
+ * account — for someone with no email of their own, or who shouldn't sign in.
  */
 export function InviteControls({ person }: { person: Person }) {
   const invitation = usePersonInvitation(person.id, true)
@@ -77,14 +77,14 @@ export function InviteControls({ person }: { person: Person }) {
 
   async function attach(managerId: string) {
     try {
-      // The person's own pending invitation goes first: left in place, its
-      // link would still let them sign up themselves, and the managed view
-      // would show it as an invitation sent to the manager.
-      if (invitation.data) await revokeInvite.mutateAsync(person.id)
+      // The database clears the person's own pending invitation in the same
+      // write (0069): left in place, its link would still let them sign up
+      // themselves, and the managed view would show it as sent to the manager.
       await updatePerson.mutateAsync({
         id: person.id,
         values: { managed_by_person_id: managerId },
       })
+      void invitation.refetch()
       setPickerOpen(false)
       toast.success('Managing member assigned')
     } catch (error) {
@@ -286,7 +286,7 @@ export function InviteControls({ person }: { person: Person }) {
         personId={person.id}
         personName={person.first_name}
         onChoose={attach}
-        saving={revokeInvite.isPending || updatePerson.isPending}
+        saving={updatePerson.isPending}
       />
 
       <ManualLinkDialog

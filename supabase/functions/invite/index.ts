@@ -63,10 +63,11 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Cannot invite an inactive person' }, 400)
   }
 
-  // Managed invite (issue #89): the person has no email of their own but a
-  // managing member is attached — send the confirmation to that member instead.
-  // A person with their own email always gets the standard invite.
-  const managed = !person.email && !!person.managed_by_person_id
+  // Managed invite (issue #89): a managing member is attached — send the
+  // confirmation to that member instead, even when the person has an email of
+  // their own (the People page offers a manager to them too; a standard invite
+  // here would let them sign up themselves). accept-invitation decides alike.
+  const managed = !!person.managed_by_person_id
   let manager: { first_name: string; email: string | null; status: string } | null = null
   if (managed) {
     const { data: m } = await admin

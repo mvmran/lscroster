@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 
 const PHOTOS_BUCKET = 'photos'
 const SIGNED_URL_TTL_SECONDS = 60 * 60
+const NOT_SAVED = 'The photo wasn’t changed — you may not have access to this person'
 
 /** Signed URL for a single photo path (private bucket). */
 export function usePhotoUrl(path: string | null | undefined) {
@@ -54,13 +55,16 @@ export function useUploadPhoto() {
         .upload(path, file, { contentType: file.type || undefined })
       if (uploadError) throw new Error(uploadError.message)
 
-      const { error: updateError } = await supabase
+      // RLS refuses an update by changing nothing, without an error: unless
+      // the row took the new path, the old photo is still in use.
+      const { data: updated, error: updateError } = await supabase
         .from('people')
         .update({ photo_url: path })
         .eq('id', person.id)
-      if (updateError) {
+        .select('id')
+      if (updateError || !updated?.length) {
         await supabase.storage.from(PHOTOS_BUCKET).remove([path])
-        throw new Error(updateError.message)
+        throw new Error(updateError?.message ?? NOT_SAVED)
       }
 
       // Best-effort cleanup of the previous photo.
@@ -84,11 +88,13 @@ export function useRemovePhoto() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ person }: { person: Person }) => {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('people')
         .update({ photo_url: null })
         .eq('id', person.id)
+        .select('id')
       if (error) throw new Error(error.message)
+      if (!updated?.length) throw new Error(NOT_SAVED)
       if (person.photo_url) {
         await supabase.storage.from(PHOTOS_BUCKET).remove([person.photo_url])
       }
