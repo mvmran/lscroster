@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 
 export const UNSAVED_LEAVE_MESSAGE =
-  'You have unsaved lyrics changes. Leave this page and discard them?'
+  'You have unsaved changes. Leave this page and discard them?'
 
 /**
  * Warns before the current page is torn down while `when` is true, so unsaved

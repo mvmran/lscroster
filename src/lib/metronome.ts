@@ -115,11 +115,25 @@ function click(ctx: AudioContext, out: GainNode, kind: ClickKind, at: number) {
   osc.stop(at + 0.06)
 }
 
+/**
+ * How many clicks fell wholly in the past — the timer was held up (a long
+ * render, a backgrounded tab, an audio interruption) — so they can be skipped
+ * rather than all played at once in a burst. 0 when on time.
+ */
+export function missedClicks(nextAt: number, now: number, interval: number): number {
+  return nextAt < now ? Math.ceil((now - nextAt) / interval) : 0
+}
+
 function topUp() {
   if (!run || !audio) return
+  const interval = 60 / (run.bpm * run.pattern.clicksPerBeat)
+  // Jump to the next beat still to come, keeping our place in the bar.
+  const missed = missedClicks(run.nextAt, audio.currentTime, interval)
+  run.nextAt += missed * interval
+  run.index = (run.index + missed) % run.pattern.bar.length
   while (run.nextAt < audio.currentTime + LOOKAHEAD_S) {
     click(audio, run.out, run.pattern.bar[run.index], run.nextAt)
-    run.nextAt += 60 / (run.bpm * run.pattern.clicksPerBeat)
+    run.nextAt += interval
     run.index = (run.index + 1) % run.pattern.bar.length
   }
 }

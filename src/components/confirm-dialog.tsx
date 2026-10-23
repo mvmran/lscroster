@@ -19,7 +19,8 @@ import {
  *
  * Pass `pending` for a delete worth waiting on: the dialog then stays open
  * with a spinner while it runs, and the caller closes it (or navigates away)
- * once it's done — so a failure leaves it open beside its error.
+ * once it's done — so a failure leaves it open beside its error. Escape
+ * does what the disabled Cancel does meanwhile: nothing.
  *
  * The confirm button uses the destructive variant. (A `bg-destructive` class on
  * `AlertDialogAction` loses to the button's own colours, which is why some
@@ -52,7 +53,14 @@ export function ConfirmDialog({
   variant?: 'destructive' | 'default'
 }) {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog
+      open={open}
+      // Escape would close it mid-action, hiding the outcome — the action
+      // can't be called back, so there is nothing to cancel until it's done.
+      onOpenChange={(next) => {
+        if (next || !pending) onOpenChange(next)
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

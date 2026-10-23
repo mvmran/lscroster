@@ -47,4 +47,14 @@ describe('fetchAll', () => {
         : { data: null, error: { message: 'boom' } }
     await expect(fetchAll(page)).rejects.toThrow('boom')
   })
+
+  it('stops a page function that ignores the range', async () => {
+    let calls = 0
+    const page = async () => {
+      calls++
+      return { data: [1, 2, 3], error: null }
+    }
+    await expect(fetchAll(page)).rejects.toThrow('does the query apply .range')
+    expect(calls).toBe(100)
+  })
 })

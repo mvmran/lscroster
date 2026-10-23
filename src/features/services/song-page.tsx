@@ -895,7 +895,10 @@ function ArrangementLyricsBlock({
 
   // Warn before navigating away (page unload or an in-app link) with unsaved
   // lyrics, and surface the dirty state so the parent can guard tab switches.
-  useUnsavedChangesWarning(dirty)
+  useUnsavedChangesWarning(
+    dirty,
+    'You have unsaved lyrics changes. Leave this page and discard them?',
+  )
   useEffect(() => {
     onDirtyChange?.(dirty)
   }, [dirty, onDirtyChange])

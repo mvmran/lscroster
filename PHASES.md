@@ -2311,6 +2311,30 @@ with every manifest line filled (then deleted). `npm run ci` green.
 **Upgrade note:** none — scripts only. Anyone restoring must link the checkout
 to the target first, as BACKUPS.md already said; the script now enforces it.
 
+(no migration) **Confirm dialog, unsaved-changes wording, metronome, fetchAll
+guard** (2026-10-24, findings 2, 3, 9 and 10 of the same review):
+- `ConfirmDialog` with `pending` disabled Cancel but not Escape, which closed
+  it mid-delete so a failure never showed beside it. Close requests are now
+  ignored while pending, as the disabled Cancel is.
+- `useUnsavedChangesWarning`'s default message said "unsaved lyrics
+  changes", and the pad-sound page used the default. The default is generic;
+  the song page passes its lyrics wording.
+- After the metronome's timer was held up (a long render, an audio
+  interruption) it scheduled every missed click in the past, which all
+  played at once. It now skips them and keeps its place in the bar
+  (`missedClicks`, tested).
+- `fetchAll` (both copies) ends only on an empty page, so a page function
+  that ignored `from`/`to` would loop for ever; more than 100 pages (100,000
+  rows) now throws, naming the likely cause. Tested.
+Verified in headless Chromium on the local stack: with a team delete held
+3 seconds and then failing, Escape left the dialog open, the failure showed
+beside it, and Escape closed it once done. `npm run ci` green.
+**Upgrade note:** `functions deploy reminders suggest-song` (they bundle the
+shared `fetchAll`); otherwise app only.
+- [ ] **Open from the same review:** the phone's Back button (popstate) and
+  programmatic `navigate()` skip `useUnsavedChangesWarning` — a real fix is
+  moving to a data router for `useBlocker`, a task of its own.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

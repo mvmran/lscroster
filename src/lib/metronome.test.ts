@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clickPattern, parseMeter } from '@/lib/metronome'
+import { clickPattern, missedClicks, parseMeter } from '@/lib/metronome'
 
 describe('parseMeter', () => {
   it('reads time signatures, with or without spaces', () => {
@@ -37,5 +37,19 @@ describe('clickPattern', () => {
     expect(clickPattern('12/8').bar.filter((k) => k !== 'sub')).toHaveLength(4)
     // 3/8 is one beat of three, not compound.
     expect(clickPattern('3/8')).toEqual({ bar: ['accent', 'beat', 'beat'], clicksPerBeat: 1 })
+  })
+})
+
+describe('missedClicks', () => {
+  it('is 0 while the next click is still to come', () => {
+    expect(missedClicks(10.2, 10, 0.5)).toBe(0)
+    expect(missedClicks(10, 10, 0.5)).toBe(0)
+  })
+
+  it('counts every click that fell in the past, landing on the next one ahead', () => {
+    // Held up 1.2s at 120 BPM: clicks at 10, 10.5 and 11 are gone; 11.5 is next.
+    const missed = missedClicks(10, 11.2, 0.5)
+    expect(missed).toBe(3)
+    expect(10 + missed * 0.5).toBe(11.5)
   })
 })
