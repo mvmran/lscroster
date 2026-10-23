@@ -1937,6 +1937,48 @@ Save template and Update template worked. 0067 applied twice clean;
 **Upgrade note:** `db push` (0067) before the app — the new bundle calls the
 functions.
 
+(0068) `save_service_type`, set-based `create_plans` **Re-review of the
+services fixes** (2026-10-23, all 8 findings of a `/code-review high` of the
+day's services commits):
+- Saving lyrics sent the text as it was when Save was pressed and then
+  cleared the draft, so words typed during the pin check or the save
+  vanished. `doSave` now sends the current text (`latest`) and clears the
+  draft only if it still matches what went; anything newer stays as unsaved
+  changes.
+- A new service type and its teams were still two requests, the dialog only
+  recovering while it stayed open. `save_service_type(values, team_ids, id?)`
+  creates or updates the type and replaces its teams in one transaction; the
+  dialog makes one call, and `useCreateServiceType`, `useUpdateServiceType`
+  and `useSetServiceTypeTeams` are gone with its `createdId` workaround.
+- `create_plans` commits before handing the plans back, so an empty answer
+  would mean plans that exist but can't be read; the hook now treats that as
+  `PlansNotReturnedError` ("…find them in the Services list") and sends the
+  user there instead of inviting a duplicating retry. Can't happen today —
+  plan creators see every plan — but it's cheap insurance.
+- The new-plan clash check used the service type's start when the box was
+  blank, but the plans take the template's or source plan's start; it now
+  checks that window.
+- Both template saves refresh the list on settle, so a template deleted
+  meanwhile drops out after the failed Update and the dialog offers Save.
+- `create_plans` is set-based: one insert for every date's plan, then one
+  insert each for items, times and minimums from a single source query
+  (template or plan), instead of a loop re-reading the source per week with
+  two copies of the copy code. Same signature and behaviour.
+- `CreatePlanInput` takes `dates` directly.
+Verified on the local stack. API: a new type with a bad team left nothing; a
+new type got its teams in order; an edit reordered and added one; an edit
+with a bad team changed nothing (not even the rename); members refused. The
+0067 create_plans probe re-run on the rewrite gave identical results, and a
+copy from a plan carried its 4 items, 2 times and start into each week.
+Headless Chromium: typing during a held lyrics save stayed in the pane
+(unsaved, Save offered) while the saved row had what was sent; creating a
+service type sent one write (`rpc/save_service_type`); a blank start from an
+18:00 template warned about an existing 18:00 service; Update on a template
+deleted meanwhile said so and the button turned to Save template. 0068
+applied twice clean; `npm run ci` green.
+**Upgrade note:** `db push` (0068) before the app — the new bundle calls
+`save_service_type`.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
