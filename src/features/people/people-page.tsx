@@ -66,6 +66,9 @@ import { usePhotoUrls } from '@/features/people/use-photos'
 
 type SortOrder = 'name-asc' | 'name-desc' | 'newest'
 
+const BULK_FAILED_TOAST = 'bulk-failed'
+const BULK_UNCONFIRMED_TOAST = 'bulk-unconfirmed'
+
 function matchesSearch(person: Person, term: string) {
   const haystack =
     `${person.first_name} ${person.last_name} ${person.email ?? ''}`.toLowerCase()
@@ -276,24 +279,27 @@ export function PeoplePage() {
         })
       }
     }
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: peopleKeys.all }),
-      queryClient.invalidateQueries({ queryKey: invitationKeys.all }),
-    ])
     setRunning(false)
     clearSelection()
     const verb = bulkAction === 'invite' ? 'invited' : 'archived'
     if (ok > 0) toast.success(`${ok} ${verb}`)
     // The two lists stay until dismissed: they name who still needs doing.
+    // Fixed ids, so a later run replaces them rather than burying them under
+    // its own toasts — and takes down a list it has nothing for. (Dismissing
+    // first and re-creating the id loses the new toast to the dismissal.)
     if (failures.length > 0) {
       toast.error(`${failures.length} failed`, {
+        id: BULK_FAILED_TOAST,
         duration: Infinity,
         closeButton: true,
         description: <BulkList lines={describeBulkFailures(failures)} />,
       })
+    } else {
+      toast.dismiss(BULK_FAILED_TOAST)
     }
     if (unconfirmed.length > 0) {
       toast.warning(`${unconfirmed.length} not confirmed — check before trying again`, {
+        id: BULK_UNCONFIRMED_TOAST,
         duration: Infinity,
         closeButton: true,
         description: (
@@ -307,9 +313,17 @@ export function PeoplePage() {
           />
         ),
       })
+    } else {
+      toast.dismiss(BULK_UNCONFIRMED_TOAST)
     }
     if (skipped.length > 0) toast.warning(`${skipped.length} skipped`)
     setInviteLinks(links)
+    // In the background: the results above shouldn't wait for every page of
+    // the directory to come back.
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: peopleKeys.all }),
+      queryClient.invalidateQueries({ queryKey: invitationKeys.all }),
+    ])
   }
 
   if (isError) return <FullPageError message={error.message} />

@@ -2178,6 +2178,26 @@ green.
 **Upgrade note:** `functions deploy reminders suggest-song` (they bundle the
 shared `fetchAll`); otherwise app only, in either order.
 
+(no migration) **Bulk toasts and import wording** (2026-10-23, findings 8–10
+of the same review):
+- A bulk action's results waited for the whole directory to reload (every
+  page, and every invitation query) before showing, and the buttons stayed
+  off meanwhile; the reload now runs in the background after the toasts.
+- The failure and not-confirmed lists never time out, so a second run's
+  toasts buried the first run's list (Sonner shows three). They now have
+  fixed ids: a later run replaces them, or takes them down when it has none.
+  Not dismiss-then-create — Sonner drops a toast re-created under an id it is
+  still dismissing (seen in testing).
+- The import page's `records()` and three inline singular/plural checks are
+  `plural()` from `src/lib/utils.ts`; the over-cap note formats both numbers
+  ("2,001 … 2,000").
+Verified in headless Chromium on the local stack: with the directory reload
+held 5 seconds, a bulk invite's "1 failed" and "1 invited" were up after 1.2;
+a second run refusing someone else left one failure list, naming them; a
+2,001-row file read "That's 2,001 records — import at most 2,000"; one row
+read "1 record imported". `npm run ci` green.
+**Upgrade note:** none — app only.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

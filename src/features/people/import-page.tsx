@@ -34,6 +34,7 @@ import {
 import { formatPhone } from '@/features/people/phone-utils'
 import { peopleKeys, personErrorMessage, usePeople } from '@/features/people/use-people'
 import { supabase } from '@/lib/supabase'
+import { plural } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import type { TablesInsert } from '@/types/database'
 
@@ -54,8 +55,6 @@ const SKIP = '__skip__'
 // first batches, which a retry would then duplicate. Capped to keep that
 // request (and the People list it feeds) a sensible size.
 const MAX_IMPORT_ROWS = 2000
-
-const records = (n: number) => `${n} ${n === 1 ? 'record' : 'records'}`
 
 function guessMapping(headers: string[]): Mapping {
   const mapping: Mapping = {}
@@ -263,18 +262,15 @@ export function ImportPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-4 text-sm">
             <p>
-              <strong>{result.imported}</strong>{' '}
-              {result.imported === 1 ? 'record' : 'records'} imported
+              <strong>{plural(result.imported, 'record')}</strong> imported
               {result.skippedDuplicates > 0 && (
                 <>
-                  , <strong>{result.skippedDuplicates}</strong>{' '}
-                  {result.skippedDuplicates === 1 ? 'duplicate' : 'duplicates'} skipped
+                  , <strong>{plural(result.skippedDuplicates, 'duplicate')}</strong> skipped
                 </>
               )}
               {result.skippedInvalid > 0 && (
                 <>
-                  , <strong>{result.skippedInvalid}</strong> invalid{' '}
-                  {result.skippedInvalid === 1 ? 'row' : 'rows'} skipped
+                  , <strong>{plural(result.skippedInvalid, 'invalid row')}</strong> skipped
                 </>
               )}
               .
@@ -480,13 +476,13 @@ export function ImportPage() {
               ) : (
                 <Upload className="size-4" />
               )}
-              Import {records(importable.length)}
+              Import {plural(importable.length, 'record')}
             </Button>
           </div>
           {overCap && (
             <p className="text-destructive -mt-4 text-sm">
-              That’s {records(importable.length)} — import at most{' '}
-              {MAX_IMPORT_ROWS.toLocaleString()} at a time. Split the file and import
+              That’s {importable.length.toLocaleString()} records — import at
+              most {MAX_IMPORT_ROWS.toLocaleString()} at a time. Split the file and import
               each part.
             </p>
           )}
