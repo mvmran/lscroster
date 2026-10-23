@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchAll } from '@/lib/fetch-all'
 import { supabase } from '@/lib/supabase'
 import type { LayeredLyrics } from '@/features/services/lyric-layers'
 import { removeSongFiles } from '@/features/services/use-song-attachments'
@@ -76,13 +77,12 @@ export function useSongs() {
   return useQuery({
     queryKey: songKeys.all,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('songs')
-        .select(SONG_SELECT)
-        .order('title')
-        .limit(2000)
-      if (error) throw new Error(error.message)
-      return (data as unknown as SongRow[]).map(flattenSong)
+      // Paged past PostgREST's 1000-row cap; `id` keeps a shared title from
+      // straddling a page boundary.
+      const rows = await fetchAll((from, to) =>
+        supabase.from('songs').select(SONG_SELECT).order('title').order('id').range(from, to),
+      )
+      return (rows as unknown as SongRow[]).map(flattenSong)
     },
     staleTime: 60 * 1000,
   })

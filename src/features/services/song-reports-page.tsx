@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/table'
 import { formatPlanDateShort, todayISODate } from '@/features/services/service-utils'
 import { useSongs } from '@/features/services/use-songs'
+import { fetchAll } from '@/lib/fetch-all'
 import { supabase } from '@/lib/supabase'
 
 interface UsageRow {
@@ -39,12 +40,17 @@ function useSongUsageRows() {
   return useQuery({
     queryKey: ['song-usage-rows'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('song_plan_usage')
-        .select('song_id, date, service_type_id, service_type_name')
-        .limit(5000)
-      if (error) throw new Error(error.message)
-      return data as UsageRow[]
+      // Paged: PostgREST stops at 1000 rows without saying so, and a church
+      // passes that many plays within a few years. A play is one song on one
+      // plan item, which keeps the order stable across pages.
+      return fetchAll<UsageRow>((from, to) =>
+        supabase
+          .from('song_plan_usage')
+          .select('song_id, date, service_type_id, service_type_name')
+          .order('plan_item_id')
+          .order('song_id')
+          .range(from, to),
+      )
     },
     staleTime: 60 * 1000,
   })

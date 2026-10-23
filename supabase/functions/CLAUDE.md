@@ -104,8 +104,10 @@ The handler assembles the context server-side (plan songs, candidate library
 songs minus those on the plan and minus the client's rejected ids, and recent
 plan groupings), capped at 300 candidates / 40 history plans to bound the
 prompt. Reads go through `fetchAll` (`_shared/fetch-all.ts`, also used by the
-roster digest's assignments read), which pages past PostgREST's `max_rows`
-(1000) — it truncates silently — and throws on a query error, which the handler
+roster digest's assignments read; `src/lib/fetch-all.ts` is its client twin),
+which pages past PostgREST's `max_rows` (1000) — it truncates silently — ending
+only on an empty page, so a project with a lower cap still reads everything,
+and throws on a query error, which the handler
 answers as a JSON 500 (an empty library would otherwise read as "exhausted").
 `summarizeUsage` (pure, tested) skips the plan being built and counts "last
 used" only before that service's date. `parseSuggestion` validates the model's pick is a real, offered

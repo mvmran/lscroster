@@ -53,7 +53,7 @@ export function usePeople() {
       // without saying so, and the import's duplicate check and bulk
       // archive's manager check need everyone. `id` keeps the order stable
       // across pages when two people share a name.
-      const rows = await fetchAll((from, to) =>
+      const rows = (await fetchAll((from, to) =>
         supabase
           .from('people_directory')
           .select('*')
@@ -61,8 +61,11 @@ export function usePeople() {
           .order('last_name')
           .order('id')
           .range(from, to),
-      )
-      return rows as unknown as Person[]
+      )) as unknown as Person[]
+      // Someone added or deleted between two page requests shifts the later
+      // pages by one, so a person can come back twice (two rows, one React
+      // key). Keep one; a person skipped that way returns on the next load.
+      return [...new Map(rows.map((p) => [p.id, p])).values()]
     },
     staleTime: 60 * 1000,
   })

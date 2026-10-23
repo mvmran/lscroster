@@ -2157,6 +2157,27 @@ configured locally) opened the dialog with two links and listed the aborted
 and the 504'd person as not confirmed. `npm run ci` green.
 **Upgrade note:** none — app only.
 
+(no migration) **Paging done properly** (2026-10-23, findings 4, 5 and 7 of
+the same review):
+- `fetchAll` (both copies: `src/lib`, `_shared`) stopped at the first page
+  shorter than 1000, so a project with `max_rows` set lower was cut off at
+  that again. It now ends only on an empty page, starting each page after
+  the rows that came back (one empty request at the end). Tested with a
+  500-row cap.
+- Someone added or deleted between two page requests shifts the later pages
+  by one; `usePeople` drops a repeated person (one React key each), and one
+  skipped that way returns on the next load.
+- Song reports (`song_plan_usage`, `.limit(5000)`) and `useSongs`
+  (`.limit(2000)`) had the same silent 1,000-row cut-off — the report would
+  undercount plays after a few years of plans. Both page with `fetchAll`,
+  ordered by (plan item, song) and (title, id).
+Verified in headless Chromium on the local stack with 1,116 people and 1,114
+songs: each list loaded in three requests and found the row sorted last; song
+reports loaded with the new ordering and no console errors. `npm run ci`
+green.
+**Upgrade note:** `functions deploy reminders suggest-song` (they bundle the
+shared `fetchAll`); otherwise app only, in either order.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
