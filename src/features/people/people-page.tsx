@@ -125,8 +125,10 @@ export function PeoplePage() {
     el.classList.add(...flashClasses)
     // Drop the navigation state so a later re-render doesn't re-trigger this.
     navigate(location.pathname, { replace: true, state: null })
-    const timer = setTimeout(() => el.classList.remove(...flashClasses), 2000)
-    return () => clearTimeout(timer)
+    // No cleanup: dropping the state re-runs this effect at once, and a
+    // cleanup that cancelled the timer left the tint on for good. Removing a
+    // class from a row that has since gone is harmless.
+    setTimeout(() => el.classList.remove(...flashClasses), 2000)
   }, [focusId, isPending, navigate, location.pathname])
 
   const [search, setSearch] = useState('')

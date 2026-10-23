@@ -7,7 +7,8 @@ import { differenceInCalendarDays, format, parseISO } from 'date-fns'
  * first, deduped to one per day, all in the past). Counts the run of services
  * spaced about a week apart ending at the latest one; when that run shares a
  * weekday it reads "3 consecutive Sundays", otherwise "3 consecutive weeks".
- * A run shorter than two falls back to "Last served N weeks ago".
+ * A run shorter than two, or one whose latest service is more than about a
+ * week ago (it has ended), falls back to "Last served N weeks ago".
  */
 export function describeStreak(pastDatesDesc: string[], todayISO: string): string {
   if (pastDatesDesc.length === 0) return 'Not served yet'
@@ -24,7 +25,10 @@ export function describeStreak(pastDatesDesc: string[], todayISO: string): strin
     else break
   }
 
-  if (streak >= 2) {
+  // A run is only a streak while it's still going: the latest service has to
+  // be within about a week, or it's a run that ended ("Last served …").
+  const current = differenceInCalendarDays(today, last) <= 8
+  if (streak >= 2 && current) {
     const weekdays = new Set(
       pastDatesDesc.slice(0, streak).map((d) => parseISO(d).getDay()),
     )

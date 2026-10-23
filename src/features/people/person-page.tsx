@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import {
   Archive,
   ArchiveRestore,
@@ -288,7 +288,12 @@ export function PersonPage() {
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => onPhotoChosen(e.target.files?.[0])}
+                onChange={(e) => {
+                  onPhotoChosen(e.target.files?.[0])
+                  // Cleared, so choosing the same file again (a retry after a
+                  // failed upload) still fires onChange.
+                  e.target.value = ''
+                }}
               />
               <Button
                 size="icon"
@@ -415,7 +420,7 @@ export function PersonPage() {
                 <div>
                   <dt className="text-muted-foreground">Birthday</dt>
                   <dd className="font-medium">
-                    {p.birthday ? format(new Date(p.birthday), 'd MMMM yyyy') : '—'}
+                    {p.birthday ? format(parseISO(p.birthday), 'd MMMM yyyy') : '—'}
                   </dd>
                 </div>
               </>

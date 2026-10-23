@@ -29,6 +29,19 @@ describe('describeStreak', () => {
     )
   })
 
+  it('treats a run that ended months ago as recency, not a streak', () => {
+    // Four Sundays in a row, the last one 26 weeks before today.
+    expect(
+      describeStreak(['2025-12-21', '2025-12-14', '2025-12-07', '2025-11-30'], today),
+    ).toBe('Last served 25 weeks ago')
+  })
+
+  it('still counts a run whose latest service was last week', () => {
+    expect(describeStreak(['2026-06-11', '2026-06-04'], today)).toBe(
+      '2 consecutive Thursdays',
+    )
+  })
+
   it('reports recency for a single old service', () => {
     expect(describeStreak(['2026-05-17'], today)).toBe('Last served 4 weeks ago')
   })

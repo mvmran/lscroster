@@ -2020,6 +2020,37 @@ for"; with the preferences request failing the card showed the error and no
 options, and Try again brought them back. `npm run ci` green.
 **Upgrade note:** none — app only.
 
+(no migration) **People: the smaller fixes** (2026-10-23, findings 2, 4, 5, 6,
+9 and 10 of the same review):
+- "Import another file" cleared the rows but not the result, so the result
+  card stayed; it now clears both.
+- A typo'd email in a CSV (`john@gmail`) was imported as no email while the
+  preview showed the typo; the row is now invalid, with the address named.
+  The button says "Import 1 person".
+- A birthday was read with `new Date('1990-05-12')` — UTC midnight, so a day
+  early west of UTC; now `parseISO`.
+- `describeStreak` called a run that ended months ago a streak ("4
+  consecutive Sundays"); a run only counts while its latest service is within
+  about a week, else it's "Last served N weeks ago". Tested.
+- The hidden photo input wasn't cleared, so choosing the same file again
+  after a failed upload did nothing.
+- The People page's row highlight: its cleanup cancelled the fade timer when
+  clearing the navigation state re-ran the effect. Fixed — but nothing has
+  passed `focusId` since the person page's back button became
+  `navigate(-1)` (85a9135), so the scroll-to-row code is unreachable.
+Verified in headless Chromium on the local stack (browser in
+America/New_York): a typo'd row showed as invalid with its reason and only
+the good row was offered; "Import another file" returned to the file picker;
+a 1990-05-12 birthday read 12 May 1990; with photo uploads failing, choosing
+the same file twice made two attempts. `npm run ci` green.
+**Upgrade note:** none — app only.
+- [ ] **Open from the same review**: `usePhotoUrls` re-signs every visible
+  photo on each search keystroke (keyed on the filtered paths), which also
+  defeats the browser's image cache; bulk actions run one person at a time
+  and each reloads the whole directory. Decide whether to restore the
+  People-page return-to-row (`focusId`) or remove it with the layout's
+  scroll exception.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

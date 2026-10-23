@@ -159,7 +159,17 @@ export function ImportPage() {
         }
       }
       const rawEmail = get('email').toLowerCase()
-      const email = z.email().safeParse(rawEmail).success ? rawEmail : ''
+      // A typo'd address is a row to fix, not a blank to import quietly: the
+      // person couldn't be invited, and the preview would show the typo.
+      if (rawEmail && !z.email().safeParse(rawEmail).success) {
+        return {
+          index,
+          values: null,
+          status: 'invalid' as const,
+          reason: `“${rawEmail}” isn’t a valid email address`,
+        }
+      }
+      const email = rawEmail
       if (email) {
         if (existingEmails.has(email)) {
           return {
@@ -253,7 +263,14 @@ export function ImportPage() {
             </p>
             <div className="flex gap-2">
               <Button onClick={() => navigate('/people')}>Go to People</Button>
-              <Button variant="outline" onClick={() => setRows(null)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Both: the result screen shows while `result` is set.
+                  setResult(null)
+                  setRows(null)
+                }}
+              >
                 Import another file
               </Button>
             </div>
@@ -422,7 +439,7 @@ export function ImportPage() {
               ) : (
                 <Upload className="size-4" />
               )}
-              Import {importable.length} people
+              Import {importable.length} {importable.length === 1 ? 'person' : 'people'}
             </Button>
           </div>
           {!mappingComplete && (
