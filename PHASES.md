@@ -1877,13 +1877,11 @@ popup and the page stayed on the plan. 0066 applied twice clean; `npm run ci`
 green. Not on a real iPhone.
 **Upgrade note:** `db push` (0066) before the app — the new bundle calls the
 function.
-- [ ] **Open from the same review**: template updates are still several
-  requests with no transaction (`useUpdateTemplate`, with
-  `replaceTemplateMinCounts`); weekly plan creation stops at the first failed
-  week without saying the earlier ones were made (a retry duplicates them).
-  Cut by the cap: duplicated `useFunctionAvailable` hooks, near-duplicate
-  plan/song attachment hooks, a run-sheet PDF failure only logged to the
-  console, `plan-item-lyrics` not refreshed after lyrics are saved.
+- [ ] **Open from the same review** (cut by the cap): duplicated
+  `useFunctionAvailable` hooks, near-duplicate plan/song attachment hooks, a
+  run-sheet PDF failure only logged to the console, `plan-item-lyrics` not
+  refreshed after lyrics are saved. (Template updates and weekly plan
+  creation: fixed in 0067, below.)
 
 (no migration) **Services: a song item keeps its recording, AI helpers keep
 your typing, a half-made service type isn't made twice** (2026-10-23,
@@ -1909,6 +1907,35 @@ stale labels were refused, a second untouched run added them; a failed team
 save showed "… was created, but its teams weren't saved", the button turned
 to Save, and Save left exactly one service type. `npm run ci` green.
 **Upgrade note:** none — app only.
+
+(0067) `save_plan_template`, `create_plans` **Templates save whole; weekly
+plans are made all or none** (2026-10-23, findings 4 and 9 of the same
+review):
+- Updating a template was rename → delete items → insert items → replace
+  times → replace minimums from the browser; a failure partway left it
+  renamed with no order of service. `save_plan_template(template, items,
+  times, min_counts, id?)` creates or overwrites it in one transaction, for
+  both Save template and Update template (Save's compensating delete and the
+  `replaceTemplate*` helpers are gone).
+- Weekly plan creation called `createPlan` once per date (four source reads
+  and three inserts each) and stopped at the first failure with "Could not
+  create plan" and the earlier weeks made, so a retry duplicated them.
+  `create_plans(plan, dates[], source?, inherit_start)` makes every plan with
+  its copied items, times and minimums in one transaction and returns them by
+  date; the new-plan dialog sends all the dates at once ("No plans were
+  created — …" when it fails) and Duplicate sends one. `useCreatePlan` is now
+  `useCreatePlans`.
+Verified on the local stack. API as a coordinator and a member: a template
+update with a bad arrangement failed and left the template exactly as it was,
+a good one replaced everything; a three-week run from the template copied 3
+items, 2 times and the minimum into each week and took the template's start,
+an explicit start won when given; with a local trigger failing the middle
+week, the run left no plans; a member was refused every call. Headless
+Chromium: the dialog made a three-week run and opened the first; Duplicate,
+Save template and Update template worked. 0067 applied twice clean;
+`npm run ci` green.
+**Upgrade note:** `db push` (0067) before the app — the new bundle calls the
+functions.
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
