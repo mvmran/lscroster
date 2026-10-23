@@ -122,6 +122,7 @@ import {
   useReorderPlanItems,
 } from '@/features/services/use-plan-items'
 import {
+  PlansNotReturnedError,
   useCreatePlans,
   useDeletePlan,
   usePlan,
@@ -411,6 +412,12 @@ function DuplicateDialog({
       onOpenChange(false)
       navigate(`/services/plans/${copy.id}`)
     } catch (error) {
+      if (error instanceof PlansNotReturnedError) {
+        toast.warning(error.message)
+        onOpenChange(false)
+        navigate('/services')
+        return
+      }
       toast.error(error instanceof Error ? error.message : 'Could not duplicate')
     }
   }

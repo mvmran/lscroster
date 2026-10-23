@@ -32,7 +32,7 @@ import {
   type ClashCandidate,
 } from '@/features/services/service-utils'
 import { PlanClashDialog } from '@/features/services/plan-clash-dialog'
-import { useCreatePlans, type PlanWithType } from '@/features/services/use-plans'
+import { PlansNotReturnedError, useCreatePlans, type PlanWithType } from '@/features/services/use-plans'
 import { usePlanTemplates } from '@/features/services/use-plan-templates'
 import { useServiceTypes } from '@/features/services/use-service-types'
 
@@ -99,10 +99,19 @@ export function NewPlanDialog({
   function attemptCreate() {
     if (!effectiveTypeId || !date || repeatInvalid) return
     const type = serviceTypes?.find((st) => st.id === effectiveTypeId)
-    // The new plan's effective window: the chosen start (or the type default),
-    // with the type's end shifted to match.
+    // A blank start takes the source's start, as `create_plans` will — the
+    // check must test the window the plans will really have.
+    const [kind, sourceId] = source.split(':')
+    const sourceStart =
+      kind === 'template'
+        ? templates?.find((t) => t.id === sourceId)?.start_time
+        : kind === 'plan'
+          ? plans.find((p) => p.id === sourceId)?.start_time
+          : null
+    // The new plan's effective window: the chosen start, else the source's,
+    // else the type default, with the type's end shifted to match.
     const { start, end } = planEffectiveTimes({
-      start_time: startTime ? `${startTime}:00` : null,
+      start_time: startTime ? `${startTime}:00` : (sourceStart ?? null),
       service_types: {
         default_start_time: type?.default_start_time ?? null,
         end_time: type?.end_time ?? null,
@@ -138,6 +147,12 @@ export function NewPlanDialog({
       onOpenChange(false)
       navigate(`/services/plans/${created[0].id}`)
     } catch (error) {
+      if (error instanceof PlansNotReturnedError) {
+        toast.warning(error.message)
+        onOpenChange(false)
+        navigate('/services')
+        return
+      }
       const message = error instanceof Error ? error.message : 'Could not create plan'
       toast.error(
         dates.length > 1 ? `No plans were created — ${message}` : message,

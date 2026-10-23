@@ -57,9 +57,18 @@ function useInvalidatePlans() {
   }
 }
 
+/** The plans were created but didn't come back — don't offer a retry. */
+export class PlansNotReturnedError extends Error {
+  constructor() {
+    super('The plans were created, but couldn’t be shown — find them in the Services list.')
+    this.name = 'PlansNotReturnedError'
+  }
+}
+
 export interface CreatePlanInput {
   service_type_id: string
-  date: string
+  /** One plan per date: a single plan, or a weekly run (#72). */
+  dates: string[]
   title: string | null
   /**
    * Per-plan start-time override ('HH:mm:ss'). When omitted (undefined), the
@@ -84,12 +93,7 @@ export function useCreatePlans() {
   const invalidate = useInvalidatePlans()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({
-      dates,
-      source,
-      start_time,
-      ...values
-    }: Omit<CreatePlanInput, 'date'> & { dates: string[] }) => {
+    mutationFn: async ({ dates, source, start_time, ...values }: CreatePlanInput) => {
       const { data, error } = await supabase.rpc('create_plans', {
         p_plan: { ...values, start_time: start_time ?? null },
         p_dates: dates,
@@ -98,9 +102,16 @@ export function useCreatePlans() {
         p_inherit_start: start_time === undefined,
       })
       if (error) throw new Error(error.message)
+      // The function commits before it hands the plans back, so an empty
+      // answer means they exist but couldn't be read — never "nothing made",
+      // which would invite a retry that duplicates them.
+      if (data.length === 0) {
+        throw new PlansNotReturnedError()
+      }
       return data
     },
-    onSuccess: () => {
+    // Settled: refresh even when the plans were made but not handed back.
+    onSettled: () => {
       invalidate()
       // Copied per-plan minimum overrides (#110) land in the shared cache.
       queryClient.invalidateQueries({ queryKey: ['plan-min-counts-all'] })

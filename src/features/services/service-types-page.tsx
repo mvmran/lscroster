@@ -63,14 +63,12 @@ import {
   type ServiceType,
 } from '@/features/services/service-utils'
 import {
-  useCreateServiceType,
   useDeleteServiceType,
   useReorderServiceTypes,
   useServiceTypeDeleteImpact,
   useServiceTypes,
   useServiceTypeTeamIds,
-  useSetServiceTypeTeams,
-  useUpdateServiceType,
+  useSaveServiceType,
 } from '@/features/services/use-service-types'
 
 /**
@@ -252,9 +250,7 @@ function ServiceTypeDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const create = useCreateServiceType()
-  const update = useUpdateServiceType()
-  const setTeams = useSetServiceTypeTeams()
+  const saveType = useSaveServiceType()
   const { data: teams } = useTeams()
   const teamIdsQuery = useServiceTypeTeamIds(serviceType?.id)
 
@@ -268,13 +264,9 @@ function ServiceTypeDialog({
   // Seed the fields each time the dialog opens for a different target
   // (set-state-during-render, mirroring the app's other dialogs).
   const [seededFor, setSeededFor] = useState<string | null>(null)
-  // A new service type that was created but whose teams then failed to save:
-  // Save again must finish that one, not create a second.
-  const [createdId, setCreatedId] = useState<string | null>(null)
   const target = serviceType?.id ?? 'new'
   if (open && seededFor !== target) {
     setSeededFor(target)
-    setCreatedId(null)
     setName(serviceType?.name ?? '')
     setStartTime(serviceType?.default_start_time?.slice(0, 5) ?? '')
     setEndTime(serviceType?.end_time?.slice(0, 5) ?? '')
@@ -295,7 +287,7 @@ function ServiceTypeDialog({
   // would replace has loaded — an empty one would unlink every required team.
   const teamsReady = !serviceType || teamsSeededFor === serviceType.id
 
-  const pending = create.isPending || update.isPending || setTeams.isPending
+  const pending = saveType.isPending
 
   function toggleDay(day: number) {
     setDays((prev) =>
@@ -348,26 +340,12 @@ function ServiceTypeDialog({
       frequency: frequency || null,
       days_of_week: days,
     }
-    const existingId = serviceType?.id ?? createdId
-    let created = false
     try {
-      let savedId: string
-      if (existingId) {
-        savedId = (await update.mutateAsync({ id: existingId, values })).id
-      } else {
-        savedId = (await create.mutateAsync(values)).id
-        setCreatedId(savedId)
-        created = true
-      }
-      await setTeams.mutateAsync({ serviceTypeId: savedId, teamIds })
+      // The type and its teams in one call: all of it saves, or none does.
+      await saveType.mutateAsync({ id: serviceType?.id, values, teamIds })
       onOpenChange(false)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not save'
-      toast.error(
-        created || (!serviceType && createdId)
-          ? `${trimmed} was created, but its teams weren’t saved (${message}). Press Save to try again.`
-          : message,
-      )
+      toast.error(error instanceof Error ? error.message : 'Could not save')
     }
   }
 
@@ -549,7 +527,7 @@ function ServiceTypeDialog({
           </Button>
           <Button onClick={save} disabled={pending || !name.trim() || !teamsReady}>
             {pending && <Loader2 className="size-4 animate-spin" />}
-            {serviceType || createdId ? 'Save' : 'Create'}
+            {serviceType ? 'Save' : 'Create'}
           </Button>
         </DialogFooter>
       </DialogContent>

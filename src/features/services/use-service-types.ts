@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { todayISODate } from '@/features/services/service-utils'
 import { removePlanFiles } from '@/features/services/use-plan-attachments'
 import { COUNT_ONLY, countRows } from '@/lib/count-rows'
-import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
+import type { Tables, TablesUpdate } from '@/types/database'
 
 type ServiceTypeRow = Tables<'service_types'>
 
@@ -28,45 +28,6 @@ export function useServiceTypes() {
 function useInvalidateServiceTypes() {
   const queryClient = useQueryClient()
   return () => queryClient.invalidateQueries({ queryKey: serviceTypesKey })
-}
-
-export function useCreateServiceType() {
-  const invalidate = useInvalidateServiceTypes()
-  return useMutation({
-    mutationFn: async (values: TablesInsert<'service_types'>) => {
-      const { data, error } = await supabase
-        .from('service_types')
-        .insert(values)
-        .select()
-        .single()
-      if (error) throw new Error(error.message)
-      return data
-    },
-    onSuccess: invalidate,
-  })
-}
-
-export function useUpdateServiceType() {
-  const invalidate = useInvalidateServiceTypes()
-  return useMutation({
-    mutationFn: async ({
-      id,
-      values,
-    }: {
-      id: string
-      values: TablesUpdate<'service_types'>
-    }) => {
-      const { data, error } = await supabase
-        .from('service_types')
-        .update(values)
-        .eq('id', id)
-        .select()
-        .single()
-      if (error) throw new Error(error.message)
-      return data
-    },
-    onSuccess: invalidate,
-  })
 }
 
 /**
@@ -157,29 +118,34 @@ export function useServiceTypeTeamIds(serviceTypeId: string | undefined) {
 }
 
 /**
- * Replace the set of teams required by a service type, in display order. One
- * transaction (`replace_service_type_teams`, 0065), so a failure leaves the
- * list as it was.
+ * Create (no id) or update a service type together with its required teams,
+ * in display order. One transaction (`save_service_type`, 0068): a new type
+ * can't be left behind without the teams it was meant to have.
  */
-export function useSetServiceTypeTeams() {
+export function useSaveServiceType() {
+  const invalidate = useInvalidateServiceTypes()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
-      serviceTypeId,
+      id,
+      values,
       teamIds,
     }: {
-      serviceTypeId: string
+      id?: string
+      values: TablesUpdate<'service_types'>
       teamIds: string[]
     }) => {
-      const { error } = await supabase.rpc('replace_service_type_teams', {
-        p_service_type_id: serviceTypeId,
+      const { data, error } = await supabase.rpc('save_service_type', {
+        p_values: values,
         p_team_ids: teamIds,
+        ...(id ? { p_id: id } : {}),
       })
       if (error) throw new Error(error.message)
-      return serviceTypeId
+      return data
     },
-    onSuccess: (serviceTypeId) => {
-      queryClient.invalidateQueries({ queryKey: serviceTypeTeamsKey(serviceTypeId) })
+    onSuccess: (id) => {
+      invalidate()
+      queryClient.invalidateQueries({ queryKey: serviceTypeTeamsKey(id) })
       // Team displays (Teams list, team page) read the same join table.
       queryClient.invalidateQueries({ queryKey: ['teams'] })
     },

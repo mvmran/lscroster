@@ -2320,6 +2320,10 @@ export type Database = {
         }
         Returns: string
       }
+      save_service_type: {
+        Args: { p_id?: string; p_team_ids: string[]; p_values: Json }
+        Returns: string
+      }
       schedules_any_team: { Args: never; Returns: boolean }
       schedules_team_on_plan: {
         Args: { target_plan_id: string }

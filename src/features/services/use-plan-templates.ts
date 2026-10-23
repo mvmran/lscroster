@@ -80,7 +80,8 @@ export function useSaveAsTemplate() {
       if (error) throw new Error(error.message)
       return id
     },
-    onSuccess: () => {
+    // Settled: after a failure too, so the dialog sees the list as it is now.
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: planTemplatesKey })
     },
   })
@@ -116,7 +117,9 @@ export function useUpdateTemplate() {
       })
       if (error) throw new Error(error.message)
     },
-    onSuccess: () => {
+    // Settled: a template deleted meanwhile must drop out of the list, or the
+    // dialog keeps offering Update and every retry fails.
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: planTemplatesKey })
     },
   })

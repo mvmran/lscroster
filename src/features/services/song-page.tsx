@@ -1032,19 +1032,23 @@ function ArrangementLyricsBlock({
   }
 
   async function doSave(asNewVersion: boolean) {
+    // The text as it is now — the pin check before this may have taken a
+    // moment, and the pane stays editable throughout.
+    const sent = latest.current
     try {
       const saved = await save.mutateAsync({
         // Numbers are the stored form whichever notation the pane was in.
         // The conversion is idempotent, so this also quietly renumbers a
         // layer typed before chords were stored this way.
         layers: normalizeForSave({
-          ...value,
-          chords: chordsToNumbers(value.chords, songKey),
+          ...sent,
+          chords: chordsToNumbers(sent.chords, songKey),
         }),
         current: current ?? null,
         asNewVersion,
       })
-      setDraft(null)
+      // Anything typed while the save ran stays, as unsaved changes.
+      setDraft((d) => (d === null || sameLayers(d, sent) ? null : d))
       toast.success(
         asNewVersion ? `Lyrics saved as version ${saved.version}` : 'Lyrics saved',
       )
@@ -1444,6 +1448,16 @@ function ArrangementLyricsBlock({
 }
 
 /** "More than one section is called “VERSE”, with different words or chords." */
+/** The same text in every layer. */
+function sameLayers(a: LayeredLyrics, b: LayeredLyrics): boolean {
+  return (
+    a.lyrics === b.lyrics &&
+    a.native === b.native &&
+    a.meaning === b.meaning &&
+    a.chords === b.chords
+  )
+}
+
 function sharedHeadingsText(headings: string[]): string {
   const quoted = headings.map((h) => `“${h}”`)
   const names =
