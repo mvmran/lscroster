@@ -671,7 +671,10 @@ managed in **Settings → Permission templates**.
 **Archive** (on the person's page, **Account &amp; access**) hides a person from
 the directory and stops them signing in, but keeps their history. Use it when
 someone leaves. **Reactivate** brings them back. You can also archive several
-people from the People list (tick them → **Archive** → **Go**).
+people from the People list (tick them → **Archive** → **Go**); anyone who had a
+sign-in is emailed, just as from their page. Someone who manages another member
+(below) can't be archived until that link is removed — the confirmation lists
+anyone it will skip, and why.
 
 > **Warning** — Archiving doesn't remove someone's upcoming rosters. LSCroster
 > warns you if they're still scheduled — re-roster those spots.
@@ -685,7 +688,8 @@ the better choice.
 need someone to answer on their behalf. On their page, **Account &amp; access →
 Assign a managing member** and choose a member who can sign in, then press
 **Send invitation** — the invitation goes to the managing member, who confirms
-it. Once confirmed, the managing member:
+it. Assigning a managing member cancels any invitation the person had been sent
+themselves, so its link stops working. Once confirmed, the managing member:
 
 - sees the person's requests in their own **My Schedule** and on Home, marked
   "*for* Name", and can accept or decline them;
@@ -706,10 +710,13 @@ about the change.
    Phone, Birthday, Notes), pick the matching column, or *— don't import —*.
    First and last name are required.
 4. **Preview** shows each row and whether it will be imported. Rows are skipped
-   if they're missing a name, if their email is already in the directory, or if
-   the same email appears twice in the file.
+   if they're missing a name, if their email isn't a valid address (fix it in
+   the file), if their email is already in the directory, or if the same email
+   appears twice in the file.
 5. Import. Imported people are added as members without a sign-in; invite them
-   when you're ready (§5.3).
+   when you're ready (§5.3). A file goes in whole or not at all — if anything
+   goes wrong it says *Nothing was imported*, so you can fix it and import the
+   same file again. Up to 2,000 people per file; split a bigger list.
 
 ---
 
