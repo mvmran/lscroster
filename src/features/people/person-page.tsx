@@ -257,6 +257,9 @@ export function PersonPage() {
   const managedPeople = managed.data ?? []
   const managedNames = managedPeople.map((m) => fullName(m))
   const managesAnyone = managedPeople.length > 0
+  // Until the list arrives (or when it fails) nobody can tell, so Archive and
+  // Delete stay off; the functions refuse a manager too.
+  const managedUnknown = managed.data === undefined
 
   return (
     <div className="mx-auto flex w-full flex-col gap-4">
@@ -494,7 +497,7 @@ export function PersonPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={accountAccess.isPending || managesAnyone}
+                        disabled={accountAccess.isPending || managesAnyone || managedUnknown}
                         title="Hide from the directory and disable sign-in — history is kept"
                       >
                         <Archive className="size-4" />
@@ -582,7 +585,7 @@ export function PersonPage() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        disabled={managesAnyone || !personDeleteAllowed}
+                        disabled={managesAnyone || managedUnknown || !personDeleteAllowed}
                         title="Permanently remove this person and their history"
                       >
                         <Trash2 className="size-4" />

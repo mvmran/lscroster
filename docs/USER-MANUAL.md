@@ -615,7 +615,8 @@ the invitation may have gone out, so check their page before sending again. If
 email isn't set up yet, the links are shown for you to copy and share.
 
 **Resend invitation** sends a fresh link; **Revoke** cancels an invitation so the
-emailed link stops working.
+emailed link stops working. Changing someone's email also cancels their
+invitation — send a new one to the new address.
 
 > **Tip** — If email isn't set up on your church's copy yet, LSCroster shows
 > the invitation link for you to copy and send yourself.

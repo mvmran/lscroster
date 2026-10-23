@@ -46,10 +46,31 @@ Deno.serve(async (req) => {
 
   const { data: person } = await admin
     .from('people')
-    .select('id, auth_user_id, photo_url')
+    .select('id, first_name, last_name, auth_user_id, photo_url')
     .eq('id', personId)
     .maybeSingle()
   if (!person) return jsonResponse({ error: 'Person not found' }, 404)
+
+  // Deleting a manager would leave the members they manage unreachable (the
+  // foreign key quietly unlinks them). The person page blocks it, but only
+  // once its list has loaded — the rule belongs here, as for archive.
+  const { data: managed, error: managedError } = await admin
+    .from('people')
+    .select('first_name, last_name')
+    .eq('managed_by_person_id', personId)
+  if (managedError) {
+    console.error('managed lookup failed:', managedError)
+    return jsonResponse({ error: 'Failed to delete person' }, 500)
+  }
+  if (managed.length > 0) {
+    const names = managed.map((m) => `${m.first_name} ${m.last_name}`).join(', ')
+    return jsonResponse(
+      {
+        error: `${person.first_name} ${person.last_name} manages ${names} — remove that link first`,
+      },
+      409,
+    )
+  }
 
   // Delete the auth account first: its FK sets people.auth_user_id to null,
   // so a failure here leaves everything intact. (The other order would leave a

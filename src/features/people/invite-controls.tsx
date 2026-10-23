@@ -116,6 +116,19 @@ export function InviteControls({ person }: { person: Person }) {
   if (invitation.isPending) {
     return <Loader2 className="text-muted-foreground size-4 animate-spin" />
   }
+  // Not "no invitation": Send would replace the link already emailed.
+  if (invitation.isError && invitation.data === undefined) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <p className="text-destructive">
+          Couldn’t load the invitation ({invitation.error.message}).
+        </p>
+        <Button variant="outline" size="sm" onClick={() => void invitation.refetch()}>
+          Try again
+        </Button>
+      </div>
+    )
+  }
 
   const pending = invitation.data
   const expired = pending && new Date(pending.expires_at) < new Date()

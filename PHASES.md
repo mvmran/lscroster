@@ -2198,6 +2198,46 @@ a second run refusing someone else left one failure list, naming them; a
 read "1 record imported". `npm run ci` green.
 **Upgrade note:** none — app only.
 
+(0070) `invitations.email`, triggers `people_email_clears_invitation`,
+`people_manager_resets_confirmation` **Third re-review of the people fixes:
+accounts and access** (2026-10-23, findings 1, 2, 3 and 6 of a `/code-review
+high` of `src/features/people`):
+- **Security:** an invitation outlived a change of email, and
+  `accept-invitation` makes the login from the person's email as it is when
+  the link is used — so after an admin corrected a mistyped address, whoever
+  held the old link signed up as the corrected one. A change of email now
+  clears the unaccepted invitation (0069's trigger function, generalised as
+  `clear_pending_invitation`), `invite` records where each invitation went
+  (`invitations.email`), and `accept-invitation` refuses a link whose address
+  the person no longer has (410). Invitations sent before this release
+  recorded no address and are accepted as before — the trigger still covers
+  them from now on.
+- A manager could be deleted (the person page only blocked it once its
+  "manages" list had loaded, and `delete-person` didn't check), and the
+  foreign key's `set null` left the managed member unreachable.
+  `delete-person` now refuses a manager (409, naming them, as archive does),
+  and Archive and Delete stay off until the list has loaded.
+- `managed_accepted_at` outlived its manager, so the next manager assigned
+  counted as confirmed and was never invited. A before-update trigger clears
+  it whenever the manager changes — the referential `set null` included —
+  unless the same statement sets it; 0070 clears any already orphaned (none
+  on Life Sanctuary's instance).
+- When the invitation failed to load, the card read "No sign-in access yet"
+  and offered Send invitation, which would replace the link already emailed;
+  it now shows the error and Try again.
+Verified on the local stack with this worktree's functions served (a fresh
+`functions serve` — the long-running edge runtime was still answering with
+the previous bundles, so a first run tested old code): the invite recorded
+its address; correcting the email removed it; a link to the old address was
+refused with no login made, one to the current address described the
+person; a manager's delete was refused naming the member; the stamp survived
+being set alongside a manager and was cleared when the manager was deleted
+or changed. Headless Chromium: Delete stayed off while the managed list was
+held and came on once it arrived; a failed invitation load showed the error
+and no Send button. 0070 applied twice clean; `npm run ci` green.
+**Upgrade note:** `db push` (0070) first — `invite` writes the new column —
+then `functions deploy invite accept-invitation delete-person`, then the app.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

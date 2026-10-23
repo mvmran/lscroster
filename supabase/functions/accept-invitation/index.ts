@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
   const { data: invitation } = await admin
     .from('invitations')
     .select(
-      'id, expires_at, accepted_at, person:people(id, first_name, last_name, email, auth_user_id, managed_by_person_id)',
+      'id, email, expires_at, accepted_at, person:people(id, first_name, last_name, email, auth_user_id, managed_by_person_id)',
     )
     .eq('token_hash', tokenHash)
     .maybeSingle()
@@ -81,6 +81,22 @@ Deno.serve(async (req) => {
   const managed = !!person.managed_by_person_id
   if (!person.email && !managed) {
     return jsonResponse({ error: 'This invitation is no longer valid' }, 410)
+  }
+  // The login is made from the person's email as it is now, so a link sent to
+  // an address they no longer have must not make one (0070 also clears the
+  // invitation when the email changes). Older invitations recorded no address.
+  if (
+    !managed &&
+    invitation.email &&
+    invitation.email.toLowerCase() !== person.email!.toLowerCase()
+  ) {
+    return jsonResponse(
+      {
+        error:
+          'This invitation was sent to an old email address. Ask your admin for a new one.',
+      },
+      410,
+    )
   }
 
   const { data: church } = await admin

@@ -100,6 +100,8 @@ Deno.serve(async (req) => {
       token_hash: await sha256Hex(token),
       expires_at: expiresAt,
       accepted_at: null,
+      // Where it went: accept-invitation refuses it once the address changes.
+      email: managed ? manager!.email : person.email,
     },
     { onConflict: 'person_id' },
   )
