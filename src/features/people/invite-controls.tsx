@@ -77,6 +77,10 @@ export function InviteControls({ person }: { person: Person }) {
 
   async function attach(managerId: string) {
     try {
+      // The person's own pending invitation goes first: left in place, its
+      // link would still let them sign up themselves, and the managed view
+      // would show it as an invitation sent to the manager.
+      if (invitation.data) await revokeInvite.mutateAsync(person.id)
       await updatePerson.mutateAsync({
         id: person.id,
         values: { managed_by_person_id: managerId },
@@ -282,7 +286,7 @@ export function InviteControls({ person }: { person: Person }) {
         personId={person.id}
         personName={person.first_name}
         onChoose={attach}
-        saving={updatePerson.isPending}
+        saving={revokeInvite.isPending || updatePerson.isPending}
       />
 
       <ManualLinkDialog

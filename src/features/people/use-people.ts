@@ -35,7 +35,7 @@ export const PERSON_SAFE_COLUMNS =
  * email index means another person already uses that address (issue #38) —
  * surface that instead of the raw `people_email_unique` constraint text.
  */
-function personErrorMessage(error: { code?: string; message: string }): string {
+export function personErrorMessage(error: { code?: string; message: string }): string {
   if (error.code === '23505' && error.message.includes('people_email_unique')) {
     return 'A person with this email already exists.'
   }

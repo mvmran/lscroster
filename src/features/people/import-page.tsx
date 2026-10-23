@@ -32,7 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatPhone } from '@/features/people/phone-utils'
-import { peopleKeys, usePeople } from '@/features/people/use-people'
+import { peopleKeys, personErrorMessage, usePeople } from '@/features/people/use-people'
 import { supabase } from '@/lib/supabase'
 import { useQueryClient } from '@tanstack/react-query'
 import type { TablesInsert } from '@/types/database'
@@ -50,7 +50,10 @@ type AppFieldKey = (typeof APP_FIELDS)[number]['key']
 type Mapping = Partial<Record<AppFieldKey, string>>
 
 const SKIP = '__skip__'
-const BATCH_SIZE = 100
+// One request, so one transaction — a failure imports nothing rather than the
+// first batches, which a retry would then duplicate. Capped to keep that
+// request (and the People list it feeds) a sensible size.
+const MAX_IMPORT_ROWS = 2000
 
 function guessMapping(headers: string[]): Mapping {
   const mapping: Mapping = {}
@@ -199,25 +202,28 @@ export function ImportPage() {
   const mappingComplete = !!mapping.firstName && !!mapping.lastName
 
   async function runImport() {
+    if (importable.length > MAX_IMPORT_ROWS) {
+      toast.error(
+        `That's ${importable.length} people — import at most ${MAX_IMPORT_ROWS} at a time. Split the file and import each part.`,
+      )
+      return
+    }
     setImporting(true)
     try {
-      let imported = 0
       const values = importable.map((r) => r.values!)
-      for (let i = 0; i < values.length; i += BATCH_SIZE) {
-        const batch = values.slice(i, i + BATCH_SIZE)
-        const { error } = await supabase.from('people').insert(batch)
-        if (error) throw new Error(error.message)
-        imported += batch.length
-      }
-      await queryClient.invalidateQueries({ queryKey: peopleKeys.all })
+      const { error } = await supabase.from('people').insert(values)
+      if (error) throw new Error(personErrorMessage(error))
       setResult({
-        imported,
+        imported: values.length,
         skippedDuplicates: duplicates.length,
         skippedInvalid: invalid.length,
       })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Import failed')
+      const message = error instanceof Error ? error.message : 'Import failed'
+      toast.error(`Nothing was imported — ${message}`)
     } finally {
+      // Either way, so the duplicate check reads the directory as it is now.
+      await queryClient.invalidateQueries({ queryKey: peopleKeys.all })
       setImporting(false)
     }
   }

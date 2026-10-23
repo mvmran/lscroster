@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   EMAIL_PREF_DEFAULTS,
@@ -105,7 +106,7 @@ function PrefsForm({
  * immediately.
  */
 export function PersonEmailPrefsCard({ personId }: { personId: string }) {
-  const { data: prefs, isPending } = usePersonEmailPrefs(personId)
+  const { data: prefs, isPending, isError, error, refetch } = usePersonEmailPrefs(personId)
 
   return (
     <Card>
@@ -118,6 +119,17 @@ export function PersonEmailPrefsCard({ personId }: { personId: string }) {
       <CardContent>
         {isPending ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
+        ) : isError ? (
+          // Not the form: with nothing loaded it would show every email on,
+          // whatever is stored, and the next tick would save against that.
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <p className="text-destructive">
+              Couldn’t load the email preferences ({error.message}).
+            </p>
+            <Button variant="outline" size="sm" onClick={() => void refetch()}>
+              Try again
+            </Button>
+          </div>
         ) : (
           // Keyed by person, not by `updated_at`: the form's own state is the
           // source of truth once loaded. Keying on `updated_at` remounted it after

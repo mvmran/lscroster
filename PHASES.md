@@ -1997,6 +1997,29 @@ manager and another member skipped the manager, archived the other and
 logged their access-revoked email. `npm run ci` green.
 **Upgrade note:** `functions deploy account-access` before the app.
 
+(no migration) **People: imports land whole, a manager replaces the old
+invitation, a failed preferences load says so** (2026-10-23, findings 3, 7
+and 8 of the same review):
+- The CSV import inserted 100-row batches; a failure on a later batch left
+  the earlier ones saved, said nothing about them and didn't refresh the
+  directory, so a retry duplicated the email-less rows. It now sends one
+  insert — PostgREST runs it as one statement, so the file lands whole or not
+  at all ("Nothing was imported — …"), with a 2,000-person cap per file — and
+  refreshes the directory either way. Duplicate-email errors read as people,
+  not constraint names (`personErrorMessage`, now exported).
+- "Assign a managing member" left the person's own pending invitation live:
+  its link still worked, and the managed view showed it as an invitation to
+  the manager ("Waiting for Alice…"). The invitation is revoked first.
+- The email preferences card rendered the form when the load failed, showing
+  every email on whatever was stored; it now shows the error and Try again.
+Verified in headless Chromium on the local stack: a 3-row CSV whose third
+row a local trigger rejected saved none of them and said "Nothing was
+imported", and the retry saved all three; assigning a manager to a person
+with a pending invitation removed it and the page stopped saying "Waiting
+for"; with the preferences request failing the card showed the error and no
+options, and Try again brought them back. `npm run ci` green.
+**Upgrade note:** none — app only.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
