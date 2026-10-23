@@ -706,7 +706,7 @@ about the change.
 
 1. Export your list from your spreadsheet as a **CSV** file. The first row
    should be the column headings.
-2. Go to **People → Import** and choose (or drop) the file.
+2. Go to **People → Import** and choose the file.
 3. **Map columns** — for each LSCroster field (First name, Last name, Email,
    Phone, Birthday, Notes), pick the matching column, or *— don't import —*.
    First and last name are required.
@@ -717,7 +717,10 @@ about the change.
 5. Import. Imported people are added as members without a sign-in; invite them
    when you're ready (§5.3). A file goes in whole or not at all — if anything
    goes wrong it says *Nothing was imported*, so you can fix it and import the
-   same file again. Up to 2,000 people per file; split a bigger list.
+   same file again. If the connection drops mid-import, it can't tell whether
+   the file went in: check the People list before importing again. Up to 2,000
+   records per file — the Import button stays off for more; split a bigger
+   list.
 
 ---
 

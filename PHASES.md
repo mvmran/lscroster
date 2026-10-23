@@ -2106,6 +2106,29 @@ Beta: Simulated refusal for Beta" still up 9 seconds later, and reloaded the
 directory once (its two pages). `npm run ci` green.
 **Upgrade note:** none — app only.
 
+(no migration) **People: import and preferences polish** (2026-10-23,
+findings 5, 7, 8 and 9 of the same re-review):
+- A dropped connection during an import read "Nothing was imported", though
+  the insert may have committed before the answer was lost — and a retry
+  adds every email-less row twice. A request that got no answer
+  (postgrest-js `status: 0`) now says the import may have been saved and to
+  check People first, in a toast that stays until closed.
+- The email preferences card showed the error panel on any `isError`, so a
+  failed background refetch replaced a loaded form; it now shows only when
+  nothing has loaded (`prefs === undefined`; `null` is a loaded "no row").
+- The upload box said "Choose a CSV file or drop it here" with no drop
+  handling — a drop opened the CSV in the tab. It now says "Choose a CSV
+  file".
+- The 2,000 cap was checked only on click; the button now stays off with the
+  reason under it. Counts read "record(s)" — "Import 1 record", "1 record
+  imported" — and the skipped counts are singular when one.
+Verified in headless Chromium on the local stack: a 2,001-row file showed
+"Import 2001 records", disabled, with the note; an aborted insert gave the
+may-have-been-saved message; a one-row file read "Import 1 record" and "1
+record imported"; leaving and reopening a person with the preferences request
+failing kept the loaded form after both attempts. `npm run ci` green.
+**Upgrade note:** none — app only.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

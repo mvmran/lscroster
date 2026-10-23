@@ -119,9 +119,10 @@ export function PersonEmailPrefsCard({ personId }: { personId: string }) {
       <CardContent>
         {isPending ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
-        ) : isError ? (
+        ) : isError && prefs === undefined ? (
           // Not the form: with nothing loaded it would show every email on,
-          // whatever is stored, and the next tick would save against that.
+          // whatever is stored, and the next tick would save against that. A
+          // failed background refetch keeps what loaded (null = no row yet).
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <p className="text-destructive">
               Couldn’t load the email preferences ({error.message}).

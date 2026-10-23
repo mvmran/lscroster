@@ -55,6 +55,8 @@ const SKIP = '__skip__'
 // request (and the People list it feeds) a sensible size.
 const MAX_IMPORT_ROWS = 2000
 
+const records = (n: number) => `${n} ${n === 1 ? 'record' : 'records'}`
+
 function guessMapping(headers: string[]): Mapping {
   const mapping: Mapping = {}
   const find = (...needles: string[]) =>
@@ -210,18 +212,23 @@ export function ImportPage() {
   )
   const invalid = prepared.filter((r) => r.status === 'invalid')
   const mappingComplete = !!mapping.firstName && !!mapping.lastName
+  const overCap = importable.length > MAX_IMPORT_ROWS
 
   async function runImport() {
-    if (importable.length > MAX_IMPORT_ROWS) {
-      toast.error(
-        `That's ${importable.length} people — import at most ${MAX_IMPORT_ROWS} at a time. Split the file and import each part.`,
-      )
-      return
-    }
     setImporting(true)
     try {
       const values = importable.map((r) => r.values!)
-      const { error } = await supabase.from('people').insert(values)
+      const { error, status } = await supabase.from('people').insert(values)
+      // Status 0: no answer came back (a dropped connection), so the insert
+      // may have committed. Saying "nothing was imported" would invite a
+      // retry that adds every email-less row twice.
+      if (error && status === 0) {
+        toast.error(
+          'The connection dropped before the server answered, so the import may have been saved. Check the People list before importing again — people without an email would be added twice.',
+          { duration: Infinity, closeButton: true },
+        )
+        return
+      }
       if (error) throw new Error(personErrorMessage(error))
       setResult({
         imported: values.length,
@@ -248,15 +255,18 @@ export function ImportPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-4 text-sm">
             <p>
-              <strong>{result.imported}</strong> people imported
+              <strong>{result.imported}</strong>{' '}
+              {result.imported === 1 ? 'record' : 'records'} imported
               {result.skippedDuplicates > 0 && (
                 <>
-                  , <strong>{result.skippedDuplicates}</strong> duplicates skipped
+                  , <strong>{result.skippedDuplicates}</strong>{' '}
+                  {result.skippedDuplicates === 1 ? 'duplicate' : 'duplicates'} skipped
                 </>
               )}
               {result.skippedInvalid > 0 && (
                 <>
-                  , <strong>{result.skippedInvalid}</strong> invalid rows skipped
+                  , <strong>{result.skippedInvalid}</strong> invalid{' '}
+                  {result.skippedInvalid === 1 ? 'row' : 'rows'} skipped
                 </>
               )}
               .
@@ -297,7 +307,7 @@ export function ImportPage() {
             <label className="border-muted-foreground/25 hover:bg-accent/50 flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-10 text-center transition-colors">
               <FileUp className="text-muted-foreground size-8" />
               <span className="text-sm font-medium">
-                Choose a CSV file or drop it here
+                Choose a CSV file
               </span>
               <input
                 type="file"
@@ -432,16 +442,25 @@ export function ImportPage() {
             </Button>
             <Button
               onClick={runImport}
-              disabled={!mappingComplete || importable.length === 0 || importing}
+              disabled={
+                !mappingComplete || importable.length === 0 || overCap || importing
+              }
             >
               {importing ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <Upload className="size-4" />
               )}
-              Import {importable.length} {importable.length === 1 ? 'person' : 'people'}
+              Import {records(importable.length)}
             </Button>
           </div>
+          {overCap && (
+            <p className="text-destructive -mt-4 text-sm">
+              That’s {records(importable.length)} — import at most{' '}
+              {MAX_IMPORT_ROWS.toLocaleString()} at a time. Split the file and import
+              each part.
+            </p>
+          )}
           {!mappingComplete && (
             <p className="text-muted-foreground -mt-4 text-sm">
               Map the first and last name columns to continue.{' '}
