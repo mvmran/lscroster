@@ -43,9 +43,11 @@ export function personErrorMessage(error: { code?: string; message: string }): s
   return error.message
 }
 
-export function usePeople() {
+/** The whole directory; `enabled` false skips loading it (cached data still shows). */
+export function usePeople(enabled = true) {
   return useQuery({
     queryKey: peopleKeys.all,
+    enabled,
     queryFn: async () => {
       // Read through the masked view (issue #119): contact details come back
       // only for people this viewer is allowed to see; everyone else's

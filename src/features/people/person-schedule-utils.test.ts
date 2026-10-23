@@ -42,6 +42,19 @@ describe('describeStreak', () => {
     )
   })
 
+  it('counts a weekend of Saturday and Sunday as one week', () => {
+    expect(
+      describeStreak(['2026-06-14', '2026-06-13', '2026-06-07', '2026-06-06'], today),
+    ).toBe('2 consecutive weeks')
+  })
+
+  it('counts twice-weekly serving by the weeks it spans', () => {
+    // Sundays and Wednesdays over three weeks.
+    expect(
+      describeStreak(['2026-06-14', '2026-06-10', '2026-06-07', '2026-06-03', '2026-05-31'], today),
+    ).toBe('3 consecutive weeks')
+  })
+
   it('reports recency for a single old service', () => {
     expect(describeStreak(['2026-05-17'], today)).toBe('Last served 4 weeks ago')
   })

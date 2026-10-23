@@ -4,33 +4,38 @@ import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 
 /**
  * A short streak/recency label from a person's past service dates (most-recent
- * first, deduped to one per day, all in the past). Counts the run of services
- * spaced about a week apart ending at the latest one; when that run shares a
- * weekday it reads "3 consecutive Sundays", otherwise "3 consecutive weeks".
- * A run shorter than two, or one whose latest service is more than about a
- * week ago (it has ended), falls back to "Last served N weeks ago".
+ * first, deduped to one per day, all in the past). The run ending at the
+ * latest service goes back while no two services are more than about a week
+ * apart, and counts the weeks it spans — so serving Saturday and Sunday every
+ * weekend, or twice a week, is one week each, not a broken run. When the run
+ * shares a weekday it reads "3 consecutive Sundays", otherwise "3 consecutive
+ * weeks". A run shorter than two weeks, or one whose latest service is more
+ * than about a week ago (it has ended), falls back to "Last served N weeks
+ * ago".
  */
 export function describeStreak(pastDatesDesc: string[], todayISO: string): string {
   if (pastDatesDesc.length === 0) return 'Not served yet'
   const today = parseISO(todayISO)
   const last = parseISO(pastDatesDesc[0])
 
-  let streak = 1
+  let runLength = 1
   for (let i = 1; i < pastDatesDesc.length; i++) {
     const gap = differenceInCalendarDays(
       parseISO(pastDatesDesc[i - 1]),
       parseISO(pastDatesDesc[i]),
     )
-    if (gap >= 6 && gap <= 8) streak++
-    else break
+    if (gap > 8) break
+    runLength++
   }
+  const first = parseISO(pastDatesDesc[runLength - 1])
+  const streak = Math.round(differenceInCalendarDays(last, first) / 7) + 1
 
   // A run is only a streak while it's still going: the latest service has to
   // be within about a week, or it's a run that ended ("Last served …").
   const current = differenceInCalendarDays(today, last) <= 8
   if (streak >= 2 && current) {
     const weekdays = new Set(
-      pastDatesDesc.slice(0, streak).map((d) => parseISO(d).getDay()),
+      pastDatesDesc.slice(0, runLength).map((d) => parseISO(d).getDay()),
     )
     const unit = weekdays.size === 1 ? `${format(last, 'EEEE')}s` : 'weeks'
     return `${streak} consecutive ${unit}`

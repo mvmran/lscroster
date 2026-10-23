@@ -17,6 +17,9 @@ import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 export type PersonSchedulingPrefs = Tables<'person_scheduling_prefs'>
 export type RecurringUnavailability = Tables<'person_recurring_unavailability'>
 export type PersonPairing = Tables<'person_pairings'>
+type PairedName = { first_name: string; last_name: string } | null
+/** A pairing with both people's names, so it can be listed without the directory. */
+export type NamedPersonPairing = PersonPairing & { a: PairedName; b: PairedName }
 
 export const schedulingRuleKeys = {
   prefs: (personId: string) => ['scheduling-prefs', personId] as const,
@@ -227,10 +230,13 @@ export function usePersonPairings(personId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('person_pairings')
-        .select('*')
+        .select(
+          '*, a:people!person_pairings_person_a_fkey(first_name, last_name), ' +
+            'b:people!person_pairings_person_b_fkey(first_name, last_name)',
+        )
         .or(`person_a.eq.${personId},person_b.eq.${personId}`)
       if (error) throw new Error(error.message)
-      return data as PersonPairing[]
+      return data as unknown as NamedPersonPairing[]
     },
   })
 }

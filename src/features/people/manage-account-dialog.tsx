@@ -33,7 +33,9 @@ export function ManageAccountDialog({
   onChoose: (managerId: string) => void
   saving: boolean
 }) {
-  const { data: people } = usePeople()
+  // Mounted on every pending person's page, but only needed once it opens —
+  // otherwise each visit (and each save there) would load the whole directory.
+  const { data: people, isError } = usePeople(open)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
 
@@ -75,7 +77,11 @@ export function ManageAccountDialog({
           autoFocus
         />
         <div className="-mx-2 flex-1 overflow-y-auto px-2">
-          {candidates.length === 0 ? (
+          {people === undefined ? (
+            <p className="text-muted-foreground py-6 text-center text-sm">
+              {isError ? 'Couldn’t load the members. Close and try again.' : 'Loading members…'}
+            </p>
+          ) : candidates.length === 0 ? (
             <p className="text-muted-foreground py-6 text-center text-sm">
               No members with a sign-in account match.
             </p>

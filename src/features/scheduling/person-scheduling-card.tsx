@@ -274,17 +274,15 @@ function RecurringSection({ personId }: { personId: string }) {
 
 function PairingsSection({ personId }: { personId: string }) {
   const { data: pairings } = usePersonPairings(personId)
-  const { data: people } = usePeople()
   const { add, remove } = usePairingMutations(personId)
   const [dialogOpen, setDialogOpen] = useState(false)
+  // The pairings bring their own names; the whole directory is only for
+  // choosing someone new, so it loads when the dialog opens — not on every
+  // person page an admin visits.
+  const { data: people } = usePeople(dialogOpen)
   const [kind, setKind] = useState<PairingKind>('prefer')
   const [hard, setHard] = useState(false)
   const [search, setSearch] = useState('')
-
-  const peopleById = useMemo(
-    () => new Map((people ?? []).map((p) => [p.id, p])),
-    [people],
-  )
 
   const candidates = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -317,9 +315,7 @@ function PairingsSection({ personId }: { personId: string }) {
       {(pairings ?? []).length > 0 && (
         <ul className="flex flex-col gap-1">
           {(pairings ?? []).map((pairing) => {
-            const otherId =
-              pairing.person_a === personId ? pairing.person_b : pairing.person_a
-            const other = peopleById.get(otherId)
+            const other = pairing.person_a === personId ? pairing.b : pairing.a
             return (
               <li
                 key={pairing.id}
@@ -393,7 +389,11 @@ function PairingsSection({ personId }: { personId: string }) {
             autoFocus
           />
           <div className="-mx-2 flex-1 overflow-y-auto px-2">
-            {candidates.length === 0 ? (
+            {people === undefined ? (
+              <p className="text-muted-foreground py-6 text-center text-sm">
+                Loading people…
+              </p>
+            ) : candidates.length === 0 ? (
               <p className="text-muted-foreground py-6 text-center text-sm">
                 No matching people.
               </p>

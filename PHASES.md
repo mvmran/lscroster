@@ -2044,9 +2044,8 @@ the good row was offered; "Import another file" returned to the file picker;
 a 1990-05-12 birthday read 12 May 1990; with photo uploads failing, choosing
 the same file twice made two attempts. `npm run ci` green.
 **Upgrade note:** none — app only.
-- [ ] **Open from the same review**: `usePhotoUrls` re-signs every visible
-  photo on each search keystroke (keyed on the filtered paths), which also
-  defeats the browser's image cache; bulk actions run one person at a time
+- [ ] **Open from the same review**: ~~`usePhotoUrls` re-signs every visible
+  photo on each search keystroke~~ (fixed below); bulk actions run one person at a time
   (each reloading the whole directory — fixed below). Decide whether to restore the
   People-page return-to-row (`focusId`) or remove it with the layout's
   scroll exception.
@@ -2261,6 +2260,27 @@ teen with that reason and invited the child through the manager; the
 upcoming read asked from today's local date, ordered by id; an import showed
 `412345678` as 0412 345 678 and `25/03/90` as 1990-03-25, and marked a
 landline and `03/25/1990` invalid with their reasons. `npm run ci` green.
+**Upgrade note:** none — app only.
+
+(no migration) **Streaks by week, the directory only when needed, photos signed
+once** (2026-10-23, findings 8–10 of the same review):
+- `describeStreak` ended a run at any gap other than 6–8 days, so someone
+  serving Saturday and Sunday every weekend (or twice a week) never had a
+  streak. The run now goes back while services are at most about a week
+  apart and counts the weeks it spans. Tested.
+- A pending person's page loaded the whole directory (every page, again
+  after each save) for pickers that might never open: the manager picker and
+  the Scheduling card's Serve-with list, which also used it to name existing
+  pairings. `usePersonPairings` now embeds both people's names, and both
+  pickers load the directory when opened (`usePeople(enabled)`), with a
+  loading line.
+- The People page signed photo links for the filtered rows, so every search
+  keystroke, filter or sort made a new signing request; it now signs them
+  once for the whole list.
+Verified in headless Chromium on the local stack: a pending person's page
+with a pairing made no directory request and named the paired person; the
+manager picker loaded it on opening; typing three letters in the People
+search made no signing request after the first. `npm run ci` green.
 **Upgrade note:** none — app only.
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`

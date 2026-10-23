@@ -165,9 +165,11 @@ export function PeoplePage() {
     return result
   }, [people, search, roleFilter, statusFilter, sort])
 
+  // Signed for everyone, not the filtered rows: keyed on the filter, every
+  // search keystroke made a new signing request (and defeated the image cache).
   const photoPaths = useMemo(
-    () => filtered.map((p) => p.photo_url).filter((p): p is string => !!p),
-    [filtered],
+    () => (people ?? []).map((p) => p.photo_url).filter((p): p is string => !!p),
+    [people],
   )
   const { data: photoUrls } = usePhotoUrls(photoPaths)
 
