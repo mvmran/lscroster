@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Loader2, Plus, Search, Upload, Users } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { EmptyState } from '@/components/empty-state'
 import { FullPageError } from '@/components/full-page-error'
 import { PageHeader } from '@/components/page-header'
+import { invokeFunction } from '@/lib/functions'
 import { STATUS_OUTLINE } from '@/lib/status'
 import {
   AlertDialog,
@@ -41,12 +43,13 @@ import { useCurrentPerson } from '@/features/auth/use-current-person'
 import {
   BULK_ACTION_LABELS,
   bulkConfirmQuestion,
+  describeBulkFailures,
   partitionBulk,
   type BulkAction,
 } from '@/features/people/bulk-utils'
 import { PersonAvatar } from '@/features/people/person-avatar'
 import { formatPhone } from '@/features/people/phone-utils'
-import { useSendInvite } from '@/features/people/use-invitations'
+import { invitationKeys } from '@/features/people/use-invitations'
 import { usePeopleWithUpcomingAssignments } from '@/features/scheduling/use-assignments'
 import {
   accountStatus,
@@ -54,7 +57,7 @@ import {
   ROLE_LABELS,
   ROLES,
 } from '@/features/people/person-utils'
-import { useAccountAccess, usePeople, type Person } from '@/features/people/use-people'
+import { peopleKeys, usePeople, type Person } from '@/features/people/use-people'
 import { usePhotoUrls } from '@/features/people/use-photos'
 
 type SortOrder = 'name-asc' | 'name-desc' | 'newest'
@@ -166,8 +169,7 @@ export function PeoplePage() {
   const [bulkAction, setBulkAction] = useState<BulkAction>('invite')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [running, setRunning] = useState(false)
-  const sendInvite = useSendInvite()
-  const accountAccess = useAccountAccess()
+  const queryClient = useQueryClient()
 
   // Selection is scoped to the rows currently visible, so a filter change can't
   // act on people you can no longer see.
@@ -230,27 +232,50 @@ export function PeoplePage() {
     setConfirmOpen(false)
     setRunning(true)
     let ok = 0
-    let failed = 0
+    const failures: { name: string; message: string }[] = []
+    // The functions are called directly rather than through the mutation
+    // hooks, whose onSuccess would reload the whole directory after each
+    // person; it is reloaded once below.
     for (const person of eligible) {
       try {
         if (bulkAction === 'invite') {
-          await sendInvite.mutateAsync(person.id)
+          await invokeFunction('invite', { personId: person.id, action: 'send' })
         } else {
           // The same path as the person page's Archive: the function emails
           // anyone who loses a login, and refuses someone who manages another
           // member — a direct status write did neither.
-          await accountAccess.mutateAsync({ personId: person.id, action: 'archive' })
+          await invokeFunction('account-access', { personId: person.id, action: 'archive' })
         }
         ok++
-      } catch {
-        failed++
+      } catch (error) {
+        failures.push({
+          name: fullName(person),
+          message: error instanceof Error ? error.message : 'Failed',
+        })
       }
     }
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: peopleKeys.all }),
+      queryClient.invalidateQueries({ queryKey: invitationKeys.all }),
+    ])
     setRunning(false)
     clearSelection()
     const verb = bulkAction === 'invite' ? 'invited' : 'archived'
     if (ok > 0) toast.success(`${ok} ${verb}`)
-    if (failed > 0) toast.error(`${failed} failed`)
+    if (failures.length > 0) {
+      // Stays until dismissed: it names who still needs doing, and why.
+      toast.error(`${failures.length} failed`, {
+        duration: Infinity,
+        closeButton: true,
+        description: (
+          <ul className="mt-1 space-y-0.5">
+            {describeBulkFailures(failures).map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        ),
+      })
+    }
     if (skipped.length > 0) toast.warning(`${skipped.length} skipped`)
   }
 

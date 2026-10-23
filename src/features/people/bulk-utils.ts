@@ -58,3 +58,16 @@ export function partitionBulk<T extends Pick<Person, 'id' | 'email' | 'auth_user
   }
   return { eligible, skipped }
 }
+
+/**
+ * The lines of a bulk action's failure toast: each person and the reason the
+ * server gave, up to `max`, then how many more.
+ */
+export function describeBulkFailures(
+  failures: { name: string; message: string }[],
+  max = 5,
+): string[] {
+  const lines = failures.slice(0, max).map((f) => `${f.name}: ${f.message}`)
+  if (failures.length > max) lines.push(`and ${failures.length - max} more`)
+  return lines
+}

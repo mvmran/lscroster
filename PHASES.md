@@ -2047,7 +2047,7 @@ the same file twice made two attempts. `npm run ci` green.
 - [ ] **Open from the same review**: `usePhotoUrls` re-signs every visible
   photo on each search keystroke (keyed on the filtered paths), which also
   defeats the browser's image cache; bulk actions run one person at a time
-  and each reloads the whole directory. Decide whether to restore the
+  (each reloading the whole directory — fixed below). Decide whether to restore the
   People-page return-to-row (`focusId`) or remove it with the layout's
   scroll exception.
 
@@ -2083,6 +2083,28 @@ the error and kept `photo_url` and the old file. 0069 applied twice clean;
 accept-invitation`, then the app — in that order, so no own-email invitation of
 a managed person is still live when the functions start reading it as the
 manager's.
+
+(no migration) **People: past 1,000 people, and bulk results** (2026-10-23,
+findings 2, 4 and 6 of the same re-review):
+- `usePeople` asked for `.limit(2000)`, but PostgREST's `max_rows` (1000, the
+  hosted default too) cut it to 1,000 without a word: the People list stopped
+  there, the import's duplicate-email check missed everyone after, and bulk
+  archive's manager check could offer a manager the server then refused. It
+  now pages with `fetchAll` (`src/lib/fetch-all.ts`, the client twin of the
+  functions' helper; tested), ordered by name then `id` so a shared name can't
+  straddle a page boundary.
+- A bulk invite or archive threw away each refusal and said "3 failed". The
+  failure toast now names each person with the server's reason (up to five,
+  then "and N more"; `describeBulkFailures`, tested) and stays until closed.
+- Each person in a bulk action reloaded the whole directory through the
+  mutation hooks' `onSuccess`; the loop now calls the functions directly and
+  reloads people and invitations once at the end.
+Verified in headless Chromium on the local stack with 1,118 people: the list
+loaded in two requests and found the row sorted last; a bulk invite of two,
+one refused by a stubbed 409, invited the other, showed "1 failed — Zzbulk
+Beta: Simulated refusal for Beta" still up 9 seconds later, and reloaded the
+directory once (its two pages). `npm run ci` green.
+**Upgrade note:** none — app only.
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,

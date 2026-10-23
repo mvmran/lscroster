@@ -3,6 +3,7 @@ import { invokeFunction } from '@/lib/functions'
 import { supabase } from '@/lib/supabase'
 
 export const invitationKeys = {
+  all: ['invitations'] as const,
   person: (personId: string) => ['invitations', personId] as const,
 }
 

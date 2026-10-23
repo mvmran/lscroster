@@ -608,7 +608,8 @@ yellow for sent-but-unanswered, green for confirmed.
    **Send invitation**. They'll get an email to set a password (§3.1).
 
 You can also invite several people at once: tick them in the People list, choose
-**Invite** in the bar that appears, and press **Go**.
+**Send invitation** in the bar that appears, and press **Go**. If any can't be
+sent, a message names each person and the reason, and stays until you close it.
 
 **Resend invitation** sends a fresh link; **Revoke** cancels an invitation so the
 emailed link stops working.
@@ -671,10 +672,10 @@ managed in **Settings → Permission templates**.
 **Archive** (on the person's page, **Account &amp; access**) hides a person from
 the directory and stops them signing in, but keeps their history. Use it when
 someone leaves. **Reactivate** brings them back. You can also archive several
-people from the People list (tick them → **Archive** → **Go**); anyone who had a
-sign-in is emailed, just as from their page. Someone who manages another member
-(below) can't be archived until that link is removed — the confirmation lists
-anyone it will skip, and why.
+people from the People list (tick them → **Archive member** → **Go**); anyone who
+had a sign-in is emailed, just as from their page. Someone who manages another
+member (below) can't be archived until that link is removed — the confirmation
+lists anyone it will skip, and why, and any that fail are named afterwards.
 
 > **Warning** — Archiving doesn't remove someone's upcoming rosters. LSCroster
 > warns you if they're still scheduled — re-roster those spots.

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { bulkConfirmQuestion, bulkSkipReason, partitionBulk } from './bulk-utils'
+import {
+  bulkConfirmQuestion,
+  bulkSkipReason,
+  describeBulkFailures,
+  partitionBulk,
+} from './bulk-utils'
 
 type P = { id: string; email: string | null; auth_user_id: string | null; status: 'active' | 'inactive' }
 const p = (over: Partial<P> & { id: string }): P => ({
@@ -62,5 +67,26 @@ describe('bulkConfirmQuestion', () => {
   it('pluralises and names the operation', () => {
     expect(bulkConfirmQuestion('invite', 3)).toBe('Send invitation to 3 members?')
     expect(bulkConfirmQuestion('archive', 1)).toBe('Archive 1 member?')
+  })
+})
+
+describe('describeBulkFailures', () => {
+  const f = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ name: `Person ${i + 1}`, message: 'Refused' }))
+
+  it('names each person with the reason', () => {
+    expect(describeBulkFailures([{ name: 'Bob Lee', message: 'Bob Lee manages Jo Lee' }]))
+      .toEqual(['Bob Lee: Bob Lee manages Jo Lee'])
+  })
+
+  it('lists up to the limit, then counts the rest', () => {
+    const lines = describeBulkFailures(f(8))
+    expect(lines).toHaveLength(6)
+    expect(lines[4]).toBe('Person 5: Refused')
+    expect(lines[5]).toBe('and 3 more')
+  })
+
+  it('adds no count when everyone fits', () => {
+    expect(describeBulkFailures(f(5))).toHaveLength(5)
   })
 })

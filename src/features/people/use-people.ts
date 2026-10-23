@@ -4,6 +4,7 @@ import { invitationKeys } from '@/features/people/use-invitations'
 import { supabase } from '@/lib/supabase'
 import { todayISODate } from '@/features/services/service-utils'
 import { COUNT_ONLY, countRows } from '@/lib/count-rows'
+import { fetchAll } from '@/lib/fetch-all'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
 export type Person = Tables<'people'>
@@ -48,15 +49,20 @@ export function usePeople() {
     queryFn: async () => {
       // Read through the masked view (issue #119): contact details come back
       // only for people this viewer is allowed to see; everyone else's
-      // email/phone/birthday are null.
-      const { data, error } = await supabase
-        .from('people_directory')
-        .select('*')
-        .order('first_name')
-        .order('last_name')
-        .limit(2000)
-      if (error) throw new Error(error.message)
-      return data as unknown as Person[]
+      // email/phone/birthday are null. Paged: PostgREST stops at 1000 rows
+      // without saying so, and the import's duplicate check and bulk
+      // archive's manager check need everyone. `id` keeps the order stable
+      // across pages when two people share a name.
+      const rows = await fetchAll((from, to) =>
+        supabase
+          .from('people_directory')
+          .select('*')
+          .order('first_name')
+          .order('last_name')
+          .order('id')
+          .range(from, to),
+      )
+      return rows as unknown as Person[]
     },
     staleTime: 60 * 1000,
   })
