@@ -53,7 +53,10 @@ Church-specific configuration (name, logo, timezone, email sender) lives in a si
 ```
 
 Storage buckets (all private, served via signed URLs): `photos`,
-`song-attachments`, `plan-attachments`.
+`song-attachments`, `plan-attachments`. Download a file with `startDownload()`
+(`src/lib/download.ts`) on a URL signed with `download` — never `window.open`
+after an await, which iOS Safari blocks silently. A link opened straight from
+a tap (pre-signed, like the notice board) is fine.
 
 ## Database conventions
 
@@ -65,6 +68,9 @@ Storage buckets (all private, served via signed URLs): `photos`,
 - **Storage policies** (`storage.objects`) can be created by a migration but not altered or dropped. Create each inside a `pg_policies` guard (re-runnable), and narrow an existing one with an `as restrictive` policy rather than replacing it (0062).
 - Roles (enum `app_role`): `admin` (everything), `coordinator` (church-wide governance — plans, songs, service types, teams, team-access grants, granting permissions; renamed from `leader` in 0044), `member` (view plans they're on, respond to requests, manage own profile & blockouts). Coordinators manage **and** roster every team church-wide (0047). Anyone else needs a per-team **Team Access** grant — one table `team_grants(team_id, person_id, access)`, enum `team_access` = `viewer` < `scheduler` < `manager` (0048, merged the old `team_leaders` + `team_viewers`). Managing a team (membership, positions) needs `manager` (`can_manage_team()`); scheduling it (assignments, per-plan targets, rule-mutes, set-list email) needs `scheduler`+ (`can_schedule_team()`); `viewer` is read-only (`views_team()`). Grants are appointed by admins/coordinators only.
 - **BAU permissions** (0045): members can be granted `edit_order_of_service`, `publish_plans`, `create_delete_plans` (implies editing the order), `manage_songs`, `attach_plan_files`, `view_all_plans` via `person_permissions`. Admins and coordinators hold all of them implicitly. RLS checks `has_permission()`; Edge Functions `callerHasPermission()` (`_shared/auth.ts`); the app `usePermissions()` (`src/features/auth`). Gate new plan/song features on a permission, not on the role.
+- **A write that spans several rows is one transaction.** Replacing a set (permissions, team ↔ service-type links, a rule's effects, a template's contents), creating a run of plans, or reordering goes through one security-invoker function (0064–0067), never delete-then-insert or a loop of requests from the browser — a failure partway leaves half-written data. Write only what changed: a reorder sets `sort_order` and nothing else, so a stale screen can't write back old values.
+- **A form that saves a whole list waits for that list.** If Save would send a still-loading (empty) list, it replaces the real one with nothing — disable Save until the data it overwrites has arrived.
+- **Delete the row, then its files.** `storage.objects` RLS is separate from the row's, and RLS refuses a delete by deleting nothing, without an error. Read the paths, delete with `.select('id')`, throw when nothing went, then remove the files and report any left (`useDeletePlan`, `useDeleteSong`).
 - `people` is the canonical person record and may exist **without** a login. `people.auth_user_id` (nullable) links to `auth.users` once the person accepts an email invitation. Role lives on `people.role`.
 - Schema changes happen **only** via migration files (`npx supabase migration new ...`). Never edit schema in the Supabase dashboard. Migrations must be re-runnable on a fresh database (this is the distribution upgrade path).
 - After schema changes, regenerate types (see Commands; use the local stack during development).

@@ -745,7 +745,9 @@ Drag service types (or use the arrows) to change their order.
 4. **Start from** a *Blank plan*, one of your **Templates**, or **Copy a recent
    plan**.
 5. To create a run of plans at once, set **Repeat weekly until** to a later
-   date — LSCroster creates one plan a week through to it.
+   date — LSCroster creates one plan a week through to it. The run is made
+   whole or not at all: if something goes wrong it says *No plans were
+   created*, so pressing **Create plan** again never doubles up a week.
 6. Press **Create plan**.
 
 <figure>
@@ -762,7 +764,10 @@ service.
 
 **Templates.** From a plan's **⋯** menu → **Templates…**, type a new name to
 save the plan as a template, or pick an existing one to overwrite or delete it.
-Templates appear under *Start from* in the New plan dialog.
+A template keeps the plan's order of service, its times and its per-position
+minimums; overwriting replaces all of them at once, and if the save fails the
+template stays exactly as it was. Templates appear under *Start from* in the
+New plan dialog.
 
 ## 6.3 Building the order of service
 
