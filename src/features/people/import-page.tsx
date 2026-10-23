@@ -100,7 +100,15 @@ interface ImportResult {
 }
 
 export function ImportPage() {
-  const { data: people } = usePeople()
+  // The duplicate check reads the whole directory, so nothing is chosen until
+  // it has arrived: against a still-loading (empty) list every row would look
+  // new, and the insert would fail on the first existing email.
+  const {
+    data: people,
+    isError: peopleFailed,
+    error: peopleError,
+    refetch: refetchPeople,
+  } = usePeople()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -219,12 +227,12 @@ export function ImportPage() {
     try {
       const values = importable.map((r) => r.values!)
       const { error, status } = await supabase.from('people').insert(values)
-      // Status 0: no answer came back (a dropped connection), so the insert
-      // may have committed. Saying "nothing was imported" would invite a
-      // retry that adds every email-less row twice.
-      if (error && status === 0) {
+      // No answer (status 0), or a gateway error with no database error code
+      // (a 502/504 page): the insert may have committed. Saying "nothing was
+      // imported" would invite a retry that adds every email-less row twice.
+      if (error && (status === 0 || (status >= 500 && !error.code))) {
         toast.error(
-          'The connection dropped before the server answered, so the import may have been saved. Check the People list before importing again — people without an email would be added twice.',
+          'The server didn’t confirm the import, so it may have been saved. Check the People list before importing again — people without an email would be added twice.',
           { duration: Infinity, closeButton: true },
         )
         return
@@ -304,18 +312,35 @@ export function ImportPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <label className="border-muted-foreground/25 hover:bg-accent/50 flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-10 text-center transition-colors">
-              <FileUp className="text-muted-foreground size-8" />
-              <span className="text-sm font-medium">
-                Choose a CSV file
-              </span>
-              <input
-                type="file"
-                accept=".csv,text/csv"
-                className="hidden"
-                onChange={(e) => onFileChosen(e.target.files?.[0])}
-              />
-            </label>
+            {people ? (
+              <label className="border-muted-foreground/25 hover:bg-accent/50 flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-10 text-center transition-colors">
+                <FileUp className="text-muted-foreground size-8" />
+                <span className="text-sm font-medium">
+                  Choose a CSV file
+                </span>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => onFileChosen(e.target.files?.[0])}
+                />
+              </label>
+            ) : peopleFailed ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <p className="text-destructive">
+                  Couldn’t load the directory to check for duplicates (
+                  {peopleError.message}).
+                </p>
+                <Button variant="outline" size="sm" onClick={() => void refetchPeople()}>
+                  Try again
+                </Button>
+              </div>
+            ) : (
+              <p className="text-muted-foreground flex items-center gap-2 p-10 text-sm">
+                <Loader2 className="size-4 animate-spin" />
+                Loading the directory to check for duplicates…
+              </p>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -443,7 +468,11 @@ export function ImportPage() {
             <Button
               onClick={runImport}
               disabled={
-                !mappingComplete || importable.length === 0 || overCap || importing
+                !people ||
+                !mappingComplete ||
+                importable.length === 0 ||
+                overCap ||
+                importing
               }
             >
               {importing ? (

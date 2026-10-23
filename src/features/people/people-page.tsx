@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { EmptyState } from '@/components/empty-state'
 import { FullPageError } from '@/components/full-page-error'
 import { PageHeader } from '@/components/page-header'
-import { invokeFunction } from '@/lib/functions'
+import { invokeFunction, UnconfirmedError } from '@/lib/functions'
 import { STATUS_OUTLINE } from '@/lib/status'
 import {
   AlertDialog,
@@ -49,7 +49,11 @@ import {
 } from '@/features/people/bulk-utils'
 import { PersonAvatar } from '@/features/people/person-avatar'
 import { formatPhone } from '@/features/people/phone-utils'
-import { invitationKeys } from '@/features/people/use-invitations'
+import {
+  BulkInviteLinksDialog,
+  type InviteLink,
+} from '@/features/people/bulk-invite-links-dialog'
+import { invitationKeys, type InviteResponse } from '@/features/people/use-invitations'
 import { usePeopleWithUpcomingAssignments } from '@/features/scheduling/use-assignments'
 import {
   accountStatus,
@@ -170,6 +174,7 @@ export function PeoplePage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [running, setRunning] = useState(false)
   const queryClient = useQueryClient()
+  const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([])
 
   // Selection is scoped to the rows currently visible, so a filter change can't
   // act on people you can no longer see.
@@ -233,13 +238,26 @@ export function PeoplePage() {
     setRunning(true)
     let ok = 0
     const failures: { name: string; message: string }[] = []
+    // No answer, or a gateway error: the invite or archive may have happened.
+    // Not "failed" — a re-invite would replace the link already emailed.
+    const unconfirmed: string[] = []
+    const links: InviteLink[] = []
     // The functions are called directly rather than through the mutation
     // hooks, whose onSuccess would reload the whole directory after each
     // person; it is reloaded once below.
     for (const person of eligible) {
       try {
         if (bulkAction === 'invite') {
-          await invokeFunction('invite', { personId: person.id, action: 'send' })
+          const sent = await invokeFunction<InviteResponse>('invite', {
+            personId: person.id,
+            action: 'send',
+          })
+          // Email isn't set up: the invitation exists, but only this link
+          // reaches them.
+          if (sent.emailSent === false && sent.inviteUrl) {
+            links.push({ name: fullName(person), url: sent.inviteUrl })
+            continue
+          }
         } else {
           // The same path as the person page's Archive: the function emails
           // anyone who loses a login, and refuses someone who manages another
@@ -248,6 +266,10 @@ export function PeoplePage() {
         }
         ok++
       } catch (error) {
+        if (error instanceof UnconfirmedError) {
+          unconfirmed.push(fullName(person))
+          continue
+        }
         failures.push({
           name: fullName(person),
           message: error instanceof Error ? error.message : 'Failed',
@@ -262,21 +284,32 @@ export function PeoplePage() {
     clearSelection()
     const verb = bulkAction === 'invite' ? 'invited' : 'archived'
     if (ok > 0) toast.success(`${ok} ${verb}`)
+    // The two lists stay until dismissed: they name who still needs doing.
     if (failures.length > 0) {
-      // Stays until dismissed: it names who still needs doing, and why.
       toast.error(`${failures.length} failed`, {
         duration: Infinity,
         closeButton: true,
+        description: <BulkList lines={describeBulkFailures(failures)} />,
+      })
+    }
+    if (unconfirmed.length > 0) {
+      toast.warning(`${unconfirmed.length} not confirmed — check before trying again`, {
+        duration: Infinity,
+        closeButton: true,
         description: (
-          <ul className="mt-1 space-y-0.5">
-            {describeBulkFailures(failures).map((line, i) => (
-              <li key={i}>{line}</li>
-            ))}
-          </ul>
+          <BulkList
+            lines={describeBulkFailures(
+              unconfirmed.map((name) => ({
+                name,
+                message: 'no answer from the server, so it may have gone through',
+              })),
+            )}
+          />
         ),
       })
     }
     if (skipped.length > 0) toast.warning(`${skipped.length} skipped`)
+    setInviteLinks(links)
   }
 
   if (isError) return <FullPageError message={error.message} />
@@ -546,6 +579,8 @@ export function PeoplePage() {
       )}
 
       {/* Bulk confirm (issue #77). */}
+      <BulkInviteLinksDialog links={inviteLinks} onClose={() => setInviteLinks([])} />
+
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -580,5 +615,16 @@ export function PeoplePage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+/** The lines of a bulk result toast. */
+function BulkList({ lines }: { lines: string[] }) {
+  return (
+    <ul className="mt-1 space-y-0.5">
+      {lines.map((line, i) => (
+        <li key={i}>{line}</li>
+      ))}
+    </ul>
   )
 }

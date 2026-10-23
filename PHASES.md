@@ -2129,6 +2129,34 @@ record imported"; leaving and reopening a person with the preferences request
 failing kept the loaded form after both attempts. `npm run ci` green.
 **Upgrade note:** none — app only.
 
+(no migration) **Second re-review of the people fixes: results that said the
+wrong thing** (2026-10-23, findings 1–3 and 6 of a `/code-review high` of
+`src/features/people`):
+- The import didn't wait for the directory, and paging made the wait longer:
+  a file chosen before both pages arrived (or after the load failed) was
+  checked against no one, every row looked new, and the insert failed on the
+  first existing email. The upload box now waits, says it's loading, shows
+  the load error with Try again, and Import stays off without the directory.
+- Bulk invite threw the function's answer away, so with email not set up
+  (`emailSent: false`) it said "10 invited" and lost every share link. Those
+  now open a dialog of names and links to copy (`BulkInviteLinksDialog`).
+- A bulk action called a dropped connection a failure, though the invite or
+  archive may have gone through — and re-inviting replaces the link already
+  emailed. `invokeFunction` now throws `UnconfirmedError` when no answer came
+  back, or a 5xx carried no message from the function (a gateway page); the
+  bulk loop lists those as "not confirmed — check before trying again".
+  Other callers see the same messages as before.
+- The import's "may have been saved" covered only status 0; a gateway 5xx
+  without a database error code (a 502/504 page after the commit) now gets
+  it too.
+Verified in headless Chromium on the local stack: with the directory request
+held, the import showed "Loading the directory…" and no file input; failed,
+the error and Try again, which brought the input back; a 504 page on the
+insert gave the may-have-been-saved message; a bulk invite of four (email not
+configured locally) opened the dialog with two links and listed the aborted
+and the 504'd person as not confirmed. `npm run ci` green.
+**Upgrade note:** none — app only.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

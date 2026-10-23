@@ -610,6 +610,9 @@ yellow for sent-but-unanswered, green for confirmed.
 You can also invite several people at once: tick them in the People list, choose
 **Send invitation** in the bar that appears, and press **Go**. If any can't be
 sent, a message names each person and the reason, and stays until you close it.
+If the server didn't answer for someone, they're listed as *not confirmed* —
+the invitation may have gone out, so check their page before sending again. If
+email isn't set up yet, the links are shown for you to copy and share.
 
 **Resend invitation** sends a fresh link; **Revoke** cancels an invitation so the
 emailed link stops working.
@@ -717,8 +720,9 @@ about the change.
 5. Import. Imported people are added as members without a sign-in; invite them
    when you're ready (§5.3). A file goes in whole or not at all — if anything
    goes wrong it says *Nothing was imported*, so you can fix it and import the
-   same file again. If the connection drops mid-import, it can't tell whether
-   the file went in: check the People list before importing again. Up to 2,000
+   same file again. If the server doesn't confirm the import (a dropped
+   connection or a timeout), it can't tell whether the file went in: check the
+   People list before importing again. Up to 2,000
    records per file — the Import button stays off for more; split a bigger
    list.
 
