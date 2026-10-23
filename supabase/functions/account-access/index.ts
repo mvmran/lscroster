@@ -119,6 +119,26 @@ Deno.serve(async (req) => {
     if (person.status === 'inactive') {
       return jsonResponse({ error: 'Already archived' }, 400)
     }
+    // A manager who can't sign in leaves the members they manage stranded.
+    // The person page blocks this, but the rule belongs here, where every
+    // caller (bulk archive too) has to pass it.
+    const { data: managed, error: managedError } = await admin
+      .from('people')
+      .select('first_name, last_name')
+      .eq('managed_by_person_id', personId)
+    if (managedError) {
+      console.error('managed lookup failed:', managedError)
+      return jsonResponse({ error: 'Failed to archive' }, 500)
+    }
+    if (managed.length > 0) {
+      const names = managed.map((m) => `${m.first_name} ${m.last_name}`).join(', ')
+      return jsonResponse(
+        {
+          error: `${person.first_name} ${person.last_name} manages ${names} — remove that link first`,
+        },
+        409,
+      )
+    }
     const { error } = await auditAdmin
       .from('people')
       .update({ status: 'inactive' })

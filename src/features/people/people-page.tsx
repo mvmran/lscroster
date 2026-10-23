@@ -54,7 +54,7 @@ import {
   ROLE_LABELS,
   ROLES,
 } from '@/features/people/person-utils'
-import { usePeople, useUpdatePerson, type Person } from '@/features/people/use-people'
+import { useAccountAccess, usePeople, type Person } from '@/features/people/use-people'
 import { usePhotoUrls } from '@/features/people/use-photos'
 
 type SortOrder = 'name-asc' | 'name-desc' | 'newest'
@@ -165,7 +165,7 @@ export function PeoplePage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [running, setRunning] = useState(false)
   const sendInvite = useSendInvite()
-  const updatePerson = useUpdatePerson()
+  const accountAccess = useAccountAccess()
 
   // Selection is scoped to the rows currently visible, so a filter change can't
   // act on people you can no longer see.
@@ -197,18 +197,22 @@ export function PeoplePage() {
     setSelectedIds(new Set())
   }
 
-  const { eligible, skipped } = partitionBulk(bulkAction, selectedPeople, me?.id)
+  // Anyone who manages another member (from the whole list, not just the
+  // visible rows) — archiving them is blocked, as on the person page.
+  const managerIds = useMemo(
+    () =>
+      new Set(
+        (people ?? []).flatMap((p) => (p.managed_by_person_id ? [p.managed_by_person_id] : [])),
+      ),
+    [people],
+  )
+  const { eligible, skipped } = partitionBulk(bulkAction, selectedPeople, me?.id, managerIds)
 
   // Of the people about to be archived, how many are still rostered on upcoming
   // services — archiving leaves those assignments in place, so warn first.
   const upcoming = usePeopleWithUpcomingAssignments(isAdmin)
-  const rosteredCount = useMemo(
-    () =>
-      bulkAction === 'archive'
-        ? eligible.filter((p) => upcoming.data?.has(p.id)).length
-        : 0,
-    [bulkAction, eligible, upcoming.data],
-  )
+  const rosteredCount =
+    bulkAction === 'archive' ? eligible.filter((p) => upcoming.data?.has(p.id)).length : 0
 
   function onGo() {
     if (eligible.length === 0) {
@@ -230,7 +234,10 @@ export function PeoplePage() {
         if (bulkAction === 'invite') {
           await sendInvite.mutateAsync(person.id)
         } else {
-          await updatePerson.mutateAsync({ id: person.id, values: { status: 'inactive' } })
+          // The same path as the person page's Archive: the function emails
+          // anyone who loses a login, and refuses someone who manages another
+          // member — a direct status write did neither.
+          await accountAccess.mutateAsync({ personId: person.id, action: 'archive' })
         }
         ok++
       } catch {
@@ -523,9 +530,9 @@ export function PeoplePage() {
                 ? 'Each person will be emailed a link to set their password.'
                 : 'Archived people are hidden from the directory and can no longer sign in. You can reactivate them later.'}
               {skipped.length > 0 &&
-                ` ${skipped.length} of the selected ${
-                  skipped.length === 1 ? 'person' : 'people'
-                } will be skipped.`}
+                ` Skipped: ${skipped
+                  .map(({ person, reason }) => `${fullName(person)} (${reason})`)
+                  .join('; ')}.`}
             </AlertDialogDescription>
             {rosteredCount > 0 && (
               <div className="rounded-md border border-amber-500/50 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">

@@ -1979,6 +1979,24 @@ applied twice clean; `npm run ci` green.
 **Upgrade note:** `db push` (0068) before the app — the new bundle calls
 `save_service_type`.
 
+(no migration) **Bulk archive goes through account-access** (2026-10-23,
+finding 1 of a `/code-review high` of `src/features/people`):
+- The People page's bulk "Archive member" wrote `status: 'inactive'` straight
+  to `people`, skipping the `account-access` function the person page uses:
+  no access-revoked email (#91), and someone who manages another member could
+  be archived, leaving that member with a manager who can't sign in. Bulk
+  archive now calls `account-access` per person, skips managers up front
+  (`bulkSkipReason` takes the manager ids; tested), and the confirm names
+  each skipped person and why.
+- `account-access` itself now refuses to archive a manager (409, naming the
+  members) — the rule lived only in the person page's button.
+Verified on the local stack with this worktree's functions served: archiving
+a manager through the API was refused with "… manages Grace Tan — remove that
+link first" and changed nothing; in headless Chromium, bulk-archiving a
+manager and another member skipped the manager, archived the other and
+logged their access-revoked email. `npm run ci` green.
+**Upgrade note:** `functions deploy account-access` before the app.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

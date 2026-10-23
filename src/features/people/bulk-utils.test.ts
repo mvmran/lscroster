@@ -22,6 +22,17 @@ describe('bulkSkipReason — invite', () => {
   })
 })
 
+describe('bulkSkipReason — archive a manager', () => {
+  it('skips someone who manages another member, but still invites them', () => {
+    const managers = new Set(['1'])
+    expect(bulkSkipReason('archive', p({ id: '1' }), 'me', managers)).toBe(
+      'manages another member — remove that link first',
+    )
+    expect(bulkSkipReason('archive', p({ id: '2' }), 'me', managers)).toBeNull()
+    expect(bulkSkipReason('invite', p({ id: '1' }), 'me', managers)).toBeNull()
+  })
+})
+
 describe('bulkSkipReason — archive', () => {
   it('allows an active person who is not yourself', () => {
     expect(bulkSkipReason('archive', p({ id: '1' }), 'me')).toBeNull()

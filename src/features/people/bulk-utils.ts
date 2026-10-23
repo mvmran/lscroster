@@ -19,12 +19,15 @@ export function bulkConfirmQuestion(action: BulkAction, count: number): string {
 /**
  * Why a bulk action can't run on a person, or null if it can. Invite needs an
  * email address and no existing login (and skips archived people); archive
- * skips already-archived people and never targets yourself.
+ * skips already-archived people, never targets yourself, and skips anyone who
+ * manages another member (`managerIds`) — the person page blocks that too,
+ * since the managed member would be left with a manager who can't sign in.
  */
 export function bulkSkipReason(
   action: BulkAction,
   person: Pick<Person, 'id' | 'email' | 'auth_user_id' | 'status'>,
   selfId: string | undefined,
+  managerIds: ReadonlySet<string> = new Set(),
 ): string | null {
   if (action === 'invite') {
     if (person.status === 'inactive') return 'archived'
@@ -35,6 +38,7 @@ export function bulkSkipReason(
   // archive
   if (person.id === selfId) return "can't archive yourself"
   if (person.status === 'inactive') return 'already archived'
+  if (managerIds.has(person.id)) return 'manages another member — remove that link first'
   return null
 }
 
@@ -43,11 +47,12 @@ export function partitionBulk<T extends Pick<Person, 'id' | 'email' | 'auth_user
   action: BulkAction,
   people: T[],
   selfId: string | undefined,
+  managerIds: ReadonlySet<string> = new Set(),
 ): { eligible: T[]; skipped: { person: T; reason: string }[] } {
   const eligible: T[] = []
   const skipped: { person: T; reason: string }[] = []
   for (const person of people) {
-    const reason = bulkSkipReason(action, person, selfId)
+    const reason = bulkSkipReason(action, person, selfId, managerIds)
     if (reason) skipped.push({ person, reason })
     else eligible.push(person)
   }
