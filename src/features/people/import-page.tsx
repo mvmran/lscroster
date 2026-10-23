@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { formatPhone } from '@/features/people/phone-utils'
+import { formatPhone, isValidPhone, PHONE_ERROR } from '@/features/people/phone-utils'
 import { peopleKeys, personErrorMessage, usePeople } from '@/features/people/use-people'
 import { supabase } from '@/lib/supabase'
 import { plural } from '@/lib/utils'
@@ -69,13 +69,14 @@ function guessMapping(headers: string[]): Mapping {
   return mapping
 }
 
-function parseBirthday(raw: string): string | null {
-  const trimmed = raw.trim()
-  if (!trimmed) return null
-  // AU-first: day before month for slashed dates.
-  for (const fmt of ['yyyy-MM-dd', 'dd/MM/yyyy', 'd/M/yyyy', 'dd-MM-yyyy']) {
-    const parsed = parse(trimmed, fmt, new Date())
-    if (isValid(parsed) && parsed.getFullYear() > 1900) {
+/** A 'yyyy-MM-dd' birthday, or null when the text can't be read as one. */
+function parseBirthday(trimmed: string): string | null {
+  // AU-first: day before month for slashed dates. A two-digit year is read as
+  // the nearest such year, and a birthday can't be in the future.
+  const now = new Date()
+  for (const fmt of ['yyyy-MM-dd', 'dd/MM/yyyy', 'd/M/yyyy', 'dd-MM-yyyy', 'd/M/yy']) {
+    const parsed = parse(trimmed, fmt, now)
+    if (isValid(parsed) && parsed.getFullYear() > 1900 && parsed <= now) {
       const y = parsed.getFullYear()
       const m = String(parsed.getMonth() + 1).padStart(2, '0')
       const d = String(parsed.getDate()).padStart(2, '0')
@@ -83,6 +84,18 @@ function parseBirthday(raw: string): string | null {
     }
   }
   return null
+}
+
+/**
+ * A CSV phone the way the person form would take it, or an error. Excel drops
+ * a mobile's leading 0 (412 345 678), so that one is put back.
+ */
+function parsePhone(raw: string): { phone: string | null } | { error: string } {
+  const trimmed = raw.trim()
+  if (!trimmed) return { phone: null }
+  const fixed = /^4\d{8}$/.test(trimmed.replace(/\s/g, '')) ? `0${trimmed}` : trimmed
+  if (!isValidPhone(fixed)) return { error: `“${trimmed}” — ${PHONE_ERROR}` }
+  return { phone: formatPhone(fixed) }
 }
 
 interface PreparedRow {
@@ -178,6 +191,22 @@ export function ImportPage() {
           reason: `“${rawEmail}” isn’t a valid email address`,
         }
       }
+      // Imported as is, a phone the form rejects would block every later edit
+      // of the person; a birthday that can't be read would vanish unseen.
+      const phone = parsePhone(get('phone'))
+      if ('error' in phone) {
+        return { index, values: null, status: 'invalid' as const, reason: phone.error }
+      }
+      const rawBirthday = get('birthday').trim()
+      const birthday = rawBirthday ? parseBirthday(rawBirthday) : null
+      if (rawBirthday && !birthday) {
+        return {
+          index,
+          values: null,
+          status: 'invalid' as const,
+          reason: `Couldn’t read the birthday “${rawBirthday}” — use day/month/year`,
+        }
+      }
       const email = rawEmail
       if (email) {
         if (existingEmails.has(email)) {
@@ -205,8 +234,8 @@ export function ImportPage() {
           first_name: firstName,
           last_name: lastName,
           email: email || null,
-          phone: formatPhone(get('phone')) || null,
-          birthday: parseBirthday(get('birthday')),
+          phone: phone.phone,
+          birthday,
           notes: get('notes') || null,
         },
       }

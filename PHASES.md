@@ -2238,6 +2238,31 @@ and no Send button. 0070 applied twice clean; `npm run ci` green.
 **Upgrade note:** `db push` (0070) first — `invite` writes the new column —
 then `functions deploy invite accept-invitation delete-person`, then the app.
 
+(no migration) **Wrong data: bulk invite, scheduling reads, import fields**
+(2026-10-23, findings 4, 5 and 7 of the same review):
+- Bulk invite ignored managed accounts: it re-invited people whose managing
+  member had already confirmed (the manager got another confirmation email)
+  and skipped managed people with no email, whom the server invites through
+  the manager. `bulkSkipReason` now follows the person page. Tested.
+- `useRosterWorkload` (the Schedules card's percentile) and
+  `usePeopleWithUpcomingAssignments` (bulk archive's "still rostered"
+  warning) were single unordered reads, cut at 1,000 rows — a year of a
+  church's assignments passes that — and the second took today as UTC's date
+  (yesterday in Sydney until mid-morning). Both page with `fetchAll` by id,
+  from the device's date (`todayISODate`, as elsewhere).
+- The CSV import stored phones the person form rejects — every later edit of
+  that person then failed — and dropped birthdays it couldn't read without a
+  word. Both now make the row invalid with the reason; a mobile Excel stripped
+  of its leading 0 is put back, and a two-digit year reads as the nearest
+  past one.
+Verified in headless Chromium on the local stack: a bulk invite of a managed
+child (no email) and a managed teen whose manager had confirmed skipped the
+teen with that reason and invited the child through the manager; the
+upcoming read asked from today's local date, ordered by id; an import showed
+`412345678` as 0412 345 678 and `25/03/90` as 1990-03-25, and marked a
+landline and `03/25/1990` invalid with their reasons. `npm run ci` green.
+**Upgrade note:** none — app only.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

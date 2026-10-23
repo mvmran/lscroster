@@ -16,23 +16,34 @@ export function bulkConfirmQuestion(action: BulkAction, count: number): string {
     : `Archive ${members}?`
 }
 
+type BulkPerson = Pick<
+  Person,
+  'id' | 'email' | 'auth_user_id' | 'status' | 'managed_by_person_id' | 'managed_accepted_at'
+>
+
 /**
- * Why a bulk action can't run on a person, or null if it can. Invite needs an
- * email address and no existing login (and skips archived people); archive
+ * Why a bulk action can't run on a person, or null if it can. Invite skips
+ * archived people and anyone with a login; a managed account goes to its
+ * managing member (as on the person page), so it needs no email of its own
+ * but is skipped once the manager has confirmed; anyone else needs an email
+ * address. Archive
  * skips already-archived people, never targets yourself, and skips anyone who
  * manages another member (`managerIds`) — the person page blocks that too,
  * since the managed member would be left with a manager who can't sign in.
  */
 export function bulkSkipReason(
   action: BulkAction,
-  person: Pick<Person, 'id' | 'email' | 'auth_user_id' | 'status'>,
+  person: BulkPerson,
   selfId: string | undefined,
   managerIds: ReadonlySet<string> = new Set(),
 ): string | null {
   if (action === 'invite') {
     if (person.status === 'inactive') return 'archived'
-    if (!person.email) return 'no email address'
     if (person.auth_user_id) return 'already has sign-in access'
+    if (person.managed_by_person_id) {
+      return person.managed_accepted_at ? 'managing member already confirmed' : null
+    }
+    if (!person.email) return 'no email address'
     return null
   }
   // archive
@@ -43,7 +54,7 @@ export function bulkSkipReason(
 }
 
 /** Split selected people into those an action runs on and those it skips. */
-export function partitionBulk<T extends Pick<Person, 'id' | 'email' | 'auth_user_id' | 'status'>>(
+export function partitionBulk<T extends BulkPerson>(
   action: BulkAction,
   people: T[],
   selfId: string | undefined,

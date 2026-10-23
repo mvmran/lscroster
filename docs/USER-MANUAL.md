@@ -608,8 +608,10 @@ yellow for sent-but-unanswered, green for confirmed.
    **Send invitation**. They'll get an email to set a password (§3.1).
 
 You can also invite several people at once: tick them in the People list, choose
-**Send invitation** in the bar that appears, and press **Go**. If any can't be
-sent, a message names each person and the reason, and stays until you close it.
+**Send invitation** in the bar that appears, and press **Go**. A managed account's
+invitation goes to its managing member, and is skipped once they've confirmed.
+If any can't be sent, a message names each person and the reason, and stays
+until you close it.
 If the server didn't answer for someone, they're listed as *not confirmed* —
 the invitation may have gone out, so check their page before sending again. If
 email isn't set up yet, the links are shown for you to copy and share.
@@ -715,9 +717,11 @@ about the change.
    Phone, Birthday, Notes), pick the matching column, or *— don't import —*.
    First and last name are required.
 4. **Preview** shows each row and whether it will be imported. Rows are skipped
-   if they're missing a name, if their email isn't a valid address (fix it in
-   the file), if their email is already in the directory, or if the same email
-   appears twice in the file.
+   if they're missing a name, if their email isn't a valid address, if their
+   phone isn't an Australian mobile or an international (+…) number, or if
+   their birthday can't be read as day/month/year (fix these in the file) — and
+   if their email is already in the directory, or appears twice in the file. A
+   mobile whose leading 0 the spreadsheet dropped is put back.
 5. Import. Imported people are added as members without a sign-in; invite them
    when you're ready (§5.3). A file goes in whole or not at all — if anything
    goes wrong it says *Nothing was imported*, so you can fix it and import the

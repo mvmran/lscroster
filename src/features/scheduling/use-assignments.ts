@@ -1,9 +1,12 @@
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
+import { format, subYears } from 'date-fns'
+import { fetchAll } from '@/lib/fetch-all'
 import { invokeFunction } from '@/lib/functions'
 import { supabase } from '@/lib/supabase'
 import type { Tables, TablesInsert } from '@/types/database'
 import { PERSON_SAFE_COLUMNS } from '@/features/people/use-people'
 import type { AssignmentStatus } from '@/features/scheduling/scheduling-utils'
+import { todayISODate } from '@/features/services/service-utils'
 
 export type AssignmentWithPerson = Tables<'plan_assignments'> & {
   people: Tables<'people'>
@@ -106,15 +109,19 @@ export function useRosterWorkload(enabled: boolean) {
     enabled,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const cutoff = new Date()
-      cutoff.setFullYear(cutoff.getFullYear() - 1)
-      const { data, error } = await supabase
-        .from('plan_assignments')
-        .select('person_id, plans!inner(date)')
-        .neq('status', 'declined')
-        .gte('plans.date', cutoff.toISOString().slice(0, 10))
-      if (error) throw new Error(error.message)
-      return data as unknown as RosterWorkloadRow[]
+      // A year of a church's assignments passes PostgREST's 1000-row cap, so
+      // paged (by id, for a stable order) — a cut-off list skews the ranking.
+      const cutoff = format(subYears(new Date(), 1), 'yyyy-MM-dd')
+      const rows = await fetchAll((from, to) =>
+        supabase
+          .from('plan_assignments')
+          .select('person_id, plans!inner(date)')
+          .neq('status', 'declined')
+          .gte('plans.date', cutoff)
+          .order('id')
+          .range(from, to),
+      )
+      return rows as unknown as RosterWorkloadRow[]
     },
   })
 }
@@ -130,14 +137,18 @@ export function usePeopleWithUpcomingAssignments(enabled: boolean) {
     enabled,
     staleTime: 60 * 1000,
     queryFn: async () => {
-      const today = new Date().toISOString().slice(0, 10)
-      const { data, error } = await supabase
-        .from('plan_assignments')
-        .select('person_id, plans!inner(date)')
-        .neq('status', 'declined')
-        .gte('plans.date', today)
-      if (error) throw new Error(error.message)
-      return new Set((data as unknown as RosterWorkloadRow[]).map((r) => r.person_id))
+      // Paged like the workload read; and today's date where the church is,
+      // not UTC's (which in Sydney is yesterday until mid-morning).
+      const rows = await fetchAll((from, to) =>
+        supabase
+          .from('plan_assignments')
+          .select('person_id, plans!inner(date)')
+          .neq('status', 'declined')
+          .gte('plans.date', todayISODate())
+          .order('id')
+          .range(from, to),
+      )
+      return new Set((rows as unknown as RosterWorkloadRow[]).map((r) => r.person_id))
     },
   })
 }

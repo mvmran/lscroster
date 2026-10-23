@@ -6,11 +6,20 @@ import {
   partitionBulk,
 } from './bulk-utils'
 
-type P = { id: string; email: string | null; auth_user_id: string | null; status: 'active' | 'inactive' }
+type P = {
+  id: string
+  email: string | null
+  auth_user_id: string | null
+  status: 'active' | 'inactive'
+  managed_by_person_id: string | null
+  managed_accepted_at: string | null
+}
 const p = (over: Partial<P> & { id: string }): P => ({
   email: 'a@b.com',
   auth_user_id: null,
   status: 'active',
+  managed_by_person_id: null,
+  managed_accepted_at: null,
   ...over,
 })
 
@@ -88,5 +97,26 @@ describe('describeBulkFailures', () => {
 
   it('adds no count when everyone fits', () => {
     expect(describeBulkFailures(f(5))).toHaveLength(5)
+  })
+})
+
+describe('bulkSkipReason — invite, managed accounts', () => {
+  it('invites a managed person through their manager, email or not', () => {
+    expect(bulkSkipReason('invite', p({ id: '1', email: null, managed_by_person_id: 'm' }), undefined)).toBeNull()
+    expect(bulkSkipReason('invite', p({ id: '2', managed_by_person_id: 'm' }), undefined)).toBeNull()
+  })
+
+  it('skips one whose manager has already confirmed', () => {
+    expect(
+      bulkSkipReason(
+        'invite',
+        p({ id: '1', managed_by_person_id: 'm', managed_accepted_at: '2026-10-01T00:00:00Z' }),
+        undefined,
+      ),
+    ).toBe('managing member already confirmed')
+  })
+
+  it('still needs an email from someone with no manager', () => {
+    expect(bulkSkipReason('invite', p({ id: '1', email: null }), undefined)).toBe('no email address')
   })
 })
