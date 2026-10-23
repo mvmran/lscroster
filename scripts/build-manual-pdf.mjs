@@ -21,12 +21,13 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { Marked } from 'marked'
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRef } from 'pdf-lib'
 import { chromium } from 'playwright-core'
 
-const ROOT = new URL('..', import.meta.url).pathname
+// Not URL.pathname, which keeps %20 for a space and gives '/C:/…' on Windows.
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const DOCS = join(ROOT, 'docs')
 
 const args = process.argv.slice(2)

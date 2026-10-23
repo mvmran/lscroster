@@ -2335,6 +2335,18 @@ shared `fetchAll`); otherwise app only.
   programmatic `navigate()` skip `useUnsavedChangesWarning` — a real fix is
   moving to a data router for `useBlocker`, a task of its own.
 
+(no migration) **Scripts on Windows and spaced paths** (2026-10-24, finding 5
+of the same review): `check-edge-functions.mjs` and `build-manual-pdf.mjs`
+found the repo with `new URL('..', import.meta.url).pathname`, which keeps
+`%20` for a space and gives `/C:/…` on Windows, so `npm run ci` couldn't find
+`supabase/functions` there; and the exclusion list (written with `/`) never
+matched Windows' `\`-separated relative paths. Both use `fileURLToPath`, and
+the exclusions are matched with `/`. Verified: the old and new roots for a
+spaced path differ as described; the check found and checked the sources from
+a folder with a space in its name (failing only on imports from `src/`, which
+the copy left out); `npm run manual:pdf` and `npm run ci` green.
+**Upgrade note:** none.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

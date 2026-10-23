@@ -11,9 +11,12 @@
 
 import { execFileSync } from 'node:child_process'
 import { readdirSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join, relative, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const ROOT = new URL('..', import.meta.url).pathname
+// fileURLToPath, not URL.pathname: that keeps %20 for a space and gives
+// '/C:/…' on Windows, so the folder isn't found.
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const FUNCTIONS = join(ROOT, 'supabase/functions')
 
 /**
@@ -42,7 +45,8 @@ function* walk(dir) {
 }
 
 const files = [...walk(FUNCTIONS)]
-  .filter((path) => !EXCLUDED.has(relative(FUNCTIONS, path)))
+  // EXCLUDED is written with '/'; Windows' relative() uses '\'.
+  .filter((path) => !EXCLUDED.has(relative(FUNCTIONS, path).split(sep).join('/')))
   .sort()
 
 if (files.length === 0) {
