@@ -123,3 +123,12 @@ export function addDaysISO(date: string, days: number): string {
 export function appUrl(): string {
   return (Deno.env.get('APP_URL') ?? 'http://localhost:5173').replace(/\/$/, '')
 }
+
+/**
+ * Where an email's "Update email preferences" link goes: the page of the person
+ * the email is about, which carries their Email preferences card. For a managed
+ * person that is still their page — their manager edits it there.
+ */
+export function prefsUrl(personId: string): string {
+  return `${appUrl()}/people/${personId}`
+}

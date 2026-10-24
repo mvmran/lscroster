@@ -15,6 +15,7 @@ import {
   formatPlanDateLong,
   formatStartTime,
   planTimesLine,
+  prefsUrl,
   randomToken,
   sha256Hex,
 } from '../_shared/scheduling.ts'
@@ -172,6 +173,7 @@ Deno.serve(async (req) => {
       churchName,
       recipientName: recipient.recipientName,
       onBehalfOf: recipient.onBehalfOf,
+      prefsUrl: prefsUrl(person.id),
       planDateLong,
       startTime,
       serviceTypeName: plan.service_types.name,

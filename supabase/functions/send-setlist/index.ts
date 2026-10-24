@@ -17,7 +17,12 @@ import { logEmail } from '../_shared/email-log.ts'
 import { isEmailableActive } from '../_shared/person-status.ts'
 import { chosenReferenceUrl, setlistEmail } from '../_shared/email-templates/setlist.ts'
 import { sendEmailBatch } from '../_shared/resend.ts'
-import { appUrl, formatPlanDateLong, formatStartTime } from '../_shared/scheduling.ts'
+import {
+  appUrl,
+  formatPlanDateLong,
+  formatStartTime,
+  prefsUrl,
+} from '../_shared/scheduling.ts'
 
 // Keeps a send-out well inside Resend's monthly free tier; also the Batch
 // API's per-call ceiling is 100.
@@ -255,6 +260,7 @@ Deno.serve(async (req) => {
       churchAddress: church?.address ?? null,
       recipientName: recipient.recipientName,
       onBehalfOf: recipient.onBehalfOf,
+      prefsUrl: prefsUrl(person.id),
       planDateLong,
       serviceTypeName,
       planTitle: plan.title,

@@ -17,6 +17,8 @@ export interface PlanNotificationParams {
    * why it came, and the button opens this plan rather than their schedule.
    */
   adminCopyPlanId?: string | null
+  /** The footer's "Update email preferences" link (`prefsUrl()`). */
+  prefsUrl?: string | null
   /** e.g. "Sunday 14 June 2026" */
   planDateLong: string
   serviceTypeName: string
@@ -170,6 +172,6 @@ export function planNotificationEmail(
           </a>
         </td>
       </tr>
-      ${footer(p.churchName)}`),
+      ${footer(p.churchName, p.prefsUrl)}`),
   }
 }

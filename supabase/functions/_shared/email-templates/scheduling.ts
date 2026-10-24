@@ -17,6 +17,8 @@ interface SchedulingDetails {
   positionName: string
   /** Set when routed to a managing member for a managed person (issue #89). */
   onBehalfOf?: string | null
+  /** The footer's "Update email preferences" link (`prefsUrl()`). */
+  prefsUrl?: string | null
 }
 
 interface RequestEmailParams extends SchedulingDetails {
@@ -84,7 +86,7 @@ export function schedulingRequestEmail(
           <a href="${p.respondUrl}" style="color:#3f3f46;word-break:break-all;">${p.respondUrl}</a>
         </td>
       </tr>
-      ${footer(p.churchName)}`),
+      ${footer(p.churchName, p.prefsUrl)}`),
   }
 }
 
@@ -124,7 +126,7 @@ export function schedulingReminderEmail(
           </a>
         </td>
       </tr>
-      ${footer(p.churchName)}`),
+      ${footer(p.churchName, p.prefsUrl)}`),
   }
 }
 
@@ -154,6 +156,6 @@ export function schedulingCancellationEmail(
           Thank you — we'll be in touch about future opportunities to serve.
         </td>
       </tr>
-      ${footer(p.churchName)}`),
+      ${footer(p.churchName, p.prefsUrl)}`),
   }
 }

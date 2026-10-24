@@ -18,6 +18,7 @@ import {
   formatPlanDateLong,
   formatStartTime,
   planTimesLine,
+  prefsUrl,
 } from '../_shared/scheduling.ts'
 
 const requestSchema = z.object({
@@ -128,6 +129,7 @@ Deno.serve(async (req) => {
         churchName,
         recipientName: recipient.recipientName,
         onBehalfOf: recipient.onBehalfOf,
+        prefsUrl: prefsUrl(person.id),
         planDateLong: formatPlanDateLong(row.plans.date),
         startTime: await planTimesLine(
           admin,

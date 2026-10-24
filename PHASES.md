@@ -2405,6 +2405,24 @@ send-plan-notification send-setlist reminders`, then the app. Existing admins
 start receiving every published plan; each can switch it off under Published
 plans.
 
+(no migration) **"Update email preferences here" in the email footer**
+(2026-10-24): under "Sent by LSCroster on behalf of …", every email a
+preference covers now links to the person's own page (`prefsUrl()` →
+`APP_URL/people/<id>`), where their Email preferences card is. That's the
+scheduling request and nudge, the service reminder, the cancellation, the
+published plan (admin copies included), the set list and the roster-status
+digest. A managed person's email goes to their manager but still links the
+managed person's page, which the manager can edit. Invitations, password
+resets, account-access notices and the test email have no preference behind
+them, so their footers are unchanged (`footer()` takes the link as optional).
+Verified: Deno tests for the footer with and without a link and a scheduling
+email carrying it; the digest, run through `runRosterStatus` with Resend
+stubbed, linked each of its four recipients to their own page;
+`check:functions` clean, and `send-requests` (excluded) still shows only its
+two existing errors.
+**Upgrade note:** `functions deploy send-requests cancel-assignment reminders
+send-plan-notification send-setlist` — after 0071's `db push`, as above.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

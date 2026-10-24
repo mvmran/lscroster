@@ -1449,6 +1449,8 @@ On your profile, the **Email preferences** card lets you switch off any of:
 </figure>
 Everything is on until you switch it off. Each box saves as soon as you tick it.
 Admins, coordinators and your managing member can change these for you too.
+Every email one of these boxes covers ends with **Update email preferences
+here**, a link straight to your page (sign in first if asked).
 
 ---
 

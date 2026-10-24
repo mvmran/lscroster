@@ -21,6 +21,8 @@ export interface RosterStatusEmailParams {
   churchName: string
   recipientName: string
   onBehalfOf: string | null
+  /** The footer's "Update email preferences" link (`prefsUrl()`). */
+  prefsUrl?: string | null
   weeks: number
   /** The teams the counts cover, in team order, named after the intro. */
   teamNames: string[]
@@ -165,7 +167,7 @@ export function rosterStatusEmail(params: RosterStatusEmailParams): {
       Manage which emails you get from your profile.
     </td>
   </tr>
-  ${footer(churchName)}`
+  ${footer(churchName, params.prefsUrl)}`
 
   return {
     subject: `Upcoming roster status — next ${weeks} ${weeksLabel}`,

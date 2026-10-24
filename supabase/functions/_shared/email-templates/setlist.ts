@@ -14,6 +14,8 @@ export interface SetlistEmailParams {
   recipientName: string
   /** Set when routed to a managing member for a managed person (issue #89). */
   onBehalfOf?: string | null
+  /** The footer's "Update email preferences" link (`prefsUrl()`). */
+  prefsUrl?: string | null
   /** e.g. "Sunday 12 October 2025" */
   planDateLong: string
   serviceTypeName: string
@@ -172,6 +174,6 @@ export function setlistEmail(p: SetlistEmailParams): { subject: string; html: st
           <a href="${planUrl}" style="color:#2563eb;text-decoration:none;">View the plan online</a>
         </td>
       </tr>
-      ${footer(p.churchName)}`),
+      ${footer(p.churchName, p.prefsUrl)}`),
   }
 }

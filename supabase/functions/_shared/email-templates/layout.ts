@@ -17,10 +17,20 @@ export const wrapper = (inner: string) => `<!doctype html>
   </body>
 </html>`
 
-export const footer = (churchName: string) => `
+/**
+ * `prefsUrl` adds a line linking to the page where this email can be switched
+ * off — the person's own page, whose Email preferences card they (or their
+ * managing member) can change. Only for emails a preference covers; an
+ * invitation or a password reset has none to offer.
+ */
+export const footer = (churchName: string, prefsUrl?: string | null) => `
   <tr>
-    <td style="padding-top:24px;font-size:12px;color:#a1a1aa;">
-      Sent by LSCroster on behalf of ${churchName}.
+    <td style="padding-top:24px;font-size:12px;line-height:1.6;color:#a1a1aa;">
+      Sent by LSCroster on behalf of ${churchName}.${
+        prefsUrl
+          ? `<br />Update email preferences <a href="${esc(prefsUrl)}" style="color:#71717a;text-decoration:underline;">here</a>.`
+          : ''
+      }
     </td>
   </tr>`
 

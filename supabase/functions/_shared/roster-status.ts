@@ -14,7 +14,7 @@ import {
   type RosterStatusRow,
 } from './email-templates/roster-status.ts'
 import { sendEmailBatch } from './resend.ts'
-import { addDaysISO, appUrl } from './scheduling.ts'
+import { addDaysISO, appUrl, prefsUrl } from './scheduling.ts'
 
 interface ChurchForRoster {
   name: string
@@ -257,6 +257,7 @@ export async function runRosterStatus(
       churchName: church.name,
       recipientName: recipient.recipientName,
       onBehalfOf: recipient.onBehalfOf,
+      prefsUrl: prefsUrl(person.id),
       weeks,
       teamNames: [...coveredTeams.values()]
         .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))

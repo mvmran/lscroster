@@ -17,6 +17,7 @@ import {
   formatDurationSeconds,
   formatPlanDateLong,
   formatStartTime,
+  prefsUrl,
 } from '../_shared/scheduling.ts'
 
 const requestSchema = z.object({
@@ -281,6 +282,7 @@ Deno.serve(async (req) => {
       churchAddress: church?.address ?? null,
       recipientName: recipient.recipientName,
       onBehalfOf: recipient.onBehalfOf,
+      prefsUrl: prefsUrl(p.id),
       adminCopyPlanId: adminCopy ? planId : null,
       planDateLong,
       serviceTypeName: serviceType.name,
