@@ -1,7 +1,8 @@
 // "Upcoming roster status" digest (issue #117). Gathers rostering progress for
-// the upcoming N weeks and emails a per-recipient summary to Team Leaders, Team
-// Viewers and admins (a plain `coordinator` only qualifies if also a TL/TV). Each
-// recipient's table is scoped to the teams they oversee; admins see every team.
+// the upcoming N weeks and emails a per-recipient summary to everyone with a
+// team grant (viewer, scheduler or manager — 0048) and to admins; a coordinator
+// only qualifies through a grant. Each recipient's table is scoped to the teams
+// they oversee, named in the intro; admins see every team.
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { fetchEmailPrefs, prefAllows, resolveRecipient } from './email-prefs.ts'
@@ -29,6 +30,8 @@ interface PlanRow {
 }
 interface TeamRow {
   id: string
+  name: string
+  sort_order: number
   service_type_teams: { service_type_id: string }[]
   positions: { id: string; min_count: number }[]
 }
@@ -95,7 +98,9 @@ export async function runRosterStatus(
 
   const [teamsRes, overridesRes, assignments, grantsRes] =
     await Promise.all([
-      admin.from('teams').select('id, service_type_teams(service_type_id), positions(id, min_count)'),
+      admin
+        .from('teams')
+        .select('id, name, sort_order, service_type_teams(service_type_id), positions(id, min_count)'),
       admin
         .from('plan_position_min_counts')
         .select('plan_id, position_id, min_count')
@@ -200,11 +205,15 @@ export async function runRosterStatus(
       return row
     }
 
+    // The teams these counts cover — in scope and serving a plan in the
+    // window — named in the intro so a reader knows whose roster it is.
+    const coveredTeams = new Map<string, TeamRow>()
     for (const plan of plans) {
       const servingTeams = [...scope]
         .map((id) => teamById.get(id))
         .filter((t): t is TeamRow => !!t && teamServesType(t, plan.service_type_id))
       if (servingTeams.length === 0) continue
+      for (const team of servingTeams) coveredTeams.set(team.id, team)
 
       const row = rowFor(plan.date)
       const planAssignments = assignments.filter(
@@ -249,6 +258,9 @@ export async function runRosterStatus(
       recipientName: recipient.recipientName,
       onBehalfOf: recipient.onBehalfOf,
       weeks,
+      teamNames: [...coveredTeams.values()]
+        .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+        .map((t) => t.name),
       rows,
       appUrl: appUrl(),
     })

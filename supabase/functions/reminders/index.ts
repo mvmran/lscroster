@@ -3,7 +3,7 @@
 // pass:
 //   1. Nudge people who haven't answered a request after N days (new token).
 //   2. Remind confirmed people N days before the service.
-//   3. Email Team Leaders/Viewers/admins an "upcoming roster status" digest.
+//   3. Email team-grant holders and admins an "upcoming roster status" digest.
 // Each job fires during its configured hour in the church's timezone (issue
 // #120: church_settings.nudge_hour / reminder_hour / roster_status_hour). The
 // hourly schedule lands each correctly across timezones and DST. A

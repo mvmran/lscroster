@@ -22,6 +22,8 @@ export interface RosterStatusEmailParams {
   recipientName: string
   onBehalfOf: string | null
   weeks: number
+  /** The teams the counts cover, in team order, named after the intro. */
+  teamNames: string[]
   rows: RosterStatusRow[]
   appUrl: string
 }
@@ -123,7 +125,9 @@ export function rosterStatusEmail(params: RosterStatusEmailParams): {
   <tr>
     <td style="padding-bottom:20px;font-size:14px;line-height:1.6;color:#3f3f46;">
       Hi ${esc(recipientName)}, here's where rostering stands for the next
-      ${weeks} ${weeksLabel}${params.onBehalfOf ? '' : ''}. Counts cover the teams you oversee.
+      ${weeks} ${weeksLabel}${params.onBehalfOf ? '' : ''}. Counts cover the teams you oversee${
+        params.teamNames.length > 0 ? `: ${esc(params.teamNames.join(', '))}` : ''
+      }.
     </td>
   </tr>
   <tr>
