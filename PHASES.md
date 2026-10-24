@@ -10,7 +10,7 @@ pursued on performance** (production mobile 64). the user's call, 2026-08-21: th
 score is Lighthouse's simulated slow-4G + 4× CPU profile against an SPA shell,
 not what the congregation experiences on real phones. Reopening it would mean a
 pre-rendered shell, getting the Supabase client off the sign-in path and
-`manualChunks` tuning — don't start any of that without asking him again.
+`manualChunks` tuning — don't start any of that without asking again.
 
 Since launch, work is **issue-driven** against the GitHub backlog
 (`mvmran/lscroster`) — see "Post-Phase-4 enhancements" below. **Phase 5
@@ -251,12 +251,17 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
   versions set the `public` default privileges for the `postgres` owner to only
   `Dxtm` (TRUNCATE/REFERENCES/TRIGGER/MAINTAIN), so `authenticated`/`anon` get NO
   SELECT/INSERT on **any** table (every REST call 401/403, `has_table_privilege`
-  false even for `positions`). It's environment-wide, not a migration bug — prod
-  grants are fine. Fix locally before probing/driving the UI:
+  false even for `positions`). It's environment-wide, not a migration bug.
+  `supabase/seed.sql` now repairs it on every `db reset --local` (table grants,
+  `people` column grants kept narrow); by hand the fix is
   `grant all on all tables in schema public to anon, authenticated, service_role;
   alter default privileges in schema public grant all on tables to anon,
-  authenticated, service_role;` (also do sequences). Migrations must NOT add
-  grants — that diverges from the rest of the schema and the platform handles it.
+  authenticated, service_role;` (also do sequences), but that also undoes the
+  `people` column lock (0024), so prefer re-running `seed.sql`'s statements
+  over it. **Superseded rule:** this
+  note used to say migrations must not add grants. Since 0050 (Supabase stops
+  granting the Data API automatically on 2026-10-30) every new table or view is
+  granted in the migration that creates it — see CLAUDE.md, Database conventions.
 - **`aria-label="Remove <name>"` collides** — both the team-page member-remove
   button (#66) and the team-grant remove button (#106) use the same label, so a
   document-wide query hits the member one first; scope to the grant card when
@@ -282,14 +287,17 @@ Tracked as issues in `mvmran/lscroster` and shipped one at a time
 
 **Local verification quickstart:**
 ```
-npx supabase start                 # Docker Desktop must be up; retry once if it wedges
-npx supabase db reset --local      # rebuild from migrations
+npx supabase start                 # Docker must be up; retry once if it wedges
+npx supabase db reset --local      # rebuild from migrations (+ seed.sql grant repair)
 npx supabase gen types typescript --local > src/types/database.ts   # bash only
-npm run build && npm run lint && npm run typecheck && npm test
-npm run dev                        # then drive the UI via preview_* tools
+npm run ci                         # the whole gate, as CI runs it
+npm run dev                        # then drive the UI in a browser
 ```
-The local DB has no `seed.sql` — after a reset it's empty (no users, no
-`church_settings`, so the app routes to `/setup`). To drive the UI, reseed:
+On flint, browser runs use playwright-core with its cached Chromium (the
+Playwright MCP can't start there). `seed.sql` loads no data, so after a reset the
+DB is empty (no users, no `church_settings`, so the app routes to `/setup`).
+`supabase/seeds/demo-data.sql` adds a demo church (ids `0de00…`, no logins, no
+emails; `demo-wipe.sql` removes it). To drive the UI, reseed:
 1. Keys: `npx supabase status` (Publishable `sb_publishable_…`, Secret
    `sb_secret_…`).
 2. Create a confirmed admin via the GoTrue admin API:
@@ -299,8 +307,9 @@ The local DB has no `seed.sql` — after a reset it's empty (no users, no
 3. One psql batch: insert a `church_settings` row (else `/setup`), a `people`
    row (role `admin`, `auth_user_id` = that id), and whatever domain data is
    needed. Pipe SQL via
-   `MSYS_NO_PATHCONV=1 docker exec -i supabase_db_lscroster psql -U postgres -d postgres < file.sql`
-   — Git Bash mangles container paths for `-f` / `docker cp`.
+   `docker exec -i supabase_db_lscroster psql -U postgres -d postgres < file.sql`
+   (on Windows Git Bash, prefix `MSYS_NO_PATHCONV=1` — it mangles container
+   paths for `-f` / `docker cp`).
 
 **RLS probe:** seed a member JWT and confirm member writes to new rule tables
 → 403, reads → 200, admin writes → success. Hidden buttons are not security.
@@ -1745,7 +1754,9 @@ Supabase dashboard's auth settings (`SETUP.md` Step 8, item 3); until then a
 borrowed signed-in session can still change the password through the API.
 The new bundle works with the setting on or off.
 - [ ] **Turn on "require current password" on Life Sanctuary's production
-  project.**
+  project.** Still off when checked 2026-10-25
+  (`security_update_password_require_current_password: false` in the
+  Management API's auth config); `docs/SETUP.md` Step 8 has the switch.
 - [ ] **Open from the same review** (unverified, worst first): the recovery
   hour compares the device clock with the server's `amr` timestamp, so a phone
   clock an hour out rejects good links; `usePermissions` has no loading state,
