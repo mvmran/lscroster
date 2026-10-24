@@ -2474,6 +2474,29 @@ production, `send-requests`, `cancel-assignment`, `reminders`,
 `e25c81d`. Docs followed: README (Email), `docs/ACCESS-CONTROL.md` (what
 admins receive) and the fail-closed preferences rule in `CLAUDE.md`.
 
+(no migration) **On a phone, the run list moves only after a long-press**
+(2026-10-25, the user's report): scrolling a plan on a phone moved songs by
+accident — a swipe that started on an item's grip dragged it, because the grip
+was `touch-none` (no scrolling from it) and the `PointerSensor` started a drag
+after 5 px for a finger as for a mouse. The plan page now has a `MouseSensor`
+(5 px, as before) and a `TouchSensor` with `delay: 250, tolerance: 5`, and the
+grip is `touch-manipulation` with no text selection or iOS callout. A swipe
+over the grip scrolls the page; holding still for a quarter of a second lifts
+the item (solid background, ring and shadow), and from then dnd-kit cancels
+the page's scroll while it drags. Moving before the hold ends cancels the drag.
+USER-MANUAL §"Reordering" says to press and hold on a phone.
+Verified in headless Chromium (touch context, 390 × 640, CDP touch events) on a
+12-item demo plan: a swipe starting on a grip scrolled the page 323 px and left
+the order alone; hold 400 ms then drag moved a song two places with the page
+still; a press that wandered 64 px before the hold did nothing; a desktop
+mouse drag still moved an item with no hold. The same script against the old
+code dragged on the swipe and didn't scroll.
+- [ ] Other reorderable lists still drag on touch after 5 px: the plan's song
+  sequence editor, the lyrics structure editor, service types and their team
+  order, and on the Matrix both the order-of-service cell (`MatrixOrderCell`,
+  the same plan items) and the team order. Same change if they bite.
+**Upgrade note:** none — app only.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

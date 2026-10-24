@@ -817,9 +817,12 @@ minutes:seconds, e.g. `4:30`) and an optional **Description** shown under it
 (e.g. "Straight into verse 1, no intro"). A song can also have a **Key** and
 **BPM** for this plan only, overriding its arrangement.
 
-**Reordering.** Drag an item by its handle to move it. The start time of every
-item is recalculated as you go, from the plan's start time and the lengths
-above it; the total length and finishing time appear under the plan's title.
+**Reordering.** Drag an item by its handle to move it. On a phone or tablet,
+press and hold the handle until the item lifts, then drag; a quick swipe over
+the handle just scrolls the plan, so you can't move a song by accident. The
+start time of every item is recalculated as you go, from the plan's start time
+and the lengths above it; the total length and finishing time appear under the
+plan's title.
 
 **Editing or removing.** Use the **⋯** at the end of an item → **Edit** or
 **Remove**. A song also has a **pen** button beside its **⋯**, for the edit you

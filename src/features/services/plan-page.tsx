@@ -3,7 +3,8 @@ import {
   closestCenter,
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -184,7 +185,7 @@ function ItemRow({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={
         isDragging
-          ? 'relative z-10 opacity-80'
+          ? 'bg-background ring-primary/40 relative z-10 rounded-md shadow-lg ring-1'
           : undefined
       }
     >
@@ -198,7 +199,7 @@ function ItemRow({
         {canManage && (
           <button
             type="button"
-            className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1"
+            className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-manipulation p-1 select-none [-webkit-touch-callout:none]"
             aria-label={`Reorder ${item.title}`}
             {...attributes}
             {...listeners}
@@ -858,8 +859,13 @@ export function PlanPage() {
   const [confirmSetlist, setConfirmSetlist] = useState(false)
   const [sendingSetlist, setSendingSetlist] = useState(false)
 
+  // A finger has to press and hold the grip before it drags: a swipe that
+  // starts on it scrolls the page (the grip is `touch-manipulation`, not
+  // `touch-none`), so scrolling a plan on a phone can't move a song by
+  // accident. Moving more than the tolerance during the hold cancels the drag.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
