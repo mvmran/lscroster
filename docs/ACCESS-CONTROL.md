@@ -35,6 +35,13 @@ power below, **only** an admin can:
   and songs (`church_settings`).
 - Manage member photos, the church logo, and projection API keys.
 
+Admins also **receive** more than others: a copy of every published plan, even
+one they aren't on (except the plan they published themselves), and the
+roster-status digest for every team. Each is switched off from their own Email
+preferences (**Published plans**, **Upcoming roster status**). The worship set
+list is not among them: it goes only to its recipient list, admins included or
+not.
+
 ### Coordinator — church-wide governance
 
 A coordinator governs the church-wide **structures and content**. They hold all

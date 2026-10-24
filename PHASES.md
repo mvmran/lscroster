@@ -1012,6 +1012,8 @@ PDF share one `shortSheetLines`. The sheet's box is also taller: up to 80% of th
 screen (`max(28rem, 80svh)`) rather than a fixed 28rem. Verified in a browser on
 desktop and phone, with a plan sequence dropping Verse 2: Verse 2 gone from the
 short sheet and its PDF, still there with Long Lyrics, other songs untouched.
+This and the entry above deployed 2026-10-24 (`3b63252`…`9092673`, the last
+after its `/code-review` fixes).
 
 (0052) `plan_item_song_titles` **Song name as the title, arrangement under
 it** (2026-10-16): a song on a plan no longer has its arrangement baked into
@@ -2455,6 +2457,11 @@ someone on the plan got only that person's email. The set list reported
 `optedOut: 1, notActive: 1`. The digest left out a temporary team with no
 positions. Deno tests for the fail-closed read and the "no row means on" case.
 **Upgrade note:** as the entry above — 0071 first, then the five functions.
+**Deployed 2026-10-24**, with the three entries above: 0071 pushed to
+production, `send-requests`, `cancel-assignment`, `reminders`,
+`send-plan-notification` and `send-setlist` deployed, then `main` to
+`e25c81d`. Docs followed: README (Email), `docs/ACCESS-CONTROL.md` (what
+admins receive) and the fail-closed preferences rule in `CLAUDE.md`.
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,

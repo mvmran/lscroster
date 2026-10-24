@@ -67,9 +67,12 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
 
 **Email**
 - Scheduling requests, nudges for silence, reminders before the service, a
-  publish notification and a weekly roster-status digest for leaders
+  publish notification (admins get a copy of every plan) and a weekly
+  roster-status digest for leaders, naming the teams it covers
 - A worship set-list email at publish time, laid out like the Word document your
   team already uses
+- Per-person email preferences, one box per kind of email — every email they
+  cover ends with a link straight to them
 - Every send logged, with the delivery result, in Settings → Email delivery
 
 **People & admin**
