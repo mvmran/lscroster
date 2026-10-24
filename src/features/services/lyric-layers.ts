@@ -257,27 +257,38 @@ export function withoutRepeatedSections(lines: LyricLineTuple[]): LyricLineTuple
  * Only the sections the song's sequence sings: a plan that takes the bridge
  * out of its sequence shouldn't print the bridge. Sections are matched as
  * `sectionKeyOf` reads them, so "Chorus ×2" keeps the "Chorus" and "Verse"
- * keeps "Verse 1". Lines before the first heading are always kept, and a
- * sequence that names nothing readable (or nothing at all) keeps everything —
- * no sequence is no reason to print a blank song. For the short sheet only:
- * Long Lyrics prints the song as it is written.
+ * keeps "Verse 1". Lines before the first heading are always kept.
+ *
+ * A sequence that names none of the song's headings keeps everything: no
+ * sequence at all, or one gone out of date — a draft reads the latest lyrics,
+ * so headings renamed since the plan saved its sequence match nothing — is no
+ * reason to print a blank song.
  */
 export function onlySequencedSections(
   lines: LyricLineTuple[],
   sequence: string[],
 ): LyricLineTuple[] {
-  const sung = new Set(
-    sequence.map(sectionKeyOf).filter((key): key is string => key !== null),
-  )
-  if (sung.size === 0) return lines
+  const sung = new Set(sequence.map(sectionKeyOf))
+  // Every header line has a key; '' only satisfies the type and matches nothing.
+  const isSung = (line: LyricLineTuple) => sung.has(sectionKeyOf(line.text) ?? '')
+  if (!lines.some((line) => line.header && isSung(line))) return lines
   let keep = true
   return lines.filter((line) => {
-    if (line.header) {
-      const key = sectionKeyOf(line.text)
-      keep = key === null || sung.has(key)
-    }
+    if (line.header) keep = isSung(line)
     return keep
   })
+}
+
+/**
+ * The short Lyrics Sheet (Long Lyrics off), on screen and in the PDF alike:
+ * the sections the sequence sings, each once. Long Lyrics prints the song as
+ * it is written.
+ */
+export function shortSheetLines(
+  lines: LyricLineTuple[],
+  sequence: string[],
+): LyricLineTuple[] {
+  return withoutRepeatedSections(onlySequencedSections(lines, sequence))
 }
 
 /** A run of non-blank lines, with where it starts in the text it came from. */

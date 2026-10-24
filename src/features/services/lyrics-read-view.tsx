@@ -7,8 +7,7 @@ import {
   isInlineChordLine,
   LAYER_LABELS,
   LYRIC_LAYER_KEYS,
-  onlySequencedSections,
-  withoutRepeatedSections,
+  shortSheetLines,
   zipLyricLines,
   type LayeredLyrics,
   type LyricLayerKey,
@@ -90,9 +89,7 @@ export function LyricsReadView({
 
   const on = (key: LyricLayerKey) => shown.includes(key)
   const zipped = zipLyricLines({ ...layers, chords })
-  const lines = repeats
-    ? zipped
-    : withoutRepeatedSections(onlySequencedSections(zipped, sequence))
+  const lines = repeats ? zipped : shortSheetLines(zipped, sequence)
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>

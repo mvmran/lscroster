@@ -289,7 +289,11 @@ function ItemForm({
             plan the item's lyrics are pinned to this arrangement's, so a bare
             switch would show the old words (an open question in PHASES.md). */}
         {item && info && (
-          <div className="flex flex-col gap-2">
+          <div
+            role="group"
+            aria-labelledby="pi-arrangement-label"
+            className="flex flex-col gap-2"
+          >
             <Label id="pi-arrangement-label" className="text-muted-foreground">
               Arrangement
             </Label>
@@ -297,11 +301,13 @@ function ItemForm({
                 a medley's label runs long and has to wrap on a phone. */}
             <p
               id="pi-arrangement"
-              aria-labelledby="pi-arrangement-label"
-              title="Chosen when the song was added — to use another, remove it and add the song again"
               className="border-input text-muted-foreground bg-muted/40 dark:bg-muted/30 shadow-well min-h-8 rounded-lg border px-2.5 py-1 text-base break-words md:text-sm"
             >
               {arrangementChoiceLabel(info.arrangement, info)}
+            </p>
+            {/* Said on screen, not in a tooltip: a phone never shows one. */}
+            <p className="text-muted-foreground text-xs">
+              To use another arrangement, remove this song and add it again.
             </p>
           </div>
         )}

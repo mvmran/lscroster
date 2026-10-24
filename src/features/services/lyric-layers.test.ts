@@ -16,6 +16,7 @@ import {
   splitChordLine,
   toLines,
   onlySequencedSections,
+  shortSheetLines,
   withoutRepeatedSections,
   zipLyricLines,
   type LayeredLyrics,
@@ -272,6 +273,20 @@ describe('onlySequencedSections', () => {
     const all = song.split('\n')
     expect(texts(song, [])).toEqual(all)
     expect(texts(song, ['Unlabelled'])).toEqual(all)
+  })
+
+  it('keeps everything when the sequence names none of the headings', () => {
+    // Saved before the headings were renamed: out of date, not "sing nothing".
+    expect(texts(song, ['Verse A', 'Refrain'])).toEqual(song.split('\n'))
+  })
+
+  it('shortSheetLines drops the unsung sections and then the repeats', () => {
+    const repeated = 'Verse 1\nOne\n\nChorus\nSing\n\nBridge\nHigh\n\nChorus\nSing'
+    const lines = shortSheetLines(zipLyricLines({ ...EMPTY_LAYERS, lyrics: repeated }), [
+      'Verse 1',
+      'Chorus ×2',
+    ]).map((l) => l.text)
+    expect(lines).toEqual(['Verse 1', 'One', '', 'Chorus', 'Sing', ''])
   })
 })
 
