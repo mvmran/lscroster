@@ -67,6 +67,20 @@ export type PlanItemDialogState =
   | { mode: 'edit'; item: PlanItem }
   | null
 
+/**
+ * An arrangement as the song dialog names it: its own name, the songs it
+ * strings together when it's a medley, then its key — "Acoustic · D",
+ * "Easter (medley: Song A / Song B) · G".
+ */
+function arrangementChoiceLabel(
+  arrangement: SongArrangement,
+  info: ArrangementInfo | undefined,
+): string {
+  const medley = info && isMedley(info) ? ` (medley: ${arrangementSongTitle(info)})` : ''
+  const key = arrangement.song_key ? ` · ${arrangement.song_key}` : ''
+  return `${arrangement.name}${medley}${key}`
+}
+
 function ItemForm({
   state,
   onClose,
@@ -261,19 +275,34 @@ function ItemForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {picked.arrangements.map((a) => {
-                  const found = arrangements.get(a.id)
-                  const medley = found && isMedley(found)
-                  return (
-                    <SelectItem key={a.id} value={a.id}>
-                      {medley ? arrangementSongTitle(found) : a.name}
-                      {a.song_key ? ` · ${a.song_key}` : ''}
-                      {medley ? ' (medley)' : ''}
-                    </SelectItem>
-                  )
-                })}
+                {picked.arrangements.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {arrangementChoiceLabel(a, arrangements.get(a.id))}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+          </div>
+        )}
+
+        {/* Editing shows the arrangement but can't change it: on a published
+            plan the item's lyrics are pinned to this arrangement's, so a bare
+            switch would show the old words (an open question in PHASES.md). */}
+        {item && info && (
+          <div className="flex flex-col gap-2">
+            <Label id="pi-arrangement-label" className="text-muted-foreground">
+              Arrangement
+            </Label>
+            {/* Drawn like the read-only Meter box, but text, not an input:
+                a medley's label runs long and has to wrap on a phone. */}
+            <p
+              id="pi-arrangement"
+              aria-labelledby="pi-arrangement-label"
+              title="Chosen when the song was added — to use another, remove it and add the song again"
+              className="border-input text-muted-foreground bg-muted/40 dark:bg-muted/30 shadow-well min-h-8 rounded-lg border px-2.5 py-1 text-base break-words md:text-sm"
+            >
+              {arrangementChoiceLabel(info.arrangement, info)}
+            </p>
           </div>
         )}
 
