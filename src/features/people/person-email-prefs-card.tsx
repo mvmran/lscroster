@@ -36,7 +36,14 @@ const OPTIONS: { key: EmailPrefKey; label: string; description: string }[] = [
   {
     key: 'publish_emails',
     label: 'Published plans',
-    description: 'The full plan summary when a plan they are on is published.',
+    description:
+      'The full plan summary when a plan they are on is published. Admins get every published plan.',
+  },
+  {
+    key: 'setlist_emails',
+    label: 'Worship set list',
+    description:
+      'The worship set list, when they are on its recipient list (Settings → Communications setup).',
   },
   {
     key: 'roster_status_emails',
@@ -61,6 +68,7 @@ function PrefsForm({
     publish_emails: prefs?.publish_emails ?? EMAIL_PREF_DEFAULTS.publish_emails,
     roster_status_emails:
       prefs?.roster_status_emails ?? EMAIL_PREF_DEFAULTS.roster_status_emails,
+    setlist_emails: prefs?.setlist_emails ?? EMAIL_PREF_DEFAULTS.setlist_emails,
   })
 
   function toggle(key: EmailPrefKey, next: boolean) {

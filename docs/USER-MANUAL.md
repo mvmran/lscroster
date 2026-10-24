@@ -1412,20 +1412,22 @@ go, and the hour of the day each is sent (in your church's time zone) — §14.1
 
 - **Published plan** — when a plan is published, everyone scheduled on it can
   receive the full plan summary: times, address, order of service and who's
-  serving. Your admin can switch this off.
+  serving. Admins get a copy of every published plan, even one they aren't on.
+  Your admin can switch this off for the whole church.
 - **Worship set list** — a formatted email of the service's songs, keys, listen
   links, who's singing and playing, practice times and notes, with a link to
   download the lyrics sheet as a PDF. It goes to a list of people and teams your
   admin chooses, either automatically on publish or whenever someone with
-  *Publish plans* sends it from the plan's **⋯ → Email set list…**.
+  *Publish plans* sends it from the plan's **⋯ → Email set list…**. Only that
+  list gets it — an admin who isn't on it doesn't.
 
 ## 10.4 The roster-status digest
 
 A regular email to everyone with access to a team (Viewers, Schedulers,
 Managers) and to admins, summarising how rostering is going for the next few
-weeks — which positions are filled, waiting on answers, or still empty. Your
-admin sets how many weeks ahead it covers (0 turns it off) and the hour it's
-sent.
+weeks — which positions are filled, waiting on answers, or still empty — and
+naming the teams it covers. Your admin sets how many weeks ahead it covers (0
+turns it off) and the hour it's sent.
 
 ## 10.5 Your email preferences
 
@@ -1436,12 +1438,13 @@ On your profile, the **Email preferences** card lets you switch off any of:
 | **Roster changes** | Being added to or removed from a plan. |
 | **Response reminders** | Follow-ups when a request hasn't been answered. |
 | **Service reminders** | Reminders before a service you're on. |
-| **Published plans** | The plan summary when a plan you're on is published. |
+| **Published plans** | The plan summary when a plan you're on is published (admins: every published plan). |
+| **Worship set list** | The set list (§10.3), if you're on its recipient list. |
 | **Upcoming roster status** | The roster-status digest (§10.4), if you receive it. |
 
 <figure>
   <img src="screenshots/manual/email-prefs.png" width="480"
-       alt="The Email preferences card with five ticked boxes: roster changes, response reminders, service reminders, published plans and upcoming roster status">
+       alt="The Email preferences card with six ticked boxes: roster changes, response reminders, service reminders, published plans, worship set list and upcoming roster status">
   <figcaption><em>Figure 10.5 — Email preferences on your profile.</em></figcaption>
 </figure>
 Everything is on until you switch it off. Each box saves as soon as you tick it.

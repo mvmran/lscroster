@@ -1,5 +1,7 @@
 // Emails the worship set list to the admin-curated distribution list
 // (issue #133), on publish or on demand from the plan page. Needs publish_plans.
+// Only the list gets it — an admin left off it doesn't — and each recipient's
+// "Worship set list" preference is honoured (0071).
 //
 // The email body *is* the set list (see email-templates/setlist.ts): service
 // information with the worship-type teams' roster, practice information, the
@@ -10,7 +12,7 @@
 import { z } from 'npm:zod@4'
 import { callerHasPermission, getCallerPerson, serviceClient } from '../_shared/auth.ts'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
-import { resolveRecipient } from '../_shared/email-prefs.ts'
+import { fetchEmailPrefs, prefAllows, resolveRecipient } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
 import { isEmailableActive } from '../_shared/person-status.ts'
 import { chosenReferenceUrl, setlistEmail } from '../_shared/email-templates/setlist.ts'
@@ -104,7 +106,11 @@ Deno.serve(async (req) => {
       'id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at',
     )
     .in('id', [...personIds])
-  const people = ((peopleRows ?? []) as PersonRow[]).filter(isEmailableActive)
+  const emailable = ((peopleRows ?? []) as PersonRow[]).filter(isEmailableActive)
+  // Anyone can switch it off with "Worship set list" in their preferences
+  // (0071) — before the cap is counted, so those who have don't count.
+  const prefs = await fetchEmailPrefs(admin, emailable.map((p) => p.id))
+  const people = emailable.filter((p) => prefAllows(prefs, p.id, 'setlist_emails'))
 
   if (people.length > MAX_RECIPIENTS) {
     return jsonResponse(
@@ -230,8 +236,6 @@ Deno.serve(async (req) => {
   const planDateLong = formatPlanDateLong(plan.date)
 
   // -- render per recipient, send as one batch -------------------------------
-  // Emails to the explicit distribution list don't check per-person
-  // publish-email prefs — an admin put these people on the list on purpose.
   const outbound: { personId: string; name: string; email: string; subject: string; html: string }[] = []
   const skipped: { name: string; reason: string }[] = []
   const seenEmails = new Set<string>()
@@ -296,5 +300,7 @@ Deno.serve(async (req) => {
     }
   })
 
-  return jsonResponse({ ok: true, sent, skipped })
+  // How many on the list switched it off, so a send that reached nobody says why.
+  const optedOut = emailable.length - people.length
+  return jsonResponse({ ok: true, sent, skipped, optedOut })
 })

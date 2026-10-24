@@ -2370,6 +2370,41 @@ a folder with a space in its name (failing only on imports from `src/`, which
 the copy left out); `npm run manual:pdf` and `npm run ci` green.
 **Upgrade note:** none.
 
+(0071) `person_email_prefs.setlist_emails` **Admins' plan copies, a set-list
+preference, teams named in the digest** (2026-10-24):
+- **Published plans reach every admin.** `send-plan-notification` also emails
+  each active admin who isn't on the plan, subject to their **Published plans**
+  preference. The copy says why it came ("the admin's copy") and its button
+  opens the plan instead of My schedule (`adminCopyPlanId`). An admin who
+  declined is off the plan, so gets the copy.
+- **Worship set list preference.** A new box on Email preferences, on by
+  default (the column defaults true, so existing people keep receiving it).
+  `send-setlist` now honours it before counting the 50-recipient cap, and
+  reports `optedOut`, so a send that reached nobody because everyone opted out
+  says so rather than going quiet. Recipients are unchanged: only the list in
+  Settings → Communications setup. An admin left off it isn't emailed (tried
+  adding every admin, then dropped at the user's request).
+- **The digest names its teams.** The roster-status intro ends "Counts cover the
+  teams you oversee: Worship, Media, Hospitality." — the recipient's teams that
+  serve a plan in the window, in team order (all teams for an admin).
+- The digest's recipient wording in `_shared/roster-status.ts`, `reminders` and
+  `supabase/functions/CLAUDE.md` still said Team Leaders / Viewers (pre-0048);
+  now team grants of any level, plus admins.
+Verified on the local stack with no Resend key (every send logged as "not
+configured" to `email_log`): a published plan without the admin on it logged
+the admin alongside the scheduled people, and not once their Published plans
+box was off; the set list logged its one listed member and not the admin, and
+nothing with that member opted out (`optedOut: 1`); the digest, run through
+`runRosterStatus` with Resend stubbed, named all three teams for the admin and
+Worship for the three Worship grant holders. The new box saved false and true
+through RLS; Deno tests for both template changes. 0071 applied twice clean;
+`npm run ci` green. Manual §10.3–10.5 and its screenshot updated.
+**Upgrade note:** `db push` (0071) first — `send-setlist` and
+`send-plan-notification` read the new column — then `functions deploy
+send-plan-notification send-setlist reminders`, then the app. Existing admins
+start receiving every published plan; each can switch it off under Published
+plans.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

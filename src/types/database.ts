@@ -588,6 +588,7 @@ export type Database = {
           reminder_emails: boolean
           roster_emails: boolean
           roster_status_emails: boolean
+          setlist_emails: boolean
           updated_at: string
         }
         Insert: {
@@ -598,6 +599,7 @@ export type Database = {
           reminder_emails?: boolean
           roster_emails?: boolean
           roster_status_emails?: boolean
+          setlist_emails?: boolean
           updated_at?: string
         }
         Update: {
@@ -608,6 +610,7 @@ export type Database = {
           reminder_emails?: boolean
           roster_emails?: boolean
           roster_status_emails?: boolean
+          setlist_emails?: boolean
           updated_at?: string
         }
         Relationships: [

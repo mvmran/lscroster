@@ -2,6 +2,7 @@
 // person scheduled on it (who hasn't declined) receives this rich summary:
 // service details, all the plan's times, the church name & address, the teams
 // and people serving, the order of service, and the songs with key & BPM.
+// Admins not scheduled on it receive a copy (0071), worded as one.
 
 import { esc, footer, onBehalfBanner, wrapper } from './layout.ts'
 
@@ -11,6 +12,11 @@ export interface PlanNotificationParams {
   recipientName: string
   /** Set when routed to a managing member for a managed person (issue #89). */
   onBehalfOf?: string | null
+  /**
+   * Set for an admin's copy of a plan they aren't scheduled on: the intro says
+   * why it came, and the button opens this plan rather than their schedule.
+   */
+  adminCopyPlanId?: string | null
   /** e.g. "Sunday 14 June 2026" */
   planDateLong: string
   serviceTypeName: string
@@ -127,6 +133,14 @@ function songsSection(p: PlanNotificationParams): string {
 export function planNotificationEmail(
   p: PlanNotificationParams,
 ): { subject: string; html: string } {
+  const intro = p.adminCopyPlanId
+    ? "The plan for this service has been published. You're not scheduled on " +
+      "it — this is the admin's copy, which you can switch off under Published " +
+      'plans in your email preferences.'
+    : "The plan for this service has been published. Here's everything you need:"
+  const button = p.adminCopyPlanId
+    ? { href: `${p.appUrl}/services/plans/${p.adminCopyPlanId}`, label: 'View the plan' }
+    : { href: `${p.appUrl}/my-schedule`, label: 'View my schedule' }
   return {
     subject: `Plan published: ${p.serviceTypeName} · ${p.planDateLong}`,
     html: wrapper(`
@@ -140,8 +154,7 @@ export function planNotificationEmail(
         <td style="font-size:15px;line-height:1.6;color:#3f3f46;">
           Hi ${esc(p.recipientName)},
           <br /><br />
-          The plan for this service has been published. Here's everything you
-          need:
+          ${esc(intro)}
         </td>
       </tr>
       <tr><td>${summaryCard(p)}</td></tr>
@@ -151,9 +164,9 @@ export function planNotificationEmail(
       ${songsSection(p)}
       <tr>
         <td align="center" style="padding:28px 0 8px;">
-          <a href="${p.appUrl}/my-schedule"
+          <a href="${button.href}"
              style="display:inline-block;background-color:#18181b;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:12px 28px;border-radius:8px;">
-            View my schedule
+            ${button.label}
           </a>
         </td>
       </tr>

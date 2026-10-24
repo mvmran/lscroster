@@ -1,6 +1,7 @@
 // Emails a full plan summary to everyone scheduled on a plan (issue #17),
 // triggered on publish. Needs publish_plans (admins and coordinators hold it). Each person is
 // emailed once even if they fill several positions; declined people are skipped.
+// Every admin not on the plan gets a copy (0071), subject to their preferences.
 
 import { z } from 'npm:zod@4'
 import { callerHasPermission, getCallerPerson, serviceClient } from '../_shared/auth.ts'
@@ -238,7 +239,24 @@ Deno.serve(async (req) => {
   const activePersonIds = assignments
     .filter((a) => isEmailableActive(a.people))
     .map((a) => a.people.id)
-  const prefs = await fetchEmailPrefs(admin, activePersonIds)
+  // Admins get a copy of every published plan, worded as one when they aren't
+  // on it (0071). "Published plans" in their preferences switches it off, the
+  // same box that covers plans they serve on.
+  const { data: adminRows } = await admin
+    .from('people')
+    .select(
+      'id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at',
+    )
+    .eq('role', 'admin')
+    .eq('status', 'active')
+  const scheduledIds = new Set(activePersonIds)
+  const adminCopies = ((adminRows ?? []) as AssignmentRow['people'][]).filter(
+    (p) => isEmailableActive(p) && !scheduledIds.has(p.id),
+  )
+  const prefs = await fetchEmailPrefs(admin, [
+    ...activePersonIds,
+    ...adminCopies.map((p) => p.id),
+  ])
 
   const outbound: {
     personId: string
@@ -248,8 +266,11 @@ Deno.serve(async (req) => {
     html: string
   }[] = []
   const seen = new Set<string>()
-  for (const a of assignments) {
-    const p = a.people
+  const recipients = [
+    ...assignments.map((a) => ({ person: a.people, adminCopy: false })),
+    ...adminCopies.map((person) => ({ person, adminCopy: true })),
+  ]
+  for (const { person: p, adminCopy } of recipients) {
     if (!isEmailableActive(p) || seen.has(p.id)) continue
     seen.add(p.id)
     if (!prefAllows(prefs, p.id, 'publish_emails')) continue
@@ -260,6 +281,7 @@ Deno.serve(async (req) => {
       churchAddress: church?.address ?? null,
       recipientName: recipient.recipientName,
       onBehalfOf: recipient.onBehalfOf,
+      adminCopyPlanId: adminCopy ? planId : null,
       planDateLong,
       serviceTypeName: serviceType.name,
       planTitle: plan.title,

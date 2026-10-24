@@ -13,6 +13,7 @@ export type EmailPrefKey =
   | 'reminder_emails'
   | 'publish_emails'
   | 'roster_status_emails'
+  | 'setlist_emails'
 
 export const EMAIL_PREF_DEFAULTS: Record<EmailPrefKey, boolean> = {
   roster_emails: true,
@@ -20,6 +21,7 @@ export const EMAIL_PREF_DEFAULTS: Record<EmailPrefKey, boolean> = {
   reminder_emails: true,
   publish_emails: true,
   roster_status_emails: true,
+  setlist_emails: true,
 }
 
 export const emailPrefKeys = {

@@ -980,6 +980,7 @@ export function PlanPage() {
         sent: number
         skipped: { name: string; reason: string }[]
         noRecipients?: boolean
+        optedOut?: number
       }>('send-setlist', { planId: plan.id })
       if (res.noRecipients) {
         toast.info(
@@ -988,6 +989,10 @@ export function PlanPage() {
       } else if (res.sent > 0) {
         toast.success(
           `Set list emailed to ${res.sent} ${res.sent === 1 ? 'person' : 'people'}`,
+        )
+      } else if (res.optedOut && res.skipped.length === 0) {
+        toast.info(
+          'Nobody was emailed — everyone on the set list has switched it off in their email preferences.',
         )
       }
       for (const skip of res.skipped) {
