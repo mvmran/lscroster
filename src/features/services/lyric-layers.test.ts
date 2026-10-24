@@ -15,6 +15,7 @@ import {
   renameSectionHeading,
   splitChordLine,
   toLines,
+  onlySequencedSections,
   withoutRepeatedSections,
   zipLyricLines,
   type LayeredLyrics,
@@ -229,6 +230,48 @@ describe('renameSectionHeading', () => {
     // holding something else is left alone.
     expect(toLines(next.lyrics)[2]).toBe('VERSE')
     expect(next.meaning).toBe(layers.meaning)
+  })
+})
+
+describe('onlySequencedSections', () => {
+  const texts = (lyrics: string, sequence: string[]) =>
+    onlySequencedSections(zipLyricLines({ ...EMPTY_LAYERS, lyrics }), sequence).map(
+      (l) => l.text,
+    )
+  const song = 'Opening line\n\nVerse 1\nOne\n\nChorus\nSing\n\nVerse 2\nTwo\n\nBridge\nHigh'
+
+  it('leaves out the sections the sequence dropped, blank lines and all', () => {
+    expect(texts(song, ['Verse 1', 'Chorus ×2', 'Verse 2', 'Chorus'])).toEqual([
+      'Opening line',
+      '',
+      'Verse 1',
+      'One',
+      '',
+      'Chorus',
+      'Sing',
+      '',
+      'Verse 2',
+      'Two',
+      '',
+    ])
+  })
+
+  it('reads "Verse" as Verse 1', () => {
+    expect(texts(song, ['Verse', 'Bridge'])).toEqual([
+      'Opening line',
+      '',
+      'Verse 1',
+      'One',
+      '',
+      'Bridge',
+      'High',
+    ])
+  })
+
+  it('keeps everything without a sequence to go by', () => {
+    const all = song.split('\n')
+    expect(texts(song, [])).toEqual(all)
+    expect(texts(song, ['Unlabelled'])).toEqual(all)
   })
 })
 

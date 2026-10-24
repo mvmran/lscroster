@@ -990,6 +990,26 @@ title surviving a switch, cancel, create-and-add, Edit still Save, phone fit.
   in the same save on a published plan, the title follows unless renamed, and
   key/BPM overrides and notes stay.
 
+(no migration) **Edit song shows the arrangement** (2026-10-24): Edit song now
+shows the item's arrangement in a read-only box at the top (greyed like Meter),
+so you can see which one the plan uses without leaving the dialog. It still
+can't be changed (the open question above stands). The Add song dropdown and the
+new box share one label that always leads with the arrangement's name: medleys
+used to show only their songs, "Song A / Song B · G (medley)", and now read
+"Easter (medley: Song A / Song B) · G"; others stay "Acoustic · D".
+
+(no migration) **The Lyrics Sheet sings the plan's sequence** (2026-10-24): with
+Long Lyrics off, the sheet now also leaves out any section the song's sequence
+on this plan doesn't sing, so taking the bridge out on Edit song takes it off
+the sheet. This applies to both the screen and the printed PDF
+(`onlySequencedSections`, matched by `sectionKeyOf`: "Chorus ×2" keeps the
+Chorus, "Verse" keeps Verse 1). Long Lyrics still prints the song as written.
+Lines before the first heading always stay, and a sequence that names nothing
+readable keeps every section. The sheet's box is also taller: up to 80% of the
+screen (`max(28rem, 80svh)`) rather than a fixed 28rem. Verified in a browser on
+desktop and phone, with a plan sequence dropping Verse 2: Verse 2 gone from the
+short sheet and its PDF, still there with Long Lyrics, other songs untouched.
+
 (0052) `plan_item_song_titles` **Song name as the title, arrangement under
 it** (2026-10-16): a song on a plan no longer has its arrangement baked into
 the title. `arrangementDisplayTitle()` ("Song (Acoustic)") is split into

@@ -7,6 +7,7 @@ import {
   isInlineChordLine,
   LAYER_LABELS,
   LYRIC_LAYER_KEYS,
+  onlySequencedSections,
   withoutRepeatedSections,
   zipLyricLines,
   type LayeredLyrics,
@@ -61,12 +62,14 @@ function ChordLine({ text, inline }: { text: string; inline?: boolean }) {
  *
  * `repeats={false}` shows each section once (the Lyrics Sheet without Long
  * Lyrics): a section that repeats one already shown is left out, and the
- * song's sequence, shown beside it, says how often it comes round.
+ * song's sequence, shown beside it, says how often it comes round. A section
+ * the sequence doesn't sing at all is left out too.
  */
 export function LyricsReadView({
   layers,
   songKey,
   repeats = true,
+  sequence = [],
   className,
 }: {
   layers: LayeredLyrics
@@ -74,6 +77,8 @@ export function LyricsReadView({
   songKey?: string | null
   /** Every section each time it is sung; false shows each once. */
   repeats?: boolean
+  /** The order the song is sung in; with `repeats` off, what it sings. */
+  sequence?: string[]
   className?: string
 }) {
   const available = LYRIC_LAYER_KEYS.filter((key) => layers[key].trim() !== '')
@@ -85,7 +90,9 @@ export function LyricsReadView({
 
   const on = (key: LyricLayerKey) => shown.includes(key)
   const zipped = zipLyricLines({ ...layers, chords })
-  const lines = repeats ? zipped : withoutRepeatedSections(zipped)
+  const lines = repeats
+    ? zipped
+    : withoutRepeatedSections(onlySequencedSections(zipped, sequence))
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>

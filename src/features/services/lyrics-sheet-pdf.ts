@@ -2,6 +2,7 @@ import { format, parseISO } from 'date-fns'
 import { chordsIn, parseSongKey, type ChordNotation } from '@/features/services/chord-notation'
 import {
   isInlineChordLine,
+  onlySequencedSections,
   splitChordLine,
   withoutRepeatedSections,
   zipLyricLines,
@@ -37,8 +38,8 @@ export interface LyricsSheetPdfOptions {
   notation?: ChordNotation
   /**
    * Every section each time it is sung (the sheet's Long Lyrics). Off, each
-   * section prints once and the song's sequence, printed under its key and
-   * tempo, says how it goes — as on screen.
+   * section the sequence sings prints once and the sequence, printed under its
+   * key and tempo, says how it goes — as on screen.
    */
   longLyrics?: boolean
 }
@@ -229,7 +230,11 @@ export async function downloadLyricsSheetPdf(opts: LyricsSheetPdfOptions) {
         chords: chordsIn(entry.layers.chords, opts.notation ?? 'numbers', parseSongKey(entry.key)),
       }
       const zipped = zipLyricLines(layers)
-      for (const line of opts.longLyrics ? zipped : withoutRepeatedSections(zipped)) {
+      // Short, as on screen: each section once, and only those the sequence sings.
+      const lines = opts.longLyrics
+        ? zipped
+        : withoutRepeatedSections(onlySequencedSections(zipped, entry.sequence))
+      for (const line of lines) {
         const showChords = opts.chords && line.chords.trim() !== ''
         // An inline chord line carries the words its chords are anchored to,
         // so it is drawn *as* the lyric row — at the lyric's leading and in

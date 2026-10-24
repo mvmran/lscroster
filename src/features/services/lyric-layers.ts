@@ -253,6 +253,33 @@ export function withoutRepeatedSections(lines: LyricLineTuple[]): LyricLineTuple
   return kept
 }
 
+/**
+ * Only the sections the song's sequence sings: a plan that takes the bridge
+ * out of its sequence shouldn't print the bridge. Sections are matched as
+ * `sectionKeyOf` reads them, so "Chorus ×2" keeps the "Chorus" and "Verse"
+ * keeps "Verse 1". Lines before the first heading are always kept, and a
+ * sequence that names nothing readable (or nothing at all) keeps everything —
+ * no sequence is no reason to print a blank song. For the short sheet only:
+ * Long Lyrics prints the song as it is written.
+ */
+export function onlySequencedSections(
+  lines: LyricLineTuple[],
+  sequence: string[],
+): LyricLineTuple[] {
+  const sung = new Set(
+    sequence.map(sectionKeyOf).filter((key): key is string => key !== null),
+  )
+  if (sung.size === 0) return lines
+  let keep = true
+  return lines.filter((line) => {
+    if (line.header) {
+      const key = sectionKeyOf(line.text)
+      keep = key === null || sung.has(key)
+    }
+    return keep
+  })
+}
+
 /** A run of non-blank lines, with where it starts in the text it came from. */
 export interface LyricParagraph {
   /** Index of the paragraph's first line. */

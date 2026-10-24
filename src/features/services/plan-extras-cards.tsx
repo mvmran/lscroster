@@ -539,7 +539,9 @@ export function PlanMediaCard({
             No songs in the order of service yet.
           </p>
         ) : (
-          <div className="bg-muted/20 flex max-h-[28rem] flex-col gap-4 overflow-y-auto rounded-md border p-4">
+          // Most of the screen, so a song reads without scrolling a small
+          // window; never less than the 28rem it used to be.
+          <div className="bg-muted/20 flex max-h-[max(28rem,80svh)] flex-col gap-4 overflow-y-auto rounded-md border p-4">
             {entries.map((entry) => {
               const meta = lyricsSheetMeta(entry)
               const hasLyrics = !!entry.lyrics && entry.lyrics.trim().length > 0
@@ -587,6 +589,7 @@ export function PlanMediaCard({
                       layers={entry.layers}
                       songKey={entry.key}
                       repeats={longLyrics}
+                      sequence={entry.sequence}
                     />
                   ) : (
                     <p className="text-muted-foreground text-sm italic">
