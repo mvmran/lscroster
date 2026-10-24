@@ -115,6 +115,12 @@ Deno.serve(async (req) => {
     admin,
     (assignments as unknown as AssignmentRow[]).map((a) => a.people.id),
   )
+  if (prefs.unreadable) {
+    return jsonResponse(
+      { error: 'Could not read email preferences, so nothing was sent. Try again shortly.' },
+      503,
+    )
+  }
 
   // Prepare each email (minting + storing its response token) first, then send
   // them all in one Batch API call (issue #18). Token minting is a DB write, so

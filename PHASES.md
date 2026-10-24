@@ -2423,6 +2423,39 @@ two existing errors.
 **Upgrade note:** `functions deploy send-requests cancel-assignment reminders
 send-plan-notification send-setlist` — after 0071's `db push`, as above.
 
+(no migration) **Review of the three email commits** (2026-10-24, `/code-review`,
+all ten findings taken):
+- **Preferences fail closed.** `fetchEmailPrefs` dropped its query error, so an
+  unreadable table — such as a function deployed before 0071, whose column it
+  now selects — read as "no rows", every flag on, and emailed everyone who had
+  opted out. A failed read now answers every flag off and marks the map
+  `unreadable`. `send-requests`, `send-plan-notification` and `send-setlist`
+  then stop with "Could not read email preferences, so nothing was sent" (503),
+  before any token is minted. A cancellation and the hourly jobs send nothing
+  the preferences cover and log why; the jobs retry on their next run.
+- **Admin copies:** not to the admin who pressed Publish. Not to an admin
+  already sent the plan on behalf of someone they manage (checked against the
+  addresses already used — siblings under one manager still get one each).
+  Counted apart as `adminCopies`, so the toast reads "Notified 3 people (plus 1
+  admin copy)" and "No one scheduled to notify" still shows. The admins'
+  lookup runs alongside the assignments read.
+- **Set-list toast:** `notActive` joins `optedOut`. With nothing sent and
+  nothing failed, the app says "Nobody was emailed — 1 switched it off in their
+  email preferences; 1 can't be emailed yet (no active account)" rather than
+  blaming everyone's preferences.
+- **Digest:** names only teams that add to a number (an unfilled required slot
+  or an assignment), not every team serving the service type. It drops "Manage
+  which emails you get from your profile.", which the footer link replaces,
+  and a dead `${onBehalfOf ? '' : ''}`.
+- The plan-notification test checks for the phrase "the admin's copy", not the
+  bare word "copy".
+Verified on the local stack (no Resend key). A second admin made temporarily:
+the publishing admin got no copy; the other admin got one; an admin managing
+someone on the plan got only that person's email. The set list reported
+`optedOut: 1, notActive: 1`. The digest left out a temporary team with no
+positions. Deno tests for the fail-closed read and the "no row means on" case.
+**Upgrade note:** as the entry above — 0071 first, then the five functions.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

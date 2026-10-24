@@ -981,6 +981,7 @@ export function PlanPage() {
         skipped: { name: string; reason: string }[]
         noRecipients?: boolean
         optedOut?: number
+        notActive?: number
       }>('send-setlist', { planId: plan.id })
       if (res.noRecipients) {
         toast.info(
@@ -990,9 +991,14 @@ export function PlanPage() {
         toast.success(
           `Set list emailed to ${res.sent} ${res.sent === 1 ? 'person' : 'people'}`,
         )
-      } else if (res.optedOut && res.skipped.length === 0) {
+      } else if (res.skipped.length === 0) {
+        // Nobody reached and nothing failed: say which reasons apply.
+        const reasons = [
+          res.optedOut ? `${res.optedOut} switched it off in their email preferences` : null,
+          res.notActive ? `${res.notActive} can’t be emailed yet (no active account)` : null,
+        ].filter(Boolean)
         toast.info(
-          'Nobody was emailed — everyone on the set list has switched it off in their email preferences.',
+          `Nobody was emailed${reasons.length > 0 ? ` — ${reasons.join('; ')}` : ''}.`,
         )
       }
       for (const skip of res.skipped) {
@@ -1028,16 +1034,19 @@ export function PlanPage() {
               if (churchSettings?.send_setlist_on_publish) void sendSetlist()
             },
             onSuccess: (res) => {
+              const copies = res.adminCopies ?? 0
+              const copiesNote =
+                copies > 0 ? ` (plus ${copies} admin ${copies === 1 ? 'copy' : 'copies'})` : ''
               if (res.sent > 0) {
                 toast.success(
-                  `Notified ${res.sent} ${res.sent === 1 ? 'person' : 'people'}`,
+                  `Notified ${res.sent} ${res.sent === 1 ? 'person' : 'people'}${copiesNote}`,
                 )
               }
               for (const skip of res.skipped) {
                 toast.warning(`${skip.name}: ${skip.reason}`)
               }
               if (res.sent === 0 && res.skipped.length === 0) {
-                toast.info('No one scheduled to notify')
+                toast.info(`No one scheduled to notify${copiesNote}`)
               }
             },
             onError: (e) =>

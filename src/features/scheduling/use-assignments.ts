@@ -451,7 +451,10 @@ export function useCancelAssignment(planId: string) {
 
 export interface PlanNotificationResult {
   ok: boolean
+  /** People on the plan who were emailed. */
   sent: number
+  /** Admins not on the plan who were sent a copy (0071); absent before it. */
+  adminCopies?: number
   skipped: { name: string; reason: string }[]
 }
 

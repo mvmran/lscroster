@@ -30,23 +30,47 @@ const ALL_ON: EmailPrefs = {
   setlist_emails: true,
 }
 
+const ALL_OFF: EmailPrefs = {
+  roster_emails: false,
+  nudge_emails: false,
+  reminder_emails: false,
+  publish_emails: false,
+  roster_status_emails: false,
+  setlist_emails: false,
+}
+
 /**
  * Email preferences for a set of people. A person with no row has every flag
  * on (the default), so existing people opt into all email automatically.
+ *
+ * A read that fails answers every flag **off** for everyone asked about, so
+ * nobody who switched an email off gets it anyway. Treating the failure as
+ * "no rows" — every flag on — is exactly that: a function deployed before the
+ * migration adding a column it selects (0071's setlist_emails) would email
+ * everyone who opted out. The send goes quiet instead and the log says why;
+ * `unreadable` lets a function someone pressed a button for say so instead.
  */
+export type EmailPrefsMap = Map<string, EmailPrefs> & { unreadable?: true }
+
 export async function fetchEmailPrefs(
   admin: SupabaseClient,
   personIds: string[],
-): Promise<Map<string, EmailPrefs>> {
-  const map = new Map<string, EmailPrefs>()
+): Promise<EmailPrefsMap> {
+  const map: EmailPrefsMap = new Map<string, EmailPrefs>()
   const ids = [...new Set(personIds)]
   if (ids.length === 0) return map
-  const { data } = await admin
+  const { data, error } = await admin
     .from('person_email_prefs')
     .select(
       'person_id, roster_emails, nudge_emails, reminder_emails, publish_emails, roster_status_emails, setlist_emails',
     )
     .in('person_id', ids)
+  if (error) {
+    console.error('Email preferences unreadable; sending none they cover:', error)
+    for (const id of ids) map.set(id, ALL_OFF)
+    map.unreadable = true
+    return map
+  }
   for (const row of data ?? []) {
     map.set(row.person_id as string, {
       roster_emails: row.roster_emails as boolean,

@@ -205,15 +205,15 @@ export async function runRosterStatus(
       return row
     }
 
-    // The teams these counts cover — in scope and serving a plan in the
-    // window — named in the intro so a reader knows whose roster it is.
+    // The teams these counts cover, named in the intro so a reader knows whose
+    // roster it is: only those that add to a number — an unfilled slot or an
+    // assignment — not every team that merely serves the service type.
     const coveredTeams = new Map<string, TeamRow>()
     for (const plan of plans) {
       const servingTeams = [...scope]
         .map((id) => teamById.get(id))
         .filter((t): t is TeamRow => !!t && teamServesType(t, plan.service_type_id))
       if (servingTeams.length === 0) continue
-      for (const team of servingTeams) coveredTeams.set(team.id, team)
 
       const row = rowFor(plan.date)
       const planAssignments = assignments.filter(
@@ -229,12 +229,16 @@ export async function runRosterStatus(
           const filled = planAssignments.filter(
             (a) => a.position_id === pos.id && a.status !== 'declined',
           ).length
-          row.unassigned += Math.max(0, effMin - filled)
+          const unfilled = Math.max(0, effMin - filled)
+          row.unassigned += unfilled
+          if (unfilled > 0) coveredTeams.set(team.id, team)
         }
       }
 
       // (b)–(e) from the assignment statuses.
       for (const a of planAssignments) {
+        const team = teamById.get(a.team_id)
+        if (team) coveredTeams.set(team.id, team)
         if (a.status === 'confirmed') row.confirmed += 1
         else if (a.status === 'declined') row.declined += 1
         else if (a.notified_at) row.unconfirmed += 1

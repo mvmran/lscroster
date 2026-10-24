@@ -24,13 +24,14 @@ Deno.test('planNotificationEmail: someone serving gets their schedule', () => {
   const { html } = planNotificationEmail(base)
   assertStringIncludes(html, 'https://app.example/my-schedule')
   assertStringIncludes(html, 'View my schedule')
-  assert(!html.includes('copy'))
+  assert(!html.includes("the admin's copy"))
 })
 
 Deno.test("planNotificationEmail: an admin's copy says so and opens the plan", () => {
   const { html } = planNotificationEmail({ ...base, adminCopyPlanId: 'plan-1' })
   assertStringIncludes(html, 'https://app.example/services/plans/plan-1')
   assertStringIncludes(html, 'View the plan')
+  assertStringIncludes(html, "the admin's copy")
   assertStringIncludes(html, 'Published')
   assert(!html.includes('/my-schedule'))
 })

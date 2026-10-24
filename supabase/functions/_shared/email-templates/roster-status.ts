@@ -127,7 +127,7 @@ export function rosterStatusEmail(params: RosterStatusEmailParams): {
   <tr>
     <td style="padding-bottom:20px;font-size:14px;line-height:1.6;color:#3f3f46;">
       Hi ${esc(recipientName)}, here's where rostering stands for the next
-      ${weeks} ${weeksLabel}${params.onBehalfOf ? '' : ''}. Counts cover the teams you oversee${
+      ${weeks} ${weeksLabel}. Counts cover the teams you oversee${
         params.teamNames.length > 0 ? `: ${esc(params.teamNames.join(', '))}` : ''
       }.
     </td>
@@ -164,7 +164,6 @@ export function rosterStatusEmail(params: RosterStatusEmailParams): {
   <tr>
     <td style="padding-top:16px;font-size:12px;line-height:1.6;color:#71717a;">
       <strong>Unconfirmed</strong> turns red within 7 days of the service.
-      Manage which emails you get from your profile.
     </td>
   </tr>
   ${footer(churchName, params.prefsUrl)}`

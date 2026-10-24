@@ -115,6 +115,12 @@ Deno.serve(async (req) => {
   // Anyone can switch it off with "Worship set list" in their preferences
   // (0071) — before the cap is counted, so those who have don't count.
   const prefs = await fetchEmailPrefs(admin, emailable.map((p) => p.id))
+  if (prefs.unreadable) {
+    return jsonResponse(
+      { error: 'Could not read email preferences, so nothing was sent. Try again shortly.' },
+      503,
+    )
+  }
   const people = emailable.filter((p) => prefAllows(prefs, p.id, 'setlist_emails'))
 
   if (people.length > MAX_RECIPIENTS) {
@@ -306,7 +312,9 @@ Deno.serve(async (req) => {
     }
   })
 
-  // How many on the list switched it off, so a send that reached nobody says why.
+  // Why a send reached nobody: how many on the list switched it off, and how
+  // many can't be emailed yet (no active account, or archived).
   const optedOut = emailable.length - people.length
-  return jsonResponse({ ok: true, sent, skipped, optedOut })
+  const notActive = personIds.size - emailable.length
+  return jsonResponse({ ok: true, sent, skipped, optedOut, notActive })
 })

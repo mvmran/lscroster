@@ -175,13 +175,23 @@ Deno.serve(async (req) => {
     })
 
   // -- who's serving (grouped by team) + recipient list --------------------
-  const { data: assignmentRows } = await admin
-    .from('plan_assignments')
-    .select(
-      'status, people(id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at), teams(id, name, sort_order), positions(name, sort_order)',
-    )
-    .eq('plan_id', planId)
-    .neq('status', 'declined')
+  const [{ data: assignmentRows }, { data: adminRows }] = await Promise.all([
+    admin
+      .from('plan_assignments')
+      .select(
+        'status, people(id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at), teams(id, name, sort_order), positions(name, sort_order)',
+      )
+      .eq('plan_id', planId)
+      .neq('status', 'declined'),
+    // Admins get a copy of every published plan (0071), read alongside.
+    admin
+      .from('people')
+      .select(
+        'id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at',
+      )
+      .eq('role', 'admin')
+      .eq('status', 'active'),
+  ])
   const assignments = (assignmentRows ?? []) as unknown as AssignmentRow[]
 
   // Teams follow the plan's service type's stored order (service_type_teams
@@ -240,24 +250,23 @@ Deno.serve(async (req) => {
   const activePersonIds = assignments
     .filter((a) => isEmailableActive(a.people))
     .map((a) => a.people.id)
-  // Admins get a copy of every published plan, worded as one when they aren't
-  // on it (0071). "Published plans" in their preferences switches it off, the
-  // same box that covers plans they serve on.
-  const { data: adminRows } = await admin
-    .from('people')
-    .select(
-      'id, first_name, last_name, email, status, auth_user_id, managed_by_person_id, managed_accepted_at',
-    )
-    .eq('role', 'admin')
-    .eq('status', 'active')
+  // Admins not on the plan get a copy, worded as one (0071); "Published plans"
+  // in their preferences switches it off, the same box that covers plans they
+  // serve on. Not the admin who pressed Publish — they know.
   const scheduledIds = new Set(activePersonIds)
   const adminCopies = ((adminRows ?? []) as AssignmentRow['people'][]).filter(
-    (p) => isEmailableActive(p) && !scheduledIds.has(p.id),
+    (p) => isEmailableActive(p) && !scheduledIds.has(p.id) && p.id !== caller.id,
   )
   const prefs = await fetchEmailPrefs(admin, [
     ...activePersonIds,
     ...adminCopies.map((p) => p.id),
   ])
+  if (prefs.unreadable) {
+    return jsonResponse(
+      { error: 'Could not read email preferences, so nothing was sent. Try again shortly.' },
+      503,
+    )
+  }
 
   const outbound: {
     personId: string
@@ -265,8 +274,12 @@ Deno.serve(async (req) => {
     firstName: string
     subject: string
     html: string
+    adminCopy: boolean
   }[] = []
   const seen = new Set<string>()
+  // Addresses already sent this plan: an admin who manages someone on it has
+  // it already, on that person's behalf, and needs no copy as well.
+  const seenEmails = new Set<string>()
   const recipients = [
     ...assignments.map((a) => ({ person: a.people, adminCopy: false })),
     ...adminCopies.map((person) => ({ person, adminCopy: true })),
@@ -277,6 +290,9 @@ Deno.serve(async (req) => {
     if (!prefAllows(prefs, p.id, 'publish_emails')) continue
     const recipient = await resolveRecipient(admin, p)
     if (!recipient) continue
+    const emailKey = recipient.email.toLowerCase()
+    if (adminCopy && seenEmails.has(emailKey)) continue
+    seenEmails.add(emailKey)
     const { subject, html } = planNotificationEmail({
       churchName,
       churchAddress: church?.address ?? null,
@@ -302,6 +318,7 @@ Deno.serve(async (req) => {
       firstName: recipient.recipientName,
       subject,
       html,
+      adminCopy,
     })
   }
 
@@ -327,12 +344,16 @@ Deno.serve(async (req) => {
     ),
   )
 
+  // `sent` counts the people on the plan; admins' copies are counted apart, so
+  // "Notified 3 people" and "No one scheduled to notify" stay true.
   let sent = 0
+  let adminCopiesSent = 0
   const skipped: { name: string; reason: string }[] = []
   outbound.forEach((o, idx) => {
     const result = results[idx]
     if (result.sent) {
-      sent++
+      if (o.adminCopy) adminCopiesSent++
+      else sent++
     } else {
       skipped.push({
         name: o.firstName,
@@ -344,5 +365,5 @@ Deno.serve(async (req) => {
     }
   })
 
-  return jsonResponse({ ok: true, sent, skipped })
+  return jsonResponse({ ok: true, sent, adminCopies: adminCopiesSent, skipped })
 })
