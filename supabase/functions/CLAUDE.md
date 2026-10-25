@@ -128,9 +128,11 @@ and user agent, a short `detail` for a 500, and the key — a revoked one's
 for a key that matches nothing just `keyPrefixOf()`, never the key or its hash.
 `requestLog()` is built before the handler runs and `Deno.serve` wraps it in a
 try/catch, so a crash is still logged as `internal_error`. Refusals (401) are
-written at most `REFUSED_PER_IP_PER_MINUTE` (20) a minute per IP — requests
-without a working key are never rate-limited, so a scanner would otherwise fill
-the table. The `reminders` job prunes on every scheduled pass (not on an
+written at most `REFUSED_PER_IP_PER_MINUTE` (20) a minute per IP and
+`REFUSED_PER_MINUTE` (100) a minute in all — requests without a working key are
+never rate-limited, so a scanner would otherwise fill the table, and the IP is
+the first `X-Forwarded-For` entry, which a caller can forge, so only the overall
+cap holds against one that rotates it. The `reminders` job prunes on every scheduled pass (not on an
 admin's single-job "send now"): failures after 90 days, successes — the CCLI
 usage trail — after 365. Admins read it at Settings → Projection API → View
 request log (`/settings/projection-log`).

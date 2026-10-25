@@ -32,6 +32,13 @@ export const SUCCESS_RETENTION_DAYS = 365
  */
 export const REFUSED_PER_IP_PER_MINUTE = 20
 
+/**
+ * Refusals logged per minute from everyone together. The address is the first
+ * X-Forwarded-For entry, which a caller can write itself, so a scanner sending
+ * a new one each time would slip the per-IP cap; this one it can't.
+ */
+export const REFUSED_PER_MINUTE = 100
+
 /** Trimmed and cut to `max` characters; null when there's nothing left. */
 export function clip(text: string | null | undefined, max: number): string | null {
   const trimmed = text?.trim() ?? ''
@@ -59,21 +66,30 @@ export function pruneCutoffs(now: Date): { failures: string; successes: string }
   }
 }
 
-/** Whether this address has already had its refusals for the minute logged. */
+/**
+ * Whether this minute's refusals are already logged — this address's
+ * (REFUSED_PER_IP_PER_MINUTE) or everyone's (REFUSED_PER_MINUTE).
+ */
 export async function refusalCapReached(
   admin: SupabaseClient,
   ip: string | null,
 ): Promise<boolean> {
   const since = new Date(Date.now() - 60_000).toISOString()
-  const base = admin
-    .from('projection_api_requests')
-    .select('id', { count: 'exact', head: true })
-    .eq('http_status', 401)
-    .gte('requested_at', since)
-  const { count, error } = await (ip ? base.eq('ip', ip) : base.is('ip', null))
+  const refusals = () =>
+    admin
+      .from('projection_api_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('http_status', 401)
+      .gte('requested_at', since)
+  const [fromIp, fromAll] = await Promise.all([
+    ip ? refusals().eq('ip', ip) : refusals().is('ip', null),
+    refusals(),
+  ])
   // A count that can't be read logs the row: losing a refusal is worse than one
   // extra line.
-  return !error && (count ?? 0) >= REFUSED_PER_IP_PER_MINUTE
+  const over = (result: { count: number | null; error: unknown }, cap: number) =>
+    !result.error && (result.count ?? 0) >= cap
+  return over(fromIp, REFUSED_PER_IP_PER_MINUTE) || over(fromAll, REFUSED_PER_MINUTE)
 }
 
 /**

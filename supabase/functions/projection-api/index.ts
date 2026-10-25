@@ -302,30 +302,25 @@ async function handle(req: Request, log: RequestLog): Promise<Response> {
   const { data: plan, error: planErr } = await admin
     .from('plans')
     .select('id, date, title, status, service_types(name)')
-    .eq('id', rawPlanId!)
-    .eq('status', 'published')
-    .gte('date', windowFrom)
-    .lte('date', windowTo)
+    .eq('id', rawPlanId)
     .maybeSingle()
   if (planErr) {
     console.error('projection-api: plan query failed:', planErr.message)
     return respond({ error: 'database_error' }, 500, 'database_error',
       `plan query failed: ${planErr.message}`)
   }
-  if (!plan) {
-    // The client is told only plan_not_found, as documented; the log says which
-    // of the three it was, so an admin can see a draft being asked for.
-    const { data: found } = await admin
-      .from('plans')
-      .select('status')
-      .eq('id', rawPlanId)
-      .maybeSingle()
-    const reason: ProjectionReason = !found
-      ? 'plan_not_found'
-      : found.status !== 'published'
-        ? 'plan_not_published'
-        : 'plan_outside_window'
-    return respond({ error: 'plan_not_found' }, 404, reason)
+  // Read by id alone and judged here, so one query says which of the three it
+  // was. The client is told only plan_not_found, as documented; the log names
+  // the reason, so an admin can see a draft being asked for.
+  const missing: ProjectionReason | null = !plan
+    ? 'plan_not_found'
+    : plan.status !== 'published'
+      ? 'plan_not_published'
+      : (plan.date as string) < windowFrom || (plan.date as string) > windowTo
+        ? 'plan_outside_window'
+        : null
+  if (!plan || missing) {
+    return respond({ error: 'plan_not_found' }, 404, missing ?? 'plan_not_found')
   }
 
   const { data: itemRows, error: itemsErr } = await admin
@@ -456,12 +451,13 @@ async function handle(req: Request, log: RequestLog): Promise<Response> {
       // ('ml', 'hi') for whatever `sections[].layers.native` is written in.
       nativeLanguage: lyricsRow?.native_language ?? null,
       // The order to sing the sections in, as their labels: this plan's
-      // sequence, else the one saved with the lyrics version. `sections` stays
-      // the whole song, so the operator can put up a part it leaves out.
-      sequence: apiSequence(sections, [
-        item.sequence as string[] | null,
-        lyricsRow?.sequence,
-      ]),
+      // sequence, else the one saved with the lyrics version — the one the
+      // Lyrics Sheet follows. `sections` stays the whole song, so the operator
+      // can put up a part it leaves out.
+      sequence: apiSequence(
+        sections,
+        (item.sequence as string[] | null) ?? lyricsRow?.sequence,
+      ),
       sections,
       sourceSongs: sources
         .filter((s) => s.songs)

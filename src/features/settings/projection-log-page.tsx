@@ -94,7 +94,7 @@ function StatCard({
 export function ProjectionLogPage() {
   const [failuresOnly, setFailuresOnly] = useState(true)
   const { data, isPending, isError, error } = useProjectionLog(failuresOnly)
-  const { data: stats } = useProjectionLogStats()
+  const { data: stats, isError: statsFailed } = useProjectionLogStats()
 
   if (isError) return <FullPageError message={error.message} />
 
@@ -111,6 +111,11 @@ export function ProjectionLogPage() {
         <StatCard label={`Requests · ${PROJECTION_LOG_DAYS} days`} value={stats?.total} />
         <StatCard label="Failed" value={stats?.failed} tone="danger" />
       </div>
+      {statsFailed && (
+        <p className="text-destructive -mt-2 text-xs">
+          Couldn’t count the requests — the list below is still up to date.
+        </p>
+      )}
 
       <div className="flex items-center gap-2">
         <Checkbox

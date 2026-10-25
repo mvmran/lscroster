@@ -199,11 +199,15 @@ function KeyRow({ apiKey }: { apiKey: ProjectionKey }) {
         confirmLabel="Revoke key"
         onConfirm={() => {
           setConfirming(false)
-          revoke.mutate(apiKey.id, {
-            onSuccess: () =>
-              toast.success(`“${apiKey.label}” can no longer access the API`),
-            onError: (e) => toast.error(e.message),
-          })
+          // mutateAsync, not mutate's callbacks: the refetch moves the key into
+          // the hidden revoked list, unmounting this row, and TanStack drops an
+          // unmounted caller's callbacks. Today the toast wins that race; the
+          // promise doesn't depend on it.
+          const label = apiKey.label
+          revoke.mutateAsync(apiKey.id).then(
+            () => toast.success(`“${label}” can no longer access the API`),
+            (e: Error) => toast.error(e.message),
+          )
         }}
       >
         <p>

@@ -2591,6 +2591,41 @@ reminders`, then the app. A function deployed before 0072 would fail every log
 insert (the columns don't exist) — it still answers, the log just misses those
 rows — so keep the order.
 
+(no migration) **Review of the day's three commits** (2026-10-26, `/code-review`
+of `1231053..934d19e`; findings checked against the code, the user took the
+recommendation):
+- **Revoke toast off a race.** The toast hung off the row's `mutate()`
+  callbacks, and since revoked keys are hidden the refetch unmounts that row;
+  TanStack drops an unmounted caller's callbacks. The review said the toast was
+  lost — it wasn't (the committed code still showed it in Chromium: the
+  callbacks run before React commits the unmount), but that is scheduling, not
+  a guarantee, so it is now `mutateAsync().then`.
+- **Sequence matches the Lyrics Sheet.** `apiSequence(sections, sequence)` takes
+  the one sequence the sheet reads (`plan ?? lyrics version's`); one that
+  matches none gives the whole song as written, as the sheet prints it — before,
+  it fell to the saved sequence, which could drop a bridge the sheet showed.
+- **Repeat counts kept.** A step takes the section with exactly its label
+  before the first of its key, so "Chorus ×2" names `[Chorus x2]`, not an
+  earlier `[Chorus]`.
+- **Plan reasons from one query.** The lyrics endpoint reads the plan by id and
+  judges published / in the window in code; the second lookup, which ignored its
+  error and logged a hiccup as `plan_not_found`, is gone.
+- **Overall refusal cap.** `REFUSED_PER_MINUTE` (100) beside the per-IP 20: the
+  IP is the first `X-Forwarded-For` entry, which a caller can forge, so a
+  scanner rotating it slipped the per-IP cap.
+- **Log page:** a failed count says so instead of showing "–".
+- Not taken: refusals cost a count before their insert (cheap, indexed); the log
+  shows browser time, as every page does — the app has no church-timezone
+  display yet, which is its own change.
+Verified on the local stack: Deno tests for the exact-label and out-of-date
+cases (9 pass); against the served function the draft, the out-of-window and a
+missing plan logged `plan_not_published`, `plan_outside_window` and
+`plan_not_found`, a published plan with the stale sequence `['Refrain']` sent
+the whole song, and 110 keyless requests each claiming a different address
+logged 100; in Chromium, revoking a key took it off the list with its toast, on
+the new code and the old.
+**Upgrade note:** `functions deploy projection-api` — no migration.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

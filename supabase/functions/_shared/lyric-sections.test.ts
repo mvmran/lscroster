@@ -99,7 +99,7 @@ const SONG = [
 Deno.test('apiSequence: the plan\'s sequence, as the sections\' own labels', () => {
   const sections = toApiSections(SONG)
   assertEquals(
-    apiSequence(sections, [['Verse', 'Chorus', 'Verse 2', 'Chorus'], ['Verse 1']]),
+    apiSequence(sections, ['Verse', 'Chorus', 'Verse 2', 'Chorus']),
     ['Verse 1', 'Chorus ×2', 'Verse 2', 'Chorus ×2'],
   )
   // Every section is still there for the operator, the bridge included.
@@ -110,29 +110,39 @@ Deno.test('apiSequence: the plan\'s sequence, as the sections\' own labels', () 
 
 Deno.test('apiSequence: a step naming no section is dropped', () => {
   assertEquals(
-    apiSequence(toApiSections(SONG), [['Verse 1', 'Tag', 'Ending', 'Bridge']]),
+    apiSequence(toApiSections(SONG), ['Verse 1', 'Tag', 'Ending', 'Bridge']),
     ['Verse 1', 'Bridge'],
   )
 })
 
-Deno.test('apiSequence: an out-of-date sequence gives way to the next', () => {
+Deno.test('apiSequence: an exact label wins over the first of its key', () => {
+  // A chorus written once plain and once with its repeat count: each step
+  // keeps the count it was given.
+  const sections = toApiSections(
+    '[Chorus]\nsing\n\n[Verse 2]\ntwo\n\n[Chorus x2]\nsing again',
+  )
+  assertEquals(apiSequence(sections, ['Chorus', 'Verse 2', 'Chorus ×2']), [
+    'Chorus', 'Verse 2', 'Chorus ×2',
+  ])
+  // However the step was typed, it is compared as the grammar spells it.
+  assertEquals(apiSequence(sections, ['chorus X2']), ['Chorus ×2'])
+})
+
+Deno.test('apiSequence: an out-of-date sequence gives the whole song', () => {
+  // As the Lyrics Sheet prints it when the sequence names none of the
+  // headings — not the song's saved sequence, which may leave the bridge out.
+  const whole = ['Intro', 'Verse 1', 'Chorus ×2', 'Verse 2', 'Bridge']
   const sections = toApiSections(SONG)
-  assertEquals(apiSequence(sections, [['Refrain'], ['Verse 2', 'Bridge']]), [
-    'Verse 2', 'Bridge',
-  ])
-  // Neither matches, or none saved: the headings as written.
-  assertEquals(apiSequence(sections, [['Refrain'], null]), [
-    'Intro', 'Verse 1', 'Chorus ×2', 'Verse 2', 'Bridge',
-  ])
-  assertEquals(apiSequence(sections, [null, undefined]), [
-    'Intro', 'Verse 1', 'Chorus ×2', 'Verse 2', 'Bridge',
-  ])
+  assertEquals(apiSequence(sections, ['Refrain']), whole)
+  assertEquals(apiSequence(sections, []), whole)
+  assertEquals(apiSequence(sections, null), whole)
+  assertEquals(apiSequence(sections, undefined), whole)
 })
 
 Deno.test('apiSequence: unlabelled stanzas are never steps', () => {
-  assertEquals(apiSequence(toApiSections('one\n\ntwo'), [['Verse 1']]), [])
-  assertEquals(apiSequence(toApiSections('before\n\n[Chorus]\nsing'), [null]), [
+  assertEquals(apiSequence(toApiSections('one\n\ntwo'), ['Verse 1']), [])
+  assertEquals(apiSequence(toApiSections('before\n\n[Chorus]\nsing'), null), [
     'Chorus',
   ])
-  assertEquals(apiSequence([], [['Chorus']]), [])
+  assertEquals(apiSequence([], ['Chorus']), [])
 })

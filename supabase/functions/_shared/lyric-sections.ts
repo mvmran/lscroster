@@ -89,34 +89,36 @@ export function matchHeader(
  * a step's lines by plain string match. `sections` itself stays the whole song
  * as written, so the operator can still put up a part the sequence leaves out.
  *
- * `candidates` are tried in turn — the plan's sequence, then the one saved with
- * the lyrics version. A step is matched by `key` ("Verse" finds "Verse 1",
- * "Chorus" finds "Chorus ×2") and dropped when it names no section; a candidate
- * left with no steps — out of date, its headings renamed since — gives way to
- * the next, as the Lyrics Sheet keeps the whole song rather than print nothing.
- * Last comes the headings in written order. Empty only when the song has no
- * headings at all; a section with a `null` label is never a step.
+ * `sequence` is the one the Lyrics Sheet reads: the plan's, else the one saved
+ * with the lyrics version. A step takes the section with exactly its label
+ * ("Chorus ×2" the "Chorus ×2", not an earlier "Chorus"), else the first with
+ * its `key` ("Verse" finds "Verse 1"), and is dropped when it names neither. A
+ * sequence left with no steps — out of date, its headings renamed since — gives
+ * the headings in written order, the whole song, as the sheet prints it rather
+ * than nothing. Empty only when the song has no headings at all; a section with
+ * a `null` label is never a step.
  */
 export function apiSequence(
   sections: ApiLyricSection[],
-  candidates: Array<string[] | null | undefined>,
+  sequence: string[] | null | undefined,
 ): string[] {
+  const labels = new Set<string>()
   const labelByKey = new Map<string, string>()
   const written: string[] = []
   for (const { label } of sections) {
     if (label === null) continue
     written.push(label)
+    labels.add(label)
     const key = matchHeader(label)?.key
     if (key && !labelByKey.has(key)) labelByKey.set(key, label)
   }
-  for (const sequence of candidates) {
-    const steps = (sequence ?? []).flatMap((step) => {
-      const label = labelByKey.get(matchHeader(step)?.key ?? '')
-      return label ? [label] : []
-    })
-    if (steps.length > 0) return steps
-  }
-  return written
+  const steps = (sequence ?? []).flatMap((step) => {
+    const header = matchHeader(step)
+    if (!header) return []
+    const label = labels.has(header.label) ? header.label : labelByKey.get(header.key)
+    return label ? [label] : []
+  })
+  return steps.length > 0 ? steps : written
 }
 
 
