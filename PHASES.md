@@ -2675,8 +2675,13 @@ Verified: 16 Deno tests in `lyric-sections.test.ts`; and over the local songs,
 Verse 2 with its sequence Chorus | Verse 1 | Chorus | Verse 2 | Chorus, and No
 One Like The Lord's Intro and Outro came back with their bars in the chords
 layer.
-- [ ] No One Like The Lord (local copy; check Life Sanctuary's) has two
-  different verses both headed "Verse": number them on its song page.
+- [ ] **39 of Life Sanctuary's 146 songs** (production, 2026-10-26) give two
+  or more *different* sections one heading — mostly a second "Chorus" whose
+  words or chords differ — so a client looking a sequence step up by name
+  finds only the first. The app's own `sharedHeadingConflicts` flags exactly
+  the same 39, so each already shows the song page's "number the headings"
+  warning; numbering them there fixes the projection too. Decide: number them
+  in the songs, or have the API tell them apart.
 **Upgrade note:** `functions deploy projection-api` — no migration.
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
