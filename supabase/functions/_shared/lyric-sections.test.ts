@@ -15,9 +15,18 @@
 import { assertEquals } from 'jsr:@std/assert@1'
 import {
   matchLyricSectionHeader,
+  sameSection as appSameSection,
+  sectionContent as appSectionContent,
   sectionKeyOf,
 } from '../../../src/features/services/lyric-sections.ts'
-import { apiSequence, matchHeader, toApiSections } from './lyric-sections.ts'
+import {
+  apiSequence,
+  matchHeader,
+  sameSection,
+  sectionContent,
+  toApiSections,
+  uniqueSections,
+} from './lyric-sections.ts'
 
 /**
  * What the Deno port makes of a line on its own: the label of the section it
@@ -147,4 +156,99 @@ Deno.test('apiSequence: unlabelled stanzas are never steps', () => {
     'Chorus',
   ])
   assertEquals(apiSequence([], ['Chorus']), [])
+})
+
+// --- rows with chords and no words -----------------------------------------------
+
+const NO_LAYERS = { lyrics_native: null, lyrics_meaning: null }
+
+Deno.test('a row with chords and no words keeps its chords', () => {
+  // An intro written as bars: the lyric rows are blank, the chord rows aren't.
+  const lyrics = '[Intro]\n\n\n[Verse 1]\nThere is a name'
+  const chords = '[Intro]\n[6m]/ [5/7] /\n[1] / [2m] /\n[Verse 1]\n[6m]There is a [4]name'
+  const [intro, verse] = toApiSections(lyrics, { ...NO_LAYERS, lyrics_chords: chords })
+  assertEquals(intro.label, 'Intro')
+  assertEquals(intro.lines, ['', ''])
+  assertEquals(intro.layers?.chords, ['[6m]/ [5/7] /', '[1] / [2m] /'])
+  assertEquals(verse.lines, ['There is a name'])
+  assertEquals(verse.layers?.chords, ['[6m]There is a [4]name'])
+})
+
+Deno.test('a row blank in every layer is still dropped', () => {
+  const [verse] = toApiSections('[Verse 1]\none\n\ntwo\n', {
+    ...NO_LAYERS,
+    lyrics_chords: '[Verse 1]\n[G]\n\n[C]\n',
+  })
+  assertEquals(verse.lines, ['one', 'two'])
+  assertEquals(verse.layers?.chords, ['[G]', '[C]'])
+})
+
+Deno.test('without headings, a chords-only row does not split a stanza', () => {
+  const sections = toApiSections('one\n\ntwo\n\nthree', {
+    ...NO_LAYERS,
+    lyrics_chords: '[G]\n[C] [D]\n[G]\n\n[Em]',
+  })
+  assertEquals(sections.map((s) => s.lines), [['one', '', 'two'], ['three']])
+})
+
+// --- each section once -----------------------------------------------------------
+
+const labels = (sections: { label: string | null }[]) => sections.map((s) => s.label)
+
+Deno.test('uniqueSections sends a chorus written out again only once', () => {
+  const written = toApiSections(
+    '[Chorus]\nBless the Lord\n\n[Verse 1]\nThe sun comes up\n\n[Chorus]\nBless the Lord!\n\n' +
+      '[Verse 2]\nYou are rich\n\n[Chorus]',
+  )
+  // The second copy differs only in punctuation; the third is a bare cue.
+  assertEquals(labels(written), ['Chorus', 'Verse 1', 'Chorus', 'Verse 2', 'Chorus'])
+  assertEquals(labels(uniqueSections(written)), ['Chorus', 'Verse 1', 'Verse 2'])
+})
+
+Deno.test('uniqueSections keeps what differs, and reads chords as the sheet does', () => {
+  const withChords = (lyrics: string, chords: string) =>
+    uniqueSections(toApiSections(lyrics, { ...NO_LAYERS, lyrics_chords: chords }))
+  const song = '[Chorus]\nsing\n\n[Chorus]\nsing'
+  // Chords on one copy only: the same chorus, charted once.
+  assertEquals(labels(withChords(song, '[Chorus]\n[G]sing\n\n[Chorus]\nsing')), ['Chorus'])
+  // Different chords on both: two choruses.
+  assertEquals(labels(withChords(song, '[Chorus]\n[G]sing\n\n[Chorus]\n[D]sing')), [
+    'Chorus', 'Chorus',
+  ])
+  // Different words under one heading stay too; "Verse" and "Verse 1" are one.
+  const mixed = '[Verse]\none\n\n[Verse 1]\none\n\n[Chorus]\na\n\n[Chorus]\nb'
+  assertEquals(labels(uniqueSections(toApiSections(mixed))), ['Verse', 'Chorus', 'Chorus'])
+  // Unlabelled stanzas are never dropped.
+  assertEquals(uniqueSections(toApiSections('same\n\nsame')).length, 2)
+})
+
+Deno.test('apiSequence keeps the repeats but names only sections sent', () => {
+  const written = toApiSections(
+    '[Chorus]\nsing\n\n[Verse 1]\none\n\n[Chorus x2]\nsing\n\n[Verse 2]\ntwo',
+  )
+  // "Chorus ×2" repeats "Chorus" and isn't sent; the sequence names the one that is.
+  assertEquals(labels(uniqueSections(written)), ['Chorus', 'Verse 1', 'Verse 2'])
+  assertEquals(apiSequence(written, null), ['Chorus', 'Verse 1', 'Chorus', 'Verse 2'])
+  assertEquals(apiSequence(written, ['Chorus ×2', 'Verse 2']), ['Chorus', 'Verse 2'])
+})
+
+Deno.test('the repeat rule agrees with the app on what is the same section', () => {
+  const bodies: Array<[string, string]> = [
+    ['Bless the Lord, O my soul', ''],
+    ['bless the lord o my soul!', ''],
+    ['Bless the Lord, O my soul', '[4]Bless the Lord, O my [1]soul'],
+    ['[4]Bless the Lord, O my [1]soul', ''],
+    ['[5]Bless the Lord, O my [1]soul', ''],
+    ['Bless the Lord', ''],
+    ['', '[6m]/ [5/7] / | [1] /'],
+    ['', ''],
+    ['There is a name\nI love to hear', '[6m]There is a [4]name\nI [1]love to hear'],
+  ]
+  for (const [body, chords] of bodies) {
+    assertEquals(sectionContent(body, chords), appSectionContent(body, chords))
+  }
+  const contents = bodies.map(([body, chords]) => appSectionContent(body, chords))
+  for (const a of contents) {
+    for (const b of contents) assertEquals(sameSection(a, b), appSameSection(a, b))
+  }
 })

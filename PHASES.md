@@ -2651,6 +2651,34 @@ sends it, came back `[]` with HTTP 200 and the key stayed live — the case the
 hook now reports as an error. 85 Deno tests pass.
 **Upgrade note:** `functions deploy projection-api` — no migration.
 
+(no migration) **Projection sections each once; chord-only rows keep their
+chords** (2026-10-26, the user's ask and bug report; still `apiVersion: 1`, no
+client live):
+- `sections` sent a chorus written out three times three times. It now sends
+  `uniqueSections(written)`: a labelled section repeating one already kept —
+  same key ("Verse" = "Verse 1"), same words and chords, or a bare cue — is left
+  out, by the Lyrics Sheet's own rule (`withoutRepeatedSections`), ported as
+  `sectionContent` / `sameSection` into `_shared/lyric-sections.ts` with a
+  parity test against the app's. The `sequence` is still read from the song as
+  written, so it keeps the repeats; a step whose section was dropped is named by
+  the first of its key, so every name sent has a section sent.
+- **Bug:** a row with chords and no words — an intro written as bars — was
+  dropped with the blank lyric lines, taking its chords with it. A row is now
+  dropped only when the lyric and every layer are blank on it; it comes back as
+  `""` in `lines` beside its chords. The same test splits headerless stanzas.
+- `PROJECTION-API.md` §5, §6, §6.1, §6.2: each section once, `""` lines, and
+  that two *different* sections under one heading (two verses both "Verse")
+  share a label a lookup can't tell apart — the song page's "number the
+  headings" fixes that in the song.
+Verified: 16 Deno tests in `lyric-sections.test.ts`; and over the local songs,
+10,000 Reasons (chorus written three times) went out as Chorus | Verse 1 |
+Verse 2 with its sequence Chorus | Verse 1 | Chorus | Verse 2 | Chorus, and No
+One Like The Lord's Intro and Outro came back with their bars in the chords
+layer.
+- [ ] No One Like The Lord (local copy; check Life Sanctuary's) has two
+  different verses both headed "Verse": number them on its song page.
+**Upgrade note:** `functions deploy projection-api` — no migration.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

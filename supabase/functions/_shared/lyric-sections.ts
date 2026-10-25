@@ -97,6 +97,12 @@ export function matchHeader(
  * the headings in written order, the whole song, as the sheet prints it rather
  * than nothing. Empty only when the song has no headings at all; a section with
  * a `null` label is never a step.
+ *
+ * `sections` is the song as written (`toApiSections`), repeats and all, so a
+ * stale sequence still gives every chorus in turn; each step is then named by
+ * the section `uniqueSections` keeps for it — a later copy dropped as a repeat
+ * by the first of its key, which is never dropped — so every name the API
+ * sends has a section it sends.
  */
 export function apiSequence(
   sections: ApiLyricSection[],
@@ -118,7 +124,100 @@ export function apiSequence(
     const label = labels.has(header.label) ? header.label : labelByKey.get(header.key)
     return label ? [label] : []
   })
-  return steps.length > 0 ? steps : written
+  const sung = steps.length > 0 ? steps : written
+  const kept = new Set(
+    uniqueSections(sections).flatMap(({ label }) => (label === null ? [] : [label])),
+  )
+  return sung.map((label) =>
+    kept.has(label) ? label : (labelByKey.get(matchHeader(label)?.key ?? '') ?? label),
+  )
+}
+
+// --- each section once ---------------------------------------------------------
+// A port of the app's repeat rule (`withoutRepeatedSections` in
+// src/features/services/lyric-layers.ts, over `sectionContent` / `sameSection`
+// in lyric-sections.ts); lyric-sections.test.ts holds the two to the same
+// answers.
+
+/** A section's words as a singer reads them: chords, case, punctuation gone. */
+function lyricWords(text: string): string {
+  return text
+    .split(/\r?\n/)
+    .map((line) =>
+      line
+        .replace(/\[[^\]]*\]/g, '')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ')
+        .trim(),
+    )
+    .filter(Boolean)
+    .join('\n')
+}
+
+/** The chords a section plays, line by line — "[6m]Ther[4]e" reads "6m 4". */
+function lyricChords(text: string): string {
+  return text
+    .split(/\r?\n/)
+    .map((line) =>
+      [...line.matchAll(/\[([^\]]*)\]/g)]
+        .map((match) => match[1].trim())
+        .filter(Boolean)
+        .join(' '),
+    )
+    .join('\n')
+    .trim()
+}
+
+/**
+ * What makes a section the same as another: its words *and* its chords, from
+ * the lyrics (chords written into them count) and the chord layer beside them.
+ * Empty for a heading over nothing — a cue to sing it again.
+ */
+export function sectionContent(body: string, chordLayer = ''): string {
+  const words = lyricWords(body)
+  const chords = lyricChords(`${body}\n${chordLayer}`)
+  return words === '' && chords === '' ? '' : `${words}\u0001${chords}`
+}
+
+/**
+ * Whether two contents are one section sung again: the same words over the
+ * same chords, or over no chords on one of them — a chart writes a chorus's
+ * chords out once and plays them every time it comes round.
+ */
+export function sameSection(a: string, b: string): boolean {
+  if (a === b) return true
+  if (a === '' || b === '') return false
+  const at = (content: string) => content.indexOf('\u0001')
+  const words = (content: string) => content.slice(0, at(content))
+  const chords = (content: string) => content.slice(at(content) + 1)
+  return words(a) === words(b) && (chords(a) === '' || chords(b) === '')
+}
+
+/**
+ * The sections the API sends: each once. A labelled section is left out when
+ * it repeats one already kept — the same heading ("Verse" and "Verse 1" alike)
+ * over the same words and chords, or over nothing at all — as the Lyrics Sheet
+ * leaves it out; the song's `sequence` says how often each comes round. The
+ * first of each heading always stays. Two different sections under one heading
+ * (a second chorus with new words) both stay, so a label is unique only when
+ * the song's headings are. Unlabelled stanzas are never dropped.
+ */
+export function uniqueSections(sections: ApiLyricSection[]): ApiLyricSection[] {
+  const shown = new Map<string, string[]>()
+  return sections.filter((section) => {
+    const key = section.label === null ? null : matchHeader(section.label)?.key
+    if (!key) return true
+    const content = sectionContent(
+      section.lines.join('\n'),
+      (section.layers?.chords ?? []).join('\n'),
+    )
+    const seen = shown.get(key)
+    if (seen && (content === '' || seen.some((kept) => sameSection(kept, content)))) {
+      return false
+    }
+    shown.set(key, [...(seen ?? []), content])
+    return true
+  })
 }
 
 
@@ -149,8 +248,11 @@ function splitSourceLines(text: string): SourceLine[] {
   return text.split('\n').map((text, index) => ({ text, index }))
 }
 
-/** Blank-line-separated stanzas as unlabelled sections. */
-function stanzaSections(lines: SourceLine[]): Array<ApiLyricSection & { indices: number[] }> {
+/** Blank-row-separated stanzas as unlabelled sections. */
+function stanzaSections(
+  lines: SourceLine[],
+  isBlank: (line: SourceLine) => boolean,
+): Array<ApiLyricSection & { indices: number[] }> {
   const sections: Array<ApiLyricSection & { indices: number[] }> = []
   let current: SourceLine[] = []
   const flush = () => {
@@ -164,7 +266,7 @@ function stanzaSections(lines: SourceLine[]): Array<ApiLyricSection & { indices:
     current = []
   }
   for (const line of lines) {
-    if (line.text.trim() === '') flush()
+    if (isBlank(line)) flush()
     else current.push(line)
   }
   flush()
@@ -172,16 +274,19 @@ function stanzaSections(lines: SourceLine[]): Array<ApiLyricSection & { indices:
 }
 
 /**
- * Split raw lyrics into API sections. Header lines ('[Verse 1]', 'Chorus:')
- * open a labelled section; text before the first header — or the whole text
- * when there are no headers — falls back to unlabelled stanza sections, so the
- * result is non-empty whenever the lyrics contain any content.
+ * Split raw lyrics into API sections, in written order — a chorus written out
+ * three times comes back three times; `uniqueSections` is what the API sends.
+ * Header lines ('[Verse 1]', 'Chorus:') open a labelled section; text before
+ * the first header — or the whole text when there are no headers — falls back
+ * to unlabelled stanza sections, so the result is non-empty whenever the lyrics
+ * contain any content.
  *
  * `layers` attaches the native / meaning / chord texts (#139). They are
  * line-parallel to `raw`, so each section carries the layer entries for exactly
- * the lines it kept — blank lines are dropped from `lines`, and the same lines
- * are dropped from every layer, so the arrays stay the same length and index
- * against each other.
+ * the rows it kept, and the arrays stay the same length and index against each
+ * other. A row is dropped only when the lyric and every layer are blank on it:
+ * a row with chords and no words — an intro written as bars, a turnaround — is
+ * kept, its `lines` entry an empty string beside its chords.
  */
 export function toApiSections(
   raw: string | null | undefined,
@@ -190,6 +295,12 @@ export function toApiSections(
   if (!raw || !raw.trim()) return []
   const text = raw.replace(/\r\n/g, '\n')
   const lines = splitSourceLines(text)
+  const layerRows = [layers?.lyrics_native, layers?.lyrics_meaning, layers?.lyrics_chords]
+    .filter((layer): layer is string => !!layer && layer.trim() !== '')
+    .map((layer) => layer.replace(/\r\n/g, '\n').split('\n'))
+  const isBlank = (line: SourceLine) =>
+    line.text.trim() === '' &&
+    layerRows.every((rows) => (rows[line.index] ?? '').trim() === '')
 
   const sections: Array<ApiLyricSection & { indices: number[] }> = []
   let preamble: SourceLine[] = []
@@ -199,17 +310,16 @@ export function toApiSections(
     const header = matchHeader(line.text)
     if (header) {
       if (!current && preamble.length) {
-        sections.push(...stanzaSections(preamble))
+        sections.push(...stanzaSections(preamble, isBlank))
         preamble = []
       }
       current = { type: header.type, label: header.label, lines: [], indices: [] }
       sections.push(current)
       continue
     }
-    const trimmed = line.text.trim()
     if (current) {
-      if (trimmed) {
-        current.lines.push(trimmed)
+      if (!isBlank(line)) {
+        current.lines.push(line.text.trim())
         current.indices.push(line.index)
       }
     } else {
@@ -218,7 +328,7 @@ export function toApiSections(
   }
 
   const result = !current
-    ? stanzaSections(lines)
+    ? stanzaSections(lines, isBlank)
     : sections.filter((s) => s.label !== null || s.lines.length > 0)
 
   return result.map(({ indices, ...section }) =>

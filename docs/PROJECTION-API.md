@@ -199,8 +199,9 @@ Only plans that endpoint 1 would list are servable: published, and dated inside 
   (see §6.2). Empty when the song has no section headings — then show `sections` in
   order.
 - `sections` — the lyrics split into slide-ready sections (see §6). Empty only when
-  `lyrics` is `null`. Always the **whole song as written**, including any part the
-  `sequence` leaves out.
+  `lyrics` is `null`. **Every part of the song, each once** — a chorus written out
+  three times in the lyrics is sent once — including any part the `sequence` leaves
+  out. How often each is sung is the `sequence`'s business.
 - `sourceSongs` — one entry per library song behind the item (two or more for a
   medley), in medley order. This is the CCLI attribution data: `author`, `ccli`
   (CCLI song number) and `copyright` may each be `null` when the church hasn't
@@ -217,7 +218,9 @@ Only plans that endpoint 1 would list are servable: published, and dated inside 
 ## 6. Sections
 
 Each section maps to one or more slides. `lines` is a pre-split string array — slide
-chunking is just array slicing, no text parsing needed.
+chunking is just array slicing, no text parsing needed. An entry is `""` where the row
+has no words but a layer has something — typically chords with nothing sung, such as
+an intro written as bars (§6.1); rows blank in every layer are left out.
 
 ```json
 { "type": "verse", "label": "Verse 1", "lines": ["…", "…"] }
@@ -230,9 +233,12 @@ chunking is just array slicing, no text parsing needed.
 - `label` is the human display label (`Verse 1`, `Chorus`). It is `null` for
   unlabelled blocks (lyrics whose stanzas were separated only by blank lines) — use it
   as an optional tag, never assume it is present.
-- Sections arrive in the order they are **written**, each once. The order they are
-  **sung** in is the song's `sequence` (§6.2). Keep slide order = song `order`, then
-  sequence step (or section order when `sequence` is empty), then chunk order.
+- Sections arrive in the order they are **written**, each once: a section that repeats
+  one already sent — the same heading (`Verse` and `Verse 1` alike) over the same words
+  and chords, or a heading over nothing, meaning "sing it again" — is left out. The
+  order they are **sung** in, repeats included, is the song's `sequence` (§6.2). Keep
+  slide order = song `order`, then sequence step (or section order when `sequence` is
+  empty), then chunk order.
 - If the church entered lyrics without any section headers, each blank-line-separated
   stanza becomes one section of type `other` with a `null` label — so `sections` is
   always usable whenever lyrics exist.
@@ -260,7 +266,9 @@ is the native-script text for `lines[2]`:
 - `layers` is **absent** when the song has no layers at all, and each key inside it is
   absent when that particular layer is empty for this section. Never assume a key exists.
 - When a key is present its array is exactly `lines.length` long; entries may be `""`
-  where that line has no annotation.
+  where that line has no annotation. The reverse happens too: a row of chords with no
+  words is kept, with `lines[i]` `""` and its chords in `layers.chords[i]` — show the
+  chords and nothing to sing.
 - `lines` is unchanged and is still the text to project. Layers are for the operator's
   confidence monitor, a bilingual lower third, or a chord view — treat them as optional.
 - `chords` entries mark each chord in ChordPro brackets — `[Am]` — either as a bare row
@@ -303,11 +311,16 @@ for each name in song.sequence:
     show section.lines
 ```
 
-- A section can appear more than once (a chorus sung after every verse); show it each
-  time.
-- `sections` still carries every part of the song, including any the sequence leaves
-  out (a bridge dropped for this service, a tag). Offer them to the operator so a part
-  can be added on the spot when the worship leader takes the song somewhere else.
+- A name can appear more than once (a chorus sung after every verse) while `sections`
+  holds that section once; show it each time the sequence names it.
+- `sections` carries every part of the song, including any the sequence leaves out (a
+  bridge dropped for this service, a tag). Offer them to the operator so a part can be
+  added on the spot when the worship leader takes the song somewhere else.
+- Labels are unique whenever the song's headings are. If the lyrics give two
+  *different* sections the same heading (two verses both headed `Verse`), both are
+  sent under that label and a lookup by name finds only the first. LSCroster's song
+  page flags this and numbers the headings in one click (`Verse 1`, `Verse 2`) — the
+  fix belongs in the song, not the client.
 - A section with a `null` label (text before the first heading, or a song with no
   headings) is never named by `sequence`. When `sequence` is empty, show `sections` in
   order.
@@ -315,10 +328,12 @@ for each name in song.sequence:
   section (a heading renamed since the sequence was saved) is left out, and a sequence
   that matches none is replaced by every heading in written order — the whole song, as
   LSCroster's own Lyrics Sheet prints it then. Every name you receive has a section.
-  A step keeps its repeat count when the song has a section headed that way:
+  A step keeps its repeat count when the song sends a section headed that way:
   `"Chorus ×2"` names the section headed `Chorus ×2`, not an earlier plain `Chorus`.
   A count the song has no heading for (`Chorus ×3` when only `Chorus` and
-  `Chorus ×2` exist) gives the first section of that name, plain `Chorus` here.
+  `Chorus ×2` exist), or one on a section left out as a repeat (a `Chorus ×2` with
+  the same words and chords as the `Chorus` before it), gives the first section of
+  that name — plain `Chorus` here.
 
 ## 7. Errors
 

@@ -24,7 +24,7 @@ import {
   parseSongKey,
   type ChordNotation,
 } from '../_shared/chord-notation.ts'
-import { apiSequence, toApiSections } from '../_shared/lyric-sections.ts'
+import { apiSequence, toApiSections, uniqueSections } from '../_shared/lyric-sections.ts'
 
 const API_VERSION = 1
 const WINDOW_DAYS_BACK = 10
@@ -431,7 +431,9 @@ async function handle(req: Request, log: RequestLog): Promise<Response> {
           ? chordsToLetters(lyricsRow.lyrics_chords ?? '', parseSongKey(key))
           : (lyricsRow.lyrics_chords ?? ''),
       }
-    const sections = toApiSections(lyricsRow?.lyrics, projected)
+    // The song as written, repeats and all; the sequence is read from it, and
+    // `sections` sends each section once.
+    const written = toApiSections(lyricsRow?.lyrics, projected)
     return {
       order: idx + 1,
       title: item.title as string,
@@ -448,13 +450,13 @@ async function handle(req: Request, log: RequestLog): Promise<Response> {
       nativeLanguage: lyricsRow?.native_language ?? null,
       // The order to sing the sections in, as their labels: this plan's
       // sequence, else the one saved with the lyrics version — the one the
-      // Lyrics Sheet follows. `sections` stays the whole song, so the operator
-      // can put up a part it leaves out.
+      // Lyrics Sheet follows. `sections` is every part of the song, each once,
+      // so the operator can put up one the sequence leaves out.
       sequence: apiSequence(
-        sections,
+        written,
         (item.sequence as string[] | null) ?? lyricsRow?.sequence,
       ),
-      sections,
+      sections: uniqueSections(written),
       sourceSongs: sources
         .filter((s) => s.songs)
         .sort((a, b) => a.sort_order - b.sort_order)
