@@ -2525,6 +2525,22 @@ sent; a stale `['Refrain', 'Bridge']` fell back to the song's order.
 **Upgrade note:** `functions deploy projection-api` — no migration, no app
 change.
 
+(no migration) **Revoked projection keys wait behind a button** (2026-10-26, the
+user's ask): Settings → Projection API listed revoked keys struck through among
+the live ones, so the card filled with keys that can never come back. It now
+lists only keys in use; **Show revoked keys (N)**, beside Generate key and only
+when there are any, opens a "Revoked" list below (`aria-expanded`), and each
+revoked row says when it was revoked. With only revoked keys left the card says
+"No keys in use — the projection API is unreachable until you generate one."
+Not remembered between visits: it opens collapsed. USER-MANUAL (Settings,
+Projection API) mentions the button.
+Verified in headless Chromium at phone width as the local admin, with one live
+and two revoked keys: only the live one listed, "Show revoked keys (2)" opened
+both with their revoked dates and closed them again; revoking the live key
+through the dialog took it out of the list, showed "No keys in use" and the
+count went to (3).
+**Upgrade note:** none — app only.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

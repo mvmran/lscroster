@@ -175,6 +175,8 @@ function KeyRow({ apiKey }: { apiKey: ProjectionKey }) {
           {apiKey.last_used_at
             ? `last used ${format(new Date(apiKey.last_used_at), 'd MMM yyyy, h:mmaaa')}`
             : 'never used'}
+          {apiKey.revoked_at &&
+            ` · revoked ${format(new Date(apiKey.revoked_at), 'd MMM yyyy')}`}
         </p>
       </div>
       {!revoked && (
@@ -266,10 +268,16 @@ function ChordNotationField() {
  * Admin management of projection API keys (issue #135): the credentials the
  * Mac projection software uses against the projection-api Edge Function.
  * Docs for the projection developer: docs/PROJECTION-API.md.
+ *
+ * Only the keys in use are listed; revoked ones can't be switched back on, so
+ * they wait behind "Show revoked keys" for whoever wants the history.
  */
 export function ProjectionApiCard() {
   const { data: keys, isPending } = useProjectionKeys()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [showRevoked, setShowRevoked] = useState(false)
+  const active = keys?.filter((k) => k.revoked_at === null) ?? []
+  const revoked = keys?.filter((k) => k.revoked_at !== null) ?? []
 
   return (
     <Card>
@@ -284,24 +292,44 @@ export function ProjectionApiCard() {
       <CardContent className="flex flex-col gap-3">
         {isPending || !keys ? (
           <Skeleton className="h-16 w-full" />
-        ) : keys.length === 0 ? (
+        ) : active.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            No keys yet — the projection API is unreachable until you generate
-            one.
+            {revoked.length === 0 ? 'No keys yet' : 'No keys in use'} — the
+            projection API is unreachable until you generate one.
           </p>
         ) : (
           <div className="flex flex-col">
-            {keys.map((k) => (
+            {active.map((k) => (
               <KeyRow key={k.id} apiKey={k} />
             ))}
           </div>
         )}
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={() => setDialogOpen(true)}>
             <KeyRound className="size-4" />
             Generate key
           </Button>
+          {revoked.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-muted-foreground"
+              aria-expanded={showRevoked}
+              aria-controls="projection-revoked-keys"
+              onClick={() => setShowRevoked((shown) => !shown)}
+            >
+              {showRevoked ? 'Hide revoked keys' : `Show revoked keys (${revoked.length})`}
+            </Button>
+          )}
         </div>
+        {showRevoked && revoked.length > 0 && (
+          <div id="projection-revoked-keys" className="flex flex-col">
+            <p className="text-muted-foreground text-xs font-medium">Revoked</p>
+            {revoked.map((k) => (
+              <KeyRow key={k.id} apiKey={k} />
+            ))}
+          </div>
+        )}
         <ChordNotationField />
         <GenerateKeyDialog open={dialogOpen} onOpenChange={setDialogOpen} />
       </CardContent>
