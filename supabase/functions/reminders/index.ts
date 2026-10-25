@@ -8,7 +8,8 @@
 // #120: church_settings.nudge_hour / reminder_hour / roster_status_hour). The
 // hourly schedule lands each correctly across timezones and DST. A
 // `{ force, only }` body lets an admin trigger one job on
-// demand (issue #117 "send now"), bypassing the hour gate.
+// demand (issue #117 "send now"), bypassing the hour gate. Every scheduled
+// pass also prunes the projection API's request log (0072).
 
 import { serviceClient } from '../_shared/auth.ts'
 import { jsonResponse } from '../_shared/cors.ts'
@@ -20,6 +21,7 @@ import {
   type EmailPrefs,
 } from '../_shared/email-prefs.ts'
 import { logEmail } from '../_shared/email-log.ts'
+import { pruneProjectionRequests } from '../_shared/projection-log.ts'
 import { isEmailableActive } from '../_shared/person-status.ts'
 import {
   schedulingReminderEmail,
@@ -110,8 +112,22 @@ Deno.serve(async (req) => {
   const runReminder = wants('reminder') && (body.force || hour === reminderHour)
   const runRoster =
     wants('roster-status') && (body.force || hour === rosterHour)
+
+  // -- housekeeping: the projection API's request log (0072) -----------------
+  // Every scheduled pass, whatever the hour; not an admin's "send now" for one
+  // job. A failed prune is logged and retried next hour — it never holds up
+  // the emails.
+  let pruned = 0
+  if (!body.only) {
+    try {
+      pruned = await pruneProjectionRequests(admin)
+    } catch (e) {
+      console.error('reminders: projection log prune failed:', e)
+    }
+  }
+
   if (!runNudge && !runReminder && !runRoster) {
-    return jsonResponse({ ok: true, skipped: 'outside send hour' })
+    return jsonResponse({ ok: true, skipped: 'outside send hour', pruned })
   }
 
   const today = todayInTimezone(timezone)
@@ -329,5 +345,5 @@ Deno.serve(async (req) => {
       ? await runRosterStatus(admin, church, today)
       : 0
 
-  return jsonResponse({ ok: true, nudged, reminded, rosterStatus })
+  return jsonResponse({ ok: true, nudged, reminded, rosterStatus, pruned })
 })

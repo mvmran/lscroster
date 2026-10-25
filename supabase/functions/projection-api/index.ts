@@ -7,9 +7,17 @@
 //   GET /projection-api/plans/:id/lyrics    lyrics sheet for one plan
 //
 // Every request is logged to projection_api_requests (rate limiting + CCLI
-// usage audit). Lyrics never appear in console logs — IDs and counts only.
+// usage audit), refusals with the reason why (0072, `_shared/projection-log.ts`).
+// Lyrics never appear in console logs — IDs and counts only.
 
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { serviceClient } from '../_shared/auth.ts'
+import {
+  clip,
+  keyPrefixOf,
+  refusalCapReached,
+  type ProjectionReason,
+} from '../_shared/projection-log.ts'
 import { addDaysISO, sha256Hex, todayInTimezone } from '../_shared/scheduling.ts'
 import {
   chordsToLetters,
@@ -53,9 +61,28 @@ function toHHMM(time: string | null): string | null {
   return time ? time.slice(0, 5) : null
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers })
+/**
+ * What one request's log row is built from, and `respond`, which writes the
+ * row and answers. Made before anything can fail, so a crash in the handler is
+ * still logged (as `internal_error`) with whatever was known by then.
+ */
+interface RequestLog {
+  admin: SupabaseClient
+  endpoint: 'plans' | 'lyrics' | null
+  rawPlanId: string | null
+  /** The key the request used, once known — a revoked one included. */
+  keyId: string | null
+  /** The display prefix of a key that matched nothing. */
+  keyPrefix: string | null
+  respond: (
+    body: unknown,
+    status: number,
+    reason: ProjectionReason,
+    detail?: string | null,
+  ) => Promise<Response>
+}
 
+function requestLog(req: Request): RequestLog {
   const url = new URL(req.url)
   const segments = url.pathname.split('/').filter(Boolean)
   const fnIdx = segments.indexOf('projection-api')
@@ -71,38 +98,93 @@ Deno.serve(async (req) => {
 
   const admin = serviceClient()
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null
+  const path = clip(`/${route.join('/')}${url.search}`, 200)
+  const userAgent = clip(req.headers.get('user-agent'), 300)
+
+  const log: RequestLog = {
+    admin,
+    endpoint,
+    rawPlanId,
+    keyId: null,
+    keyPrefix: null,
+    respond: async (body, status, reason, detail = null) => {
+      // A flood of refusals from one address is answered but only partly
+      // written down (REFUSED_PER_IP_PER_MINUTE).
+      if (status === 401 && (await refusalCapReached(admin, ip))) {
+        return json(body, status)
+      }
+      // The log is best-effort; the endpoint must answer even if it fails.
+      const planIdForLog = rawPlanId && UUID_RE.test(rawPlanId) ? rawPlanId : null
+      const { error } = await admin.from('projection_api_requests').insert({
+        key_id: log.keyId,
+        endpoint: endpoint ?? 'unknown',
+        plan_id: planIdForLog,
+        http_status: status,
+        ip,
+        reason,
+        key_prefix: log.keyPrefix,
+        method: req.method.slice(0, 10),
+        path,
+        user_agent: userAgent,
+        detail: clip(detail, 300),
+      })
+      if (error) console.error('projection-api: request log insert failed:', error.message)
+      return json(body, status)
+    },
+  }
+  return log
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers })
+  const log = requestLog(req)
+  try {
+    return await handle(req, log)
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    console.error('projection-api: unhandled error:', message)
+    return log.respond({ error: 'internal_error' }, 500, 'internal_error', message)
+  }
+})
+
+async function handle(req: Request, log: RequestLog): Promise<Response> {
+  const { admin, endpoint, rawPlanId, respond } = log
 
   // -- authenticate the key ---------------------------------------------------
-  let keyId: string | null = null
-  const respond = async (body: unknown, status: number): Promise<Response> => {
-    // The log is best-effort; the endpoint must answer even if it fails.
-    const planIdForLog = rawPlanId && UUID_RE.test(rawPlanId) ? rawPlanId : null
-    const { error } = await admin.from('projection_api_requests').insert({
-      key_id: keyId,
-      endpoint: endpoint ?? 'unknown',
-      plan_id: planIdForLog,
-      http_status: status,
-      ip,
-    })
-    if (error) console.error('projection-api: request log insert failed:', error.message)
-    return json(body, status)
-  }
-
   const rawKey = extractRawKey(req)
-  if (!rawKey || !KEY_RE.test(rawKey)) {
-    return respond({ error: 'unauthorised' }, 401)
+  if (!rawKey) return respond({ error: 'unauthorised' }, 401, 'missing_key')
+  if (!KEY_RE.test(rawKey)) {
+    log.keyPrefix = keyPrefixOf(rawKey)
+    return respond({ error: 'unauthorised' }, 401, 'malformed_key')
   }
-  const { data: key } = await admin
+  const { data: key, error: keyErr } = await admin
     .from('projection_api_keys')
-    .select('id')
+    .select('id, revoked_at')
     .eq('key_hash', await sha256Hex(rawKey))
-    .is('revoked_at', null)
     .maybeSingle()
-  if (!key) return respond({ error: 'unauthorised' }, 401)
-  keyId = key.id as string
+  if (keyErr) {
+    console.error('projection-api: key lookup failed:', keyErr.message)
+    return respond(
+      { error: 'database_error' },
+      500,
+      'database_error',
+      `key lookup failed: ${keyErr.message}`,
+    )
+  }
+  if (!key) {
+    log.keyPrefix = keyPrefixOf(rawKey)
+    return respond({ error: 'unauthorised' }, 401, 'unknown_key')
+  }
+  // Refused just like an unknown key, but logged against it, so the log names
+  // the device still calling with it.
+  log.keyId = key.id as string
+  if (key.revoked_at) return respond({ error: 'unauthorised' }, 401, 'revoked_key')
+  const keyId = log.keyId
 
-  if (req.method !== 'GET') return respond({ error: 'method_not_allowed' }, 405)
-  if (!endpoint) return respond({ error: 'not_found' }, 404)
+  if (req.method !== 'GET') {
+    return respond({ error: 'method_not_allowed' }, 405, 'method_not_allowed')
+  }
+  if (!endpoint) return respond({ error: 'not_found' }, 404, 'not_found')
 
   // -- rate limit --------------------------------------------------------------
   // Refused requests (429) are logged but not counted: counting them would keep
@@ -116,7 +198,11 @@ Deno.serve(async (req) => {
     .neq('http_status', 429)
     .gte('requested_at', windowStart)
   if ((recent ?? 0) >= RATE_LIMIT_PER_MINUTE) {
-    return respond({ error: 'rate_limited', message: 'Max 60 requests per minute' }, 429)
+    return respond(
+      { error: 'rate_limited', message: 'Max 60 requests per minute' },
+      429,
+      'rate_limited',
+    )
   }
 
   // Fire-and-forget freshness marker for the Settings key list.
@@ -152,7 +238,8 @@ Deno.serve(async (req) => {
       .order('date', { ascending: true })
     if (error) {
       console.error('projection-api: plans query failed:', error.message)
-      return respond({ error: 'database_error' }, 500)
+      return respond({ error: 'database_error' }, 500, 'database_error',
+        `plans query failed: ${error.message}`)
     }
 
     const planIds = (planRows ?? []).map((p) => p.id as string)
@@ -165,7 +252,8 @@ Deno.serve(async (req) => {
         .in('plan_id', planIds)
       if (itemErr) {
         console.error('projection-api: song count query failed:', itemErr.message)
-        return respond({ error: 'database_error' }, 500)
+        return respond({ error: 'database_error' }, 500, 'database_error',
+          `song count query failed: ${itemErr.message}`)
       }
       for (const row of itemRows ?? []) {
         const id = row.plan_id as string
@@ -202,12 +290,13 @@ Deno.serve(async (req) => {
         plans,
       },
       200,
+      'ok',
     )
   }
 
   // -- endpoint 2: lyrics sheet for one plan -------------------------------------
   if (!rawPlanId || !UUID_RE.test(rawPlanId)) {
-    return respond({ error: 'plan_not_found' }, 404)
+    return respond({ error: 'plan_not_found' }, 404, 'plan_not_found', 'not a plan id')
   }
 
   const { data: plan, error: planErr } = await admin
@@ -220,9 +309,24 @@ Deno.serve(async (req) => {
     .maybeSingle()
   if (planErr) {
     console.error('projection-api: plan query failed:', planErr.message)
-    return respond({ error: 'database_error' }, 500)
+    return respond({ error: 'database_error' }, 500, 'database_error',
+      `plan query failed: ${planErr.message}`)
   }
-  if (!plan) return respond({ error: 'plan_not_found' }, 404)
+  if (!plan) {
+    // The client is told only plan_not_found, as documented; the log says which
+    // of the three it was, so an admin can see a draft being asked for.
+    const { data: found } = await admin
+      .from('plans')
+      .select('status')
+      .eq('id', rawPlanId)
+      .maybeSingle()
+    const reason: ProjectionReason = !found
+      ? 'plan_not_found'
+      : found.status !== 'published'
+        ? 'plan_not_published'
+        : 'plan_outside_window'
+    return respond({ error: 'plan_not_found' }, 404, reason)
+  }
 
   const { data: itemRows, error: itemsErr } = await admin
     .from('plan_items')
@@ -232,7 +336,8 @@ Deno.serve(async (req) => {
     .order('sort_order', { ascending: true })
   if (itemsErr) {
     console.error('projection-api: plan items query failed:', itemsErr.message)
-    return respond({ error: 'database_error' }, 500)
+    return respond({ error: 'database_error' }, 500, 'database_error',
+      `plan items query failed: ${itemsErr.message}`)
   }
   const items = itemRows ?? []
   const arrangementIds = [
@@ -294,7 +399,8 @@ Deno.serve(async (req) => {
       const msg =
         arrRes.error?.message ?? lyrRes.error?.message ?? junRes.error?.message
       console.error('projection-api: song detail query failed:', msg)
-      return respond({ error: 'database_error' }, 500)
+      return respond({ error: 'database_error' }, 500, 'database_error',
+        `song detail query failed: ${msg}`)
     }
     for (const a of (arrRes.data ?? []) as unknown as ArrangementRow[]) {
       arrangementById.set(a.id, a)
@@ -381,5 +487,6 @@ Deno.serve(async (req) => {
       songs,
     },
     200,
+    'ok',
   )
-})
+}

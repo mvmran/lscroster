@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { Check, Copy, KeyRound, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -321,6 +322,9 @@ export function ProjectionApiCard() {
               {showRevoked ? 'Hide revoked keys' : `Show revoked keys (${revoked.length})`}
             </Button>
           )}
+          <Button asChild variant="ghost">
+            <Link to="/settings/projection-log">View request log</Link>
+          </Button>
         </div>
         {showRevoked && revoked.length > 0 && (
           <div id="projection-revoked-keys" className="flex flex-col">

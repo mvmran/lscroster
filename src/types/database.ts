@@ -1502,31 +1502,49 @@ export type Database = {
       }
       projection_api_requests: {
         Row: {
+          detail: string | null
           endpoint: string
           http_status: number
           id: number
           ip: string | null
           key_id: string | null
+          key_prefix: string | null
+          method: string | null
+          path: string | null
           plan_id: string | null
+          reason: string | null
           requested_at: string
+          user_agent: string | null
         }
         Insert: {
+          detail?: string | null
           endpoint: string
           http_status: number
           id?: never
           ip?: string | null
           key_id?: string | null
+          key_prefix?: string | null
+          method?: string | null
+          path?: string | null
           plan_id?: string | null
+          reason?: string | null
           requested_at?: string
+          user_agent?: string | null
         }
         Update: {
+          detail?: string | null
           endpoint?: string
           http_status?: number
           id?: never
           ip?: string | null
           key_id?: string | null
+          key_prefix?: string | null
+          method?: string | null
+          path?: string | null
           plan_id?: string | null
+          reason?: string | null
           requested_at?: string
+          user_agent?: string | null
         }
         Relationships: [
           {

@@ -1875,8 +1875,11 @@ generate a key per device here (**Generate key**, e.g. "AV Desk Mac Mini"). The
 key is shown **only once** — copy it into the projection app. **Revoke** a key
 to cut off one device without affecting the others; it asks first, as a revoked
 key can't be switched back on (generate a new one instead). Revoked keys drop
-out of the list; **Show revoked keys** brings them back for a look. You can also
-choose whether chords are sent as letters or numbers. Technical details are in
+out of the list; **Show revoked keys** brings them back for a look. **View
+request log** lists what has called the API and why a request was refused — a
+device still using a revoked key, a mistyped key, a plan asked for before it was
+published. You can also choose whether chords are sent as letters or numbers.
+Technical details are in
 [PROJECTION-API.md](PROJECTION-API.md).
 
 ## 14.2 Permission templates and deletion safety

@@ -2541,6 +2541,56 @@ through the dialog took it out of the list, showed "No keys in use" and the
 count went to (3).
 **Upgrade note:** none — app only.
 
+(0072) `projection_request_details` **Why a projection API request failed**
+(2026-10-26, discussed with the user first): every answer was already logged to
+`projection_api_requests`, but a refusal said nothing about why, a revoked
+key's requests were anonymous, a crash wasn't logged at all, nothing was ever
+pruned and no screen showed any of it.
+- 0072 adds `reason`, `key_prefix`, `method`, `path`, `user_agent` and `detail`
+  (length-checked), a time index and a partial index for counting an IP's 401s.
+- `projection-api` writes a reason for every answer (`_shared/projection-log.ts`
+  `ProjectionReason`): `missing_key`, `malformed_key`, `unknown_key`,
+  `revoked_key`, `rate_limited`, `method_not_allowed`, `not_found`,
+  `plan_not_found` / `plan_not_published` / `plan_outside_window` (the client
+  still gets only `plan_not_found`), `database_error` with a short detail,
+  `internal_error`. The key lookup no longer filters on `revoked_at`, so a
+  revoked key is refused the same but logged against its `key_id`; a key that
+  matches nothing keeps only `keyPrefixOf()` (`lscp_` + up to 6 hex, nothing for
+  a credential that isn't ours). `requestLog()` is built before the handler,
+  and `Deno.serve` catches a throw and logs it. A failed key lookup now answers
+  500 `database_error` rather than a misleading 401.
+- Refusals are written at most 20 a minute per IP (`refusalCapReached`), since
+  keyless requests are never rate-limited; over the cap they are answered, not
+  logged.
+- The hourly `reminders` pass prunes (`pruneProjectionRequests`), except on an
+  admin's single-job "send now": failures after 90 days, successes (the CCLI
+  trail) after 365; a failed prune is logged and never blocks the emails.
+- Settings → Projection API → **View request log** (`/settings/projection-log`,
+  admin-only): the last 30 days, newest first, "Show only failures" on by
+  default and filtered in the query (a polling device would otherwise push the
+  failures out of the newest 200), a two-number summary, and per row the time,
+  the reason in words, the status, the key's label (or "lscp_…  (unknown key)"),
+  method + path, IP · user agent, and any detail.
+- `docs/PROJECTION-API.md` §7: `internal_error`, and what LSCroster records
+  about a client's requests (with a nudge to send a meaningful `User-Agent`);
+  USER-MANUAL (Settings, Projection API); `supabase/functions/CLAUDE.md`.
+Verified on the local stack (migration applied, then re-run: every statement
+skipped). Against the served function, one request per reason came back with
+its documented status and logged as expected — the pasted non-key kept no
+prefix, `lscp_abc` and an unknown key kept theirs, the revoked key was named,
+the draft and the out-of-window plan were told apart; 25 keyless requests from
+one address were all answered and 20 logged. The real prune against the local
+database removed a 100-day failure and a 400-day success and kept an 80-day
+failure and a 300-day success. In headless Chromium at phone width the card's
+link opened the page with every reason in words and no sideways scroll; a
+member was sent away. RLS probed with JWTs: a member and anon read 0 rows, the
+admin all of them, and every signed-in insert is refused (only the function's
+service role writes). Deno tests for `keyPrefixOf`, `clip` and the cutoffs.
+**Upgrade note:** `db push` (0072) first, then `functions deploy projection-api
+reminders`, then the app. A function deployed before 0072 would fail every log
+insert (the columns don't exist) — it still answers, the log just misses those
+rows — so keep the order.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

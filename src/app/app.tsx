@@ -94,6 +94,10 @@ const AuditLogPage = lazyPage(
   () => import('@/features/settings/audit-log-page'),
   'AuditLogPage',
 )
+const ProjectionLogPage = lazyPage(
+  () => import('@/features/settings/projection-log-page'),
+  'ProjectionLogPage',
+)
 
 export function App() {
   return (
@@ -133,6 +137,7 @@ export function App() {
                   <Route path="/people/import" element={<ImportPage />} />
                   <Route path="/settings/email-log" element={<EmailLogPage />} />
                   <Route path="/settings/audit" element={<AuditLogPage />} />
+                  <Route path="/settings/projection-log" element={<ProjectionLogPage />} />
                 </Route>
                 <Route element={<RequireAdminOrCoordinator />}>
                   {/* Coordinators manage service types too (issue #125). */}

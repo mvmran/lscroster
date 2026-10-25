@@ -332,6 +332,16 @@ All errors share one shape; branch on `error` and the HTTP status, not on `messa
 | 405 | `method_not_allowed` | Anything but `GET` |
 | 429 | `rate_limited` | Too many requests (see §8) |
 | 500 | `database_error` | Server-side query failure — safe to retry after a pause |
+| 500 | `internal_error` | Unexpected server fault — safe to retry after a pause |
+
+**What LSCroster records.** Every request is logged for the church's admins
+(Settings → Projection API → *View request log*): the time, the key's device label
+(or, for a key it doesn't recognise, its first 11 characters — never the whole key),
+the path, the client's IP address and `User-Agent`, and for a refusal the reason in
+more detail than the `error` code above (a revoked key, say, or a plan that isn't
+published yet). Send a `User-Agent` that names your app and its version — it is how
+an admin tells your client apart from anything else calling. Failures are kept 90
+days, other requests a year.
 
 Suggested operator surfaces (unchanged from the old client doc):
 

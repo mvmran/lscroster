@@ -116,3 +116,21 @@ candidate — a hallucinated or excluded id yields a 422, never a phantom song.
 `use-song-suggest.ts`): rejects survive closing the dialog and a reload but reset
 for a different plan, and every Suggest press sends the accumulated list so the
 model skips them.
+
+## projection-api request log (0072)
+
+Every answer `projection-api` gives goes through `log.respond(body, status,
+reason, detail?)`, which writes one `projection_api_requests` row: a `reason`
+code (`_shared/projection-log.ts` `ProjectionReason` — finer than the response's
+documented `error`, e.g. `revoked_key`, `plan_not_published`), the path, method
+and user agent, a short `detail` for a 500, and the key — a revoked one's
+`key_id` (the lookup no longer filters on `revoked_at`, so it can be named), or
+for a key that matches nothing just `keyPrefixOf()`, never the key or its hash.
+`requestLog()` is built before the handler runs and `Deno.serve` wraps it in a
+try/catch, so a crash is still logged as `internal_error`. Refusals (401) are
+written at most `REFUSED_PER_IP_PER_MINUTE` (20) a minute per IP — requests
+without a working key are never rate-limited, so a scanner would otherwise fill
+the table. The `reminders` job prunes on every scheduled pass (not on an
+admin's single-job "send now"): failures after 90 days, successes — the CCLI
+usage trail — after 365. Admins read it at Settings → Projection API → View
+request log (`/settings/projection-log`).
