@@ -16,7 +16,7 @@ import {
   parseSongKey,
   type ChordNotation,
 } from '../_shared/chord-notation.ts'
-import { toApiSections } from '../_shared/lyric-sections.ts'
+import { apiSequence, toApiSections } from '../_shared/lyric-sections.ts'
 
 const API_VERSION = 1
 const WINDOW_DAYS_BACK = 10
@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
 
   const { data: itemRows, error: itemsErr } = await admin
     .from('plan_items')
-    .select('id, sort_order, title, arrangement_id, lyrics_id, key_override')
+    .select('id, sort_order, title, arrangement_id, lyrics_id, key_override, sequence')
     .eq('plan_id', plan.id)
     .eq('kind', 'song')
     .order('sort_order', { ascending: true })
@@ -255,6 +255,7 @@ Deno.serve(async (req) => {
     lyrics_meaning: string | null
     lyrics_chords: string | null
     native_language: string | null
+    sequence: string[] | null
   }
   interface JunctionRow {
     arrangement_id: string
@@ -281,7 +282,7 @@ Deno.serve(async (req) => {
       admin
         .from('song_arrangement_lyrics')
         .select(
-          'id, arrangement_id, version, lyrics, lyrics_native, lyrics_meaning, lyrics_chords, native_language',
+          'id, arrangement_id, version, lyrics, lyrics_native, lyrics_meaning, lyrics_chords, native_language, sequence',
         )
         .in('arrangement_id', arrangementIds),
       admin
@@ -333,6 +334,7 @@ Deno.serve(async (req) => {
           ? chordsToLetters(lyricsRow.lyrics_chords ?? '', parseSongKey(key))
           : (lyricsRow.lyrics_chords ?? ''),
       }
+    const sections = toApiSections(lyricsRow?.lyrics, projected)
     return {
       order: idx + 1,
       title: item.title as string,
@@ -347,7 +349,14 @@ Deno.serve(async (req) => {
       // predates the layers is unaffected. nativeLanguage is an ISO 639 code
       // ('ml', 'hi') for whatever `sections[].layers.native` is written in.
       nativeLanguage: lyricsRow?.native_language ?? null,
-      sections: toApiSections(lyricsRow?.lyrics, projected),
+      // The order to sing the sections in, as their labels: this plan's
+      // sequence, else the one saved with the lyrics version. `sections` stays
+      // the whole song, so the operator can put up a part it leaves out.
+      sequence: apiSequence(sections, [
+        item.sequence as string[] | null,
+        lyricsRow?.sequence,
+      ]),
+      sections,
       sourceSongs: sources
         .filter((s) => s.songs)
         .sort((a, b) => a.sort_order - b.sort_order)

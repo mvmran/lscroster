@@ -16,8 +16,9 @@ auth:bearer {
 
 docs {
   Full lyrics sheet for one plan: songs in setlist order, each with arrangement,
-  key/BPM/meter, the pinned `lyricsVersion`, raw `lyrics`, slide-ready
-  `sections[]`, and medley-aware `sourceSongs[]` (author / CCLI / copyright).
+  key/BPM/meter, the pinned `lyricsVersion`, raw `lyrics`, the `sequence` to
+  sing it in (section labels), slide-ready `sections[]` (the whole song), and
+  medley-aware `sourceSongs[]` (author / CCLI / copyright).
 
   Uses the `planId` variable. Run request 1 first to auto-fill it, or paste a
   specific published plan id into the Production environment's `planId`.

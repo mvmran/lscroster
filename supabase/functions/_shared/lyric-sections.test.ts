@@ -13,8 +13,11 @@
 //   deno test supabase/functions
 
 import { assertEquals } from 'jsr:@std/assert@1'
-import { matchLyricSectionHeader } from '../../../src/features/services/lyric-sections.ts'
-import { toApiSections } from './lyric-sections.ts'
+import {
+  matchLyricSectionHeader,
+  sectionKeyOf,
+} from '../../../src/features/services/lyric-sections.ts'
+import { apiSequence, matchHeader, toApiSections } from './lyric-sections.ts'
 
 /**
  * What the Deno port makes of a line on its own: the label of the section it
@@ -67,4 +70,69 @@ Deno.test('the corpus actually exercises the grammar', () => {
   // Guards against the test above passing because both sides recognise nothing.
   const recognised = CORPUS.filter((line) => matchLyricSectionHeader(line) !== null)
   assertEquals(recognised.length > 100, true, 'expected the corpus to hit many headers')
+})
+
+Deno.test('the Deno port and the app agree on which section a heading names', () => {
+  // `apiSequence` matches a sequence step to a section by this key, and the
+  // Lyrics Sheet by `sectionKeyOf`; the API must keep what the sheet keeps.
+  const disagreements = CORPUS.filter(
+    (line) => (matchHeader(line)?.key ?? null) !== sectionKeyOf(line),
+  )
+  assertEquals(disagreements, [])
+})
+
+Deno.test('every section label reads back as itself', () => {
+  // A sequence step is a section's label; one that didn't re-parse to the
+  // same section would never be found.
+  for (const line of CORPUS) {
+    const label = portLabel(line)
+    if (label === null) continue
+    assertEquals(matchHeader(label)?.label, label, JSON.stringify(line))
+  }
+})
+
+const SONG = [
+  '[Intro]', 'G C G', '', '[Verse 1]', 'one', '', '[Chorus x2]', 'sing', '',
+  '[Verse 2]', 'two', '', '[Bridge]', 'bridge line',
+].join('\n')
+
+Deno.test('apiSequence: the plan\'s sequence, as the sections\' own labels', () => {
+  const sections = toApiSections(SONG)
+  assertEquals(
+    apiSequence(sections, [['Verse', 'Chorus', 'Verse 2', 'Chorus'], ['Verse 1']]),
+    ['Verse 1', 'Chorus ×2', 'Verse 2', 'Chorus ×2'],
+  )
+  // Every section is still there for the operator, the bridge included.
+  assertEquals(sections.map((s) => s.label), [
+    'Intro', 'Verse 1', 'Chorus ×2', 'Verse 2', 'Bridge',
+  ])
+})
+
+Deno.test('apiSequence: a step naming no section is dropped', () => {
+  assertEquals(
+    apiSequence(toApiSections(SONG), [['Verse 1', 'Tag', 'Ending', 'Bridge']]),
+    ['Verse 1', 'Bridge'],
+  )
+})
+
+Deno.test('apiSequence: an out-of-date sequence gives way to the next', () => {
+  const sections = toApiSections(SONG)
+  assertEquals(apiSequence(sections, [['Refrain'], ['Verse 2', 'Bridge']]), [
+    'Verse 2', 'Bridge',
+  ])
+  // Neither matches, or none saved: the headings as written.
+  assertEquals(apiSequence(sections, [['Refrain'], null]), [
+    'Intro', 'Verse 1', 'Chorus ×2', 'Verse 2', 'Bridge',
+  ])
+  assertEquals(apiSequence(sections, [null, undefined]), [
+    'Intro', 'Verse 1', 'Chorus ×2', 'Verse 2', 'Bridge',
+  ])
+})
+
+Deno.test('apiSequence: unlabelled stanzas are never steps', () => {
+  assertEquals(apiSequence(toApiSections('one\n\ntwo'), [['Verse 1']]), [])
+  assertEquals(apiSequence(toApiSections('before\n\n[Chorus]\nsing'), [null]), [
+    'Chorus',
+  ])
+  assertEquals(apiSequence([], [['Chorus']]), [])
 })

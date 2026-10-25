@@ -145,6 +145,7 @@ Only plans that endpoint 1 would list are servable: published, and dated inside 
       "lyricsVersion": 3,
       "lyrics": "[Verse 1]\nAmazing grace, how sweet the sound\n…",
       "nativeLanguage": null,
+      "sequence": ["Verse 1", "Chorus", "Verse 1", "Chorus"],
       "sections": [
         {
           "type": "verse",
@@ -192,8 +193,14 @@ Only plans that endpoint 1 would list are servable: published, and dated inside 
 - `nativeLanguage` — ISO 639 code (`"ml"`, `"hi"`) naming the language of the native
   layer, or `null` when the song has none. Use it to pick a font that can shape the
   script.
+- `sequence` — the order the song is sung in on this plan, as section names in full
+  (`"Verse 1"`, `"Chorus ×2"`), repeats included. Every entry is exactly the `label`
+  of a section in `sections`, so a client finds its lines by plain string match
+  (see §6.2). Empty when the song has no section headings — then show `sections` in
+  order.
 - `sections` — the lyrics split into slide-ready sections (see §6). Empty only when
-  `lyrics` is `null`.
+  `lyrics` is `null`. Always the **whole song as written**, including any part the
+  `sequence` leaves out.
 - `sourceSongs` — one entry per library song behind the item (two or more for a
   medley), in medley order. This is the CCLI attribution data: `author`, `ccli`
   (CCLI song number) and `copyright` may each be `null` when the church hasn't
@@ -201,7 +208,8 @@ Only plans that endpoint 1 would list are servable: published, and dated inside 
   e.g. the © line plus the church's CCLI licence number) — render every line.
 - **Deleted-song edge case:** if a song was removed from the library after the plan was
   published, its item still appears (the title is preserved) but `arrangement`,
-  `lyricsVersion` and `lyrics` are `null`, `sections` and `sourceSongs` are empty.
+  `lyricsVersion` and `lyrics` are `null`, `sequence`, `sections` and `sourceSongs`
+  are empty.
   Render a "lyrics unavailable" placeholder rather than failing.
 
 ---
@@ -222,8 +230,9 @@ chunking is just array slicing, no text parsing needed.
 - `label` is the human display label (`Verse 1`, `Chorus`). It is `null` for
   unlabelled blocks (lyrics whose stanzas were separated only by blank lines) — use it
   as an optional tag, never assume it is present.
-- Sections arrive in performance order. Keep slide order = song `order`, then section
-  order, then chunk order.
+- Sections arrive in the order they are **written**, each once. The order they are
+  **sung** in is the song's `sequence` (§6.2). Keep slide order = song `order`, then
+  sequence step (or section order when `sequence` is empty), then chunk order.
 - If the church entered lyrics without any section headers, each blank-line-separated
   stanza becomes one section of type `other` with a `null` label — so `sections` is
   always usable whenever lyrics exist.
@@ -280,6 +289,32 @@ is the native-script text for `lines[2]`:
   without Indic shaping will produce broken conjuncts and misplaced vowel signs.
 
 ---
+
+### 6.2 Sequence
+
+`sequence` is the running order the worship team set for the song on this plan — the
+plan's own, if it has one, else the order saved with the song's lyrics, else the
+headings as written. Each entry is a section `label`, so building the running order is
+a lookup:
+
+```text
+for each name in song.sequence:
+    section = the first entry of song.sections whose label == name
+    show section.lines
+```
+
+- A section can appear more than once (a chorus sung after every verse); show it each
+  time.
+- `sections` still carries every part of the song, including any the sequence leaves
+  out (a bridge dropped for this service, a tag). Offer them to the operator so a part
+  can be added on the spot when the worship leader takes the song somewhere else.
+- A section with a `null` label (text before the first heading, or a song with no
+  headings) is never named by `sequence`. When `sequence` is empty, show `sections` in
+  order.
+- LSCroster resolves the names before sending them: a step that no longer matches any
+  section (a heading renamed since the sequence was saved) is left out, and a sequence
+  that matches none is replaced by the song's own order. Every name you receive has a
+  section.
 
 ## 7. Errors
 

@@ -63,7 +63,9 @@ function titleCase(kind: string): string {
     .join('-')
 }
 
-export function matchHeader(line: string): { label: string; type: string } | null {
+export function matchHeader(
+  line: string,
+): { label: string; type: string; key: string } | null {
   const m = HEADER_RE.exec(line)
   if (!m) return null
   let kind = m[1].toLowerCase()
@@ -71,7 +73,50 @@ export function matchHeader(line: string): { label: string; type: string } | nul
   const designator = m[2] ?? m[3]?.toUpperCase()
   const repeat = m[4] ?? m[5]
   const named = designator ? `${titleCase(kind)} ${designator}` : titleCase(kind)
-  return { label: repeat ? `${named} ×${repeat}` : named, type: kind }
+  return {
+    label: repeat ? `${named} ×${repeat}` : named,
+    type: kind,
+    // Which section the heading names, as the app's `sectionKeyOf` reads it:
+    // no designator is 1 — "Verse" and "Verse 1" are the same verse — and a
+    // repeat count is ignored.
+    key: `${kind}:${designator ?? '1'}`,
+  }
+}
+
+/**
+ * The song's sequence for the API (`songs[].sequence`): the order it is sung
+ * in, each step the full `label` of a section in `sections`, so a client finds
+ * a step's lines by plain string match. `sections` itself stays the whole song
+ * as written, so the operator can still put up a part the sequence leaves out.
+ *
+ * `candidates` are tried in turn — the plan's sequence, then the one saved with
+ * the lyrics version. A step is matched by `key` ("Verse" finds "Verse 1",
+ * "Chorus" finds "Chorus ×2") and dropped when it names no section; a candidate
+ * left with no steps — out of date, its headings renamed since — gives way to
+ * the next, as the Lyrics Sheet keeps the whole song rather than print nothing.
+ * Last comes the headings in written order. Empty only when the song has no
+ * headings at all; a section with a `null` label is never a step.
+ */
+export function apiSequence(
+  sections: ApiLyricSection[],
+  candidates: Array<string[] | null | undefined>,
+): string[] {
+  const labelByKey = new Map<string, string>()
+  const written: string[] = []
+  for (const { label } of sections) {
+    if (label === null) continue
+    written.push(label)
+    const key = matchHeader(label)?.key
+    if (key && !labelByKey.has(key)) labelByKey.set(key, label)
+  }
+  for (const sequence of candidates) {
+    const steps = (sequence ?? []).flatMap((step) => {
+      const label = labelByKey.get(matchHeader(step)?.key ?? '')
+      return label ? [label] : []
+    })
+    if (steps.length > 0) return steps
+  }
+  return written
 }
 
 

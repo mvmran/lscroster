@@ -2497,6 +2497,34 @@ code dragged on the swipe and didn't scroll.
   the same plan items) and the team order. Same change if they bite.
 **Upgrade note:** none — app only.
 
+(no migration) **The projection API sends the song's sequence** (2026-10-26, the
+user's call): `GET …/plans/:id/lyrics` gives every song a `sequence` — the order
+it is sung in on this plan, as section names in full ("Verse 1", "Chorus ×2"),
+repeats included. `sections` stays the whole song as written, so the operator
+can still put up a part the sequence leaves out when the worship leader takes
+the song somewhere else on stage. Still `apiVersion: 1` — additive, and no
+client is live yet.
+- `apiSequence()` (`_shared/lyric-sections.ts`) resolves it server-side, so a
+  client only matches strings: every step is exactly a `sections[].label`. Steps
+  are matched by section key, the app's `sectionKeyOf` rule (`matchHeader` now
+  returns `key`): "Verse" finds "Verse 1", "Chorus" finds "Chorus ×2". A step
+  naming no section is dropped; a sequence left with none gives way to the next
+  — the plan's (`plan_items.sequence`, 0060), then the pinned lyrics version's
+  (0057), then the headings as written, as the Lyrics Sheet keeps the whole song
+  rather than print nothing. Empty only for a song with no headings.
+- `docs/PROJECTION-API.md`: the field, a new §6.2 (how a client follows it), and
+  §6 corrected — sections come in written order, the sequence is the sung order.
+  The Bruno request's description names it.
+- Deno tests: the port's key agrees with the app's `sectionKeyOf` over the
+  header corpus, every emitted label re-parses as itself, and each fallback.
+Verified against the local function (`functions serve`, a throwaway key, a plan
+published for the test): a plan's own sequence came back as its labels with an
+extra closing verse the song's order lacks; a song with none got its saved
+order; `['Verse 2', 'Tag']` gave `['Verse 2']` with all five sections still
+sent; a stale `['Refrain', 'Bridge']` fell back to the song's order.
+**Upgrade note:** `functions deploy projection-api` — no migration, no app
+change.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal
