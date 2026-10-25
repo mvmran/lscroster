@@ -24,18 +24,30 @@ export type ProjectionReason =
 export const FAILURE_RETENTION_DAYS = 90
 export const SUCCESS_RETENTION_DAYS = 365
 
-/**
- * Refusals logged per address per minute. A request without a working key is
- * never rate-limited, so a scanner — or a device left polling with a revoked
- * key — could otherwise fill the table; past the cap it is still answered, just
- * not written down.
+/*
+ * Refusals (401) are never rate-limited, so how many get written down is
+ * capped instead; past a cap a request is still answered, just not logged.
+ * The caps count what is already logged before inserting, with nothing holding
+ * the two together, so they hold against a steady stream but a burst arriving
+ * at once can overshoot — making them exact would take a locking database
+ * function, more than a log of refusals is worth.
  */
+
+/**
+ * A revoked key's refusals logged per key per minute. Counted apart from
+ * everyone else's, so a flood of keyless requests can't hide the device an
+ * admin most wants to find: the one still calling with a key they revoked.
+ */
+export const REFUSED_PER_KEY_PER_MINUTE = 20
+
+/** Refusals naming no known key, logged per address per minute. */
 export const REFUSED_PER_IP_PER_MINUTE = 20
 
 /**
- * Refusals logged per minute from everyone together. The address is the first
- * X-Forwarded-For entry, which a caller can write itself, so a scanner sending
- * a new one each time would slip the per-IP cap; this one it can't.
+ * Refusals naming no known key, logged per minute from everyone together. The
+ * address is the first X-Forwarded-For entry, which a caller can write itself,
+ * so a scanner sending a new one each time would slip the per-IP cap; this one
+ * it can't.
  */
 export const REFUSED_PER_MINUTE = 100
 
@@ -67,12 +79,14 @@ export function pruneCutoffs(now: Date): { failures: string; successes: string }
 }
 
 /**
- * Whether this minute's refusals are already logged — this address's
- * (REFUSED_PER_IP_PER_MINUTE) or everyone's (REFUSED_PER_MINUTE).
+ * Whether this minute's refusals are already logged: a revoked key's own
+ * (REFUSED_PER_KEY_PER_MINUTE), or for a refusal naming no known key, this
+ * address's (REFUSED_PER_IP_PER_MINUTE) or everyone's (REFUSED_PER_MINUTE).
  */
 export async function refusalCapReached(
   admin: SupabaseClient,
   ip: string | null,
+  keyId: string | null,
 ): Promise<boolean> {
   const since = new Date(Date.now() - 60_000).toISOString()
   const refusals = () =>
@@ -81,14 +95,18 @@ export async function refusalCapReached(
       .select('id', { count: 'exact', head: true })
       .eq('http_status', 401)
       .gte('requested_at', since)
-  const [fromIp, fromAll] = await Promise.all([
-    ip ? refusals().eq('ip', ip) : refusals().is('ip', null),
-    refusals(),
-  ])
   // A count that can't be read logs the row: losing a refusal is worse than one
   // extra line.
   const over = (result: { count: number | null; error: unknown }, cap: number) =>
     !result.error && (result.count ?? 0) >= cap
+  if (keyId) {
+    return over(await refusals().eq('key_id', keyId), REFUSED_PER_KEY_PER_MINUTE)
+  }
+  const keyless = () => refusals().is('key_id', null)
+  const [fromIp, fromAll] = await Promise.all([
+    ip ? keyless().eq('ip', ip) : keyless().is('ip', null),
+    keyless(),
+  ])
   return over(fromIp, REFUSED_PER_IP_PER_MINUTE) || over(fromAll, REFUSED_PER_MINUTE)
 }
 

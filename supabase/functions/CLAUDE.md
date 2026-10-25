@@ -127,12 +127,18 @@ and user agent, a short `detail` for a 500, and the key — a revoked one's
 `key_id` (the lookup no longer filters on `revoked_at`, so it can be named), or
 for a key that matches nothing just `keyPrefixOf()`, never the key or its hash.
 `requestLog()` is built before the handler runs and `Deno.serve` wraps it in a
-try/catch, so a crash is still logged as `internal_error`. Refusals (401) are
-written at most `REFUSED_PER_IP_PER_MINUTE` (20) a minute per IP and
-`REFUSED_PER_MINUTE` (100) a minute in all — requests without a working key are
-never rate-limited, so a scanner would otherwise fill the table, and the IP is
-the first `X-Forwarded-For` entry, which a caller can forge, so only the overall
-cap holds against one that rotates it. The `reminders` job prunes on every scheduled pass (not on an
-admin's single-job "send now"): failures after 90 days, successes — the CCLI
-usage trail — after 365. Admins read it at Settings → Projection API → View
-request log (`/settings/projection-log`).
+try/catch, so a crash is still logged as `internal_error`.
+
+Refusals (401) are never rate-limited, so `refusalCapReached` caps how many are
+written down. A revoked key's are capped per key (`REFUSED_PER_KEY_PER_MINUTE`,
+20) and counted apart, so a scanner's flood can't hide the device still calling
+with it. Refusals naming no known key are capped per IP
+(`REFUSED_PER_IP_PER_MINUTE`, 20) and overall (`REFUSED_PER_MINUTE`, 100): the IP
+is the first `X-Forwarded-For` entry, which a caller can forge, so only the
+overall cap holds against one that rotates it. Known limit: each cap counts and
+then inserts, with no lock between, so a burst arriving at once can overshoot.
+
+The `reminders` job prunes on every scheduled pass (not on an admin's single-job
+"send now"): failures after 90 days, successes — the CCLI usage trail — after
+365. Admins read it at Settings → Projection API → View request log
+(`/settings/projection-log`).

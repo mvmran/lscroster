@@ -81,11 +81,17 @@ export function useRevokeProjectionKey() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      // RLS refuses an update by changing nothing, without an error, so ask
+      // for the row back: no row means the key still works.
+      const { data, error } = await supabase
         .from('projection_api_keys')
         .update({ revoked_at: new Date().toISOString() })
         .eq('id', id)
+        .select('id')
       if (error) throw new Error(error.message)
+      if (!data?.length) {
+        throw new Error('The key wasn’t revoked — only an admin can revoke keys.')
+      }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: projectionKeysKey }),
   })

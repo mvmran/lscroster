@@ -126,6 +126,8 @@ Deno.test('apiSequence: an exact label wins over the first of its key', () => {
   ])
   // However the step was typed, it is compared as the grammar spells it.
   assertEquals(apiSequence(sections, ['chorus X2']), ['Chorus ×2'])
+  // A count no heading carries falls back to the first of the name.
+  assertEquals(apiSequence(sections, ['Chorus ×3']), ['Chorus'])
 })
 
 Deno.test('apiSequence: an out-of-date sequence gives the whole song', () => {

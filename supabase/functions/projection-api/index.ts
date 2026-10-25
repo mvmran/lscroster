@@ -108,9 +108,9 @@ function requestLog(req: Request): RequestLog {
     keyId: null,
     keyPrefix: null,
     respond: async (body, status, reason, detail = null) => {
-      // A flood of refusals from one address is answered but only partly
-      // written down (REFUSED_PER_IP_PER_MINUTE).
-      if (status === 401 && (await refusalCapReached(admin, ip))) {
+      // A flood of refusals is answered but only partly written down: a revoked
+      // key's per key, the rest per address and overall (`refusalCapReached`).
+      if (status === 401 && (await refusalCapReached(admin, ip, log.keyId))) {
         return json(body, status)
       }
       // The log is best-effort; the endpoint must answer even if it fails.
@@ -312,16 +312,12 @@ async function handle(req: Request, log: RequestLog): Promise<Response> {
   // Read by id alone and judged here, so one query says which of the three it
   // was. The client is told only plan_not_found, as documented; the log names
   // the reason, so an admin can see a draft being asked for.
-  const missing: ProjectionReason | null = !plan
-    ? 'plan_not_found'
-    : plan.status !== 'published'
-      ? 'plan_not_published'
-      : (plan.date as string) < windowFrom || (plan.date as string) > windowTo
-        ? 'plan_outside_window'
-        : null
-  if (!plan || missing) {
-    return respond({ error: 'plan_not_found' }, 404, missing ?? 'plan_not_found')
-  }
+  const notFound = (reason: ProjectionReason) =>
+    respond({ error: 'plan_not_found' }, 404, reason)
+  if (!plan) return notFound('plan_not_found')
+  if (plan.status !== 'published') return notFound('plan_not_published')
+  const date = plan.date as string
+  if (date < windowFrom || date > windowTo) return notFound('plan_outside_window')
 
   const { data: itemRows, error: itemsErr } = await admin
     .from('plan_items')

@@ -2626,6 +2626,31 @@ logged 100; in Chromium, revoking a key took it off the list with its toast, on
 the new code and the old.
 **Upgrade note:** `functions deploy projection-api` — no migration.
 
+(no migration) **Second review, of `1e4ae5b`** (2026-10-26, the user's
+`/code-review`; findings checked, the user took the recommendation):
+- **A flood could hide revoked keys.** The overall cap counted every refusal,
+  so 100 keyless requests a minute stopped a revoked key's refusals being
+  logged — the ones the log is for. `refusalCapReached(admin, ip, keyId)` now
+  caps a revoked key's refusals per key (`REFUSED_PER_KEY_PER_MINUTE`, 20) and
+  counts the per-IP and overall caps only over refusals naming no known key.
+- **Known limit, documented, not fixed:** each cap counts then inserts with
+  nothing between, so a burst arriving at once overshoots (110 requests sent 10
+  at a time logged 105). Exact would need a locking database function.
+- **Revoke checks it happened.** The update asks for its row back
+  (`.select('id')`) and throws when none comes: RLS refuses by changing nothing,
+  and the toast said the key was revoked. Older than today, found by the same
+  review.
+- Docs: a repeat count no heading carries ("Chorus ×3") falls back to the first
+  section of its name, which `PROJECTION-API.md` §6.2 had overclaimed (and a
+  Deno test now pins); the cap comment at the call site; one-branch-per-reason
+  plan check; "Couldn't load the counts."; `supabase/functions/CLAUDE.md`
+  rewrapped to the house width.
+Verified on the local stack: after 110 keyless refusals had filled the overall
+cap, 25 from the revoked key logged 20; a member's revoke, sent as the hook
+sends it, came back `[]` with HTTP 200 and the key stayed live — the case the
+hook now reports as an error. 85 Deno tests pass.
+**Upgrade note:** `functions deploy projection-api` — no migration.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

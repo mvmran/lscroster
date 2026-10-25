@@ -113,7 +113,7 @@ export function ProjectionLogPage() {
       </div>
       {statsFailed && (
         <p className="text-destructive -mt-2 text-xs">
-          Couldn’t count the requests — the list below is still up to date.
+          Couldn’t load the counts.
         </p>
       )}
 

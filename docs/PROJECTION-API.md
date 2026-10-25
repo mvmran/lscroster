@@ -314,9 +314,11 @@ for each name in song.sequence:
 - LSCroster resolves the names before sending them: a step that no longer matches any
   section (a heading renamed since the sequence was saved) is left out, and a sequence
   that matches none is replaced by every heading in written order — the whole song, as
-  LSCroster's own Lyrics Sheet prints it then. Every name you receive has a section,
-  and a step keeps its repeat count: `"Chorus ×2"` names the section headed
-  `Chorus ×2`, not an earlier plain `Chorus`.
+  LSCroster's own Lyrics Sheet prints it then. Every name you receive has a section.
+  A step keeps its repeat count when the song has a section headed that way:
+  `"Chorus ×2"` names the section headed `Chorus ×2`, not an earlier plain `Chorus`.
+  A count the song has no heading for (`Chorus ×3` when only `Chorus` and
+  `Chorus ×2` exist) gives the first section of that name, plain `Chorus` here.
 
 ## 7. Errors
 
