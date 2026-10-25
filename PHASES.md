@@ -2684,6 +2684,35 @@ layer.
   in the songs, or have the API tell them apart.
 **Upgrade note:** `functions deploy projection-api` — no migration.
 
+(no migration) **Review of the sections-once change** (2026-10-26, the user's
+`/code-review` of `6860f53`/`20ffc73`; findings checked, the user took the
+recommendation):
+- `uniqueSections` + a second pass in `apiSequence` became one
+  `sectionsOnce(written)` → `{ sections, sentLabels }`, built once per song and
+  handed to `apiSequence(written, sequence, once)`. `sentLabels[i]` is the label
+  of the section sent for written section `i` — itself or the one it repeats —
+  so a step on a dropped repeat is named by *that* section, not the first of
+  its key ("Chorus" / "Chorus 1" / a "Chorus x2" repeating "Chorus 1").
+- **Chords borrowed:** a repeat carrying chords the kept copy lacks lends them —
+  the first one's place sends the chorded copy's lines and layers (the Lyrics
+  Sheet keeps the bare first; the projection's chord view needs them).
+- **Cues give way:** a heading over nothing is dropped whenever the song writes
+  that section out anywhere, even later, so a name never finds an empty slide;
+  one never written out is still sent once.
+- Stale words fixed: `lines` (the type and the handler comment) can hold `""`;
+  `apiSequence`'s header no longer says `sections` is the song as written;
+  `contentParts` ported as the app has it.
+- **Documented, not changed:** without headings, a chord row on a stanza's
+  separator holds the two stanzas together (`PROJECTION-API.md` §6) — a row
+  can't be both a break and content. Not taken: a blank row inside one copy of
+  a section and not the other can split app and API on "same section".
+Verified: 19 Deno tests in `lyric-sections.test.ts` (chords lent, cue giving
+way and kept, the repeat-naming case); over production's 146 songs, 980
+written sections went out as 832, no sequence name lacked a section, no empty
+section was sent for a heading written out, and 57 songs now deliver
+chord-only rows.
+**Upgrade note:** `functions deploy projection-api` — no migration.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

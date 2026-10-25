@@ -235,13 +235,18 @@ an intro written as bars (§6.1); rows blank in every layer are left out.
   as an optional tag, never assume it is present.
 - Sections arrive in the order they are **written**, each once: a section that repeats
   one already sent — the same heading (`Verse` and `Verse 1` alike) over the same words
-  and chords, or a heading over nothing, meaning "sing it again" — is left out. The
-  order they are **sung** in, repeats included, is the song's `sequence` (§6.2). Keep
-  slide order = song `order`, then sequence step (or section order when `sequence` is
-  empty), then chunk order.
-- If the church entered lyrics without any section headers, each blank-line-separated
-  stanza becomes one section of type `other` with a `null` label — so `sections` is
-  always usable whenever lyrics exist.
+  and chords — is left out. A heading over nothing ("sing it again") is left out
+  whenever the song writes that section out anywhere, so a name always finds the words.
+  A repeat with chords the first copy lacks lends them to it: the section is sent in
+  the first one's place with the chorded copy's lines and layers. The order they are
+  **sung** in, repeats included, is the song's `sequence` (§6.2). Keep slide order =
+  song `order`, then sequence step (or section order when `sequence` is empty), then
+  chunk order.
+- If the church entered lyrics without any section headers, each stanza becomes one
+  section of type `other` with a `null` label — so `sections` is always usable whenever
+  lyrics exist. Stanzas are split at rows blank in the lyrics *and* every layer: a row
+  with chords on it (a turnaround between verses) holds its stanzas together as one
+  section, its `lines` entry `""`.
 
 ### 6.1 Layers (multi-lingual songs)
 
@@ -331,9 +336,9 @@ for each name in song.sequence:
   A step keeps its repeat count when the song sends a section headed that way:
   `"Chorus ×2"` names the section headed `Chorus ×2`, not an earlier plain `Chorus`.
   A count the song has no heading for (`Chorus ×3` when only `Chorus` and
-  `Chorus ×2` exist), or one on a section left out as a repeat (a `Chorus ×2` with
-  the same words and chords as the `Chorus` before it), gives the first section of
-  that name — plain `Chorus` here.
+  `Chorus ×2` exist) gives the first section of that name — plain `Chorus` here. A
+  step on a section left out as a repeat (a `Chorus ×2` with the same words and chords
+  as a chorus before it) is named by the section it repeats.
 
 ## 7. Errors
 

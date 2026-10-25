@@ -11,7 +11,11 @@ export interface ApiLyricSection {
   type: string
   /** Human display label ('Verse 1'), or null for an unlabelled stanza. */
   label: string | null
-  /** Non-blank lyric lines, pre-split for slide chunking. */
+  /**
+   * The lyric rows, pre-split for slide chunking — `""` on a row with nothing
+   * to sing but something in a layer (chords over an intro), so `layers` stay
+   * index-parallel; rows blank everywhere are dropped.
+   */
   lines: string[]
   /** Line-parallel native / meaning / chord text, when the song has any (#139). */
   layers?: ApiLyricLayers
@@ -85,52 +89,46 @@ export function matchHeader(
 
 /**
  * The song's sequence for the API (`songs[].sequence`): the order it is sung
- * in, each step the full `label` of a section in `sections`, so a client finds
- * a step's lines by plain string match. `sections` itself stays the whole song
- * as written, so the operator can still put up a part the sequence leaves out.
+ * in, each step the full `label` of a section the API sends, so a client finds
+ * a step's lines by plain string match.
  *
- * `sequence` is the one the Lyrics Sheet reads: the plan's, else the one saved
- * with the lyrics version. A step takes the section with exactly its label
- * ("Chorus ×2" the "Chorus ×2", not an earlier "Chorus"), else the first with
- * its `key` ("Verse" finds "Verse 1"), and is dropped when it names neither. A
- * sequence left with no steps — out of date, its headings renamed since — gives
- * the headings in written order, the whole song, as the sheet prints it rather
- * than nothing. Empty only when the song has no headings at all; a section with
- * a `null` label is never a step.
- *
- * `sections` is the song as written (`toApiSections`), repeats and all, so a
- * stale sequence still gives every chorus in turn; each step is then named by
- * the section `uniqueSections` keeps for it — a later copy dropped as a repeat
- * by the first of its key, which is never dropped — so every name the API
- * sends has a section it sends.
+ * `written` is the song as written (`toApiSections`), repeats and all, and
+ * `once` what `sectionsOnce` makes of it. `sequence` is the one the Lyrics
+ * Sheet reads: the plan's, else the one saved with the lyrics version. A step
+ * finds the written section with exactly its label ("Chorus ×2" the "Chorus
+ * ×2", not an earlier "Chorus"), else the first with its `key` ("Verse" finds
+ * "Verse 1"), and is dropped when it names neither. A sequence left with no
+ * steps — out of date, its headings renamed since — gives the headings in
+ * written order, the whole song, as the sheet prints it rather than nothing.
+ * Each step is then named by the section sent for it — itself, or the one it
+ * repeats — so every name has a section sent. Empty only when the song has no
+ * headings at all; a section with a `null` label is never a step.
  */
 export function apiSequence(
-  sections: ApiLyricSection[],
+  written: ApiLyricSection[],
   sequence: string[] | null | undefined,
+  once: SectionsOnce,
 ): string[] {
-  const labels = new Set<string>()
-  const labelByKey = new Map<string, string>()
-  const written: string[] = []
-  for (const { label } of sections) {
-    if (label === null) continue
-    written.push(label)
-    labels.add(label)
+  const byLabel = new Map<string, number>()
+  const byKey = new Map<string, number>()
+  const headed: number[] = []
+  written.forEach(({ label }, i) => {
+    if (label === null) return
+    headed.push(i)
+    if (!byLabel.has(label)) byLabel.set(label, i)
     const key = matchHeader(label)?.key
-    if (key && !labelByKey.has(key)) labelByKey.set(key, label)
-  }
+    if (key && !byKey.has(key)) byKey.set(key, i)
+  })
   const steps = (sequence ?? []).flatMap((step) => {
     const header = matchHeader(step)
     if (!header) return []
-    const label = labels.has(header.label) ? header.label : labelByKey.get(header.key)
+    const at = byLabel.get(header.label) ?? byKey.get(header.key)
+    return at === undefined ? [] : [at]
+  })
+  return (steps.length > 0 ? steps : headed).flatMap((i) => {
+    const label = once.sentLabels[i]
     return label ? [label] : []
   })
-  const sung = steps.length > 0 ? steps : written
-  const kept = new Set(
-    uniqueSections(sections).flatMap(({ label }) => (label === null ? [] : [label])),
-  )
-  return sung.map((label) =>
-    kept.has(label) ? label : (labelByKey.get(matchHeader(label)?.key ?? '') ?? label),
-  )
 }
 
 // --- each section once ---------------------------------------------------------
@@ -179,6 +177,12 @@ export function sectionContent(body: string, chordLayer = ''): string {
   return words === '' && chords === '' ? '' : `${words}\u0001${chords}`
 }
 
+/** A content's words and chords, apart. */
+function contentParts(content: string): { words: string; chords: string } {
+  const at = content.indexOf('\u0001')
+  return { words: content.slice(0, at), chords: content.slice(at + 1) }
+}
+
 /**
  * Whether two contents are one section sung again: the same words over the
  * same chords, or over no chords on one of them — a chart writes a chorus's
@@ -187,37 +191,96 @@ export function sectionContent(body: string, chordLayer = ''): string {
 export function sameSection(a: string, b: string): boolean {
   if (a === b) return true
   if (a === '' || b === '') return false
-  const at = (content: string) => content.indexOf('\u0001')
-  const words = (content: string) => content.slice(0, at(content))
-  const chords = (content: string) => content.slice(at(content) + 1)
-  return words(a) === words(b) && (chords(a) === '' || chords(b) === '')
+  const one = contentParts(a)
+  const two = contentParts(b)
+  return one.words === two.words && (one.chords === '' || two.chords === '')
+}
+
+/** What the API sends of a song, and what each written section became. */
+export interface SectionsOnce {
+  sections: ApiLyricSection[]
+  /**
+   * Per section of the written song (same index): the label of the section
+   * sent for it — its own, or that of the one it repeats; null unlabelled.
+   */
+  sentLabels: Array<string | null>
 }
 
 /**
- * The sections the API sends: each once. A labelled section is left out when
- * it repeats one already kept — the same heading ("Verse" and "Verse 1" alike)
- * over the same words and chords, or over nothing at all — as the Lyrics Sheet
- * leaves it out; the song's `sequence` says how often each comes round. The
- * first of each heading always stays. Two different sections under one heading
- * (a second chorus with new words) both stay, so a label is unique only when
- * the song's headings are. Unlabelled stanzas are never dropped.
+ * The sections the API sends, each once, by the Lyrics Sheet's repeat rule: a
+ * labelled section is left out when it repeats one already kept — the same
+ * heading ("Verse" and "Verse 1" alike) over the same words and chords — and the
+ * song's `sequence` says how often each comes round. Where this parts from the
+ * sheet it is for the projection screen:
+ *   - a heading over nothing (a "Chorus" cue) is left out whenever the song
+ *     writes that section out anywhere, even later — kept, it would be the
+ *     first "Chorus" a lookup by name found, and an empty slide;
+ *   - a repeat carrying chords the kept copy lacks lends them: the kept place
+ *     sends the chorded copy's lines and layers, so a chorus charted only on
+ *     its second appearance still reaches the chord view.
+ * Two different sections under one heading (a second chorus with new words)
+ * both stay, so a label is unique only when the song's headings are.
+ * Unlabelled stanzas are never dropped.
  */
-export function uniqueSections(sections: ApiLyricSection[]): ApiLyricSection[] {
-  const shown = new Map<string, string[]>()
-  return sections.filter((section) => {
-    const key = section.label === null ? null : matchHeader(section.label)?.key
-    if (!key) return true
-    const content = sectionContent(
-      section.lines.join('\n'),
-      (section.layers?.chords ?? []).join('\n'),
-    )
-    const seen = shown.get(key)
-    if (seen && (content === '' || seen.some((kept) => sameSection(kept, content)))) {
-      return false
+export function sectionsOnce(written: ApiLyricSection[]): SectionsOnce {
+  const keyOf = (section: ApiLyricSection) =>
+    section.label === null ? null : (matchHeader(section.label)?.key ?? null)
+  const contentOf = (section: ApiLyricSection) =>
+    sectionContent(section.lines.join('\n'), (section.layers?.chords ?? []).join('\n'))
+  const keys = written.map(keyOf)
+  const contents = written.map(contentOf)
+  const writtenOut = new Set(keys.filter((key, i) => key && contents[i] !== ''))
+
+  interface Kept {
+    section: ApiLyricSection
+    key: string | null
+    content: string
+  }
+  const kept: Kept[] = []
+  const keptAt: number[] = [] // written index → index in `kept`
+  const firstWrittenOut = new Map<string, number>() // key → index in `kept`
+  written.forEach((section, i) => {
+    const key = keys[i]
+    const content = contents[i]
+    if (key) {
+      if (content === '') {
+        // A cue. Sent only when the song never writes the section out, once.
+        const at = writtenOut.has(key)
+          ? -1
+          : kept.findIndex((k) => k.key === key)
+        if (writtenOut.has(key) || at >= 0) {
+          keptAt[i] = at
+          return
+        }
+      } else {
+        const at = kept.findIndex(
+          (k) => k.key === key && k.content !== '' && sameSection(k.content, content),
+        )
+        if (at >= 0) {
+          keptAt[i] = at
+          if (contentParts(kept[at].content).chords === '' && contentParts(content).chords !== '') {
+            kept[at] = {
+              key,
+              content,
+              section: { ...section, label: kept[at].section.label },
+            }
+          }
+          return
+        }
+      }
     }
-    shown.set(key, [...(seen ?? []), content])
-    return true
+    keptAt[i] = kept.length
+    if (key && content !== '' && !firstWrittenOut.has(key)) firstWrittenOut.set(key, kept.length)
+    kept.push({ section, key, content })
   })
+  // Cues dropped in favour of a section written out later point at its first.
+  written.forEach((_, i) => {
+    if (keptAt[i] === -1) keptAt[i] = firstWrittenOut.get(keys[i]!) ?? -1
+  })
+  return {
+    sections: kept.map((k) => k.section),
+    sentLabels: written.map((_, i) => (keptAt[i] >= 0 ? kept[keptAt[i]].section.label : null)),
+  }
 }
 
 

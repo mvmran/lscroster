@@ -68,8 +68,9 @@ version is read) and the plan's `bpm` (else the arrangement's; none → 422). Th
 handler reads the lyrics and chord layer itself and `playedSections` (pure,
 tested, in `_shared/song-length.ts`) lays them out in sung order — keeping
 chord-only rows, because an intro written as bars is exactly the part counted
-from its bars (`toApiSections` keeps them too since 2026-10-26, but sends each
-section once, where this needs every repeat in sung order).
+from its bars (`toApiSections` keeps them too since 2026-10-26, but the
+projection API then sends each section once — `sectionsOnce` — where this needs
+every repeat in sung order).
 
 **The model counts bars, never seconds.** Asked for seconds, its number and its
 own working disagreed (175 bars at 72 BPM is not 4:53). So `LENGTH_SCHEMA` asks

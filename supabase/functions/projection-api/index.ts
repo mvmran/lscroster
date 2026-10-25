@@ -24,7 +24,7 @@ import {
   parseSongKey,
   type ChordNotation,
 } from '../_shared/chord-notation.ts'
-import { apiSequence, toApiSections, uniqueSections } from '../_shared/lyric-sections.ts'
+import { apiSequence, sectionsOnce, toApiSections } from '../_shared/lyric-sections.ts'
 
 const API_VERSION = 1
 const WINDOW_DAYS_BACK = 10
@@ -434,6 +434,7 @@ async function handle(req: Request, log: RequestLog): Promise<Response> {
     // The song as written, repeats and all; the sequence is read from it, and
     // `sections` sends each section once.
     const written = toApiSections(lyricsRow?.lyrics, projected)
+    const once = sectionsOnce(written)
     return {
       order: idx + 1,
       title: item.title as string,
@@ -443,10 +444,11 @@ async function handle(req: Request, log: RequestLog): Promise<Response> {
       meter: arrangement?.meter ?? null,
       lyricsVersion: lyricsRow?.version ?? null,
       lyrics: lyricsRow?.lyrics ?? null,
-      // Additive since apiVersion 1 (#139): `lyrics` and `sections[].lines`
-      // keep their exact meaning — the Latin singable text — so a client that
-      // predates the layers is unaffected. nativeLanguage is an ISO 639 code
-      // ('ml', 'hi') for whatever `sections[].layers.native` is written in.
+      // Since apiVersion 1 (#139): `lyrics` and `sections[].lines` are the Latin
+      // singable text. A `lines` entry is "" on a row with nothing to sing but
+      // chords (or another layer) on it, so the layers stay index-parallel.
+      // nativeLanguage is an ISO 639 code ('ml', 'hi') for whatever
+      // `sections[].layers.native` is written in.
       nativeLanguage: lyricsRow?.native_language ?? null,
       // The order to sing the sections in, as their labels: this plan's
       // sequence, else the one saved with the lyrics version — the one the
@@ -455,8 +457,9 @@ async function handle(req: Request, log: RequestLog): Promise<Response> {
       sequence: apiSequence(
         written,
         (item.sequence as string[] | null) ?? lyricsRow?.sequence,
+        once,
       ),
-      sections: uniqueSections(written),
+      sections: once.sections,
       sourceSongs: sources
         .filter((s) => s.songs)
         .sort((a, b) => a.sort_order - b.sort_order)
