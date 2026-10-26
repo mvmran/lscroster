@@ -2680,8 +2680,11 @@ layer.
   words or chords differ — so a client looking a sequence step up by name
   finds only the first. The app's own `sharedHeadingConflicts` flags exactly
   the same 39, so each already shows the song page's "number the headings"
-  warning; numbering them there fixes the projection too. Decide: number them
-  in the songs, or have the API tell them apart.
+  warning; numbering them there fixes the projection too. **Decided (user,
+  2026-10-26):** the user renumbers the 39 arrangements by hand on their song
+  pages; the API stays as it is. Medleys number straight through — a song's
+  Verse 1 may be the medley's Verse 4 — so they need nothing special. Re-run
+  the read-only scan afterwards to confirm none are left.
 **Upgrade note:** `functions deploy projection-api` — no migration.
 
 (no migration) **Review of the sections-once change** (2026-10-26, the user's
