@@ -453,6 +453,29 @@ export function renumberHeadingLine(line: string, number: number): string {
   return `${keyword} ${number}${header.repeat ? ` x${header.repeat}` : ''}`
 }
 
+/**
+ * A heading in the standard form: the section name in title case, then its
+ * number or letter and any repeat count, each after one space, with no
+ * brackets or colon — "[VERSE 1]:" → "Verse 1", "pre chorus" → "Pre-Chorus",
+ * "Chorus (2x)" → "Chorus x2". Its label, and so any saved sequence, stays the
+ * same. Null for a line that isn't a heading.
+ */
+export function standardHeadingLine(line: string): string | null {
+  const header = matchLyricSectionHeader(line)
+  if (header === null) return null
+  const name = titleCase(header.kind)
+  const designator = header.designator ? ` ${header.designator}` : ''
+  return `${name}${designator}${header.repeat ? ` x${header.repeat}` : ''}`
+}
+
+/** The heading lines not in the standard form, as typed and as they should read. */
+export function nonStandardHeadings(text: string): Array<{ from: string; to: string }> {
+  return text.split(/\r?\n/).flatMap((from) => {
+    const to = standardHeadingLine(from)
+    return to === null || to === from ? [] : [{ from, to }]
+  })
+}
+
 /** A heading the editor renumbered: section `index`'s line went `from` → `to`. */
 export interface HeadingRename {
   index: number

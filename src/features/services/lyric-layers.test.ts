@@ -14,6 +14,7 @@ import {
   removeSectionLayers,
   renameSectionHeading,
   splitChordLine,
+  standardiseHeadingLayers,
   toLines,
   onlySequencedSections,
   shortSheetLines,
@@ -231,6 +232,27 @@ describe('renameSectionHeading', () => {
     // holding something else is left alone.
     expect(toLines(next.lyrics)[2]).toBe('VERSE')
     expect(next.meaning).toBe(layers.meaning)
+  })
+})
+
+describe('standardiseHeadingLayers', () => {
+  it('tidies the heading rows of the base and every layer, and nothing else', () => {
+    const layers = {
+      ...EMPTY_LAYERS,
+      lyrics: '[VERSE 1]:\r\nAmazing grace\r\n\r\nchorus2\r\nMy chains',
+      chords: '[VERSE 1]:\r\n[1]Amazing\r\n\r\nCHORUS 2\r\n[4]My',
+      meaning: '\r\nverse\r\n\r\nnot a heading\r\n',
+    }
+    const next = standardiseHeadingLayers(layers)
+    expect(next.lyrics).toBe('Verse 1\r\nAmazing grace\r\n\r\nChorus 2\r\nMy chains')
+    expect(next.chords).toBe('Verse 1\r\n[1]Amazing\r\n\r\nChorus 2\r\n[4]My')
+    // "verse" on a lyric row of the base is a word, not a heading.
+    expect(next.meaning).toBe(layers.meaning)
+  })
+
+  it('returns the same layers when every heading is already standard', () => {
+    const layers = { ...EMPTY_LAYERS, lyrics: 'Verse 1\nOne\n\nChorus x2\nTwo' }
+    expect(standardiseHeadingLayers(layers)).toEqual(layers)
   })
 })
 

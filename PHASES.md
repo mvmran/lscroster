@@ -2716,6 +2716,27 @@ section was sent for a heading written out, and 57 songs now deliver
 chord-only rows.
 **Upgrade note:** `functions deploy projection-api` — no migration.
 
+(no migration) **Standardise headings** (2026-10-27, the user's request): a
+song's headings come typed every which way — `[Verse 1]`, `Verse1`, `VERSE 2:`,
+`Chorus (2x)` — and read the same to the app, but not to a person. When any
+heading isn't in the standard form, a note under the lyrics editor (laid out as
+the "Number them" one, in neutral colours since nothing is wrong) shows one,
+e.g. `[VERSE 1]:` → `Verse 1`, with a **Standardise headings** button. The
+form: the section name in title case (`Pre-Chorus`), then its number or letter
+and any repeat count as `x2`, one space apart, no brackets or colon
+(`standardHeadingLine`). `standardiseHeadingLayers` rewrites the heading rows of
+the base and the same rows of any layer that repeats a heading there; nothing
+else moves, so the line count holds. The parsed label is unchanged, so saved
+sequences, plans and the projection API see no difference. Unsaved until **Save
+changes**, like "Number them". A bare `Chorus` stays bare — numbering is the
+other button's job. USER-MANUAL §7.3 "Tidy headings".
+Verified: unit tests for the forms and for label stability; on the local stack
+at phone width, `[VERSE 1]:` became `Verse 1` with the sequence strip unchanged
+and the note gone. Over production's 146 arrangements (read-only, yesterday's
+export), 66 would show the note — 484 headings, mostly bracketed (`[Chorus]`
+151, `[Verse n]` 112, `[Bridge]` 50).
+**Upgrade note:** none — app only.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

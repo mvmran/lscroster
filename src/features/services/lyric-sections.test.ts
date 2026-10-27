@@ -5,6 +5,7 @@ import {
   lyricSequence,
   lyricWords,
   matchLyricSectionHeader,
+  nonStandardHeadings,
   numberSharedHeadings,
   parseLyricSections,
   renumberHeadingLine,
@@ -14,6 +15,7 @@ import {
   sectionKeyOf,
   sequenceChoices,
   songSequenceOf,
+  standardHeadingLine,
   sequenceSteps,
   sharedHeadingConflicts,
   type HeadingRename,
@@ -206,6 +208,52 @@ describe('renumberHeadingLine', () => {
     // "Verse 2x" is the verse sung twice, not verse 2.
     const line = renumberHeadingLine('Verse 2x', 3)
     expect(matchLyricSectionHeader(line)).toMatchObject({ designator: '3', repeat: 2 })
+  })
+})
+
+describe('standardHeadingLine', () => {
+  it('writes any heading as "Verse 1"', () => {
+    expect(standardHeadingLine('[Verse 1]')).toBe('Verse 1')
+    expect(standardHeadingLine('Verse1')).toBe('Verse 1')
+    expect(standardHeadingLine('VERSE 2:')).toBe('Verse 2')
+    expect(standardHeadingLine('  (chorus)  ')).toBe('Chorus')
+    expect(standardHeadingLine('PRE CHORUS 2')).toBe('Pre-Chorus 2')
+    expect(standardHeadingLine('prechorus')).toBe('Pre-Chorus')
+    expect(standardHeadingLine('verse a')).toBe('Verse A')
+    expect(standardHeadingLine('Turnaround')).toBe('Turnaround')
+  })
+
+  it('writes a repeat count as "x2"', () => {
+    expect(standardHeadingLine('Chorus (x2)')).toBe('Chorus x2')
+    expect(standardHeadingLine('CHORUS 2X')).toBe('Chorus x2')
+    expect(standardHeadingLine('[Bridge 1 ×3]')).toBe('Bridge 1 x3')
+  })
+
+  it('keeps the label, so a saved sequence still names the section', () => {
+    for (const line of ['[VERSE 1]:', 'chorus (2x)', 'Pre chorus B', 'Tag x4']) {
+      const label = matchLyricSectionHeader(line)?.label
+      expect(matchLyricSectionHeader(standardHeadingLine(line)!)?.label).toBe(label)
+    }
+  })
+
+  it('is null for a lyric line', () => {
+    expect(standardHeadingLine('Amazing grace')).toBeNull()
+    expect(standardHeadingLine('[Turn]')).toBeNull()
+  })
+})
+
+describe('nonStandardHeadings', () => {
+  it('lists the headings that would change, as typed', () => {
+    expect(
+      nonStandardHeadings('[Verse 1]\r\nOne\r\n\r\nChorus\r\nTwo\r\n\r\nverse2\r\nThree'),
+    ).toEqual([
+      { from: '[Verse 1]', to: 'Verse 1' },
+      { from: 'verse2', to: 'Verse 2' },
+    ])
+  })
+
+  it('is empty when every heading is standard', () => {
+    expect(nonStandardHeadings('Verse 1\nOne\n\nChorus x2\nTwo\n\nPre-Chorus\n')).toEqual([])
   })
 })
 

@@ -35,6 +35,7 @@ import {
   sameSection,
   sectionContent,
   sectionKeyOf,
+  standardHeadingLine,
   type HeadingRename,
   type LyricSection,
 } from '@/features/services/lyric-sections'
@@ -381,6 +382,31 @@ export function renameSectionHeading(
  */
 export function numberSharedHeadingLayers(layers: LayeredLyrics): LayeredLyrics {
   return numberSharedHeadings(layers).reduce(renameSectionHeading, layers)
+}
+
+/**
+ * Put every section heading in the standard form (`standardHeadingLine`): each
+ * heading row of the base, and the same row of any layer that repeats a heading
+ * there. Nothing else changes, so the line count and the sections stay put.
+ */
+export function standardiseHeadingLayers(layers: LayeredLyrics): LayeredLyrics {
+  const base = toLines(layers.lyrics)
+  const rows = new Set(base.flatMap((line, i) => (matchLyricSectionHeader(line) ? [i] : [])))
+  if (rows.size === 0) return layers
+  const eol = eolOf(layers.lyrics)
+  const next = { ...layers }
+  for (const key of ALL_KEYS) {
+    const lines = toLines(layers[key])
+    let changed = false
+    for (const row of rows) {
+      const to = lines[row] === undefined ? null : standardHeadingLine(lines[row])
+      if (to === null || to === lines[row]) continue
+      lines[row] = to
+      changed = true
+    }
+    if (changed) next[key] = lines.join(eol)
+  }
+  return next
 }
 
 /**

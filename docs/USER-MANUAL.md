@@ -1047,6 +1047,14 @@ LSCroster numbers them for you: the first `VERSE 1`, the different one
 over, then **Save changes**. Saving without numbering them asks first: **Go
 back**, **Number them**, or **Save anyway**.
 
+**Tidy headings.** LSCroster reads a heading however it's typed, but a song is
+easier to read when every heading looks the same. If any heading isn't in the
+standard form — the section name, then its number, such as `Verse 1`, `Chorus`,
+`Pre-Chorus 2` or `Chorus x2` — a note under the lyrics shows one, such as
+`[VERSE 1]:` → `Verse 1`. Press **Standardise headings** to rewrite them all,
+in the lyrics and in any pane beside them. Only the headings change, and the
+song's sequence stays the same. Look them over, then **Save changes**.
+
 > **Note** — The main lyrics must be in Latin (English-alphabet) script. For a
 > song in another language, put the transliteration here and the original script
 > in the **Native** layer. If a line strays, LSCroster marks it in red and won't
