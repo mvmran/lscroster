@@ -2735,7 +2735,29 @@ at phone width, `[VERSE 1]:` became `Verse 1` with the sequence strip unchanged
 and the note gone. Over production's 146 arrangements (read-only, yesterday's
 export), 66 would show the note — 484 headings, mostly bracketed (`[Chorus]`
 151, `[Verse n]` 112, `[Bridge]` 50).
-**Upgrade note:** none — app only.
+**Review** (2026-10-28, the user's `/code-review`; findings checked, the user took
+the recommendation):
+- The note under the lyrics came from the base only, so a Chord or Native pane
+  repeating `[VERSE 1]:` beside a tidy `Verse 1` never raised it, and a heading
+  untidy only by a stray space read "Verse 1 → Verse 1". One helper,
+  `headingRewrites`, now lists every heading row in every pane;
+  `untidyHeadings` (the note) skips space-only differences and
+  `standardiseHeadingLayers` (the button) applies them all, spaces included.
+- Projection `sectionsOnce`, two lending bugs (none of production's 146 songs
+  hits either today — the read-only check gave the same 984 → 835 sections
+  before and after): once a chorus was lent chords, later copies were compared
+  with the lent copy instead of the one written, so bare / `[1][4]` / `[6m][5]`
+  went out as two "Chorus" sections where the Lyrics Sheet shows one. And
+  lending swapped in the whole chorded copy, dropping a native or meaning layer
+  only the first copy had. Now `lendChords` keeps that layer when the rows pair
+  up, and when they don't it leaves the first copy as written — the words in
+  both languages matter more on the screen than the chords. Stale comments
+  (`uniqueSections`, "a port of") fixed, the cue branch untangled.
+- Not taken: "Number them" keeping the typed form (`[CHORUS]` → `[CHORUS 2]` —
+  that heading already showed the note); the brackets' Ultimate Guitar
+  compatibility (the user asked for `Verse 1`); a heading over native-only rows
+  read as a cue (the base must be Latin, and the sheet reads it the same way).
+**Upgrade note:** `functions deploy projection-api` — no migration.
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,

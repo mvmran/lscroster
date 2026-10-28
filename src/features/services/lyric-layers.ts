@@ -385,26 +385,55 @@ export function numberSharedHeadingLayers(layers: LayeredLyrics): LayeredLyrics 
 }
 
 /**
- * Put every section heading in the standard form (`standardHeadingLine`): each
- * heading row of the base, and the same row of any layer that repeats a heading
- * there. Nothing else changes, so the line count and the sections stay put.
+ * The heading rows not written exactly in the standard form
+ * (`standardHeadingLine`): each heading row of the base, and the same row of
+ * any layer that repeats a heading there.
+ */
+function headingRewrites(
+  layers: LayeredLyrics,
+): Array<{ key: (typeof ALL_KEYS)[number]; row: number; from: string; to: string }> {
+  const rows = toLines(layers.lyrics).flatMap((line, i) =>
+    matchLyricSectionHeader(line) ? [i] : [],
+  )
+  return ALL_KEYS.flatMap((key) => {
+    const lines = toLines(layers[key])
+    return rows.flatMap((row) => {
+      const from = lines[row]
+      const to = from === undefined ? null : standardHeadingLine(from)
+      return to === null || to === from ? [] : [{ key, row, from, to }]
+    })
+  })
+}
+
+/**
+ * The headings, in any pane, that aren't in the standard form — as typed and
+ * as they should read. Spaces around a heading don't count: nobody can see
+ * them, and a note offering "Verse 1 → Verse 1" would make no sense.
+ */
+export function untidyHeadings(
+  layers: LayeredLyrics,
+): Array<{ from: string; to: string }> {
+  return headingRewrites(layers)
+    .filter(({ from, to }) => from.trim() !== to)
+    .map(({ from, to }) => ({ from, to }))
+}
+
+/**
+ * Put every section heading in the standard form, in the base and the layers
+ * alike (`headingRewrites`), stray spaces included. Nothing else changes, so
+ * the line count and the sections stay put.
  */
 export function standardiseHeadingLayers(layers: LayeredLyrics): LayeredLyrics {
-  const base = toLines(layers.lyrics)
-  const rows = new Set(base.flatMap((line, i) => (matchLyricSectionHeader(line) ? [i] : [])))
-  if (rows.size === 0) return layers
-  const eol = eolOf(layers.lyrics)
+  const rewrites = headingRewrites(layers)
+  if (rewrites.length === 0) return layers
   const next = { ...layers }
+  const eol = eolOf(layers.lyrics)
   for (const key of ALL_KEYS) {
+    const mine = rewrites.filter((r) => r.key === key)
+    if (mine.length === 0) continue
     const lines = toLines(layers[key])
-    let changed = false
-    for (const row of rows) {
-      const to = lines[row] === undefined ? null : standardHeadingLine(lines[row])
-      if (to === null || to === lines[row]) continue
-      lines[row] = to
-      changed = true
-    }
-    if (changed) next[key] = lines.join(eol)
+    for (const { row, to } of mine) lines[row] = to
+    next[key] = lines.join(eol)
   }
   return next
 }

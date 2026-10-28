@@ -132,10 +132,11 @@ export function apiSequence(
 }
 
 // --- each section once ---------------------------------------------------------
-// A port of the app's repeat rule (`withoutRepeatedSections` in
+// The app's repeat rule (`withoutRepeatedSections` in
 // src/features/services/lyric-layers.ts, over `sectionContent` / `sameSection`
-// in lyric-sections.ts); lyric-sections.test.ts holds the two to the same
-// answers.
+// in lyric-sections.ts), ported; lyric-sections.test.ts holds the two to the
+// same answers. `sectionsOnce` parts from the sheet on purpose for cues and
+// lent chords — its comment says where and why — so don't "fix" those back.
 
 /** A section's words as a singer reads them: chords, case, punctuation gone. */
 function lyricWords(text: string): string {
@@ -215,9 +216,12 @@ export interface SectionsOnce {
  *   - a heading over nothing (a "Chorus" cue) is left out whenever the song
  *     writes that section out anywhere, even later — kept, it would be the
  *     first "Chorus" a lookup by name found, and an empty slide;
- *   - a repeat carrying chords the kept copy lacks lends them: the kept place
- *     sends the chorded copy's lines and layers, so a chorus charted only on
- *     its second appearance still reaches the chord view.
+ *   - the first repeat carrying chords the kept copy lacks lends them: the kept
+ *     place sends the chorded copy's lines and layers, so a chorus charted only
+ *     on its second appearance still reaches the chord view — keeping a
+ *     native or meaning layer only the kept copy has (`lendChords`). Later
+ *     copies are still compared with the kept copy as written, as the sheet
+ *     compares with what it showed.
  * Two different sections under one heading (a second chorus with new words)
  * both stay, so a label is unique only when the song's headings are.
  * Unlabelled stanzas are never dropped.
@@ -234,7 +238,10 @@ export function sectionsOnce(written: ApiLyricSection[]): SectionsOnce {
   interface Kept {
     section: ApiLyricSection
     key: string | null
+    /** The content as written where it was kept: what later copies match. */
     content: string
+    /** Whether a repeat has lent it chords already (or tried to). */
+    lent: boolean
   }
   const kept: Kept[] = []
   const keptAt: number[] = [] // written index → index in `kept`
@@ -242,36 +249,37 @@ export function sectionsOnce(written: ApiLyricSection[]): SectionsOnce {
   written.forEach((section, i) => {
     const key = keys[i]
     const content = contents[i]
-    if (key) {
-      if (content === '') {
-        // A cue. Sent only when the song never writes the section out, once.
-        const at = writtenOut.has(key)
-          ? -1
-          : kept.findIndex((k) => k.key === key)
-        if (writtenOut.has(key) || at >= 0) {
-          keptAt[i] = at
-          return
+    if (key && content === '') {
+      // A cue, sent only when the song never writes the section out, and once.
+      // One that gives way to the written-out section is pointed at it below.
+      if (writtenOut.has(key)) {
+        keptAt[i] = -1
+        return
+      }
+      const at = kept.findIndex((k) => k.key === key)
+      if (at >= 0) {
+        keptAt[i] = at
+        return
+      }
+    } else if (key) {
+      const at = kept.findIndex(
+        (k) => k.key === key && k.content !== '' && sameSection(k.content, content),
+      )
+      if (at >= 0) {
+        keptAt[i] = at
+        const was = kept[at]
+        const chordless = contentParts(was.content).chords === ''
+        if (!was.lent && chordless && contentParts(content).chords !== '') {
+          kept[at] = { ...was, section: lendChords(was.section, section), lent: true }
         }
-      } else {
-        const at = kept.findIndex(
-          (k) => k.key === key && k.content !== '' && sameSection(k.content, content),
-        )
-        if (at >= 0) {
-          keptAt[i] = at
-          if (contentParts(kept[at].content).chords === '' && contentParts(content).chords !== '') {
-            kept[at] = {
-              key,
-              content,
-              section: { ...section, label: kept[at].section.label },
-            }
-          }
-          return
-        }
+        return
       }
     }
     keptAt[i] = kept.length
-    if (key && content !== '' && !firstWrittenOut.has(key)) firstWrittenOut.set(key, kept.length)
-    kept.push({ section, key, content })
+    if (key && content !== '' && !firstWrittenOut.has(key)) {
+      firstWrittenOut.set(key, kept.length)
+    }
+    kept.push({ section, key, content, lent: false })
   })
   // Cues dropped in favour of a section written out later point at its first.
   written.forEach((_, i) => {
@@ -279,8 +287,29 @@ export function sectionsOnce(written: ApiLyricSection[]): SectionsOnce {
   })
   return {
     sections: kept.map((k) => k.section),
-    sentLabels: written.map((_, i) => (keptAt[i] >= 0 ? kept[keptAt[i]].section.label : null)),
+    sentLabels: written.map((_, i) =>
+      keptAt[i] >= 0 ? kept[keptAt[i]].section.label : null,
+    ),
   }
+}
+
+/**
+ * The kept section as a repeat that carries chords would send it: the
+ * repeat's lines and layers under the kept label. A native or meaning layer
+ * only the kept copy has comes along when the two copies have the same rows to
+ * pair it with; when they don't, the kept copy stays as it is — the words in
+ * both languages matter more on the screen than the chords.
+ */
+function lendChords(own: ApiLyricSection, chorded: ApiLyricSection): ApiLyricSection {
+  const filled = (lines: string[] | undefined) =>
+    lines?.some((line) => line.trim() !== '') ?? false
+  const layers: ApiLyricLayers = { ...chorded.layers }
+  for (const name of ['native', 'meaning'] as const) {
+    if (!filled(own.layers?.[name]) || filled(chorded.layers?.[name])) continue
+    if (own.lines.length !== chorded.lines.length) return own
+    layers[name] = own.layers?.[name]
+  }
+  return { ...chorded, label: own.label, layers }
 }
 
 
@@ -338,7 +367,7 @@ function stanzaSections(
 
 /**
  * Split raw lyrics into API sections, in written order — a chorus written out
- * three times comes back three times; `uniqueSections` is what the API sends.
+ * three times comes back three times; `sectionsOnce` is what the API sends.
  * Header lines ('[Verse 1]', 'Chorus:') open a labelled section; text before
  * the first header — or the whole text when there are no headers — falls back
  * to unlabelled stanza sections, so the result is non-empty whenever the lyrics

@@ -468,13 +468,6 @@ export function standardHeadingLine(line: string): string | null {
   return `${name}${designator}${header.repeat ? ` x${header.repeat}` : ''}`
 }
 
-/** The heading lines not in the standard form, as typed and as they should read. */
-export function nonStandardHeadings(text: string): Array<{ from: string; to: string }> {
-  return text.split(/\r?\n/).flatMap((from) => {
-    const to = standardHeadingLine(from)
-    return to === null || to === from ? [] : [{ from, to }]
-  })
-}
 
 /** A heading the editor renumbered: section `index`'s line went `from` → `to`. */
 export interface HeadingRename {

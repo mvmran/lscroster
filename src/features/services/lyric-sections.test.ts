@@ -5,7 +5,6 @@ import {
   lyricSequence,
   lyricWords,
   matchLyricSectionHeader,
-  nonStandardHeadings,
   numberSharedHeadings,
   parseLyricSections,
   renumberHeadingLine,
@@ -239,21 +238,6 @@ describe('standardHeadingLine', () => {
   it('is null for a lyric line', () => {
     expect(standardHeadingLine('Amazing grace')).toBeNull()
     expect(standardHeadingLine('[Turn]')).toBeNull()
-  })
-})
-
-describe('nonStandardHeadings', () => {
-  it('lists the headings that would change, as typed', () => {
-    expect(
-      nonStandardHeadings('[Verse 1]\r\nOne\r\n\r\nChorus\r\nTwo\r\n\r\nverse2\r\nThree'),
-    ).toEqual([
-      { from: '[Verse 1]', to: 'Verse 1' },
-      { from: 'verse2', to: 'Verse 2' },
-    ])
-  })
-
-  it('is empty when every heading is standard', () => {
-    expect(nonStandardHeadings('Verse 1\nOne\n\nChorus x2\nTwo\n\nPre-Chorus\n')).toEqual([])
   })
 })
 

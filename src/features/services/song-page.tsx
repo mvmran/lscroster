@@ -62,10 +62,7 @@ import {
   LyricsStructureEditor,
 } from '@/features/services/lyrics-structure-editor'
 import { LyricsImportDialog } from '@/features/services/lyrics-import-dialog'
-import {
-  nonStandardHeadings,
-  sharedHeadingConflicts,
-} from '@/features/services/lyric-sections'
+import { sharedHeadingConflicts } from '@/features/services/lyric-sections'
 import {
   useGenerateMeaning,
   useLyricsAssistAvailable,
@@ -96,6 +93,7 @@ import {
   insertSectionHeaders,
   numberSharedHeadingLayers,
   standardiseHeadingLayers,
+  untidyHeadings,
   layersOfRow,
   lyricParagraphs,
   mirrorSectionHeaders,
@@ -894,8 +892,8 @@ function ArrangementLyricsBlock({
 
   // Headings typed any which way ("[VERSE 1]:", "Chorus2") read the same to the
   // app, but a song reads tidier — and the next one is typed to match — when
-  // they all look like "Verse 1".
-  const untidyHeadings = useMemo(() => nonStandardHeadings(value.lyrics), [value.lyrics])
+  // they all look like "Verse 1". Every pane counts, as every pane is rewritten.
+  const untidy = useMemo(() => untidyHeadings(value), [value])
 
   /** Put every heading in the standard form, unsaved, to look over first. */
   function standardiseHeadings() {
@@ -1254,15 +1252,15 @@ function ArrangementLyricsBlock({
             </Button>
           </div>
         )}
-        {!lyricsPending && untidyHeadings.length > 0 && (
+        {!lyricsPending && untidy.length > 0 && (
           <div className="bg-muted/50 flex flex-wrap items-center gap-2 rounded-md border px-3 py-2">
             <p className="text-muted-foreground mr-auto text-xs">
-              {untidyHeadings.length === 1
+              {untidy.length === 1
                 ? 'One section heading isn’t'
-                : `${untidyHeadings.length} section headings aren’t`}{' '}
+                : `${untidy.length} section headings aren’t`}{' '}
               in the standard form, e.g.{' '}
-              <span className="font-mono">{untidyHeadings[0].from.trim()}</span> →{' '}
-              <span className="font-mono">{untidyHeadings[0].to}</span>.
+              <span className="font-mono">{untidy[0].from.trim()}</span> →{' '}
+              <span className="font-mono">{untidy[0].to}</span>.
             </p>
             <Button type="button" variant="outline" size="sm" onClick={standardiseHeadings}>
               Standardise headings

@@ -238,7 +238,9 @@ an intro written as bars (§6.1); rows blank in every layer are left out.
   and chords — is left out. A heading over nothing ("sing it again") is left out
   whenever the song writes that section out anywhere, so a name always finds the words.
   A repeat with chords the first copy lacks lends them to it: the section is sent in
-  the first one's place with the chorded copy's lines and layers. The order they are
+  the first one's place with the chorded copy's lines and layers, keeping a `native` or
+  `meaning` layer only the first copy has. If the two copies' rows don't pair up, the
+  first copy is sent as written, translation and all, without the chords. The order they are
   **sung** in, repeats included, is the song's `sequence` (§6.2). Keep slide order =
   song `order`, then sequence step (or section order when `sequence` is empty), then
   chunk order.

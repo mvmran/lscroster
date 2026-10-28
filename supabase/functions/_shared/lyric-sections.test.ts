@@ -251,6 +251,46 @@ Deno.test('sectionsOnce: a repeat charted where the first was not lends its chor
   assertEquals(sent(written).length, 2)
 })
 
+Deno.test('sectionsOnce: after lending, later copies match the chorus as written', () => {
+  // Bare, then [1][4], then [6m][5]: the sheet compares each with the bare one
+  // it showed, so it shows one chorus — and so must the API, not a second
+  // "Chorus" for the third copy.
+  const written = toApiSections('[Chorus]\nsing\n\n[Chorus]\nsing\n\n[Chorus]\nsing', {
+    ...NO_LAYERS,
+    lyrics_chords: '[Chorus]\n\n\n[Chorus]\n[1]si[4]ng\n\n[Chorus]\n[6m]si[5]ng',
+  })
+  const once = sectionsOnce(written)
+  assertEquals(labels(once.sections), ['Chorus'])
+  assertEquals(once.sections[0].layers?.chords, ['[1]si[4]ng'])
+  assertEquals(once.sentLabels, ['Chorus', 'Chorus', 'Chorus'])
+})
+
+Deno.test('sectionsOnce: lent chords keep a translation only the first copy has', () => {
+  const song = '[Chorus]\nsthuthi\n\n[Verse 1]\none\n\n[Chorus]\nsthuthi'
+  const layers = {
+    lyrics_native: '[Chorus]\nസ്തുതി\n\n\n\n\n',
+    lyrics_meaning: '[Chorus]\npraise\n\n\n\n\n',
+    lyrics_chords: '[Chorus]\n\n\n[Verse 1]\n\n\n[Chorus]\n[1]sthuthi',
+  }
+  const [chorus] = sent(toApiSections(song, layers))
+  assertEquals(chorus.lines, ['sthuthi'])
+  assertEquals(chorus.layers?.chords, ['[1]sthuthi'])
+  assertEquals(chorus.layers?.native, ['സ്തുതി'])
+  assertEquals(chorus.layers?.meaning, ['praise'])
+  // Rows that don't pair up (a chord-only intro row on the repeat): the chorus
+  // keeps its translation and goes without the chords.
+  const unpaired = sent(
+    toApiSections(`${song.slice(0, -'sthuthi'.length)}\nsthuthi`, {
+      ...layers,
+      lyrics_chords: '[Chorus]\n\n\n[Verse 1]\n\n\n[Chorus]\n[1] [4]\n[1]sthuthi',
+    }),
+  )[0]
+  assertEquals(unpaired.lines, ['sthuthi'])
+  assertEquals(unpaired.layers?.native, ['സ്തുതി'])
+  assertEquals(unpaired.layers?.meaning, ['praise'])
+  assertEquals(unpaired.layers?.chords, undefined)
+})
+
 Deno.test('sectionsOnce: a cue gives way to the section written out later', () => {
   // A bare "Chorus" up front, the chorus itself further down: the lookup by
   // name must find the words, not an empty slide.

@@ -16,6 +16,7 @@ import {
   splitChordLine,
   standardiseHeadingLayers,
   toLines,
+  untidyHeadings,
   onlySequencedSections,
   shortSheetLines,
   withoutRepeatedSections,
@@ -253,6 +254,33 @@ describe('standardiseHeadingLayers', () => {
   it('returns the same layers when every heading is already standard', () => {
     const layers = { ...EMPTY_LAYERS, lyrics: 'Verse 1\nOne\n\nChorus x2\nTwo' }
     expect(standardiseHeadingLayers(layers)).toEqual(layers)
+  })
+})
+
+describe('untidyHeadings', () => {
+  it('lists the headings that would change, as typed', () => {
+    const song = '[Verse 1]\r\nOne\r\n\r\nChorus\r\nTwo\r\n\r\nverse2\r\nThree'
+    expect(untidyHeadings(only(song))).toEqual([
+      { from: '[Verse 1]', to: 'Verse 1' },
+      { from: 'verse2', to: 'Verse 2' },
+    ])
+  })
+
+  it('is empty when every heading is standard', () => {
+    const song = 'Verse 1\nOne\n\nChorus x2\nTwo\n\nPre-Chorus\n'
+    expect(untidyHeadings(only(song))).toEqual([])
+  })
+
+  it('ignores spaces around a heading, which the button still trims', () => {
+    const layers = only('Verse 1 \nOne\n\n  Chorus\nTwo')
+    expect(untidyHeadings(layers)).toEqual([])
+    expect(standardiseHeadingLayers(layers).lyrics).toBe('Verse 1\nOne\n\nChorus\nTwo')
+  })
+
+  it('counts a heading a layer repeats untidily beside a tidy one', () => {
+    const layers = { ...only('Verse 1\nOne'), chords: '[VERSE 1]:\n[1]One' }
+    expect(untidyHeadings(layers)).toEqual([{ from: '[VERSE 1]:', to: 'Verse 1' }])
+    expect(standardiseHeadingLayers(layers).chords).toBe('Verse 1\n[1]One')
   })
 })
 
