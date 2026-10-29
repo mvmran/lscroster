@@ -2497,6 +2497,26 @@ code dragged on the swipe and didn't scroll.
   the same plan items) and the team order. Same change if they bite.
 **Upgrade note:** none — app only.
 
+(no migration) **On a desktop, double-click a run-list row to edit it, and drag
+it from anywhere** (2026-10-30, the user's request). The row takes the
+`MouseSensor`'s `onMouseDown` and the grip keeps `onTouchStart` and
+`onKeyDown`, so a mouse drags the whole row (5 px, as before — a click is
+still a click) while a finger still needs the grip and a long-press, and a
+swipe over the row scrolls. A double-click opens the edit box only for a fine
+pointer (`matchMedia('(pointer: fine)')`); on a phone the pen and the ⋯ menu
+stay the way to edit. Presses on the row's own buttons (pen, menu) are theirs,
+and so are those inside the actions menu, which React bubbles to the row from
+its portal (`fromRow`: the row must contain the target). `pointer-fine:`
+gives the row a grab cursor and no text selection, so a double-click doesn't
+highlight a word first. USER-MANUAL §6.3 "Editing and reordering".
+Verified in headless Chromium on a 12-item demo plan (flipped to draft, then
+restored): desktop — drag from the title and from the grip both move it, a
+drag starting on the pen moves nothing, double-click opens the edit box with
+no text selected, the ⋯ menu's Edit still works; phone (touch context, CDP
+touch events) — a long-press on the title moves nothing, a long-press on the
+grip moves it, a double tap opens nothing, the pen opens the edit box.
+**Upgrade note:** none — app only.
+
 (no migration) **The projection API sends the song's sequence** (2026-10-26, the
 user's call): `GET …/plans/:id/lyrics` gives every song a `sequence` — the order
 it is sung in on this plan, as section names in full ("Verse 1", "Chorus ×2"),

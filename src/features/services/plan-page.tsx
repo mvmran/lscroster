@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type MouseEvent } from 'react'
 import {
   closestCenter,
   DndContext,
@@ -59,7 +59,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { plural } from '@/lib/utils'
+import { cn, plural } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -179,6 +179,26 @@ function ItemRow({
   const key = item.key_override ?? defaultKey ?? null
   const time = startsAt ? formatClock(startsAt) : offsetLabel(offsetSeconds)
 
+  // With a mouse the whole row moves and a double-click edits it; a finger
+  // keeps to the grip (a long-press, so a swipe scrolls) and the pen. So the
+  // row takes the mouse sensor's listener and the grip the touch and keyboard
+  // ones — a press on the grip still bubbles up to the row. A press on the
+  // row's own buttons is theirs, and so is one inside the actions menu, which
+  // React bubbles through to the row although it is portalled out of it.
+  const fromRow = (e: MouseEvent) =>
+    e.currentTarget.contains(e.target as Node) &&
+    !(e.target as Element).closest('button:not([data-grip]), a, input, textarea')
+  const rowEvents = canManage
+    ? {
+        onMouseDown: (e: MouseEvent) => {
+          if (fromRow(e)) listeners?.onMouseDown?.(e)
+        },
+        onDoubleClick: (e: MouseEvent) => {
+          if (fromRow(e) && window.matchMedia('(pointer: fine)').matches) onEdit()
+        },
+      }
+    : {}
+
   return (
     <div
       ref={setNodeRef}
@@ -190,19 +210,23 @@ function ItemRow({
       }
     >
       <div
-        className={
+        {...rowEvents}
+        className={cn(
           isHeader
             ? 'bg-muted/60 flex items-center gap-2 rounded-md px-2 py-2'
-            : 'hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-2.5'
-        }
+            : 'hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-2.5',
+          canManage && 'pointer-fine:cursor-grab pointer-fine:select-none',
+        )}
       >
         {canManage && (
           <button
             type="button"
+            data-grip
             className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-manipulation p-1 select-none [-webkit-touch-callout:none]"
             aria-label={`Reorder ${item.title}`}
             {...attributes}
-            {...listeners}
+            onTouchStart={(e) => listeners?.onTouchStart?.(e)}
+            onKeyDown={(e) => listeners?.onKeyDown?.(e)}
             title="Drag to move this item up or down"
           >
             <GripVertical className="size-4" />

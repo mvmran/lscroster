@@ -820,9 +820,11 @@ edit box, the **Linked to** link opens the arrangement the plan uses — for a
 medley, the medley itself rather than one of its songs — on its song page, so
 its lyrics, key and files are the ones in front of you.
 
-**Reordering.** Drag an item by its handle to move it. On a phone or tablet,
-press and hold the handle until the item lifts, then drag; a quick swipe over
-the handle just scrolls the plan, so you can't move a song by accident. The
+**Editing and reordering.** With a mouse, double-click an item to edit it, and
+drag it from anywhere on its row to move it. On a phone or tablet, tap the pen
+(or **⋯ → Edit**) to edit, and move an item by its handle: press and hold the
+handle until the item lifts, then drag; a quick swipe over the handle just
+scrolls the plan, so you can't move a song by accident. The
 start time of every item is recalculated as you go, from the plan's start time
 and the lengths above it; the total length and finishing time appear under the
 plan's title.
