@@ -2772,6 +2772,26 @@ says where the link goes.
 Verified on the local stack at phone width with a throwaway two-song medley on
 a draft plan: one link, the medley's tab selected and in view, Back to
 `/songs`; the plain song page still on the Default. Medley removed afterwards.
+**Review** (2026-10-30, the user's `/code-review`; findings checked, the user
+took the recommendation):
+- **Bug:** with the song already cached, the card mounted in the navigation's
+  own commit, scrolled itself into view — and the layout's scroll-to-top, a
+  parent effect, ran next and undid it (the first check passed only on a cold
+  cache). The link now ends `#arrangements` and the layout leaves any address
+  with a `#` to scroll itself, as it already did for the People list's return.
+- The request is one-shot: settled once the list has the arrangement (or a
+  fetch in flight can't bring it), then `?arrangement=…#arrangements` is
+  replaced out of the address, so Back or a reload keeps the tab the person
+  moved to, and a later refetch can't switch tabs under unsaved lyrics. An
+  arrangement the song no longer has says so ("…showing the Default").
+- A Default links to the plain song page again, opening at the top.
+- Not taken: the item dialog's unsaved edits lost on following the link (as
+  before); the card not following a change of song while mounted (no
+  song-to-song link exists); component tests (no component-test setup).
+Verified on the local stack at phone width: with the song cached, the card
+landed 64 px down (under the header); the address dropped the parameter; Back
+and Forward kept the Default; a missing id showed the notice; a Default item
+linked to `/songs/<id>`.
 **Upgrade note:** none — app only.
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`

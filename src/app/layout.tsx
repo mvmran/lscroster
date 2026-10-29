@@ -158,11 +158,15 @@ export function AppLayout() {
   // Open each page at the top — without this the window keeps its previous
   // scroll position across route changes (e.g. clicking a person near the
   // bottom of a long list would open their page already scrolled down). We skip
-  // the People-list return navigation, which scrolls to the originating person.
+  // the People-list return navigation, which scrolls to the originating person,
+  // and any link with a `#`, which names the place the page scrolls to itself
+  // (a plan's link to an arrangement). A child's effects run before this one,
+  // so scrolling here as well would undo theirs whenever their data is cached.
   // Depend only on pathname: clearing navigation state (same path) must not
   // re-run this, or it would fight the People page's scroll-to-person.
   useEffect(() => {
     if ((location.state as { focusId?: string } | null)?.focusId) return
+    if (location.hash !== '') return
     window.scrollTo(0, 0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname])

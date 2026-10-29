@@ -83,15 +83,20 @@ export function arrangementSongTitle(info: ArrangementInfo): string {
 
 /** The search parameter that opens a song page on one of its arrangements. */
 export const ARRANGEMENT_PARAM = 'arrangement'
+/** The song page's Arrangements card, as a link's `#` names it. */
+export const ARRANGEMENTS_ANCHOR = 'arrangements'
 
 /**
  * Where an arrangement is edited: its first song's page, opened on that
- * arrangement's tab. A medley is linked to every one of its songs, so any of
- * them shows it; the first is the one its title starts with.
+ * arrangement's tab and scrolled to it. A medley is linked to every one of its
+ * songs, so any of them shows it; the first is the one its title starts with.
+ * A Default is the song's own page, opened at the top as any song link is.
  */
 export function arrangementPath(info: ArrangementInfo): string {
-  const song = info.songs[0]?.id ?? ''
-  return `/songs/${song}?${ARRANGEMENT_PARAM}=${encodeURIComponent(info.arrangement.id)}`
+  const song = `/songs/${encodeURIComponent(info.songs[0].id)}`
+  if (info.arrangement.is_default) return song
+  const id = encodeURIComponent(info.arrangement.id)
+  return `${song}?${ARRANGEMENT_PARAM}=${id}#${ARRANGEMENTS_ANCHOR}`
 }
 
 /**

@@ -287,16 +287,26 @@ describe('arrangementSongTitle and arrangementLabel', () => {
     }
     expect(arrangementSongTitle(info)).toBe('Amazing Grace / How Great Thou Art')
   })
+})
 
-  it('links to the arrangement itself, on its first song’s page', () => {
+describe('arrangementPath', () => {
+  const base: SongArrangement = {
+    id: 'a', name: 'Default', song_key: null, bpm: null, meter: null, is_default: true,
+    sort_order: 0, reference_url: null, reference_urls: [],
+    created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+  }
+  const song = { id: 's1', title: 'Amazing Grace' }
+
+  it('opens a medley on its first song’s page, at its tab', () => {
     const medley = {
       arrangement: { ...base, id: 'm1', name: 'Medley', is_default: false },
       songs: [song, { id: 's2', title: 'How Great Thou Art' }],
     }
-    expect(arrangementPath(medley)).toBe('/songs/s1?arrangement=m1')
-    expect(arrangementPath({ arrangement: base, songs: [song] })).toBe(
-      '/songs/s1?arrangement=a',
-    )
+    expect(arrangementPath(medley)).toBe('/songs/s1?arrangement=m1#arrangements')
+  })
+
+  it('opens a Default as the song’s own page, at the top', () => {
+    expect(arrangementPath({ arrangement: base, songs: [song] })).toBe('/songs/s1')
   })
 })
 

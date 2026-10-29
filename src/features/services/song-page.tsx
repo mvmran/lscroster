@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Archive,
   ArchiveRestore,
@@ -103,6 +103,7 @@ import {
 } from '@/features/services/lyric-layers'
 import {
   ARRANGEMENT_PARAM,
+  ARRANGEMENTS_ANCHOR,
   formatPlanDate,
   formatPlanDateShort,
   parseTagsInput,
@@ -1648,14 +1649,17 @@ function ArrangementsCard({
   song,
   canManage,
   initial,
+  onOpened,
 }: {
   song: Song
   canManage: boolean
   /** The arrangement to open on, from a plan's link; else the Default. */
   initial?: string
+  /** Called once `initial` has been opened (or found missing), to forget it. */
+  onOpened?: () => void
 }) {
   const songId = song.id
-  const { data: arrangements, isPending } = useArrangements(songId)
+  const { data: arrangements, isPending, isFetching } = useArrangements(songId)
   const create = useCreateArrangement(songId)
   const [active, setActive] = useState<string | undefined>(initial)
   // Whether the mounted arrangement's lyrics editor has unsaved edits. Only the
@@ -1703,19 +1707,29 @@ function ArrangementsCard({
     )
   }
 
-  // Opened on an arrangement from a plan: bring the card into view once it has
-  // loaded, since on a phone it sits well below the song's details.
+  // Opened on an arrangement from a plan: settled once, when the list has it —
+  // or, if it doesn't, once a fetch in flight can't bring it — so a refetch
+  // later can't switch the tab under someone's unsaved lyrics. Found, the card
+  // comes into view (on a phone it sits well below the song's details); gone,
+  // say so rather than pass the Default off as the plan's arrangement.
   const card = useRef<HTMLDivElement>(null)
-  const scrolled = useRef(false)
-  const opened = initial !== undefined && activeId === initial
+  const [opened, setOpened] = useState<'found' | 'missing' | null>(null)
+  if (initial !== undefined && opened === null && arrangements) {
+    const found = arrangements.some((a) => a.id === initial)
+    if (found || !isFetching) {
+      setOpened(found ? 'found' : 'missing')
+      if (!found) setActive(undefined)
+    }
+  }
   useEffect(() => {
-    if (!opened || scrolled.current) return
-    scrolled.current = true
-    card.current?.scrollIntoView({ block: 'start' })
-  }, [opened])
+    if (opened === null) return
+    if (opened === 'found') card.current?.scrollIntoView({ block: 'start' })
+    else toast.info('That arrangement isn’t linked to this song any more — showing the Default.')
+    onOpened?.()
+  }, [opened, onOpened])
 
   return (
-    <Card ref={card} className="scroll-mt-16">
+    <Card ref={card} id={ARRANGEMENTS_ANCHOR} className="scroll-mt-16">
       <CardHeader>
         <CardTitle>Arrangements</CardTitle>
         <CardDescription>
@@ -1846,13 +1860,17 @@ export function SongPage() {
   // song was opened from somewhere else (a plan, a bookmark) — then Back just
   // means the whole library. A plan's link names the arrangement to open
   // (`arrangementPath`), which is this page's alone and stays out of Back.
-  const search = new URLSearchParams(useLocation().search)
+  const location = useLocation()
+  const search = new URLSearchParams(location.search)
   const openArrangement = search.get(ARRANGEMENT_PARAM) ?? undefined
   search.delete(ARRANGEMENT_PARAM)
-  const backToSongs = {
-    pathname: '/songs',
-    search: search.toString() === '' ? '' : `?${search}`,
-  }
+  const backToSongs = { pathname: '/songs', search: search.toString() }
+  // The arrangement is asked for once: when the card has opened it, the address
+  // drops it, so Back or a reload later keeps the tab the person moved to.
+  const rest = search.toString()
+  const arrangementOpened = useCallback(() => {
+    navigate({ pathname: location.pathname, search: rest }, { replace: true })
+  }, [navigate, location.pathname, rest])
   const { data: song, isPending, isError, error } = useSong(id)
   const updateSong = useUpdateSong()
   const deleteSong = useDeleteSong()
@@ -2026,7 +2044,12 @@ export function SongPage() {
       </div>
 
       <DetailsCard key={song.updated_at} song={song} canManage={canManage} />
-      <ArrangementsCard song={song} canManage={canManage} initial={openArrangement} />
+      <ArrangementsCard
+        song={song}
+        canManage={canManage}
+        initial={openArrangement}
+        onOpened={arrangementOpened}
+      />
       <UsageCard songId={song.id} />
 
       <ConfirmDialog
