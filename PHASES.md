@@ -2759,6 +2759,21 @@ the recommendation):
   read as a cue (the base must be Latin, and the sheet reads it the same way).
 **Upgrade note:** `functions deploy projection-api` — no migration.
 
+(no migration) **A plan's song link opens its arrangement** (2026-10-30, the
+user's request): the edit box's "Linked to" line linked each song of a medley
+to that song's page, which opens on the song's Default — not the medley the
+plan uses. It is now one link, "Song A / Song B (Medley)", to
+`arrangementPath()`: the first song's page with `?arrangement=<id>`. The song
+page opens that arrangement's tab (an id it doesn't list falls back to the
+Default, as before), scrolls the Arrangements card into view — on a phone it
+sits below the song's details — and keeps the parameter out of Back to the
+song list. A plain song link still opens on the Default. USER-MANUAL §6.3
+says where the link goes.
+Verified on the local stack at phone width with a throwaway two-song medley on
+a draft plan: one link, the medley's tab selected and in view, Back to
+`/songs`; the plain song page still on the Default. Medley removed afterwards.
+**Upgrade note:** none — app only.
+
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`
 — a fill-in skeleton modelled on an external field manual's structure (cover,
 notice, contents, "If you want… go to" quick ref, numbered chapters + decimal

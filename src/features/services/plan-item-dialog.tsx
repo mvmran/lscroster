@@ -30,6 +30,7 @@ import {
 import { PlanSequenceEditor } from '@/features/services/plan-sequence-editor'
 import { PlayRecordingButton } from '@/features/services/play-recording-button'
 import {
+  arrangementPath,
   arrangementSongTitle,
   chosenReferenceUrl,
   DEFAULT_ITEM_LENGTH,
@@ -515,16 +516,13 @@ function ItemForm({
         {info && (
           <p className="text-muted-foreground text-xs">
             Linked to{' '}
-            {info.songs.map((s, i) => (
-              <span key={s.id}>
-                {i > 0 && ' / '}
-                <Link to={`/songs/${s.id}`} className="text-primary underline">
-                  {s.title}
-                </Link>
-              </span>
-            ))}
-            {!info.arrangement.is_default && ` (${info.arrangement.name})`} in the
-            song library.
+            {/* One link to the arrangement itself — a medley's lyrics, key and
+                files live on it, not on any one of its songs. */}
+            <Link to={arrangementPath(info)} className="text-primary underline">
+              {arrangementSongTitle(info)}
+              {!info.arrangement.is_default && ` (${info.arrangement.name})`}
+            </Link>{' '}
+            in the song library.
           </p>
         )}
       </div>

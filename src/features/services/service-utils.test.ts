@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   arrangementLabel,
+  arrangementPath,
   arrangementSongTitle,
   buildLyricsSheet,
   chosenReferenceUrl,
@@ -285,6 +286,17 @@ describe('arrangementSongTitle and arrangementLabel', () => {
       songs: [song, { id: 's2', title: 'How Great Thou Art' }],
     }
     expect(arrangementSongTitle(info)).toBe('Amazing Grace / How Great Thou Art')
+  })
+
+  it('links to the arrangement itself, on its first song’s page', () => {
+    const medley = {
+      arrangement: { ...base, id: 'm1', name: 'Medley', is_default: false },
+      songs: [song, { id: 's2', title: 'How Great Thou Art' }],
+    }
+    expect(arrangementPath(medley)).toBe('/songs/s1?arrangement=m1')
+    expect(arrangementPath({ arrangement: base, songs: [song] })).toBe(
+      '/songs/s1?arrangement=a',
+    )
   })
 })
 

@@ -81,6 +81,19 @@ export function arrangementSongTitle(info: ArrangementInfo): string {
   return info.songs.map((s) => s.title).join(' / ')
 }
 
+/** The search parameter that opens a song page on one of its arrangements. */
+export const ARRANGEMENT_PARAM = 'arrangement'
+
+/**
+ * Where an arrangement is edited: its first song's page, opened on that
+ * arrangement's tab. A medley is linked to every one of its songs, so any of
+ * them shows it; the first is the one its title starts with.
+ */
+export function arrangementPath(info: ArrangementInfo): string {
+  const song = info.songs[0]?.id ?? ''
+  return `/songs/${song}?${ARRANGEMENT_PARAM}=${encodeURIComponent(info.arrangement.id)}`
+}
+
 /**
  * The arrangement's name, shown small and light in brackets under the song on
  * a plan — or null for the Default, which needs no label.

@@ -102,6 +102,7 @@ import {
   type LyricLayerKey,
 } from '@/features/services/lyric-layers'
 import {
+  ARRANGEMENT_PARAM,
   formatPlanDate,
   formatPlanDateShort,
   parseTagsInput,
@@ -1643,11 +1644,20 @@ function AttachmentsSection({
   )
 }
 
-function ArrangementsCard({ song, canManage }: { song: Song; canManage: boolean }) {
+function ArrangementsCard({
+  song,
+  canManage,
+  initial,
+}: {
+  song: Song
+  canManage: boolean
+  /** The arrangement to open on, from a plan's link; else the Default. */
+  initial?: string
+}) {
   const songId = song.id
   const { data: arrangements, isPending } = useArrangements(songId)
   const create = useCreateArrangement(songId)
-  const [active, setActive] = useState<string | undefined>(undefined)
+  const [active, setActive] = useState<string | undefined>(initial)
   // Whether the mounted arrangement's lyrics editor has unsaved edits. Only the
   // active tab's editor is mounted, so a single flag is enough to guard against
   // discarding those edits by switching to another arrangement.
@@ -1693,8 +1703,19 @@ function ArrangementsCard({ song, canManage }: { song: Song; canManage: boolean 
     )
   }
 
+  // Opened on an arrangement from a plan: bring the card into view once it has
+  // loaded, since on a phone it sits well below the song's details.
+  const card = useRef<HTMLDivElement>(null)
+  const scrolled = useRef(false)
+  const opened = initial !== undefined && activeId === initial
+  useEffect(() => {
+    if (!opened || scrolled.current) return
+    scrolled.current = true
+    card.current?.scrollIntoView({ block: 'start' })
+  }, [opened])
+
   return (
-    <Card>
+    <Card ref={card} className="scroll-mt-16">
       <CardHeader>
         <CardTitle>Arrangements</CardTitle>
         <CardDescription>
@@ -1823,8 +1844,15 @@ export function SongPage() {
   // The songs list hands its filters over in the query string, so going back
   // returns to the list as it was rather than to a reset one. Empty when the
   // song was opened from somewhere else (a plan, a bookmark) — then Back just
-  // means the whole library.
-  const backToSongs = { pathname: '/songs', search: useLocation().search }
+  // means the whole library. A plan's link names the arrangement to open
+  // (`arrangementPath`), which is this page's alone and stays out of Back.
+  const search = new URLSearchParams(useLocation().search)
+  const openArrangement = search.get(ARRANGEMENT_PARAM) ?? undefined
+  search.delete(ARRANGEMENT_PARAM)
+  const backToSongs = {
+    pathname: '/songs',
+    search: search.toString() === '' ? '' : `?${search}`,
+  }
   const { data: song, isPending, isError, error } = useSong(id)
   const updateSong = useUpdateSong()
   const deleteSong = useDeleteSong()
@@ -1998,7 +2026,7 @@ export function SongPage() {
       </div>
 
       <DetailsCard key={song.updated_at} song={song} canManage={canManage} />
-      <ArrangementsCard song={song} canManage={canManage} />
+      <ArrangementsCard song={song} canManage={canManage} initial={openArrangement} />
       <UsageCard songId={song.id} />
 
       <ConfirmDialog

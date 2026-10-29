@@ -815,7 +815,10 @@ At the bottom of the order of service are three buttons:
 Each item has a **Title**, a **Length** (type minutes, e.g. `5`, or
 minutes:seconds, e.g. `4:30`) and an optional **Description** shown under it
 (e.g. "Straight into verse 1, no intro"). A song can also have a **Key** and
-**BPM** for this plan only, overriding its arrangement.
+**BPM** for this plan only, overriding its arrangement. At the foot of a song's
+edit box, the **Linked to** link opens the arrangement the plan uses — for a
+medley, the medley itself rather than one of its songs — on its song page, so
+its lyrics, key and files are the ones in front of you.
 
 **Reordering.** Drag an item by its handle to move it. On a phone or tablet,
 press and hold the handle until the item lifts, then drag; a quick swipe over
