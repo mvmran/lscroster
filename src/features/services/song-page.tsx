@@ -103,7 +103,6 @@ import {
 } from '@/features/services/lyric-layers'
 import {
   ARRANGEMENT_PARAM,
-  ARRANGEMENTS_ANCHOR,
   formatPlanDate,
   formatPlanDateShort,
   parseTagsInput,
@@ -1659,9 +1658,9 @@ function ArrangementsCard({
   onOpened?: () => void
 }) {
   const songId = song.id
-  const { data: arrangements, isPending, isFetching } = useArrangements(songId)
+  const { data: arrangements, isPending, isFetching, isError } = useArrangements(songId)
   const create = useCreateArrangement(songId)
-  const [active, setActive] = useState<string | undefined>(initial)
+  const [active, setActive] = useState<string | undefined>(undefined)
   // Whether the mounted arrangement's lyrics editor has unsaved edits. Only the
   // active tab's editor is mounted, so a single flag is enough to guard against
   // discarding those edits by switching to another arrangement.
@@ -1707,29 +1706,37 @@ function ArrangementsCard({
     )
   }
 
-  // Opened on an arrangement from a plan: settled once, when the list has it —
-  // or, if it doesn't, once a fetch in flight can't bring it — so a refetch
-  // later can't switch the tab under someone's unsaved lyrics. Found, the card
-  // comes into view (on a phone it sits well below the song's details); gone,
-  // say so rather than pass the Default off as the plan's arrangement.
+  // Opened on an arrangement from a plan, settled once: when the list has it,
+  // or once a fetch in flight can't bring it. Found, its tab opens and the card
+  // comes into view (on a phone it sits well below the song's details) — unless
+  // the person picked a tab or typed while the list was loading, which stands.
+  // Gone, say so rather than pass the Default off as the plan's arrangement. A
+  // fetch that failed proves nothing either way: no notice, and the request
+  // stays in the address so a reload asks again.
   const card = useRef<HTMLDivElement>(null)
-  const [opened, setOpened] = useState<'found' | 'missing' | null>(null)
+  const [opened, setOpened] = useState<'shown' | 'kept' | 'missing' | 'failed' | null>(
+    null,
+  )
   if (initial !== undefined && opened === null && arrangements) {
-    const found = arrangements.some((a) => a.id === initial)
-    if (found || !isFetching) {
-      setOpened(found ? 'found' : 'missing')
-      if (!found) setActive(undefined)
+    if (arrangements.some((a) => a.id === initial)) {
+      const untouched = active === undefined && !activeDirty
+      setOpened(untouched ? 'shown' : 'kept')
+      if (untouched) setActive(initial)
+    } else if (!isFetching) {
+      setOpened(isError ? 'failed' : 'missing')
     }
   }
   useEffect(() => {
-    if (opened === null) return
-    if (opened === 'found') card.current?.scrollIntoView({ block: 'start' })
-    else toast.info('That arrangement isn’t linked to this song any more — showing the Default.')
+    if (opened === null || opened === 'failed') return
+    if (opened === 'shown') card.current?.scrollIntoView({ block: 'start' })
+    if (opened === 'missing') {
+      toast.info('The plan’s arrangement isn’t linked to this song any more.')
+    }
     onOpened?.()
   }, [opened, onOpened])
 
   return (
-    <Card ref={card} id={ARRANGEMENTS_ANCHOR} className="scroll-mt-16">
+    <Card ref={card} className="scroll-mt-16">
       <CardHeader>
         <CardTitle>Arrangements</CardTitle>
         <CardDescription>
@@ -1864,10 +1871,12 @@ export function SongPage() {
   const search = new URLSearchParams(location.search)
   const openArrangement = search.get(ARRANGEMENT_PARAM) ?? undefined
   search.delete(ARRANGEMENT_PARAM)
-  const backToSongs = { pathname: '/songs', search: search.toString() }
-  // The arrangement is asked for once: when the card has opened it, the address
-  // drops it, so Back or a reload later keeps the tab the person moved to.
   const rest = search.toString()
+  const backToSongs = { pathname: '/songs', search: rest }
+  // The arrangement is asked for once: when the card has opened it, the address
+  // drops it, so coming Back to this page — or reloading it — doesn't force the
+  // plan's tab over the one the person moved to. (Neither remembers that tab:
+  // the page opens on the Default.)
   const arrangementOpened = useCallback(() => {
     navigate({ pathname: location.pathname, search: rest }, { replace: true })
   }, [navigate, location.pathname, rest])

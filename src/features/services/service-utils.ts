@@ -83,8 +83,6 @@ export function arrangementSongTitle(info: ArrangementInfo): string {
 
 /** The search parameter that opens a song page on one of its arrangements. */
 export const ARRANGEMENT_PARAM = 'arrangement'
-/** The song page's Arrangements card, as a link's `#` names it. */
-export const ARRANGEMENTS_ANCHOR = 'arrangements'
 
 /**
  * Where an arrangement is edited: its first song's page, opened on that
@@ -96,7 +94,7 @@ export function arrangementPath(info: ArrangementInfo): string {
   const song = `/songs/${encodeURIComponent(info.songs[0].id)}`
   if (info.arrangement.is_default) return song
   const id = encodeURIComponent(info.arrangement.id)
-  return `${song}?${ARRANGEMENT_PARAM}=${id}#${ARRANGEMENTS_ANCHOR}`
+  return `${song}?${ARRANGEMENT_PARAM}=${id}`
 }
 
 /**

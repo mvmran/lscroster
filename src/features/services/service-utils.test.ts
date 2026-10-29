@@ -302,7 +302,7 @@ describe('arrangementPath', () => {
       arrangement: { ...base, id: 'm1', name: 'Medley', is_default: false },
       songs: [song, { id: 's2', title: 'How Great Thou Art' }],
     }
-    expect(arrangementPath(medley)).toBe('/songs/s1?arrangement=m1#arrangements')
+    expect(arrangementPath(medley)).toBe('/songs/s1?arrangement=m1')
   })
 
   it('opens a Default as the song’s own page, at the top', () => {

@@ -31,8 +31,9 @@ export interface LyricSection {
 
 /**
  * Section vocabulary follows the Planning Center / Ultimate Guitar
- * conventions so lyrics stay compatible with ChordSheetJS's
- * UltimateGuitarParser should chords/transposition be added later.
+ * conventions, so headings pasted from either are recognised. Any bracketing
+ * ("[Verse 1]", Ultimate Guitar's way) is read but not needed: the standard
+ * form a song can be tidied to (`standardHeadingLine`) is the bare "Verse 1".
  */
 const KEYWORD_PATTERN = [
   'pre[\\s-]?chorus',

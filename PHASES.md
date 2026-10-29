@@ -2515,6 +2515,19 @@ drag starting on the pen moves nothing, double-click opens the edit box with
 no text selected, the ⋯ menu's Edit still works; phone (touch context, CDP
 touch events) — a long-press on the title moves nothing, a long-press on the
 grip moves it, a double tap opens nothing, the pen opens the edit box.
+**Review** (2026-10-30, the user's `/code-review`; the user took the
+recommendation):
+- Only the main button drags: dnd-kit's `MouseSensor` turns away only the right
+  button, so a middle-click to autoscroll or paste could move a song.
+- A double-click edits when the press itself was a mouse (`pointerType` from
+  the row's `onPointerDown`), not when the device's main pointer is fine: an
+  iPad with a trackpad now double-clicks, and a finger on a touchscreen laptop
+  doesn't. The grab cursor and no-select use `any-pointer-fine:`.
+- A note beside `useSensors` says `ItemRow` wires each sensor's listener by
+  name, so a new sensor must be wired there too.
+- USER-MANUAL §6.3: only songs have the pen — other items edit from ⋯.
+Verified: the run-list script again, plus a middle-button drag moving nothing
+(12 of 12 passed).
 **Upgrade note:** none — app only.
 
 (no migration) **The projection API sends the song's sequence** (2026-10-26, the
@@ -2797,13 +2810,13 @@ took the recommendation):
 - **Bug:** with the song already cached, the card mounted in the navigation's
   own commit, scrolled itself into view — and the layout's scroll-to-top, a
   parent effect, ran next and undid it (the first check passed only on a cold
-  cache). The link now ends `#arrangements` and the layout leaves any address
-  with a `#` to scroll itself, as it already did for the People list's return.
+  cache). The link then ended `#arrangements` and the layout skipped any
+  address with a `#` — replaced in the second review below.
 - The request is one-shot: settled once the list has the arrangement (or a
-  fetch in flight can't bring it), then `?arrangement=…#arrangements` is
-  replaced out of the address, so Back or a reload keeps the tab the person
+  fetch in flight can't bring it), then `?arrangement=…` is replaced out of the
+  address, so coming Back doesn't force the plan's tab over the one the person
   moved to, and a later refetch can't switch tabs under unsaved lyrics. An
-  arrangement the song no longer has says so ("…showing the Default").
+  arrangement the song no longer has says so.
 - A Default links to the plain song page again, opening at the top.
 - Not taken: the item dialog's unsaved edits lost on following the link (as
   before); the card not following a change of song while mounted (no
@@ -2812,6 +2825,25 @@ Verified on the local stack at phone width: with the song cached, the card
 landed 64 px down (under the header); the address dropped the parameter; Back
 and Forward kept the Default; a missing id showed the notice; a Default item
 linked to `/songs/<id>`.
+**Second review** (2026-10-30, the user's `/code-review` of the three commits;
+findings checked, the user took the recommendation — the run-list half is under
+the double-click entry):
+- **Bug:** the `#` skip left a song page that didn't scroll itself (arrangement
+  gone, song missing, still loading) at the plan's old offset. Fixed at the
+  cause: the layout's scroll-to-top is a `useLayoutEffect`, which runs before
+  any page's own effects, so a page that scrolls itself wins and every other
+  page opens at the top. The `#` special case and `#arrangements` are gone.
+- Until settled the tab no longer follows the data: the plan's arrangement
+  opens only if the person hasn't picked a tab or typed while the list loaded.
+  A refetch that *failed* proves nothing — no "not linked any more" notice, and
+  the request stays in the address so a reload asks again.
+- Comment fixed: dropping the request doesn't make a reload remember the tab;
+  the page opens on the Default.
+- Not taken: `useSearchParams` for the request — its setter changes identity
+  with the address, which would replay the scroll and notice.
+Verified on the local stack at phone width: with the song cached the card
+landed under the header (scrollY 816); a missing arrangement reached from a
+plan scrolled to 2311 px opened the song page at the top with the notice.
 **Upgrade note:** none — app only.
 
 (no migration, in progress) **User manual** (2026-10-03): `docs/USER-MANUAL.md`

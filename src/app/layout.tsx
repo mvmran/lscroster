@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { CalendarCheck, CalendarDays, Church, CircleUser, House, LogOut, Menu, Music, Settings, Users, UsersRound } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ModeToggle } from '@/components/mode-toggle'
@@ -158,15 +158,15 @@ export function AppLayout() {
   // Open each page at the top — without this the window keeps its previous
   // scroll position across route changes (e.g. clicking a person near the
   // bottom of a long list would open their page already scrolled down). We skip
-  // the People-list return navigation, which scrolls to the originating person,
-  // and any link with a `#`, which names the place the page scrolls to itself
-  // (a plan's link to an arrangement). A child's effects run before this one,
-  // so scrolling here as well would undo theirs whenever their data is cached.
+  // the People-list return navigation, which scrolls to the originating person.
+  // A layout effect, so it runs before any page's own effects: a page that
+  // scrolls itself somewhere (the song page, opened on a plan's arrangement)
+  // wins even when its data is cached and it scrolls in this same commit — a
+  // passive effect here would run after the page's and undo it.
   // Depend only on pathname: clearing navigation state (same path) must not
   // re-run this, or it would fight the People page's scroll-to-person.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if ((location.state as { focusId?: string } | null)?.focusId) return
-    if (location.hash !== '') return
     window.scrollTo(0, 0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname])

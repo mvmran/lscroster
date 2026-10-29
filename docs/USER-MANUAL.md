@@ -815,23 +815,29 @@ At the bottom of the order of service are three buttons:
 Each item has a **Title**, a **Length** (type minutes, e.g. `5`, or
 minutes:seconds, e.g. `4:30`) and an optional **Description** shown under it
 (e.g. "Straight into verse 1, no intro"). A song can also have a **Key** and
-**BPM** for this plan only, overriding its arrangement. At the foot of a song's
-edit box, the **Linked to** link opens the arrangement the plan uses — for a
-medley, the medley itself rather than one of its songs — on its song page, so
-its lyrics, key and files are the ones in front of you.
+**BPM** for this plan only, overriding its arrangement.
 
-**Editing and reordering.** With a mouse, double-click an item to edit it, and
-drag it from anywhere on its row to move it. On a phone or tablet, tap the pen
-(or **⋯ → Edit**) to edit, and move an item by its handle: press and hold the
-handle until the item lifts, then drag; a quick swipe over the handle just
-scrolls the plan, so you can't move a song by accident. The
-start time of every item is recalculated as you go, from the plan's start time
-and the lengths above it; the total length and finishing time appear under the
-plan's title.
+A song's edit box shows the **Arrangement** it uses. It can't be changed there:
+to use another arrangement, remove the song and add it again. At the foot of
+the box, the **Linked to** link opens the song in the library. For a medley or
+another non-default arrangement it opens that arrangement — the medley itself,
+not one of its songs — with its tab chosen and scrolled into view, so its
+lyrics, key and files are the ones in front of you. If the arrangement has since
+been unlinked from the song, a note says so and the song's Default shows.
 
 **Editing or removing.** Use the **⋯** at the end of an item → **Edit** or
 **Remove**. A song also has a **pen** button beside its **⋯**, for the edit you
-make most — Remove stays in the menu, out of the way of a quick tap.
+make most — Remove stays in the menu, out of the way of a quick tap. With a
+mouse, you can also double-click any item to edit it.
+
+**Reordering.** With a mouse, drag an item from anywhere on its row to move it
+(the left button; a press on its pen or **⋯** is just a click). On a phone or
+tablet, move an item by its handle: press and hold the handle until the item
+lifts, then drag; a quick swipe over the row just scrolls the plan, so you
+can't move a song by accident. A double tap doesn't edit — use the pen or
+**⋯ → Edit**. The start time of every item is recalculated as you go, from the
+plan's start time and the lengths above it; the total length and finishing time
+appear under the plan's title.
 
 In the song's box, **Key**, **BPM** and **Meter** sit side by side under
 **Length** (Meter on its own line on a phone), and small buttons sit beside
@@ -898,9 +904,12 @@ own sequence. Drag a chip by its grip to move it, press **×** to drop it, or
 it is sung. The order is kept for this plan only: the Lyrics Sheet shows it,
 and the song, and any other plan it is on, keep their own. Add the same song
 again and it starts from the song's sequence. **Use the song's** puts the
-song's own order back. With **Long Lyrics** on, the sheet still prints the
-lyrics as the song has them written; the sequence says how this plan sings
-them.
+song's own order back. A section dropped from this plan's sequence — the
+bridge, say — is left off the Lyrics Sheet and its PDF too. With **Long
+Lyrics** on, the sheet still prints the lyrics as the song has them written;
+the sequence says how this plan sings them. If the song's headings have been
+renamed since the plan saved its sequence, so the sequence names none of them,
+the sheet prints the whole song rather than a blank one.
 
 ## 6.6 Draft vs published
 
@@ -2112,8 +2121,8 @@ only for teams where the member has the right team access, below.
 | Field | Value |
 | --- | --- |
 | Manual version | v1.0 (first release) |
-| Describes app version | 1.0.5 |
-| Last updated | 2026-10-04 |
+| Describes app version | 1.0.5, plus the changes since on `main` |
+| Last updated | 2026-10-30 |
 | Maintainer | _name / role_ |
 
 ## F. Updating this manual

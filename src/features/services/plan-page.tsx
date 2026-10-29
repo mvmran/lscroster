@@ -1,4 +1,4 @@
-import { useMemo, useState, type MouseEvent } from 'react'
+import { useMemo, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import {
   closestCenter,
   DndContext,
@@ -184,17 +184,26 @@ function ItemRow({
   // row takes the mouse sensor's listener and the grip the touch and keyboard
   // ones — a press on the grip still bubbles up to the row. A press on the
   // row's own buttons is theirs, and so is one inside the actions menu, which
-  // React bubbles through to the row although it is portalled out of it.
+  // React bubbles through to the row although it is portalled out of it. Only
+  // the main button drags: a middle-click to autoscroll or paste must not move
+  // a song. Whether a double-click came from a mouse is read from the press
+  // itself, not the device's main pointer — an iPad with a trackpad has a mouse,
+  // and a finger on a touchscreen laptop is still a finger.
   const fromRow = (e: MouseEvent) =>
+    e.button === 0 &&
     e.currentTarget.contains(e.target as Node) &&
     !(e.target as Element).closest('button:not([data-grip]), a, input, textarea')
+  const pressedWith = useRef('')
   const rowEvents = canManage
     ? {
+        onPointerDown: (e: PointerEvent) => {
+          pressedWith.current = e.pointerType
+        },
         onMouseDown: (e: MouseEvent) => {
           if (fromRow(e)) listeners?.onMouseDown?.(e)
         },
         onDoubleClick: (e: MouseEvent) => {
-          if (fromRow(e) && window.matchMedia('(pointer: fine)').matches) onEdit()
+          if (fromRow(e) && pressedWith.current === 'mouse') onEdit()
         },
       }
     : {}
@@ -215,7 +224,7 @@ function ItemRow({
           isHeader
             ? 'bg-muted/60 flex items-center gap-2 rounded-md px-2 py-2'
             : 'hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-2.5',
-          canManage && 'pointer-fine:cursor-grab pointer-fine:select-none',
+          canManage && 'any-pointer-fine:cursor-grab any-pointer-fine:select-none',
         )}
       >
         {canManage && (
@@ -887,6 +896,10 @@ export function PlanPage() {
   // starts on it scrolls the page (the grip is `touch-manipulation`, not
   // `touch-none`), so scrolling a plan on a phone can't move a song by
   // accident. Moving more than the tolerance during the hold cancels the drag.
+  // `ItemRow` hands each sensor's listener out by name — `onMouseDown` to the
+  // row, `onTouchStart` and `onKeyDown` to the grip — so a sensor added here
+  // (a `PointerSensor`'s `onPointerDown`, say) must be wired there too, or it
+  // is never attached and dragging quietly stops.
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
