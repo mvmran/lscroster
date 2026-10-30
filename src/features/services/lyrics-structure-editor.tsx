@@ -71,7 +71,8 @@ import {
 } from '@/features/services/lyric-sections'
 import { tintOf } from '@/features/services/section-tints'
 import { cn } from '@/lib/utils'
-import { GRIP_CLASS, useReorderSensors } from '@/lib/reorder'
+import { ReorderGrip } from '@/components/reorder-grip'
+import { useReorderSensors } from '@/lib/reorder'
 
 // Prefer the chip directly under the pointer; fall back to nearest centre so
 // a drop in the gap between small chips still lands somewhere sensible.
@@ -371,19 +372,17 @@ function SectionChevron({
         isOver && !isDragging && 'brightness-110 saturate-150',
       )}
     >
-      <button
-        type="button"
-        aria-label={`Drag to move ${section.label}`}
+      <ReorderGrip
+        label={`Drag to move ${section.label}`}
         title={`Drag to move ${section.label}`}
         className={cn(
-          'shrink-0 py-1.5 pl-0.5 opacity-70 hover:opacity-100 active:cursor-grabbing',
-          GRIP_CLASS,
+          'shrink-0 py-1.5 pl-0.5',
+          'opacity-70 hover:opacity-100 active:cursor-grabbing',
         )}
         {...attributes}
         {...listeners}
-      >
-        <GripVertical className="size-3.5" />
-      </button>
+        iconClassName="size-3.5"
+      />
       <SectionMenu index={index} count={count} {...actions}>
         <button
           type="button"
@@ -430,19 +429,17 @@ function FlowPill({
         isOver && !isDragging && 'ring-ring ring-2',
       )}
     >
-      <button
-        type="button"
-        aria-label={`Drag to move ${section.label}`}
+      <ReorderGrip
+        label={`Drag to move ${section.label}`}
         title={`Drag to move ${section.label}`}
         className={cn(
-          'shrink-0 py-1 pl-1.5 opacity-70 hover:opacity-100 active:cursor-grabbing',
-          GRIP_CLASS,
+          'shrink-0 py-1 pl-1.5',
+          'opacity-70 hover:opacity-100 active:cursor-grabbing',
         )}
         {...attributes}
         {...listeners}
-      >
-        <GripVertical className="size-3" />
-      </button>
+        iconClassName="size-3"
+      />
       <SectionMenu index={index} count={count} {...actions}>
         <button type="button" className="py-1 pr-2.5 text-left text-xs font-medium">
           {section.label}

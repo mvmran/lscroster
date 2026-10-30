@@ -16,7 +16,6 @@ import {
   ArrowDown,
   ArrowUp,
   CalendarDays,
-  GripVertical,
   Loader2,
   Pencil,
   Plus,
@@ -28,7 +27,8 @@ import { EmptyState } from '@/components/empty-state'
 import { PageHeader } from '@/components/page-header'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { cn, plural } from '@/lib/utils'
-import { GRIP_CLASS, useReorderSensors, useRowDrag } from '@/lib/reorder'
+import { ReorderGrip } from '@/components/reorder-grip'
+import { keepOpenWhileDragging, useReorderSensors, useRowDrag } from '@/lib/reorder'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -102,19 +102,13 @@ function SortableRequiredTeam({
         isDragging && 'relative z-10 opacity-80 shadow-sm',
       )}
     >
-      <button
-        type="button"
-        className={cn(
-          'text-muted-foreground/60 hover:text-foreground -ml-1 p-1',
-          GRIP_CLASS,
-        )}
-        aria-label={`Drag ${name} to reorder`}
+      <ReorderGrip
+        className="text-muted-foreground/60 hover:text-foreground -ml-1 p-1"
+        label={`Drag ${name} to reorder`}
         title="Drag to reorder"
         {...attributes}
         {...drag.grip}
-      >
-        <GripVertical className="size-4" />
-      </button>
+      />
       <span className="min-w-0 flex-1 truncate">{name}</span>
       <Button
         type="button"
@@ -174,7 +168,7 @@ function SortableServiceTypeCard({
   onDelete: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: st.id })
+    useSortable({ id: st.id, disabled: reordering })
   // With a mouse the whole card moves and a double-click edits it; a finger
   // keeps to the grip (a long-press) and the pen.
   const drag = useRowDrag(listeners, { onEdit })
@@ -190,19 +184,13 @@ function SortableServiceTypeCard({
         className={cn('py-3', drag.rowClassName, isDragging && 'shadow-md')}
       >
         <CardContent className="flex items-center gap-1 px-4">
-        <button
-          type="button"
-          className={cn(
-            'text-muted-foreground/60 hover:text-foreground -ml-1 p-1',
-            GRIP_CLASS,
-          )}
-          aria-label={`Drag ${st.name} to reorder`}
+        <ReorderGrip
+          className="text-muted-foreground/60 hover:text-foreground -ml-1 p-1"
+          label={`Drag ${st.name} to reorder`}
           title="Drag to reorder"
           {...attributes}
           {...drag.grip}
-        >
-          <GripVertical className="size-4" />
-        </button>
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{st.name}</p>
           <p className="text-muted-foreground truncate text-sm">
@@ -360,7 +348,10 @@ function ServiceTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[88svh] flex-col sm:max-w-lg">
+      <DialogContent
+        className="flex max-h-[88svh] flex-col sm:max-w-lg"
+        onEscapeKeyDown={keepOpenWhileDragging}
+      >
         <DialogHeader>
           <DialogTitle>
             {serviceType ? 'Edit service type' : 'New service type'}

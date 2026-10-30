@@ -32,7 +32,7 @@ Church-specific configuration (name, logo, timezone, email sender) lives in a si
 | Routing | React Router | Code-split routes per module |
 | Server state | TanStack Query | All Supabase reads/writes go through query/mutation hooks |
 | Forms/validation | react-hook-form + Zod | Zod schemas at every boundary |
-| Drag & drop | dnd-kit | Every reorderable list — sensors and row drag from `src/lib/reorder.ts` (mouse drags the row, a finger holds the grip) |
+| Drag & drop | dnd-kit | Every reorderable list — sensors, row drag and `ReorderGrip` from `src/lib/reorder.ts` / `components/reorder-grip.tsx` (a mouse drags the row, or the grip where a row is all controls; a finger holds the grip) |
 | Dates | date-fns + date-fns-tz | Store `timestamptz`; display in church timezone from `church_settings` (default `Australia/Sydney`) |
 | Backend | Supabase (Postgres, Auth, Storage, Edge Functions, pg_cron) | Project region: Sydney (ap-southeast-2) |
 | Email | Resend, called only from Supabase Edge Functions | Never email from the browser; never expose the Resend key client-side |

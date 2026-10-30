@@ -38,15 +38,13 @@ function useInvalidateServiceTypes() {
 export function useReorderServiceTypes() {
   const queryClient = useQueryClient()
   return useMutation({
+    // One transaction that writes only the order (0073), so two quick drags
+    // can't interleave and a failure can't leave half the list moved.
     mutationFn: async (ordered: ServiceTypeRow[]) => {
-      const results = await Promise.all(
-        ordered.map((st, index) =>
-          supabase.from('service_types').update({ sort_order: index }).eq('id', st.id),
-        ),
-      )
-      for (const { error } of results) {
-        if (error) throw new Error(error.message)
-      }
+      const { error } = await supabase.rpc('reorder_service_types', {
+        p_ids: ordered.map((st) => st.id),
+      })
+      if (error) throw new Error(error.message)
     },
     onMutate: async (ordered) => {
       await queryClient.cancelQueries({ queryKey: serviceTypesKey })

@@ -21,7 +21,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
-  GripVertical,
   LayoutTemplate,
   Loader2,
   MoreHorizontal,
@@ -54,7 +53,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { cn, plural } from '@/lib/utils'
-import { GRIP_CLASS, useReorderSensors, useRowDrag } from '@/lib/reorder'
+import { ReorderGrip } from '@/components/reorder-grip'
+import { useReorderSensors, useRowDrag } from '@/lib/reorder'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -176,7 +176,7 @@ function ItemRow({
 
   // With a mouse the whole row moves and a double-click edits it; a finger
   // keeps to the grip (a long-press, so a swipe scrolls) and the pen.
-  const drag = useRowDrag(listeners, { enabled: canManage, onEdit })
+  const drag = useRowDrag(listeners, { onEdit })
 
   return (
     <div
@@ -198,19 +198,13 @@ function ItemRow({
         )}
       >
         {canManage && (
-          <button
-            type="button"
-            className={cn(
-              'text-muted-foreground/60 hover:text-foreground -ml-1 p-1',
-              GRIP_CLASS,
-            )}
-            aria-label={`Reorder ${item.title}`}
+          <ReorderGrip
+            className="text-muted-foreground/60 hover:text-foreground -ml-1 p-1"
+            label={`Reorder ${item.title}`}
             {...attributes}
             {...drag.grip}
             title="Drag to move this item up or down"
-          >
-            <GripVertical className="size-4" />
-          </button>
+          />
         )}
         <span className="text-muted-foreground w-14 shrink-0 text-right text-xs tabular-nums sm:w-16 sm:text-sm">
           {time}
@@ -863,9 +857,6 @@ export function PlanPage() {
   const [confirmSetlist, setConfirmSetlist] = useState(false)
   const [sendingSetlist, setSendingSetlist] = useState(false)
 
-  // Mouse, a press-and-hold finger and the keyboard, as every list (`reorder.ts`).
-  const sensors = useReorderSensors()
-
   const plan = planQuery.data
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data])
   // BAU permissions: admins and coordinators hold them all; a member holds
@@ -875,6 +866,11 @@ export function PlanPage() {
   const canPublish = can('publish_plans')
   const canCreate = can('create_delete_plans')
   const canAttach = can('attach_plan_files')
+  // Mouse, a press-and-hold finger and the keyboard, as every list (`reorder.ts`);
+  // none while the order is locked, so a read-only plan adds no listeners.
+  const sensors = useReorderSensors({
+    enabled: canEdit && planQuery.data?.status !== 'published',
+  })
   const showPlanMenu = canEdit || canPublish || canCreate
 
   // arrangement id -> {arrangement, linked songs} — resolves item titles

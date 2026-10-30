@@ -2545,7 +2545,8 @@ selection or iOS callout. No `PointerSensor` is left in the app.
 - **Service types**: the card drags from anywhere; double-click edits (the pen
   and ↑ ↓ stay).
 - **Required teams** (service type edit box), **Matrix team order**, **Matrix
-  order of service** (draft plans): the row drags from anywhere; ↑ ↓ stay.
+  order of service** (draft plans): the row drags from anywhere; ↑ ↓ stay on
+  the two that have them (the Matrix order of service never had any).
 - **Sequence chips** (a plan's song box): the whole chip drags with a mouse.
 - **Lyrics editor** (section tabs and the sequence strip): grip only — a
   section's name is its menu trigger, which opens on press and would fight a
@@ -2564,7 +2565,39 @@ each, and a hold on a service type's name moved nothing (18 of 18). The run
 list's own 12 checks passed again. One harness lesson: after a sideways swipe
 the Matrix's next column slides under its sticky first column, so a test hold
 there lands on that column — scroll the grid back first.
-**Upgrade note:** none — app only.
+**Review** (0073, 2026-10-30, the user's `/code-review` of `f0a145c`; findings
+checked, the user took the recommendation):
+- **Bug:** service types reordered by one `update` per row, sent side by side
+  from the browser (against the one-transaction rule), and a card could be
+  dragged again while that was saving — two quick drags could interleave into
+  a blend of both orders. `reorder_service_types(p_ids)` (0073, security
+  invoker, as `reorder_plan_items`) writes the order in one statement, and a
+  card can't be dragged while it saves.
+- **Regression:** the lyrics editor's grips moved a section with the middle or
+  back button — the "main button only" check lived in `useRowDrag`, which grip-
+  only lists don't use. It now lives in the sensor (`MainButtonMouseSensor`),
+  which also refuses Ctrl, so a Mac's Ctrl+click opens its context menu.
+- Escape mid-drag in a dialog (team order, service type, the song box) closed
+  the dialog and its unsaved edits: `keepOpenWhileDragging` on the dialog's
+  `onEscapeKeyDown` lets the drag cancel instead.
+- The grip is one component, `ReorderGrip`, with a touch target reaching 6 px
+  past its icon — the Matrix order and sequence-chip grips were 12–18 px.
+- A double-click on the grip no longer edits; a pen's double-click does. The
+  row's own controls are matched only inside the row, and now include
+  `label`, `summary`, `[role=button]`, `[role=menuitem]` and editable text.
+- Read-only lists (published plans, Matrix columns nobody here can reorder)
+  get no sensors, so they add no non-passive `touchmove` listener to the
+  window. Sensor options are module constants and the sensor list a fixed
+  length; `useRowDrag` reads "can drag" from dnd-kit's `listeners`.
+- Not taken: pen *dragging* on a Windows tablet (unverifiable here).
+Verified: 14 new checks in headless Chromium — one RPC call per reorder and
+the order kept on reload, Ctrl+drag and a grip double-click doing nothing,
+Escape mid-drag keeping the dialog and its typed name, a middle-button drag
+leaving the lyrics alone, holds just outside the small grips landing on them;
+the 18 all-lists and 12 run-list checks again; and at the API, a member's call
+to the RPC changes nothing (RLS) and anon's is refused.
+**Upgrade note:** `db push` (0073) before the app — the app calls
+`reorder_service_types`, which an older database lacks.
 
 (no migration) **The projection API sends the song's sequence** (2026-10-26, the
 user's call): `GET …/plans/:id/lyrics` gives every song a `sequence` — the order

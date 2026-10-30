@@ -517,10 +517,15 @@ has a **handle** (⋮⋮) at its left.
 - **With the keyboard,** tab to a handle, press Space to pick the item up, the
   arrow keys to move it, and Space again to drop it (not in a lyrics editor).
 
+Changed your mind mid-drag? Press **Escape** and the item goes back where it
+was — in a box like *Edit service type*, the box stays open with your other
+changes. Only the left mouse button drags; a right-click (or Ctrl+click on a
+Mac) still opens your browser's menu.
+
 Where a list has **↑ ↓** buttons, they move an item one place at a time — handy
-on a small screen. Where a row can be edited, a mouse can also **double-click**
-it to open its edit box (a plan's items, service types); on a phone, use its
-pen or **⋯ → Edit**.
+on a small screen. Where a row can be edited, a mouse or pen can also
+**double-click** it to open its edit box (a plan's items, service types); on a
+phone, use its pen or **⋯ → Edit**.
 
 ## 4.7 Your pad and click
 

@@ -25,7 +25,6 @@ import {
   Eye,
   EyeOff,
   Grid3x3,
-  GripVertical,
   Loader2,
   Mail,
   Minus,
@@ -62,7 +61,8 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { GRIP_CLASS, useReorderSensors, useRowDrag } from '@/lib/reorder'
+import { ReorderGrip } from '@/components/reorder-grip'
+import { useReorderSensors, useRowDrag } from '@/lib/reorder'
 import {
   AssignPersonDialog,
   type PickerTarget,
@@ -567,7 +567,7 @@ function OrderItemRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id, disabled: !canManage })
-  const drag = useRowDrag(listeners, { enabled: canManage })
+  const drag = useRowDrag(listeners)
   const isHeader = item.kind === 'header'
   return (
     <div
@@ -581,19 +581,14 @@ function OrderItemRow({
       )}
     >
       {canManage && (
-        <button
-          type="button"
-          className={cn(
-            'text-muted-foreground/50 hover:text-foreground -ml-0.5 shrink-0',
-            GRIP_CLASS,
-          )}
-          aria-label={`Reorder ${item.title}`}
+        <ReorderGrip
+          className="text-muted-foreground/50 hover:text-foreground -ml-0.5 shrink-0"
+          label={`Reorder ${item.title}`}
           {...attributes}
           {...drag.grip}
           title="Drag to reorder this service's order"
-        >
-          <GripVertical className="size-3" />
-        </button>
+          iconClassName="size-3"
+        />
       )}
       {startsAt && (
         <span className="text-muted-foreground w-8 shrink-0 text-right text-[11px] tabular-nums">
@@ -641,7 +636,9 @@ function MatrixOrderCell({
       ),
     [items, plan.date, plan.start_time, plan.service_types.default_start_time],
   )
-  const sensors = useReorderSensors()
+  // A column nobody here can reorder (published, or no permission) gets no
+  // sensors, so it adds no listeners to the page.
+  const sensors = useReorderSensors({ enabled: canManage })
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event

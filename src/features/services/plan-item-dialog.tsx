@@ -54,6 +54,7 @@ import {
   useSongLengthAvailable,
 } from '@/features/services/use-song-length'
 import { cn } from '@/lib/utils'
+import { keepOpenWhileDragging } from '@/lib/reorder'
 
 /** A song picked in the SongPickerDialog, on its way onto the plan. */
 export interface PickedSong {
@@ -584,7 +585,10 @@ export function PlanItemDialog({
       {/* A song's box carries the sequence chips, which wrap onto more rows
           the longer the song: wider so they wrap less, and never taller than
           the screen — past that it scrolls inside, footer and all. */}
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className="max-h-[90svh] overflow-y-auto sm:max-w-2xl"
+        onEscapeKeyDown={keepOpenWhileDragging}
+      >
         <DialogHeader>
           <DialogTitle>{heading}</DialogTitle>
           <DialogDescription>

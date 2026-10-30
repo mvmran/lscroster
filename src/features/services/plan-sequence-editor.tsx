@@ -11,7 +11,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronRight, GripVertical, Plus, RotateCcw, X } from 'lucide-react'
+import { ChevronRight, Plus, RotateCcw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -25,7 +25,8 @@ import {
 } from '@/features/services/lyric-sections'
 import { tintOf } from '@/features/services/section-tints'
 import { cn } from '@/lib/utils'
-import { GRIP_CLASS, useReorderSensors, useRowDrag } from '@/lib/reorder'
+import { ReorderGrip } from '@/components/reorder-grip'
+import { useReorderSensors, useRowDrag } from '@/lib/reorder'
 
 const kindOf = (label: string) => matchLyricSectionHeader(label)?.kind ?? 'unlabeled'
 
@@ -57,19 +58,17 @@ function SequenceChip({
         isDragging && 'z-10 opacity-70 shadow-md',
       )}
     >
-      <button
-        type="button"
-        aria-label={`Drag to move ${label}`}
+      <ReorderGrip
+        label={`Drag to move ${label}`}
         title={`Drag to move ${label}`}
         className={cn(
-          'shrink-0 py-1 pl-1.5 opacity-60 hover:opacity-100 active:cursor-grabbing',
-          GRIP_CLASS,
+          'shrink-0 py-1 pl-1.5',
+          'opacity-60 hover:opacity-100 active:cursor-grabbing',
         )}
         {...attributes}
         {...drag.grip}
-      >
-        <GripVertical className="size-2.5" />
-      </button>
+        iconClassName="size-2.5"
+      />
       <span
         aria-label={label}
         title={label}

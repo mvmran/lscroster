@@ -12,7 +12,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowDown, ArrowUp, GripVertical } from 'lucide-react'
+import { ArrowDown, ArrowUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -23,7 +23,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { GRIP_CLASS, useReorderSensors, useRowDrag } from '@/lib/reorder'
+import { ReorderGrip } from '@/components/reorder-grip'
+import { keepOpenWhileDragging, useReorderSensors, useRowDrag } from '@/lib/reorder'
 
 /** The minimal team shape the reorder list needs. */
 export interface OrderableTeam {
@@ -31,7 +32,7 @@ export interface OrderableTeam {
   name: string
 }
 
-/** One reorderable row: drag handle (desktop mouse / keyboard) + up/down arrows. */
+/** One reorderable row: a mouse drags it, a finger holds its grip; up/down arrows too. */
 function SortableTeamRow({
   team,
   index,
@@ -58,19 +59,13 @@ function SortableTeamRow({
         isDragging && 'relative z-10 opacity-80 shadow-sm',
       )}
     >
-      <button
-        type="button"
-        className={cn(
-          'text-muted-foreground/60 hover:text-foreground -ml-1 p-1',
-          GRIP_CLASS,
-        )}
-        aria-label={`Drag ${team.name} to reorder`}
+      <ReorderGrip
+        className="text-muted-foreground/60 hover:text-foreground -ml-1 p-1"
+        label={`Drag ${team.name} to reorder`}
         title="Drag to reorder"
         {...attributes}
         {...drag.grip}
-      >
-        <GripVertical className="size-4" />
-      </button>
+      />
       <span className="min-w-0 flex-1 truncate font-medium">{team.name}</span>
       <Button
         variant="ghost"
@@ -98,9 +93,8 @@ function SortableTeamRow({
 
 /**
  * Reorder the Matrix team sections for the "All service types" view (issue #33).
- * Drag-and-drop on desktop via dnd-kit (issue #49), with up/down arrows kept as a
- * touch-friendly + keyboard-accessible fallback — mirrors the order-of-service
- * reorder in plan-page. Works on local state until Save, then hands the ordered
+ * Dragged as every list is (`lib/reorder.ts`; issue #49), with up/down arrows
+ * kept as a one-step fallback. Works on local state until Save, then hands the ordered
  * ids back to the caller (which persists them per-login in localStorage).
  *
  * Rendered only while open (like AssignPersonDialog), so `items` initialises
@@ -145,7 +139,7 @@ export function MatrixTeamOrderDialog({
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent onEscapeKeyDown={keepOpenWhileDragging}>
         <DialogHeader>
           <DialogTitle>Reorder teams</DialogTitle>
           <DialogDescription>

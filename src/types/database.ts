@@ -2315,6 +2315,7 @@ export type Database = {
         Args: { p_item_ids: string[]; p_plan_id: string }
         Returns: undefined
       }
+      reorder_service_types: { Args: { p_ids: string[] }; Returns: undefined }
       replace_person_permissions: {
         Args: {
           p_permissions: Database["public"]["Enums"]["app_permission"][]
