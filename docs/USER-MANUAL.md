@@ -150,6 +150,7 @@ says who, directly under its heading.
 | Give someone a job without making them a coordinator | [§12.10](#1210-grant-someone-a-permission-or-team-access) |
 | Put a document on everyone's Home screen | [§12.12](#1212-put-a-document-on-the-notice-board) |
 | Print a run sheet or lyrics sheet | [§11.4](#114-printing-and-pdf-run-sheets) |
+| Move things in a list (mouse or phone) | [§4.6](#46-reordering-lists) |
 | A word I don't recognise | [Glossary](#a-glossary) |
 | Something isn't working | [Troubleshooting](#c-troubleshooting--faq) |
 
@@ -498,7 +499,30 @@ Press the sun icon at the top right and choose **Light**, **Dark** or
 **System** (follow your phone or computer's setting). The choice is remembered
 on that device.
 
-## 4.6 Your pad and click
+## 4.6 Reordering lists
+
+Every list you can put in order works the same way: a plan's order of service,
+service types and their required teams, the Matrix's order of service and team
+order, a plan's song sequence, and the sections of a song's lyrics. Each item
+has a **handle** (⋮⋮) at its left.
+
+- **With a mouse,** drag an item from anywhere on its row — or its chip — to
+  move it. It moves once the mouse has gone a few pixels, so a plain click is
+  still a click, and pressing one of its own buttons (a pen, ⋯, ↑ ↓ or ×) just
+  presses that button. In a lyrics editor, drag a section by its handle:
+  clicking its name opens its menu instead.
+- **On a phone or tablet,** press and hold the handle until the item lifts,
+  then drag. A quick swipe over a list just scrolls it, so you can't move
+  anything by accident.
+- **With the keyboard,** tab to a handle, press Space to pick the item up, the
+  arrow keys to move it, and Space again to drop it (not in a lyrics editor).
+
+Where a list has **↑ ↓** buttons, they move an item one place at a time — handy
+on a small screen. Where a row can be edited, a mouse can also **double-click**
+it to open its edit box (a plan's items, service types); on a phone, use its
+pen or **⋯ → Edit**.
+
+## 4.7 Your pad and click
 
 **Who:** everyone. **Where:** Settings → **Sounds**.
 
@@ -749,7 +773,9 @@ A service type is a regular gathering. **Add service type** and give it:
 - the **Teams required** — the teams that serve at it, in the order they appear
   on a plan. A service type with no teams shows every team.
 
-Drag service types (or use the arrows) to change their order.
+Drag service types (or use the arrows) to change their order, and the required
+teams in a service type's edit box the same way (§4.6). With a mouse, you can
+also double-click a service type to edit it.
 
 > **Warning** — Deleting a service type also deletes **every plan** of that
 > type. It can't be undone.
@@ -835,7 +861,8 @@ mouse, you can also double-click any item to edit it.
 tablet, move an item by its handle: press and hold the handle until the item
 lifts, then drag; a quick swipe over the row just scrolls the plan, so you
 can't move a song by accident. A double tap doesn't edit — use the pen or
-**⋯ → Edit**. The start time of every item is recalculated as you go, from the
+**⋯ → Edit**. (Every list moves this way — §4.6.) The start time of every item
+is recalculated as you go, from the
 plan's start time and the lengths above it; the total length and finishing time
 appear under the plan's title.
 
@@ -899,7 +926,8 @@ shows under its sequence, in the same small grey type, on screen and printed.
 **This plan's sequence.** The song's box (adding a song or editing one) has a
 **Sequence** row under Key and BPM, as coloured chips in short form (*V1*,
 *C*, *B* — hover or press for the full name). It starts as the song's
-own sequence. Drag a chip by its grip to move it, press **×** to drop it, or
+own sequence. Drag a chip to move it (with a mouse, from anywhere on it; on a
+phone, press and hold its handle — §4.6), press **×** to drop it, or
 **Add** to put any of the song's sections on the end — the same one as often as
 it is sung. The order is kept for this plan only: the Lyrics Sheet shows it,
 and the song, and any other plan it is on, keep their own. Add the same song
@@ -994,9 +1022,9 @@ The **Arrangements** card has one tab per arrangement. Each has:
 - a **Name** (e.g. *Default*, *Acoustic*, *Christmas*);
 - a **Key**, **BPM** and **Meter** (e.g. 4/4). After the meter, three small
   buttons play them: the **waveform** starts a pad in the key, in your own pad
-  sound (§4.6), that plays until you press ⏸; the **piano** plays a short I–IV–V–I so
+  sound (§4.7), that plays until you press ⏸; the **piano** plays a short I–IV–V–I so
   you can hear the key; the **metronome** clicks at the tempo, at your click
-  volume (§4.6) — beat 1 accented by the meter, a plain click without one (6/8
+  volume (§4.7) — beat 1 accented by the meter, a plain click without one (6/8
   counts the dotted beat). The pad
   and the metronome can play together; all stop when you leave the page or
   switch arrangement;
@@ -1031,6 +1059,12 @@ the song.
 **sequence** — the order it is sung in. It's saved with the lyrics each time you
 press **Save changes**, and the Lyrics Sheet shows it in short form (§6.5), so
 write the song out in the order it is sung.
+
+**Moving sections.** Each section has a coloured tab down the left of the
+lyrics, and a chip in the sequence strip. Drag either by its handle to move the
+section, in every pane at once; on a phone, press and hold the handle first
+(§4.6). Click a section's name for **Duplicate section**, **Move up**, **Move
+down** or **Delete section**.
 
 **What isn't saved yet.** Every box — Lyrics, Native, Meaning and Chords —
 marks your changes until you press **Save changes**. A **red bar** at the box's
@@ -1258,14 +1292,16 @@ left, services across the top — so you can roster a month in one sitting.
 - **Prev / Now / Next** move through the services; **Columns − / +** shows fewer
   or more at once. Filter by service type at the top.
 - Each column starts with the plan's **order of service** (hide those rows with
-  the eye button beside *Order*).
+  the eye button beside *Order*). On a draft plan you can reorder it there, as
+  on the plan itself (§4.6).
 - Each cell shows who is scheduled, coloured by status. A **red dashed +** is a
   required spot that's still empty. Click **+** to schedule someone; the **⋯**
   beside a cell sets that position's minimum for that service.
 - Each team's row has three buttons per service: **✨** suggest a roster (§8.5),
   **send** that team's unsent requests, and **⊗** cancel its unsent requests.
-- **Reorder teams** changes the order teams appear in; the eye button on a
-  column hides that service.
+- **Reorder teams** changes the order teams appear in (drag them, or use the
+  arrows — §4.6); it shows when the services on screen are of more than one
+  type. The eye button on a column hides that service.
 - **Bulk email** sends every outstanding request in the services on screen, for
   a team or a person you choose.
 

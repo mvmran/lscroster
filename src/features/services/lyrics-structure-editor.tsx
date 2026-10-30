@@ -10,12 +10,9 @@ import {
   closestCenter,
   DndContext,
   DragOverlay,
-  PointerSensor,
   pointerWithin,
   useDraggable,
   useDroppable,
-  useSensor,
-  useSensors,
   type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
@@ -74,6 +71,7 @@ import {
 } from '@/features/services/lyric-sections'
 import { tintOf } from '@/features/services/section-tints'
 import { cn } from '@/lib/utils'
+import { GRIP_CLASS, useReorderSensors } from '@/lib/reorder'
 
 // Prefer the chip directly under the pointer; fall back to nearest centre so
 // a drop in the gap between small chips still lands somewhere sensible.
@@ -377,7 +375,10 @@ function SectionChevron({
         type="button"
         aria-label={`Drag to move ${section.label}`}
         title={`Drag to move ${section.label}`}
-        className="shrink-0 cursor-grab touch-none py-1.5 pl-0.5 opacity-70 hover:opacity-100 active:cursor-grabbing"
+        className={cn(
+          'shrink-0 py-1.5 pl-0.5 opacity-70 hover:opacity-100 active:cursor-grabbing',
+          GRIP_CLASS,
+        )}
         {...attributes}
         {...listeners}
       >
@@ -433,7 +434,10 @@ function FlowPill({
         type="button"
         aria-label={`Drag to move ${section.label}`}
         title={`Drag to move ${section.label}`}
-        className="shrink-0 cursor-grab touch-none py-1 pl-1.5 opacity-70 hover:opacity-100 active:cursor-grabbing"
+        className={cn(
+          'shrink-0 py-1 pl-1.5 opacity-70 hover:opacity-100 active:cursor-grabbing',
+          GRIP_CLASS,
+        )}
         {...attributes}
         {...listeners}
       >
@@ -591,9 +595,10 @@ export function LyricsStructureEditor({
   const [baseFocused, setBaseFocused] = useState(false)
   const baseOverlayRef = useRef<HTMLDivElement>(null)
   const paneOverlayRef = useRef<HTMLDivElement>(null)
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-  )
+  // Grip only, mouse or finger (a press-and-hold, so the gutter beside a long
+  // song still scrolls). No keyboard: these are drop targets found under the
+  // pointer, which the keyboard sensor has none of.
+  const sensors = useReorderSensors({ keyboard: false })
   const split = activeLayer !== null
 
   const indexOfId = (dndId: string | number) => Number(String(dndId).slice(2))

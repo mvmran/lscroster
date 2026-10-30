@@ -2,17 +2,12 @@ import { useState } from 'react'
 import {
   closestCenter,
   DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
@@ -27,6 +22,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
+import { GRIP_CLASS, useReorderSensors, useRowDrag } from '@/lib/reorder'
 
 /** The minimal team shape the reorder list needs. */
 export interface OrderableTeam {
@@ -48,22 +45,29 @@ function SortableTeamRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: team.id })
+  const drag = useRowDrag(listeners)
 
   return (
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex items-center gap-2 rounded-md border bg-card px-2 py-2 ${
-        isDragging ? 'relative z-10 opacity-80 shadow-sm' : ''
-      }`}
+      {...drag.row}
+      className={cn(
+        'flex items-center gap-2 rounded-md border bg-card px-2 py-2',
+        drag.rowClassName,
+        isDragging && 'relative z-10 opacity-80 shadow-sm',
+      )}
     >
       <button
         type="button"
-        className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1"
+        className={cn(
+          'text-muted-foreground/60 hover:text-foreground -ml-1 p-1',
+          GRIP_CLASS,
+        )}
         aria-label={`Drag ${team.name} to reorder`}
         title="Drag to reorder"
         {...attributes}
-        {...listeners}
+        {...drag.grip}
       >
         <GripVertical className="size-4" />
       </button>
@@ -113,10 +117,7 @@ export function MatrixTeamOrderDialog({
 }) {
   const [items, setItems] = useState<OrderableTeam[]>(teams)
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  const sensors = useReorderSensors()
 
   function move(index: number, direction: -1 | 1) {
     setItems((prev) => {

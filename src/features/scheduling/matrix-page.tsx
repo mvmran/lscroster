@@ -3,17 +3,12 @@ import { useQuery } from '@tanstack/react-query'
 import {
   closestCenter,
   DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
@@ -66,6 +61,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
+import { GRIP_CLASS, useReorderSensors, useRowDrag } from '@/lib/reorder'
 import {
   AssignPersonDialog,
   type PickerTarget,
@@ -570,22 +567,29 @@ function OrderItemRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id, disabled: !canManage })
+  const drag = useRowDrag(listeners, { enabled: canManage })
   const isHeader = item.kind === 'header'
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex items-center gap-1 rounded px-1 py-0.5 ${
-        isDragging ? 'bg-accent relative z-10' : ''
-      }`}
+      {...drag.row}
+      className={cn(
+        'flex items-center gap-1 rounded px-1 py-0.5',
+        drag.rowClassName,
+        isDragging && 'bg-accent relative z-10',
+      )}
     >
       {canManage && (
         <button
           type="button"
-          className="text-muted-foreground/50 hover:text-foreground -ml-0.5 shrink-0 cursor-grab touch-none"
+          className={cn(
+            'text-muted-foreground/50 hover:text-foreground -ml-0.5 shrink-0',
+            GRIP_CLASS,
+          )}
           aria-label={`Reorder ${item.title}`}
           {...attributes}
-          {...listeners}
+          {...drag.grip}
           title="Drag to reorder this service's order"
         >
           <GripVertical className="size-3" />
@@ -637,10 +641,7 @@ function MatrixOrderCell({
       ),
     [items, plan.date, plan.start_time, plan.service_types.default_start_time],
   )
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  const sensors = useReorderSensors()
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event

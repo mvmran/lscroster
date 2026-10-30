@@ -2491,10 +2491,11 @@ the order alone; hold 400 ms then drag moved a song two places with the page
 still; a press that wandered 64 px before the hold did nothing; a desktop
 mouse drag still moved an item with no hold. The same script against the old
 code dragged on the swipe and didn't scroll.
-- [ ] Other reorderable lists still drag on touch after 5 px: the plan's song
+- [x] Other reorderable lists still drag on touch after 5 px: the plan's song
   sequence editor, the lyrics structure editor, service types and their team
   order, and on the Matrix both the order-of-service cell (`MatrixOrderCell`,
-  the same plan items) and the team order. Same change if they bite.
+  the same plan items) and the team order. Same change if they bite. Done
+  2026-10-30 — see "Every list reorders the same way" below.
 **Upgrade note:** none — app only.
 
 (no migration) **On a desktop, double-click a run-list row to edit it, and drag
@@ -2528,6 +2529,41 @@ recommendation):
 - USER-MANUAL §6.3: only songs have the pen — other items edit from ⋯.
 Verified: the run-list script again, plus a middle-button drag moving nothing
 (12 of 12 passed).
+**Upgrade note:** none — app only.
+
+(no migration) **Every list reorders the same way** (2026-10-30, the user's
+call, from a survey of the six other lists): one module, `src/lib/reorder.ts`,
+holds it — `useReorderSensors()` (mouse after 5 px; a finger after a 250 ms
+hold within 5 px; the keyboard on a sortable list) and `useRowDrag(listeners,
+{ enabled, onEdit })`, which hands the row the mouse listener and the grip the
+touch and keyboard ones, left button only, with presses on the row's own
+buttons, links and fields (and its portalled menus) left to them, and a
+double-click that edits only when the press was a mouse. `GRIP_CLASS` makes
+every grip `touch-manipulation` (no `touch-none`, so a swipe scrolls) with no
+selection or iOS callout. No `PointerSensor` is left in the app.
+- **Plan run list**: moved onto the module, unchanged in behaviour.
+- **Service types**: the card drags from anywhere; double-click edits (the pen
+  and ↑ ↓ stay).
+- **Required teams** (service type edit box), **Matrix team order**, **Matrix
+  order of service** (draft plans): the row drags from anywhere; ↑ ↓ stay.
+- **Sequence chips** (a plan's song box): the whole chip drags with a mouse.
+- **Lyrics editor** (section tabs and the sequence strip): grip only — a
+  section's name is its menu trigger, which opens on press and would fight a
+  drag — and no keyboard sensor: its drops are found under the pointer
+  (`pointerWithin`), which keyboard moves don't have.
+- USER-MANUAL: a new §4.6 "Reordering lists" (pad and click is now §4.7, its
+  two cross-references updated), pointers from §6.1, §6.3, §6.5, §8.3, a new
+  "Moving sections" paragraph in §7.3, and a quick-reference row.
+Verified in headless Chromium on the local stack (two throwaway service types,
+the 12-item demo plan moved to next week as a draft, one draft plan given the
+other type so the Matrix offers Reorder teams; all restored): desktop — each
+list moved by dragging its text, a service type opened on double-click, ↑
+still worked, a lyrics section moved by its grip; phone — a swipe on a grip
+left service types, the Matrix and the lyrics alone, a hold on the grip moved
+each, and a hold on a service type's name moved nothing (18 of 18). The run
+list's own 12 checks passed again. One harness lesson: after a sideways swipe
+the Matrix's next column slides under its sticky first column, so a test hold
+there lands on that column — scroll the grid back first.
 **Upgrade note:** none — app only.
 
 (no migration) **The projection API sends the song's sequence** (2026-10-26, the

@@ -1,19 +1,13 @@
-import { useMemo, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import { useMemo, useState } from 'react'
 import {
   closestCenter,
   DndContext,
-  KeyboardSensor,
-  MouseSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
@@ -60,6 +54,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { cn, plural } from '@/lib/utils'
+import { GRIP_CLASS, useReorderSensors, useRowDrag } from '@/lib/reorder'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -180,33 +175,8 @@ function ItemRow({
   const time = startsAt ? formatClock(startsAt) : offsetLabel(offsetSeconds)
 
   // With a mouse the whole row moves and a double-click edits it; a finger
-  // keeps to the grip (a long-press, so a swipe scrolls) and the pen. So the
-  // row takes the mouse sensor's listener and the grip the touch and keyboard
-  // ones — a press on the grip still bubbles up to the row. A press on the
-  // row's own buttons is theirs, and so is one inside the actions menu, which
-  // React bubbles through to the row although it is portalled out of it. Only
-  // the main button drags: a middle-click to autoscroll or paste must not move
-  // a song. Whether a double-click came from a mouse is read from the press
-  // itself, not the device's main pointer — an iPad with a trackpad has a mouse,
-  // and a finger on a touchscreen laptop is still a finger.
-  const fromRow = (e: MouseEvent) =>
-    e.button === 0 &&
-    e.currentTarget.contains(e.target as Node) &&
-    !(e.target as Element).closest('button:not([data-grip]), a, input, textarea')
-  const pressedWith = useRef('')
-  const rowEvents = canManage
-    ? {
-        onPointerDown: (e: PointerEvent) => {
-          pressedWith.current = e.pointerType
-        },
-        onMouseDown: (e: MouseEvent) => {
-          if (fromRow(e)) listeners?.onMouseDown?.(e)
-        },
-        onDoubleClick: (e: MouseEvent) => {
-          if (fromRow(e) && pressedWith.current === 'mouse') onEdit()
-        },
-      }
-    : {}
+  // keeps to the grip (a long-press, so a swipe scrolls) and the pen.
+  const drag = useRowDrag(listeners, { enabled: canManage, onEdit })
 
   return (
     <div
@@ -219,23 +189,24 @@ function ItemRow({
       }
     >
       <div
-        {...rowEvents}
+        {...drag.row}
         className={cn(
           isHeader
             ? 'bg-muted/60 flex items-center gap-2 rounded-md px-2 py-2'
             : 'hover:bg-accent/40 flex items-center gap-2 rounded-md px-2 py-2.5',
-          canManage && 'any-pointer-fine:cursor-grab any-pointer-fine:select-none',
+          drag.rowClassName,
         )}
       >
         {canManage && (
           <button
             type="button"
-            data-grip
-            className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-manipulation p-1 select-none [-webkit-touch-callout:none]"
+            className={cn(
+              'text-muted-foreground/60 hover:text-foreground -ml-1 p-1',
+              GRIP_CLASS,
+            )}
             aria-label={`Reorder ${item.title}`}
             {...attributes}
-            onTouchStart={(e) => listeners?.onTouchStart?.(e)}
-            onKeyDown={(e) => listeners?.onKeyDown?.(e)}
+            {...drag.grip}
             title="Drag to move this item up or down"
           >
             <GripVertical className="size-4" />
@@ -892,19 +863,8 @@ export function PlanPage() {
   const [confirmSetlist, setConfirmSetlist] = useState(false)
   const [sendingSetlist, setSendingSetlist] = useState(false)
 
-  // A finger has to press and hold the grip before it drags: a swipe that
-  // starts on it scrolls the page (the grip is `touch-manipulation`, not
-  // `touch-none`), so scrolling a plan on a phone can't move a song by
-  // accident. Moving more than the tolerance during the hold cancels the drag.
-  // `ItemRow` hands each sensor's listener out by name — `onMouseDown` to the
-  // row, `onTouchStart` and `onKeyDown` to the grip — so a sensor added here
-  // (a `PointerSensor`'s `onPointerDown`, say) must be wired there too, or it
-  // is never attached and dragging quietly stops.
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  // Mouse, a press-and-hold finger and the keyboard, as every list (`reorder.ts`).
+  const sensors = useReorderSensors()
 
   const plan = planQuery.data
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data])

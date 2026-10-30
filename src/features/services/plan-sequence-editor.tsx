@@ -2,17 +2,12 @@ import { Fragment, useMemo } from 'react'
 import {
   closestCenter,
   DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
 import {
   arrayMove,
   rectSortingStrategy,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -30,6 +25,7 @@ import {
 } from '@/features/services/lyric-sections'
 import { tintOf } from '@/features/services/section-tints'
 import { cn } from '@/lib/utils'
+import { GRIP_CLASS, useReorderSensors, useRowDrag } from '@/lib/reorder'
 
 const kindOf = (label: string) => matchLyricSectionHeader(label)?.kind ?? 'unlabeled'
 
@@ -47,13 +43,17 @@ function SequenceChip({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id })
+  // A mouse drags the whole chip; a finger, the grip after a press-and-hold.
+  const drag = useRowDrag(listeners)
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
+      {...drag.row}
       className={cn(
         'flex items-center rounded-full shadow-xs',
         tintOf(kindOf(label)).chip,
+        drag.rowClassName,
         isDragging && 'z-10 opacity-70 shadow-md',
       )}
     >
@@ -61,9 +61,12 @@ function SequenceChip({
         type="button"
         aria-label={`Drag to move ${label}`}
         title={`Drag to move ${label}`}
-        className="shrink-0 cursor-grab touch-none py-1 pl-1.5 opacity-60 hover:opacity-100 active:cursor-grabbing"
+        className={cn(
+          'shrink-0 py-1 pl-1.5 opacity-60 hover:opacity-100 active:cursor-grabbing',
+          GRIP_CLASS,
+        )}
         {...attributes}
-        {...listeners}
+        {...drag.grip}
       >
         <GripVertical className="size-2.5" />
       </button>
@@ -121,10 +124,7 @@ export function PlanSequenceEditor({
   // Chips read short ("V1"), as on the Lyrics Sheet; the Add menu stays long,
   // since that is where a section is picked by name.
   const steps = useMemo(() => sequenceSteps(value), [value])
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  const sensors = useReorderSensors()
 
   function handleDragEnd({ active, over }: DragEndEvent) {
     if (!over || active.id === over.id) return

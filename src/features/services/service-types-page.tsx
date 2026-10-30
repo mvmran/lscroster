@@ -2,17 +2,12 @@ import { useState } from 'react'
 import {
   closestCenter,
   DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
@@ -32,7 +27,8 @@ import { toast } from 'sonner'
 import { EmptyState } from '@/components/empty-state'
 import { PageHeader } from '@/components/page-header'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { plural } from '@/lib/utils'
+import { cn, plural } from '@/lib/utils'
+import { GRIP_CLASS, useReorderSensors, useRowDrag } from '@/lib/reorder'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -93,22 +89,29 @@ function SortableRequiredTeam({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id })
+  const drag = useRowDrag(listeners)
 
   return (
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`bg-card flex items-center gap-1 rounded-md border px-2 py-1.5 text-sm ${
-        isDragging ? 'relative z-10 opacity-80 shadow-sm' : ''
-      }`}
+      {...drag.row}
+      className={cn(
+        'bg-card flex items-center gap-1 rounded-md border px-2 py-1.5 text-sm',
+        drag.rowClassName,
+        isDragging && 'relative z-10 opacity-80 shadow-sm',
+      )}
     >
       <button
         type="button"
-        className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1"
+        className={cn(
+          'text-muted-foreground/60 hover:text-foreground -ml-1 p-1',
+          GRIP_CLASS,
+        )}
         aria-label={`Drag ${name} to reorder`}
         title="Drag to reorder"
         {...attributes}
-        {...listeners}
+        {...drag.grip}
       >
         <GripVertical className="size-4" />
       </button>
@@ -172,6 +175,9 @@ function SortableServiceTypeCard({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: st.id })
+  // With a mouse the whole card moves and a double-click edits it; a finger
+  // keeps to the grip (a long-press) and the pen.
+  const drag = useRowDrag(listeners, { onEdit })
 
   return (
     <div
@@ -179,15 +185,21 @@ function SortableServiceTypeCard({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={isDragging ? 'relative z-10 opacity-80' : undefined}
     >
-      <Card className={`py-3 ${isDragging ? 'shadow-md' : ''}`}>
+      <Card
+        {...drag.row}
+        className={cn('py-3', drag.rowClassName, isDragging && 'shadow-md')}
+      >
         <CardContent className="flex items-center gap-1 px-4">
         <button
           type="button"
-          className="text-muted-foreground/60 hover:text-foreground -ml-1 cursor-grab touch-none p-1"
+          className={cn(
+            'text-muted-foreground/60 hover:text-foreground -ml-1 p-1',
+            GRIP_CLASS,
+          )}
           aria-label={`Drag ${st.name} to reorder`}
           title="Drag to reorder"
           {...attributes}
-          {...listeners}
+          {...drag.grip}
         >
           <GripVertical className="size-4" />
         </button>
@@ -303,10 +315,7 @@ function ServiceTypeDialog({
     )
   }
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  const sensors = useReorderSensors()
 
   // Reorder the required teams (#31 arrows, #50 drag) — persisted on save.
   function moveTeam(index: number, direction: -1 | 1) {
@@ -545,10 +554,7 @@ export function ServiceTypesPage() {
   const [deleting, setDeleting] = useState<ServiceType | null>(null)
   const impact = useServiceTypeDeleteImpact(deleting?.id ?? null)
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  const sensors = useReorderSensors()
 
   function move(index: number, direction: -1 | 1) {
     if (!serviceTypes) return
