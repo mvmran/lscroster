@@ -31,7 +31,8 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
 - Service types (e.g. "Sunday 10am") and dated plans, with recurring plan
   generation — create the next eight Sundays in one go
 - Drag-and-drop order of service: headers, songs and items with durations and a
-  running clock
+  running clock — drag with a mouse, or press and hold on a phone so a swipe
+  still scrolls
 - Multiple times per plan (rehearsal + service), shown in emails and My Schedule
 - Print-ready run sheet and PDF export; lyrics sheets for the band
 - Plan attachments and notes; draft vs published, so nobody sees a half-built plan
@@ -39,7 +40,12 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
 **Songs**
 - Song library with authors, CCLI numbers, copyright, tags and usage reports
   (frequency, last played, by service type)
-- Arrangements per song — key, BPM, meter, reference recordings, versioned lyrics
+- Arrangements per song — key, BPM, meter, versioned lyrics and several
+  reference recordings, each plan picking the one it follows
+- A song's sequence — the order it is sung — saved with its lyrics and changed
+  per plan; the Lyrics Sheet prints it, each section once or written out in full
+- Section headings kept tidy: number the sections that share a heading, or put
+  every heading in one form (`Verse 1`, `Chorus`), in one click
 - Medleys: one arrangement spanning several songs, counted for every song it
   contains
 - Multi-lingual songs: alongside the singable lyrics, each line can carry the
@@ -78,8 +84,8 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
 **People & admin**
 - People directory that works with or without logins — half a church roll has no
   intention of ever signing in, and that is fine
-- Invite-only accounts, roles (admin / leader / member), per-team leaders and
-  read-only viewers
+- Invite-only accounts, roles (admin / coordinator / member), permissions you can
+  grant a member, and per-team access as Viewer, Scheduler or Manager
 - Managed accounts for people who need someone answering on their behalf
 - A notice board on Home — PDFs and links everyone can open, such as the user
   manual, a message of the day or the church wiki, managed from Settings
@@ -87,8 +93,8 @@ migrations first — [SETUP.md](docs/SETUP.md) walks through both halves in orde
   metronome, synthesised in the browser — each person picks their own pad sound
   and click volume
 - Contact-detail visibility rules, an audit log of who changed what, and a
-  read-only Projection API for your projection software
-  ([PROJECTION-API.md](docs/PROJECTION-API.md))
+  read-only Projection API for your projection software, with a log of every
+  call and why one was refused ([PROJECTION-API.md](docs/PROJECTION-API.md))
 
 Mobile-first throughout, installable to a phone's home screen, with a dark mode
 and an accent colour you pick in Settings.

@@ -76,10 +76,10 @@ npx supabase functions deploy
 ```
 
 Safe to run every time even when nothing changed — deploying is idempotent.
-New functions are picked up automatically; two of them, `generate-meaning` and
-`lyrics-assist`, do nothing at all unless you have set the optional
-`GEMINI_API_KEY` secret (docs/SETUP.md step 6), so there is nothing to do here
-if you don't want them.
+New functions are picked up automatically; four of them, `generate-meaning`,
+`lyrics-assist`, `suggest-song` and `estimate-song-length`, do nothing at all
+unless you have set the optional `GEMINI_API_KEY` secret (docs/SETUP.md step 6),
+so there is nothing to do here if you don't want them.
 
 Do run it before the app release below, though, even if you don't use the AI
 features: the new bundle asks each function whether it is configured, and a

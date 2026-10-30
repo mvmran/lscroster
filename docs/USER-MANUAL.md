@@ -34,7 +34,7 @@
 Worship &amp; service planning for your church — plan services, schedule teams,
 and respond to requests from your phone.
 
-**Version 1.0.5**  ·  October 2026
+**Version 1.1.0**  ·  October 2026
 
 _Your Church Name_
 
@@ -50,7 +50,7 @@ _Your Church Name_
 This manual is for everyone who uses LSCroster at your church: the members who
 are rostered to serve, the coordinators who plan services and build rosters, and
 the administrators who look after the whole system. It describes LSCroster
-version 1.0.5. The app is updated from time to time, so a button or a label on
+version 1.1.0. The app is updated from time to time, so a button or a label on
 your screen may differ a little from what is written here.
 
 LSCroster is open-source software, and every church runs its **own private
@@ -2161,8 +2161,8 @@ only for teams where the member has the right team access, below.
 
 | Field | Value |
 | --- | --- |
-| Manual version | v1.0 (first release) |
-| Describes app version | 1.0.5, plus the changes since on `main` |
+| Manual version | v1.1 |
+| Describes app version | 1.1.0 |
 | Last updated | 2026-10-30 |
 | Maintainer | _name / role_ |
 
